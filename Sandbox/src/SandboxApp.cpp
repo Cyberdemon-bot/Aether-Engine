@@ -255,8 +255,21 @@ public:
         m_Shader->SetUniform3f("u_LightPos", m_LightPos);
         m_Shader->SetUniformMat4f("u_LightSpaceMatrix", lightSpaceMatrix);
 
-        // Render scene from camera's perspective
+        // 1. Vẽ cảnh vật (Chịu ảnh hưởng của ánh sáng)
+        m_Shader->SetUniform1i("u_IsLightSource", 0); // Đảm bảo tắt chế độ flat color
         RenderScene(m_Shader);
+
+        // 2. Vẽ cái đèn (Light Source) - Chỉ vẽ ở Main Pass, KHÔNG vẽ ở Shadow Pass
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
+        model = glm::scale(model, glm::vec3(0.2f));
+        
+        m_Shader->SetUniformMat4f("u_Model", model);
+        m_Shader->SetUniform1i("u_IsLightSource", 1); // Bật chế độ tự phát sáng
+        m_Shader->SetUniform3f("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f)); // Màu vàng
+        
+        Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *m_Shader);
+        
+        m_Shader->SetUniform1i("u_IsLightSource", 0); // Reset lại cho chắc
     }
 
     void RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
@@ -274,28 +287,12 @@ public:
         model = glm::scale(model, glm::vec3(m_CubeScale));
         shader->SetUniformMat4f("u_Model", model);
         Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
-
-        //Light
-        model = glm::translate(glm::mat4(1.0f), m_LightPos);
-        model = glm::scale(model, glm::vec3(0.2f));
-        shader->SetUniformMat4f("u_Model", model);
-        Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
         
         // Render floor plane
         model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
         model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
         shader->SetUniformMat4f("u_Model", model);
         Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
-
-
-        //light
-        model = glm::translate(glm::mat4(1.0f), m_LightPos);
-        model = glm::scale(model, glm::vec3(0.2f));
-        shader->SetUniformMat4f("u_Model", model);
-        shader->SetUniform1i("u_IsLightSource", 1); 
-        shader->SetUniform3f("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f)); 
-        Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
-        shader->SetUniform1i("u_IsLightSource", 0);
     }
 
     virtual void OnImGuiRender() override
