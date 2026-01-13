@@ -1,0 +1,15 @@
+# Xmake file
+.xmake/
+build/
+*.exe
+*.dll
+*.dylib
+*.so
+*.o
+*.obj
+
+# os files (MacOS)
+.DS_Store
+
+#VS Code files
+.vscode/
