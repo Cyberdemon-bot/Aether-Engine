@@ -13,3 +13,15 @@ target("Sandbox")
     add_files("Sandbox/src/**.cpp")
 
     add_deps("Aether")
+
+    if is_plat("mingw") then
+        add_syslinks("pthread") 
+    end
+
+    if is_os("windows") then
+        add_syslinks("opengl32")
+    elseif is_os("macosx") then
+        add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo")
+    elseif is_os("linux") then
+        add_syslinks("pthread", "dl")
+    end
