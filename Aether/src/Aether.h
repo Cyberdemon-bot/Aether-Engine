@@ -3,7 +3,6 @@
 #include "Aether/Core/Application.h"
 #include "Aether/Core/Layer.h"
 #include "Aether/Core/Log.h"
-#include "Aether/Core/EntryPoint.h"
 
 #include "Aether/Core/Timestep.h"
 
