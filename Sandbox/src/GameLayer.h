@@ -2,7 +2,7 @@
 
 #include <Aether.h>
 #include <vector>
-#include <glm/glm.hpp>
+#include <glm/glm.hpp> 
 
 class GameLayer : public Aether::Layer
 {
@@ -10,19 +10,10 @@ public:
     GameLayer();
     virtual ~GameLayer() = default;
 
-    // Hủy tài nguyên khi layer bị gỡ
     virtual void Detach() override;
-
-    // Khởi tạo tài nguyên khi layer được gắn vào
     virtual void Attach() override;
-
-    // Cập nhật logic mỗi frame
     virtual void Update(Aether::Timestep ts) override;
-
-    // Vẽ giao diện ImGui
     virtual void OnImGuiRender() override;
-
-    // Xử lý sự kiện
     virtual void OnEvent(Aether::Event& event) override;
 
 private:
@@ -30,16 +21,20 @@ private:
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
-    void RenderScene(Aether::Ref<Aether::Legacy::Shader> shader);
+    void RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader);
 
 private:
-    Aether::Ref<Aether::Legacy::VertexArray> m_VAO;
-    Aether::Ref<Aether::Legacy::VertexBuffer> m_VBO;
-    Aether::Ref<Aether::Legacy::IndexBuffer> m_IBO;
-    Aether::Ref<Aether::Legacy::Shader> m_Shader;
-    Aether::Ref<Aether::Legacy::Shader> m_ShadowShader;
-    Aether::Ref<Aether::Legacy::Texture> m_Texture;
-    Aether::Ref<Aether::Legacy::FrameBuffer> m_ShadowFBO;
+    std::shared_ptr<Aether::Legacy::VertexArray> m_VAO;
+    std::shared_ptr<Aether::Legacy::VertexBuffer> m_VBO;
+    std::shared_ptr<Aether::Legacy::IndexBuffer> m_IBO;
+    std::shared_ptr<Aether::Legacy::Shader> m_Shader;
+    std::shared_ptr<Aether::Legacy::Shader> m_ShadowShader;
+    std::shared_ptr<Aether::Legacy::Texture> m_Texture;
+    std::shared_ptr<Aether::Legacy::FrameBuffer> m_ShadowFBO;
+
+    // --- CẢI TIẾN: Thêm Uniform Buffer cho Camera ---
+    std::shared_ptr<Aether::Legacy::UniformBuffer> m_CameraUBO;
+    // ------------------------------------------------
 
     Aether::Legacy::Camera m_Camera;
     bool m_CursorLocked = false;

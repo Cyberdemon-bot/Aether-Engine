@@ -1,10 +1,5 @@
 #include "Shader.h"
-#include "Renderer.h"
-#include "Aether/Core/Base.h"
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
 namespace Aether::Legacy {
     Shader::Shader(const std::string& filepath)
         : m_FilePath(filepath), m_RendererID(0)
@@ -68,6 +63,12 @@ namespace Aether::Legacy {
             std::cout << "Warning: uniform '" << name << "' doesn't exist!" << std::endl;
         m_UniformLocationCache[name] = location;
         return location;
+    }
+
+    void Shader::BindUniformBlock(const std::string& blockName, uint32_t bindingPoint)
+    {
+        uint32_t blockIndex = glGetUniformBlockIndex(m_RendererID, blockName.c_str());
+        GLCall(glUniformBlockBinding(m_RendererID, blockIndex, bindingPoint));
     }
 
     ShaderProgramSource Shader::ParseShader(const std::string& filepath)

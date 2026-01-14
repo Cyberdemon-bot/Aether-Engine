@@ -7,6 +7,8 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>

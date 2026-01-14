@@ -9,6 +9,7 @@
 #include "Platform/LegacyOpenGL/Texture.h"
 #include "Platform/LegacyOpenGL/VertexBufferLayout.h"
 #include "Platform/LegacyOpenGL/FrameBuffer.h"
+#include "Platform/LegacyOpenGL/UniformBuffer.h"
 #include "Aether/Renderer/Legacy/Camera.h"
 
 namespace Aether::Legacy {
