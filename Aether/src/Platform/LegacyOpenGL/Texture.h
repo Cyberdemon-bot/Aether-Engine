@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer.h"
+#include "LegacyBase.h"
 
 namespace Aether::Legacy { 
     class AETHER_API Texture

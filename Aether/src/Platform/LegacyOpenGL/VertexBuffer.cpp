@@ -1,5 +1,4 @@
 #include "VertexBuffer.h"
-#include "Renderer.h"
 
 namespace Aether::Legacy { 
     VertexBuffer::VertexBuffer(const void* data, unsigned int size)

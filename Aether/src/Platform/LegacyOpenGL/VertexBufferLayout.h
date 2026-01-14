@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "Renderer.h"
+#include "LegacyBase.h"
 
 namespace Aether::Legacy { 
     struct AETHER_API VertexBufferElement

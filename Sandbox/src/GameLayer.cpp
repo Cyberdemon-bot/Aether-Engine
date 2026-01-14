@@ -13,6 +13,7 @@ void GameLayer::Detach()
     m_VAO.reset(); m_VBO.reset(); m_IBO.reset();
     m_Shader.reset(); m_ShadowShader.reset();
     m_Texture.reset(); m_ShadowFBO.reset();
+    m_CameraUBO.reset(); // Reset UBO
 }
 
 void GameLayer::Attach()
@@ -22,32 +23,28 @@ void GameLayer::Attach()
 
     Aether::Legacy::LegacyAPI::Init();
 
+    // ... (Phần khởi tạo Vertex/Index Buffer giữ nguyên như cũ) ...
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
          0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-
         -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
          0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
          0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
         -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
-
         -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
         -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
         -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-
          0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
          0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
          0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
          0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-
         -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
          0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
          0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
         -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
          0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
@@ -66,9 +63,23 @@ void GameLayer::Attach()
     m_VAO->AddBuffer(*m_VBO, layout);
     m_IBO = std::make_shared<Aether::Legacy::IndexBuffer>(indices, 36);
 
+    // --- CẢI TIẾN UBO ---
+    // Tính toán kích thước cho UBO (std140 layout)
+    // Projection (64 bytes) + View (64 bytes) + ViewPos (16 bytes - vec3 được align thành vec4)
+    uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
+    
+    // Binding point = 0
+    m_CameraUBO = std::make_shared<Aether::Legacy::UniformBuffer>(uboSize, 0);
+
     m_Shader = std::make_shared<Aether::Legacy::Shader>("assets/shaders/LightingShadow.shader");
     m_ShadowShader = std::make_shared<Aether::Legacy::Shader>("assets/shaders/ShadowMap.shader");
     m_Texture = std::make_shared<Aether::Legacy::Texture>("assets/textures/wood.jpg");
+
+    // Liên kết Uniform Block "CameraData" trong shader với Binding Point 0
+    // Lưu ý: Tên "CameraData" phải khớp với tên block trong file shader
+    m_Shader->Bind();
+    m_Shader->BindUniformBlock("CameraData", 0); 
+    // --------------------
 
     Aether::Legacy::FramebufferSpecification fbSpec;
     fbSpec.Width = m_ShadowMapResolution;
@@ -91,6 +102,7 @@ void GameLayer::Update(Aether::Timestep ts)
 
 void GameLayer::HandleInput(Aether::Timestep ts)
 {
+    // ... (Giữ nguyên logic Input) ...
     if (Aether::Input::IsKeyPressed(Aether::Key::Escape)) {
         m_CursorLocked = false;
         Aether::Input::SetCursorMode(Aether::CursorMode::Normal);
@@ -117,6 +129,7 @@ void GameLayer::HandleInput(Aether::Timestep ts)
 
 glm::mat4 GameLayer::CalculateLightSpaceMatrix()
 {
+    // ... (Giữ nguyên) ...
     float aspect = 1.0f;
     float nearPlane = 1.0f;
     float farPlane = 50.0f;
@@ -127,6 +140,7 @@ glm::mat4 GameLayer::CalculateLightSpaceMatrix()
 
 void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
 {
+    // ... (Giữ nguyên) ...
     m_ShadowFBO->Bind();
     Aether::Legacy::LegacyAPI::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
     Aether::Legacy::LegacyAPI::Clear();
@@ -148,16 +162,26 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     Aether::Legacy::LegacyAPI::Clear();
 
     m_Shader->Bind();
+    
+    // --- CẢI TIẾN UBO: Cập nhật dữ liệu Camera ---
+    float aspectRatio = (float)width / (float)height;
+    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.Zoom), aspectRatio, 0.1f, 100.0f);
+    glm::mat4 view = m_Camera.GetViewMatrix();
+
+    // SetData vào UBO (Offset 0 cho Projection, Offset 64 cho View, Offset 128 cho ViewPos)
+    // Lưu ý: sizeof(mat4) = 64 bytes
+    m_CameraUBO->SetData(glm::value_ptr(projection), sizeof(glm::mat4), 0);
+    m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
+    // Dùng vec3 nhưng layout std140 sẽ padding nó thành 16 byte (giống vec4)
+    m_CameraUBO->SetData(glm::value_ptr(m_Camera.Position), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
+    
+    // Không cần gọi m_Shader->SetUniform... cho u_Projection, u_View, u_ViewPos nữa!
+    // ---------------------------------------------
+
     m_Texture->Bind(0);
     m_Shader->SetUniform1i("u_Texture", 0);
     m_ShadowFBO->BindDepthTexture(1);
     m_Shader->SetUniform1i("u_ShadowMap", 1);
-
-    float aspectRatio = (float)width / (float)height;
-    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.Zoom), aspectRatio, 0.1f, 100.0f);
-    m_Shader->SetUniformMat4f("u_Projection", projection);
-    m_Shader->SetUniformMat4f("u_View", m_Camera.GetViewMatrix());
-    m_Shader->SetUniform3f("u_ViewPos", m_Camera.Position);
 
     m_Shader->SetUniform3f("u_LightPos", m_LightPos);
     m_Shader->SetUniform3f("u_LightDir", m_LightDir);
@@ -168,6 +192,7 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     m_Shader->SetUniform1i("u_IsLightSource", 0);
     RenderScene(m_Shader);
 
+    // Vẽ Light Source cube
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
     model = glm::scale(model, glm::vec3(0.2f));
     m_Shader->SetUniformMat4f("u_Model", model);
@@ -184,6 +209,7 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
 
 void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
 {
+    // ... (Giữ nguyên logic RenderScene) ...
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
     model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
@@ -212,7 +238,8 @@ void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
 
 void GameLayer::OnImGuiRender()
 {
-    ImGui::Begin("Spotlight Controls");
+   // ... (Giữ nguyên toàn bộ logic ImGui) ...
+   ImGui::Begin("Spotlight Controls");
 
     ImGui::Text("FPS: %.1f (%.3f ms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
     ImGui::Text("Camera Position: (%.1f, %.1f, %.1f)",

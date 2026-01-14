@@ -1,4 +1,3 @@
-#include "Renderer.h"
 #include "FrameBuffer.h"
 
 namespace Aether::Legacy {

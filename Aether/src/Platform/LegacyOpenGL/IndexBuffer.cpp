@@ -1,5 +1,4 @@
 #include "IndexBuffer.h"
-#include "Renderer.h"
 
 namespace Aether::Legacy {
     IndexBuffer::IndexBuffer(const unsigned int* data, unsigned int count)

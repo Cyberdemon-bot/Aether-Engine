@@ -1,7 +1,6 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
+#include "LegacyBase.h"
 
 #include "glm/glm.hpp"
 
@@ -30,7 +29,8 @@ namespace Aether::Legacy {
 
         void Bind() const;
         void Unbind() const;
-
+        
+        void BindUniformBlock(const std::string& blockName, uint32_t bindingPoint);
         void SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3);
         void SetUniform3f(const std::string& name, const glm::vec3& value);
         void SetUniform1f(const std::string& name, float value);
