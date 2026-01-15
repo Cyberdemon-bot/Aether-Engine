@@ -36,6 +36,14 @@ private:
     std::shared_ptr<Aether::Legacy::UniformBuffer> m_CameraUBO;
     // ------------------------------------------------
 
+    std::shared_ptr<Aether::Legacy::VertexArray> m_SkyboxVAO;
+    std::shared_ptr<Aether::Legacy::VertexBuffer> m_SkyboxVBO;
+    std::shared_ptr<Aether::Legacy::Shader> m_SkyboxShader;
+    std::shared_ptr<Aether::Legacy::TextureCube> m_SkyboxTexture;
+    
+    void InitSkybox();
+    void RenderSkybox();
+
     Aether::Legacy::Camera m_Camera;
     bool m_CursorLocked = false;
     glm::vec2 m_LastMousePos = { 0.0f, 0.0f };
