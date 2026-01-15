@@ -7,6 +7,9 @@ build/
 *.so
 *.o
 *.obj
+*.log
+*.txt
+*.ini
 
 # os files (MacOS)
 .DS_Store
