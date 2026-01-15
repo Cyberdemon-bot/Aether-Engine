@@ -5,7 +5,7 @@ namespace Aether::Legacy {
     {
         GLCall(glGenBuffers(1, &m_RendererID));
         GLCall(glBindBuffer(GL_ARRAY_BUFFER, m_RendererID));
-        GLCall(glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW));
+        GLCall(glBufferData(GL_ARRAY_BUFFER, size, data, GL_DYNAMIC_DRAW));
     }
 
     VertexBuffer::~VertexBuffer()
@@ -21,5 +21,14 @@ namespace Aether::Legacy {
     void VertexBuffer::Unbind() const
     {
         GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+    }
+
+    void VertexBuffer::SetData(const void* data, unsigned int size, unsigned int offset)
+    {
+        AE_CORE_ASSERT(offset + size <= m_Size, 
+            "VertexBuffer::SetData - Trying to write out of bounds!");
+        
+        GLCall(glBindBuffer(GL_ARRAY_BUFFER, m_RendererID));
+        GLCall(glBufferSubData(GL_ARRAY_BUFFER, offset, size, data));
     }
 }

@@ -27,4 +27,12 @@ namespace Aether::Legacy {
         ib.Bind();
         glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, nullptr);
     }
+
+    void LegacyAPI::DrawInstanced(const VertexArray& va, const IndexBuffer& ib, const Shader& shader, uint32_t instanceCount)
+    {
+        shader.Bind();
+        va.Bind();
+        ib.Bind();
+        glDrawElementsInstanced(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, nullptr, instanceCount);
+    }
 }

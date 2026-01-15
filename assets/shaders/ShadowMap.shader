@@ -1,15 +1,23 @@
 #shader vertex
 #version 330 core
 
-layout(location = 0) in vec3 a_Pos;
-// Các attribute khác (Normal, TexCoord) không cần thiết cho Shadow Map pass
+// Attribute vị trí cơ bản
+layout(location = 0) in vec3 a_Position;
+
+// Attribute cho Instancing (Model Matrix chiếm location 3,4,5,6)
+// Phải khai báo dòng này để khớp với layout trong C++
+layout(location = 3) in mat4 a_InstanceModel;
 
 uniform mat4 u_LightSpaceMatrix;
 uniform mat4 u_Model;
+uniform bool u_UseInstancing; // Thêm biến này để nhận tín hiệu từ C++
 
 void main()
 {
-    gl_Position = u_LightSpaceMatrix * u_Model * vec4(a_Pos, 1.0);
+    // Logic chọn matrix y hệt như shader chính
+    mat4 model = u_UseInstancing ? a_InstanceModel : u_Model;
+    
+    gl_Position = u_LightSpaceMatrix * model * vec4(a_Position, 1.0);
 }
 
 #shader fragment
@@ -17,6 +25,6 @@ void main()
 
 void main()
 {
-    // Không cần làm gì cả, Depth Buffer sẽ tự động được ghi
-    // Có thể thêm: gl_FragDepth = gl_FragCoord.z; (nhưng không bắt buộc)
+    // Fragment shader cho Shadow Map thường để trống 
+    // vì chúng ta chỉ quan tâm đến Depth Buffer (được ghi tự động)
 }

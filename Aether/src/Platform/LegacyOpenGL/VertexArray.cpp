@@ -37,4 +37,24 @@ namespace Aether::Legacy {
         }
         
     }
-}
+
+    void VertexArray::AddInstanceBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout,uint32_t startLocation)
+    {
+        Bind();
+        vb.Bind();
+        const auto& elements = layout.GetElements();
+        unsigned int offset = 0;
+        
+        for (unsigned int i = 0; i < elements.size(); i++)
+        {
+            const auto& element = elements[i];
+            uint32_t location = startLocation + i;
+            
+            GLCall(glEnableVertexAttribArray(location));
+            GLCall(glVertexAttribPointer(location, element.count, element.type, element.normalized, layout.GetStride(), (const void*)(uintptr_t)offset));
+            GLCall(glVertexAttribDivisor(location, 1));
+            
+            offset += element.count * VertexBufferElement::GetSizeOfType(element.type);
+        }
+    }
+};

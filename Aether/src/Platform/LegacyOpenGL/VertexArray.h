@@ -15,6 +15,8 @@ namespace Aether::Legacy {
 
         void AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout);
 
+        void AddInstanceBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout, uint32_t startLocation);
+
         void Bind() const;
         void Unbind() const;
     };
