@@ -30,7 +30,9 @@ namespace Aether::Legacy {
 			}
 			else
 			{
-				GLenum type = (internalFormat == GL_R32I) ? GL_INT : GL_UNSIGNED_BYTE;
+				GLenum type = GL_UNSIGNED_BYTE;
+				if (internalFormat == GL_RGBA16F) type = GL_FLOAT; 
+				if (internalFormat == GL_R32I) type = GL_INT;
 
 				glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, nullptr);
 
@@ -145,6 +147,9 @@ namespace Aether::Legacy {
 				{
 					case FramebufferTextureFormat::RGBA8:
 						Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA8, GL_RGBA, m_Specification.Width, m_Specification.Height, i);
+						break;
+					case FramebufferTextureFormat::RGBA16F:
+						Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA16F, GL_RGBA, m_Specification.Width, m_Specification.Height, i);
 						break;
 					case FramebufferTextureFormat::RED_INTEGER:
 						Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_R32I, GL_RED_INTEGER, m_Specification.Width, m_Specification.Height, i);
