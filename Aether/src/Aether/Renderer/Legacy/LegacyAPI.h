@@ -24,6 +24,7 @@ namespace Aether::Legacy {
         static void Clear();
 
         static void Draw(const VertexArray& va, const IndexBuffer& ib, const Shader& shader);
+        static void DrawInstanced(const VertexArray& va, const IndexBuffer& ib, const Shader& shader, uint32_t instanceCount);
     };
 
 }

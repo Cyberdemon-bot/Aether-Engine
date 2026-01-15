@@ -8,7 +8,7 @@ namespace Aether::Legacy {
 
         GLCall(glGenBuffers(1, &m_RendererID));
         GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID));
-        GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data, GL_STATIC_DRAW));
+        GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data, GL_DYNAMIC_DRAW));
     }
 
     IndexBuffer::~IndexBuffer()
@@ -24,5 +24,14 @@ namespace Aether::Legacy {
     void IndexBuffer::Unbind() const
     {
         GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+    }
+
+    void IndexBuffer::SetData(const void* data, unsigned int size, unsigned int offset)
+    {
+        AE_CORE_ASSERT(offset + size <= m_Count, 
+            "IndexBuffer::SetData - Trying to write out of bounds!");
+        
+        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID));
+        GLCall(glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset * sizeof(unsigned int), m_Count * sizeof(unsigned int), data));
     }
 }

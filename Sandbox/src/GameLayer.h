@@ -34,6 +34,7 @@ private:
 
     // --- CẢI TIẾN: Thêm Uniform Buffer cho Camera ---
     Aether::Ref<Aether::Legacy::UniformBuffer> m_CameraUBO;
+    Aether::Ref<Aether::Legacy::VertexBuffer> m_InstanceVBO;
     // ------------------------------------------------
 
     Aether::Ref<Aether::Legacy::VertexArray> m_SkyboxVAO;

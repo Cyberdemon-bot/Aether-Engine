@@ -15,6 +15,7 @@ namespace Aether::Legacy {
         void Bind() const;
         void Unbind() const;
 
+        void SetData(const void* data, unsigned int size, unsigned int offset = 0);
         inline unsigned int GetCount() const { return m_Count; }
     };
 }

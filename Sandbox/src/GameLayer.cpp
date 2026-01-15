@@ -280,26 +280,65 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
 
 void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
 {
+    // 1. Vẽ Cube A (Giữ nguyên)
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
     model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
     shader->SetUniformMat4f("u_Model", model);
+    shader->SetUniform1i("u_UseInstancing", 0); // Tắt instancing
     Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
 
+    // 2. Vẽ Cube B (Giữ nguyên)
     model = glm::translate(glm::mat4(1.0f), m_TranslationB);
     model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
     shader->SetUniformMat4f("u_Model", model);
     Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
 
-    for (const auto& pos : m_RandomCubes) {
-        model = glm::translate(glm::mat4(1.0f), pos);
-        model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(m_CubeScale));
-        shader->SetUniformMat4f("u_Model", model);
-        Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
+    // 3. Render Random Cubes bằng INSTANCING
+    if (!m_RandomCubes.empty())
+    {
+        // Bước A: Gom data Matrix
+        std::vector<glm::mat4> instanceModels;
+        instanceModels.reserve(m_RandomCubes.size());
+
+        for (const auto& pos : m_RandomCubes) {
+            glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
+            instModel = glm::rotate(instModel, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
+            instModel = glm::scale(instModel, glm::vec3(m_CubeScale));
+            instanceModels.push_back(instModel);
+        }
+
+        uint32_t dataSize = (uint32_t)instanceModels.size() * sizeof(glm::mat4);
+
+        // Bước B: Khởi tạo Buffer nếu chưa có hoặc cần resize (Lazy Init & Resize)
+        if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
+        {
+            // Tạo buffer mới với kích thước vừa đủ (hoặc dư ra một chút để tối ưu)
+            // Lưu ý: Nếu buffer cũ tồn tại, Ref Count sẽ giảm và nó tự hủy.
+            m_InstanceVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(nullptr, dataSize);
+
+            // Setup Layout cho Mat4 (gồm 4 vec4)
+            Aether::Legacy::VertexBufferLayout instanceLayout;
+            instanceLayout.Push<float>(4);
+            instanceLayout.Push<float>(4);
+            instanceLayout.Push<float>(4);
+            instanceLayout.Push<float>(4);
+
+            // Attach vào VAO tại location bắt đầu là 3 (0:Pos, 1:Norm, 2:Tex)
+            m_VAO->AddInstanceBuffer(*m_InstanceVBO, instanceLayout, 3);
+        }
+
+        // Bước C: Đẩy dữ liệu vào Buffer
+        m_InstanceVBO->SetData(instanceModels.data(), dataSize);
+
+        // Bước D: Vẽ Instanced
+        shader->SetUniform1i("u_UseInstancing", 1); // Bật flag trong shader
+        Aether::Legacy::LegacyAPI::DrawInstanced(*m_VAO, *m_IBO, *shader, (uint32_t)m_RandomCubes.size());
+        shader->SetUniform1i("u_UseInstancing", 0); // Reset flag
     }
 
+    // 4. Vẽ Floor (Giữ nguyên)
     model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
     shader->SetUniformMat4f("u_Model", model);
@@ -325,7 +364,7 @@ void GameLayer::OnImGuiRender()
         ImGui::Spacing();
         ImGui::SliderFloat("Movement Speed", &m_Camera.MovementSpeed, 1.0f, 20.0f);
         ImGui::SliderFloat("Mouse Sensitivity", &m_Camera.MouseSensitivity, 0.05f, 0.5f);
-        ImGui::SliderFloat("FOV (Zoom)", &m_Camera.Zoom, 30.0f, 120.0f);
+        ImGui::SliderFloat("FOV (Zoom)", &m_Camera.Zoom, 0.0f, 120.0f);
     }
 
     if (ImGui::CollapsingHeader("Spotlight Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
