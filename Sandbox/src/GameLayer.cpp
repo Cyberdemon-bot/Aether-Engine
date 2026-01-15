@@ -61,20 +61,20 @@ void GameLayer::Attach()
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    m_VAO = std::make_shared<Aether::Legacy::VertexArray>();
-    m_VBO = std::make_shared<Aether::Legacy::VertexBuffer>(vertices, sizeof(vertices));
+    m_VAO = Aether::CreateRef<Aether::Legacy::VertexArray>();
+    m_VBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(vertices, sizeof(vertices));
     Aether::Legacy::VertexBufferLayout layout;
     layout.Push<float>(3); layout.Push<float>(3); layout.Push<float>(2);
     m_VAO->AddBuffer(*m_VBO, layout);
-    m_IBO = std::make_shared<Aether::Legacy::IndexBuffer>(indices, 36);
+    m_IBO = Aether::CreateRef<Aether::Legacy::IndexBuffer>(indices, 36);
 
     // UBO setup
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
-    m_CameraUBO = std::make_shared<Aether::Legacy::UniformBuffer>(uboSize, 0);
+    m_CameraUBO = Aether::CreateRef<Aether::Legacy::UniformBuffer>(uboSize, 0);
 
-    m_Shader = std::make_shared<Aether::Legacy::Shader>("assets/shaders/LightingShadow.shader");
-    m_ShadowShader = std::make_shared<Aether::Legacy::Shader>("assets/shaders/ShadowMap.shader");
-    m_Texture = std::make_shared<Aether::Legacy::Texture>("assets/textures/wood.jpg");
+    m_Shader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/LightingShadow.shader");
+    m_ShadowShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/ShadowMap.shader");
+    m_Texture = Aether::CreateRef<Aether::Legacy::Texture>("assets/textures/wood.jpg");
 
     m_Shader->Bind();
     m_Shader->BindUniformBlock("CameraData", 0);
@@ -86,7 +86,7 @@ void GameLayer::Attach()
     fbSpec.Width = m_ShadowMapResolution;
     fbSpec.Height = m_ShadowMapResolution;
     fbSpec.Attachments = { Aether::Legacy::FramebufferTextureFormat::DEPTH24STENCIL8 };
-    m_ShadowFBO = std::make_shared<Aether::Legacy::FrameBuffer>(fbSpec);
+    m_ShadowFBO = Aether::CreateRef<Aether::Legacy::FrameBuffer>(fbSpec);
 }
 
 void GameLayer::InitSkybox()
@@ -136,15 +136,15 @@ void GameLayer::InitSkybox()
          1.0f, -1.0f,  1.0f
     };
 
-    m_SkyboxVAO = std::make_shared<Aether::Legacy::VertexArray>();
-    m_SkyboxVBO = std::make_shared<Aether::Legacy::VertexBuffer>(skyboxVertices, sizeof(skyboxVertices));
+    m_SkyboxVAO = Aether::CreateRef<Aether::Legacy::VertexArray>();
+    m_SkyboxVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(skyboxVertices, sizeof(skyboxVertices));
     
     Aether::Legacy::VertexBufferLayout layout;
     layout.Push<float>(3); // Only position
     m_SkyboxVAO->AddBuffer(*m_SkyboxVBO, layout);
 
-    m_SkyboxShader = std::make_shared<Aether::Legacy::Shader>("assets/shaders/Skybox.shader");
-    m_SkyboxTexture = std::make_shared<Aether::Legacy::TextureCube>("assets/textures/skybox.png");
+    m_SkyboxShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/Skybox.shader");
+    m_SkyboxTexture = Aether::CreateRef<Aether::Legacy::TextureCube>("assets/textures/skybox.png");
 
     m_SkyboxShader->Bind();
     m_SkyboxShader->BindUniformBlock("CameraData", 0);
@@ -386,7 +386,7 @@ void GameLayer::OnImGuiRender()
             fbSpec.Width = m_ShadowMapResolution;
             fbSpec.Height = m_ShadowMapResolution;
             fbSpec.Attachments = { Aether::Legacy::FramebufferTextureFormat::DEPTH24STENCIL8 };
-            m_ShadowFBO = std::make_shared<Aether::Legacy::FrameBuffer>(fbSpec);
+            m_ShadowFBO = Aether::CreateRef<Aether::Legacy::FrameBuffer>(fbSpec);
         }
 
         ImGui::Separator();
