@@ -21,25 +21,25 @@ private:
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
-    void RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader);
+    void RenderScene(Aether::Ref<Aether::Legacy::Shader> shader);
 
 private:
-    std::shared_ptr<Aether::Legacy::VertexArray> m_VAO;
-    std::shared_ptr<Aether::Legacy::VertexBuffer> m_VBO;
-    std::shared_ptr<Aether::Legacy::IndexBuffer> m_IBO;
-    std::shared_ptr<Aether::Legacy::Shader> m_Shader;
-    std::shared_ptr<Aether::Legacy::Shader> m_ShadowShader;
-    std::shared_ptr<Aether::Legacy::Texture> m_Texture;
-    std::shared_ptr<Aether::Legacy::FrameBuffer> m_ShadowFBO;
+    Aether::Ref<Aether::Legacy::VertexArray> m_VAO;
+    Aether::Ref<Aether::Legacy::VertexBuffer> m_VBO;
+    Aether::Ref<Aether::Legacy::IndexBuffer> m_IBO;
+    Aether::Ref<Aether::Legacy::Shader> m_Shader;
+    Aether::Ref<Aether::Legacy::Shader> m_ShadowShader;
+    Aether::Ref<Aether::Legacy::Texture> m_Texture;
+    Aether::Ref<Aether::Legacy::FrameBuffer> m_ShadowFBO;
 
     // --- CẢI TIẾN: Thêm Uniform Buffer cho Camera ---
-    std::shared_ptr<Aether::Legacy::UniformBuffer> m_CameraUBO;
+    Aether::Ref<Aether::Legacy::UniformBuffer> m_CameraUBO;
     // ------------------------------------------------
 
-    std::shared_ptr<Aether::Legacy::VertexArray> m_SkyboxVAO;
-    std::shared_ptr<Aether::Legacy::VertexBuffer> m_SkyboxVBO;
-    std::shared_ptr<Aether::Legacy::Shader> m_SkyboxShader;
-    std::shared_ptr<Aether::Legacy::TextureCube> m_SkyboxTexture;
+    Aether::Ref<Aether::Legacy::VertexArray> m_SkyboxVAO;
+    Aether::Ref<Aether::Legacy::VertexBuffer> m_SkyboxVBO;
+    Aether::Ref<Aether::Legacy::Shader> m_SkyboxShader;
+    Aether::Ref<Aether::Legacy::TextureCube> m_SkyboxTexture;
     
     void InitSkybox();
     void RenderSkybox();
