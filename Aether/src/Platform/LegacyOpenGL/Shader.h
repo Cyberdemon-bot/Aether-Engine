@@ -9,6 +9,7 @@ namespace Aether::Legacy {
     {
         std::string VertexSource;
         std::string FragmentSource;
+        std::string GeometrySource;
     };
 
     class AETHER_API Shader
@@ -20,7 +21,7 @@ namespace Aether::Legacy {
 
         int GetUniformLocation(const std::string& name);
         unsigned int CompileShader(unsigned int type, const std::string& source);
-        unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader);
+        unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader);
         ShaderProgramSource ParseShader(const std::string& filepath);
 
     public:
