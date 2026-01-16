@@ -82,6 +82,7 @@ namespace Aether::Legacy {
 			switch (format)
 			{
 				case FramebufferTextureFormat::RGBA8:       return GL_RGBA8;
+				case FramebufferTextureFormat::RGBA16F:     return GL_RGBA16F;
 				case FramebufferTextureFormat::RED_INTEGER: return GL_RED_INTEGER;
                 case FramebufferTextureFormat::DEPTH24STENCIL8: return GL_DEPTH24_STENCIL8;
                 case FramebufferTextureFormat::None:        return 0;
@@ -172,6 +173,7 @@ namespace Aether::Legacy {
 					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL_ATTACHMENT, m_Specification.Width, m_Specification.Height);
 					break;
                 case FramebufferTextureFormat::RGBA8:
+				case FramebufferTextureFormat::RGBA16F:
                 case FramebufferTextureFormat::RED_INTEGER:
                 case FramebufferTextureFormat::None:
                     break;
