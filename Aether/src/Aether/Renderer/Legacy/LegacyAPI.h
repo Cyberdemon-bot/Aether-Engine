@@ -11,6 +11,7 @@
 #include "Platform/LegacyOpenGL/FrameBuffer.h"
 #include "Platform/LegacyOpenGL/UniformBuffer.h"
 #include "Platform/LegacyOpenGL/TextureCube.h"
+#include "Aether/Renderer/Mesh.h"
 #include "Aether/Renderer/Legacy/Camera.h"
 
 namespace Aether::Legacy {
