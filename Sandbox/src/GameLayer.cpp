@@ -67,7 +67,6 @@ void GameLayer::Attach()
     m_VAO->AddBuffer(*m_VBO, layout);
     m_IBO = Aether::CreateRef<Aether::Legacy::IndexBuffer>(indices, 36);
 
-    // UBO setup
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
     m_CameraUBO = Aether::CreateRef<Aether::Legacy::UniformBuffer>(uboSize, 0);
 
@@ -78,7 +77,6 @@ void GameLayer::Attach()
     m_Shader->Bind();
     m_Shader->BindUniformBlock("CameraData", 0);
 
-    // Initialize Skybox
     InitSkybox();
 
     Aether::Legacy::FramebufferSpecification fbSpec;
@@ -90,7 +88,6 @@ void GameLayer::Attach()
 
 void GameLayer::InitSkybox()
 {
-    // Skybox cube vertices
     float skyboxVertices[] = {
         //   X      Y      Z
         -1.0f, -1.0f,  1.0f, 
