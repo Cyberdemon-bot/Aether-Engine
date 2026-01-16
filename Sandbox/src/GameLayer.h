@@ -54,6 +54,7 @@ private:
     glm::vec3 m_TranslationB = { 2.0f, 0.5f, 0.0f };
     std::vector<glm::vec3> m_RandomCubes;
     std::vector<float> m_CubesSize;
+    std::vector<float> m_CubeRot;
     std::vector<glm::mat4> instanceModels;
 
     float m_CubeScale = 1.0f;

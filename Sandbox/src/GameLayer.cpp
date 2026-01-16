@@ -279,9 +279,10 @@ void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
         {
             glm::vec3 pos = m_RandomCubes[i];
             float size = m_CubesSize[i];
+            float rot = m_CubeRot[i];
             glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
-            instModel = glm::rotate(instModel, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
-            instModel = glm::scale(instModel, glm::vec3(size));
+            instModel = glm::rotate(instModel, m_Rotation * rot, glm::vec3(0.5f, 1.0f, 0.0f));
+            instModel = glm::scale(instModel, glm::vec3(size * m_CubeScale));
             instanceModels.push_back(instModel);
         }
 
@@ -369,20 +370,23 @@ void GameLayer::OnImGuiRender()
             float y = static_cast<float>(rand() % 50 + 10) / 10.0f;
             float z = static_cast<float>(rand() % 300 - 150) / 10.0f;
             float size = min + ((float)rand() / RAND_MAX) * (max - min);
+            float rot = -1.0f + ((float)rand() / RAND_MAX) * (1.0f - (-1.0f));
             m_RandomCubes.push_back({ x, y, z });
             m_CubesSize.push_back(size);
+            m_CubeRot.push_back(rot);
         }
         ImGui::SameLine();
         if (ImGui::Button("Clear Random Cubes")) {
             m_RandomCubes.clear();
             m_CubesSize.clear();
+            m_CubeRot.clear();
         }
         ImGui::Text("Count: %d", (int)m_RandomCubes.size());
     }
 
     if (ImGui::CollapsingHeader("Animation")) {
         ImGui::Checkbox("Enable Rotation", &m_EnableRotation);
-        ImGui::SliderFloat("Rotation Speed", &m_RotationSpeed, 0.0f, 2.0f);
+        ImGui::SliderFloat("Rotation Speed", &m_RotationSpeed, -2.0f, 2.0f);
         if (ImGui::Button("Reset Rotation")) {
             m_Rotation = 0.0f;
         }
