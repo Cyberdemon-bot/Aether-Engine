@@ -9,6 +9,11 @@ namespace Aether::Legacy {
         glEnable(GL_DEPTH_TEST);
     }
 
+    void LegacyAPI::SetDepthFunc(GLenum func)
+    {
+        glDepthFunc(func);
+    }
+
     void LegacyAPI::SetViewport(int x, int y, int width, int height) {
         glViewport(x, y, width, height);
     }
