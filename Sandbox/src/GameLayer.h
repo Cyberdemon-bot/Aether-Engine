@@ -39,6 +39,7 @@ private:
 
     Aether::Ref<Aether::Legacy::VertexArray> m_SkyboxVAO;
     Aether::Ref<Aether::Legacy::VertexBuffer> m_SkyboxVBO;
+    Aether::Ref<Aether::Legacy::IndexBuffer> m_SkyboxIBO;
     Aether::Ref<Aether::Legacy::Shader> m_SkyboxShader;
     Aether::Ref<Aether::Legacy::TextureCube> m_SkyboxTexture;
     
@@ -52,6 +53,8 @@ private:
     glm::vec3 m_TranslationA = { -2.0f, 0.5f, 0.0f };
     glm::vec3 m_TranslationB = { 2.0f, 0.5f, 0.0f };
     std::vector<glm::vec3> m_RandomCubes;
+    std::vector<float> m_CubesSize;
+    std::vector<glm::mat4> instanceModels;
 
     float m_CubeScale = 1.0f;
     float m_FloorScale = 15.0f;

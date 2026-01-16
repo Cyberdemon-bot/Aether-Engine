@@ -15,7 +15,6 @@ void GameLayer::Detach()
     m_Texture.reset(); m_ShadowFBO.reset();
     m_CameraUBO.reset();
     
-    // Clean up skybox resources
     m_SkyboxVAO.reset();
     m_SkyboxVBO.reset();
     m_SkyboxShader.reset();
@@ -93,51 +92,40 @@ void GameLayer::InitSkybox()
 {
     // Skybox cube vertices
     float skyboxVertices[] = {
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
+        //   X      Y      Z
+        -1.0f, -1.0f,  1.0f, 
+         1.0f, -1.0f,  1.0f, 
+         1.0f, -1.0f, -1.0f, 
+        -1.0f, -1.0f, -1.0f, 
         -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f, 
          1.0f,  1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f  
+    };
 
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+    unsigned int skyboxIndices[] = {
+        1, 2, 6,
+        6, 5, 1,
 
-        -1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
+        0, 4, 7,
+        7, 3, 0,
 
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f
+        4, 5, 6,
+        6, 7, 4,
+       
+        0, 3, 2,
+        2, 1, 0,
+       
+        0, 1, 5,
+        5, 4, 0,
+        
+        3, 7, 6,
+        6, 2, 3
     };
 
     m_SkyboxVAO = Aether::CreateRef<Aether::Legacy::VertexArray>();
     m_SkyboxVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(skyboxVertices, sizeof(skyboxVertices));
+    m_SkyboxIBO = Aether::CreateRef<Aether::Legacy::IndexBuffer>(skyboxIndices, 36);
     
     Aether::Legacy::VertexBufferLayout layout;
     layout.Push<float>(3); // Only position
@@ -145,23 +133,18 @@ void GameLayer::InitSkybox()
 
     m_SkyboxShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/Skybox.shader");
     m_SkyboxTexture = Aether::CreateRef<Aether::Legacy::TextureCube>("assets/textures/skybox.png");
+    m_SkyboxTexture->Bind(0);
 
     m_SkyboxShader->Bind();
     m_SkyboxShader->BindUniformBlock("CameraData", 0);
+    m_SkyboxShader->SetUniform1i("u_Skybox", 0);
 }
 
 void GameLayer::RenderSkybox()
 {
-    glDepthFunc(GL_LEQUAL);
-    
-    m_SkyboxShader->Bind();
-    m_SkyboxTexture->Bind(0);
-    m_SkyboxShader->SetUniform1i("u_Skybox", 0);
-    
-    m_SkyboxVAO->Bind();
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    
-    glDepthFunc(GL_LESS);
+    Aether::Legacy::LegacyAPI::SetDepthFunc(GL_LEQUAL);
+    Aether::Legacy::LegacyAPI::Draw(*m_SkyboxVAO, *m_SkyboxIBO, *m_SkyboxShader);
+    Aether::Legacy::LegacyAPI::SetDepthFunc(GL_LESS);
 }
 
 void GameLayer::Update(Aether::Timestep ts)
@@ -243,10 +226,8 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
     m_CameraUBO->SetData(glm::value_ptr(m_Camera.Position), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
 
-    // Render skybox first
     RenderSkybox();
 
-    // Render scene
     m_Shader->Bind();
     
     m_Texture->Bind(0);
@@ -263,7 +244,6 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     m_Shader->SetUniform1i("u_IsLightSource", 0);
     RenderScene(m_Shader);
 
-    // Draw light source cube
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
     model = glm::scale(model, glm::vec3(0.2f));
     m_Shader->SetUniformMat4f("u_Model", model);
@@ -280,7 +260,6 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
 
 void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
 {
-    // 1. Vẽ Cube A (Giữ nguyên)
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
     model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
@@ -288,57 +267,47 @@ void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
     shader->SetUniform1i("u_UseInstancing", 0); // Tắt instancing
     Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
 
-    // 2. Vẽ Cube B (Giữ nguyên)
     model = glm::translate(glm::mat4(1.0f), m_TranslationB);
     model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
     shader->SetUniformMat4f("u_Model", model);
     Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
 
-    // 3. Render Random Cubes bằng INSTANCING
     if (!m_RandomCubes.empty())
     {
-        // Bước A: Gom data Matrix
-        std::vector<glm::mat4> instanceModels;
+        instanceModels.clear();
         instanceModels.reserve(m_RandomCubes.size());
 
-        for (const auto& pos : m_RandomCubes) {
+        for (size_t i = 0; i < m_RandomCubes.size(); i++) 
+        {
+            glm::vec3 pos = m_RandomCubes[i];
+            float size = m_CubesSize[i];
             glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
             instModel = glm::rotate(instModel, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
-            instModel = glm::scale(instModel, glm::vec3(m_CubeScale));
+            instModel = glm::scale(instModel, glm::vec3(size));
             instanceModels.push_back(instModel);
         }
 
         uint32_t dataSize = (uint32_t)instanceModels.size() * sizeof(glm::mat4);
 
-        // Bước B: Khởi tạo Buffer nếu chưa có hoặc cần resize (Lazy Init & Resize)
         if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
         {
-            // Tạo buffer mới với kích thước vừa đủ (hoặc dư ra một chút để tối ưu)
-            // Lưu ý: Nếu buffer cũ tồn tại, Ref Count sẽ giảm và nó tự hủy.
             m_InstanceVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(nullptr, dataSize);
 
-            // Setup Layout cho Mat4 (gồm 4 vec4)
             Aether::Legacy::VertexBufferLayout instanceLayout;
             instanceLayout.Push<float>(4);
             instanceLayout.Push<float>(4);
             instanceLayout.Push<float>(4);
             instanceLayout.Push<float>(4);
-
-            // Attach vào VAO tại location bắt đầu là 3 (0:Pos, 1:Norm, 2:Tex)
             m_VAO->AddInstanceBuffer(*m_InstanceVBO, instanceLayout, 3);
         }
-
-        // Bước C: Đẩy dữ liệu vào Buffer
         m_InstanceVBO->SetData(instanceModels.data(), dataSize);
 
-        // Bước D: Vẽ Instanced
-        shader->SetUniform1i("u_UseInstancing", 1); // Bật flag trong shader
+        shader->SetUniform1i("u_UseInstancing", 1); 
         Aether::Legacy::LegacyAPI::DrawInstanced(*m_VAO, *m_IBO, *shader, (uint32_t)m_RandomCubes.size());
-        shader->SetUniform1i("u_UseInstancing", 0); // Reset flag
+        shader->SetUniform1i("u_UseInstancing", 0); 
     }
 
-    // 4. Vẽ Floor (Giữ nguyên)
     model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
     shader->SetUniformMat4f("u_Model", model);
@@ -397,14 +366,19 @@ void GameLayer::OnImGuiRender()
 
         ImGui::Separator();
         if (ImGui::Button("Spawn Random Cube")) {
+            float min = 0.5f;
+            float max = 3.0f;
             float x = static_cast<float>(rand() % 300 - 150) / 10.0f;
             float y = static_cast<float>(rand() % 50 + 10) / 10.0f;
             float z = static_cast<float>(rand() % 300 - 150) / 10.0f;
+            float size = min + ((float)rand() / RAND_MAX) * (max - min);
             m_RandomCubes.push_back({ x, y, z });
+            m_CubesSize.push_back(size);
         }
         ImGui::SameLine();
         if (ImGui::Button("Clear Random Cubes")) {
             m_RandomCubes.clear();
+            m_CubesSize.clear();
         }
         ImGui::Text("Count: %d", (int)m_RandomCubes.size());
     }
