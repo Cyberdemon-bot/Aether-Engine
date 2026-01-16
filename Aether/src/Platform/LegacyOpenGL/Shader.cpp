@@ -5,7 +5,7 @@ namespace Aether::Legacy {
         : m_FilePath(filepath), m_RendererID(0)
     {
         ShaderProgramSource source = ParseShader(filepath);
-        m_RendererID = CreateShader(source.VertexSource, source.FragmentSource);
+        m_RendererID = CreateShader(source.VertexSource, source.FragmentSource, source.GeometrySource);
     }
 
     Shader::~Shader()
@@ -77,11 +77,11 @@ namespace Aether::Legacy {
 
         enum class ShaderType
         {
-            NONE = -1, VERTEX = 0, FRAGMENT = 1
+            NONE = -1, VERTEX = 0, FRAGMENT = 1, GEOMETRY = 2
         };
 
         std::string line;
-        std::stringstream ss[2];
+        std::stringstream ss[3];
         ShaderType type = ShaderType::NONE;
         while (getline(stream, line))
         {
@@ -91,14 +91,16 @@ namespace Aether::Legacy {
                     type = ShaderType::VERTEX;
                 else if (line.find("fragment") != std::string::npos) 
                     type = ShaderType::FRAGMENT;
+                else if (line.find("geometry") != std::string::npos) 
+                    type = ShaderType::GEOMETRY;
             }
             else
             {
-                ss[(int)type] << line << '\n';
+                if (type != ShaderType::NONE) ss[(int)type] << line << '\n';
             }
         }
 
-        return {ss[0].str(), ss[1].str()};
+        return {ss[0].str(), ss[1].str(), ss[2].str()};
     }
 
     unsigned int Shader::CompileShader(unsigned int type, const std::string& source)
@@ -126,20 +128,26 @@ namespace Aether::Legacy {
         return id;
     }
 
-    unsigned int Shader::CreateShader(const std::string& vertexShader, const std::string& fragmentShader)
+    unsigned int Shader::CreateShader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader)
     {
         unsigned int program;
         GLCall(program = glCreateProgram());
         unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
         unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
+        unsigned int gs = 0;
+        bool hasGeometry = !geometryShader.empty();
+        if (hasGeometry) gs = CompileShader(GL_GEOMETRY_SHADER, geometryShader);
 
         GLCall(glAttachShader(program, vs));
         GLCall(glAttachShader(program, fs));
+        if (hasGeometry && gs != 0) {GLCall(glAttachShader(program, gs));}
+
         GLCall(glLinkProgram(program));
         GLCall(glValidateProgram(program));
 
         GLCall(glDeleteShader(vs));
         GLCall(glDeleteShader(fs));
+        if (hasGeometry) GLCall(glDeleteShader(gs));
 
         return program;
     }
