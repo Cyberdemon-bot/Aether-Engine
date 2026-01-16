@@ -3,7 +3,9 @@ includes("packages/*.lua")
 add_requires("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw")
 add_requires("imgui v1.89.9-docking", {configs = {glfw_opengl3 = true}})
 add_requires("imguizmo", {configs = {imgui = "imgui"}})
-add_requires("box2d v3.1.1", "stb")
+add_requires("stb")
+add_requires("assimp", {configs = {shared = true}})
+add_requires("joltphysics")
 add_requireconfs("freetype", {
     override = true, 
     configs = {
@@ -41,8 +43,8 @@ target("Aether")
     
     set_pcxxheader("src/aepch.h")
 
-    add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "box2d", {public = true})
-    add_packages("filewatch", "msdf-atlas-gen", "glad", {public = true})
+    add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "", "assimp", {public = true})
+    add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", {public = true})
 
     if is_plat("mingw") then
         add_syslinks("pthread") 
