@@ -21,5 +21,5 @@
 #include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/FrameBuffer.h"
-#include "Aether/Renderer/Camera.h"
+#include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/Mesh.h"
