@@ -4,8 +4,9 @@
 #include <cstdlib>
 
 GameLayer::GameLayer()
-    : Layer("Spotlight Shadow Demo"), m_Camera(glm::vec3(0.0f, 5.0f, 10.0f))
+    : Layer("Spotlight Shadow Demo")
 {
+    m_EditorCamera = Aether::EditorCamera(45.0f, 1.778f, 0.1f, 1000.0f);
 }
 
 void GameLayer::Detach()
@@ -156,37 +157,11 @@ void GameLayer::Update(Aether::Timestep ts)
     if (m_EnableRotation) m_Rotation += ts * m_RotationSpeed;
 
     auto& window = Aether::Application::Get().GetWindow();
-    HandleInput(ts);
+    m_EditorCamera.Update(ts);
 
     glm::mat4 lightSpaceMatrix = CalculateLightSpaceMatrix();
     RenderShadowPass(lightSpaceMatrix);
     RenderMainPass(window.GetFramebufferWidth(), window.GetFramebufferHeight(), lightSpaceMatrix);
-}
-
-void GameLayer::HandleInput(Aether::Timestep ts)
-{
-    if (Aether::Input::IsKeyPressed(Aether::Key::Escape)) {
-        m_CursorLocked = false;
-        Aether::Input::SetCursorMode(Aether::CursorMode::Normal);
-    }
-    if (Aether::Input::IsMouseButtonPressed(Aether::Mouse::ButtonLeft) && !m_CursorLocked && !ImGui::GetIO().WantCaptureMouse) {
-        m_CursorLocked = true;
-        Aether::Input::SetCursorMode(Aether::CursorMode::Locked);
-        m_LastMousePos = Aether::Input::GetMousePosition();
-    }
-    if (m_CursorLocked) {
-        if (Aether::Input::IsKeyPressed(Aether::Key::W)) m_Camera.ProcessKeyboard(Aether::FORWARD, ts);
-        if (Aether::Input::IsKeyPressed(Aether::Key::S)) m_Camera.ProcessKeyboard(Aether::BACKWARD, ts);
-        if (Aether::Input::IsKeyPressed(Aether::Key::A)) m_Camera.ProcessKeyboard(Aether::LEFT, ts);
-        if (Aether::Input::IsKeyPressed(Aether::Key::D)) m_Camera.ProcessKeyboard(Aether::RIGHT, ts);
-        if (Aether::Input::IsKeyPressed(Aether::Key::Space)) m_Camera.ProcessKeyboard(Aether::UP, ts);
-        if (Aether::Input::IsKeyPressed(Aether::Key::LeftControl)) m_Camera.ProcessKeyboard(Aether::DOWN, ts);
-
-        glm::vec2 currentPos = Aether::Input::GetMousePosition();
-        glm::vec2 delta = currentPos - m_LastMousePos;
-        m_LastMousePos = currentPos;
-        m_Camera.ProcessMouseMovement(delta.x, -delta.y);
-    }
 }
 
 glm::mat4 GameLayer::CalculateLightSpaceMatrix()
@@ -224,13 +199,15 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     Aether::RenderCommand::Clear();
 
     // Update Camera UBO
-    float aspectRatio = (float)width / (float)height;
-    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.Zoom), aspectRatio, 0.1f, 100.0f);
-    glm::mat4 view = m_Camera.GetViewMatrix();
+    m_EditorCamera.SetViewportSize((float)width, (float)height);
+
+    glm::mat4 projection = m_EditorCamera.GetProjection();
+    glm::mat4 view = m_EditorCamera.GetViewMatrix();
+    glm::vec3 camPos = m_EditorCamera.GetPosition();
 
     m_CameraUBO->SetData(glm::value_ptr(projection), sizeof(glm::mat4), 0);
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
-    m_CameraUBO->SetData(glm::value_ptr(m_Camera.Position), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
+    m_CameraUBO->SetData(glm::value_ptr(camPos), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
 
     // Render skybox
     RenderSkybox();
@@ -335,109 +312,237 @@ void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
     Aether::RenderCommand::DrawIndexed(m_VAO);
 }
 
+void GameLayer::OnEvent(Aether::Event& event)
+{
+    // Chuyển sự kiện vào camera xử lý
+    m_EditorCamera.OnEvent(event);
+}
+
+// ... (Keep all other methods the same, only replacing OnImGuiRender)
+
 void GameLayer::OnImGuiRender()
 {
-    ImGui::Begin("Spotlight Controls");
+    // Main control panel
+    ImGui::SetNextWindowSize(ImVec2(420, 700), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_MenuBar);
 
-    ImGui::Text("FPS: %.1f (%.3f ms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
-    ImGui::Text("Camera Position: (%.1f, %.1f, %.1f)",
-        m_Camera.Position.x, m_Camera.Position.y, m_Camera.Position.z);
+    // Menu bar for quick actions
+    if (ImGui::BeginMenuBar())
+    {
+        if (ImGui::BeginMenu("View"))
+        {
+            if (ImGui::MenuItem("Reset Camera")) {
+                m_EditorCamera.SetDistance(10.0f);
+            }
+            if (ImGui::MenuItem("Top View")) {
+                // Set camera to look down from above
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Scene"))
+        {
+            if (ImGui::MenuItem("Reset All")) {
+                m_TranslationA = { -2.0f, 0.5f, 0.0f };
+                m_TranslationB = { 2.0f, 0.5f, 0.0f };
+                m_Rotation = 0.0f;
+                m_RandomCubes.clear();
+                m_CubesSize.clear();
+                m_CubeRot.clear();
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
+    // Performance stats at the top
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
+    ImGui::Text("FPS: %.1f (%.2fms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
+    ImGui::PopStyleColor();
     ImGui::Separator();
 
-    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Controls:");
-        ImGui::BulletText("Left Click: Lock/Unlock cursor");
-        ImGui::BulletText("WASD: Move horizontally");
-        ImGui::BulletText("Space/Ctrl: Move up/down");
-        ImGui::BulletText("Mouse: Look around");
-        ImGui::BulletText("ESC: Unlock cursor");
+    // ===== CAMERA SECTION =====
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.9f, 1.0f, 1.0f));
+        ImGui::TextWrapped("Controls:");
+        ImGui::PopStyleColor();
+        
+        ImGui::Indent(10.0f);
+        ImGui::BulletText("Right Mouse: Rotate (orbit around focus)");
+        ImGui::BulletText("Middle Mouse: Pan view");
+        ImGui::BulletText("Scroll Wheel: Zoom in/out");
         ImGui::Spacing();
-        ImGui::SliderFloat("Movement Speed", &m_Camera.MovementSpeed, 1.0f, 20.0f);
-        ImGui::SliderFloat("Mouse Sensitivity", &m_Camera.MouseSensitivity, 0.05f, 0.5f);
-        ImGui::SliderFloat("FOV (Zoom)", &m_Camera.Zoom, 0.0f, 120.0f);
+        ImGui::BulletText("WASD: Move horizontally");
+        ImGui::BulletText("Q/E: Move down/up");
+        ImGui::BulletText("Hold Shift: Move faster");
+        ImGui::BulletText("Hold Ctrl: Move slower");
+        ImGui::Unindent(10.0f);
+        
+        ImGui::Spacing();
+        ImGui::Separator();
+        
+        // Camera info
+        glm::vec3 pos = m_EditorCamera.GetPosition();
+        ImGui::Text("Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
+        ImGui::Text("Distance: %.1f units", m_EditorCamera.GetDistance());
+        ImGui::Text("Pitch: %.1f° | Yaw: %.1f°", 
+            glm::degrees(m_EditorCamera.GetPitch()), 
+            glm::degrees(m_EditorCamera.GetYaw()));
+        
+        if (ImGui::Button("Reset View", ImVec2(-1, 0))) {
+            m_EditorCamera.SetDistance(10.0f);
+        }
     }
 
-    if (ImGui::CollapsingHeader("Spotlight Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::DragFloat3("Position", &m_LightPos.x, 0.1f);
+    // ===== LIGHTING SECTION =====
+    if (ImGui::CollapsingHeader("Spotlight", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+        ImGui::Text("Position");
+        ImGui::DragFloat3("##LightPos", &m_LightPos.x, 0.1f, -20.0f, 20.0f);
 
-        ImGui::Text("Direction:");
-        ImGui::SliderFloat3("##Dir", &m_LightDir.x, -1.0f, 1.0f);
-        if (ImGui::Button("Point Down")) m_LightDir = glm::vec3(0.0f, -1.0f, 0.0f);
+        ImGui::Spacing();
+        ImGui::Text("Direction");
+        ImGui::SliderFloat3("##LightDir", &m_LightDir.x, -1.0f, 1.0f);
+        
+        // Quick direction presets
+        if (ImGui::Button("Point Down", ImVec2(100, 0))) 
+            m_LightDir = glm::vec3(0.0f, -1.0f, 0.0f);
         ImGui::SameLine();
-        if (ImGui::Button("Point at Center")) m_LightDir = glm::normalize(glm::vec3(0.0f) - m_LightPos);
+        if (ImGui::Button("Point Center", ImVec2(100, 0))) 
+            m_LightDir = glm::normalize(glm::vec3(0.0f) - m_LightPos);
 
+        ImGui::Spacing();
         ImGui::Separator();
-        ImGui::SliderFloat("Inner Angle", &m_InnerAngle, 1.0f, 80.0f);
-        ImGui::SliderFloat("Outer Angle", &m_OuterAngle, m_InnerAngle, 90.0f);
+        
+        // Cone angles with visual feedback
+        ImGui::Text("Cone Shape");
+        ImGui::SliderFloat("Inner Angle", &m_InnerAngle, 1.0f, 80.0f, "%.1f°");
+        ImGui::SliderFloat("Outer Angle", &m_OuterAngle, m_InnerAngle, 90.0f, "%.1f°");
 
         if (m_InnerAngle > m_OuterAngle) m_InnerAngle = m_OuterAngle;
+        
+        // Visual indicator
+        float coneRatio = m_InnerAngle / m_OuterAngle;
+        ImGui::ProgressBar(coneRatio, ImVec2(-1, 0), "");
+        ImGui::SameLine(0, 10);
+        ImGui::Text("Sharpness");
     }
 
-    if (ImGui::CollapsingHeader("Scene Objects", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("Cube A:");
-        ImGui::SliderFloat3("Position##CubeA", &m_TranslationA.x, -8.0f, 8.0f);
+    // ===== SCENE OBJECTS =====
+    if (ImGui::CollapsingHeader("Objects", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+        ImGui::PushID("CubeA");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Cube A");
+        ImGui::SameLine(80);
+        ImGui::SetNextItemWidth(-1);
+        ImGui::DragFloat3("##PosA", &m_TranslationA.x, 0.1f, -15.0f, 15.0f, "%.1f");
+        ImGui::PopID();
+
+        ImGui::PushID("CubeB");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Cube B");
+        ImGui::SameLine(80);
+        ImGui::SetNextItemWidth(-1);
+        ImGui::DragFloat3("##PosB", &m_TranslationB.x, 0.1f, -15.0f, 15.0f, "%.1f");
+        ImGui::PopID();
+
         ImGui::Spacing();
-
-        ImGui::Text("Cube B:");
-        ImGui::SliderFloat3("Position##CubeB", &m_TranslationB.x, -8.0f, 8.0f);
-        ImGui::Spacing();
-
-        ImGui::SliderFloat("Cube Scale", &m_CubeScale, 0.5f, 3.0f);
-        ImGui::SliderFloat("Floor Scale", &m_FloorScale, 5.0f, 30.0f);
-
         ImGui::Separator();
-        if (ImGui::Button("Spawn Random Cube")) {
-            float min = 0.5f;
-            float max = 3.0f;
+        
+        ImGui::Text("Scaling");
+        ImGui::SliderFloat("Cube Size", &m_CubeScale, 0.5f, 3.0f, "%.1fx");
+        ImGui::SliderFloat("Floor Size", &m_FloorScale, 5.0f, 30.0f, "%.1fx");
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        
+        // Random cubes section with better layout
+        ImGui::Text("Random Cubes (%d)", (int)m_RandomCubes.size());
+        
+        float buttonWidth = (ImGui::GetContentRegionAvail().x - 10) * 0.5f;
+        if (ImGui::Button("+ Spawn Cube", ImVec2(buttonWidth, 30))) {
+            float min = 0.5f, max = 3.0f;
             float x = static_cast<float>(rand() % 300 - 150) / 10.0f;
             float y = static_cast<float>(rand() % 50 + 10) / 10.0f;
             float z = static_cast<float>(rand() % 300 - 150) / 10.0f;
             float size = min + ((float)rand() / RAND_MAX) * (max - min);
-            float rot = -1.0f + ((float)rand() / RAND_MAX) * (1.0f - (-1.0f));
+            float rot = -1.0f + ((float)rand() / RAND_MAX) * 2.0f;
             m_RandomCubes.push_back({ x, y, z });
             m_CubesSize.push_back(size);
             m_CubeRot.push_back(rot);
         }
         ImGui::SameLine();
-        if (ImGui::Button("Clear Random Cubes")) {
+        if (ImGui::Button("Clear All", ImVec2(buttonWidth, 30))) {
             m_RandomCubes.clear();
             m_CubesSize.clear();
             m_CubeRot.clear();
         }
-        ImGui::Text("Count: %d", (int)m_RandomCubes.size());
     }
 
-    if (ImGui::CollapsingHeader("Animation")) {
+    // ===== ANIMATION =====
+    if (ImGui::CollapsingHeader("Animation")) 
+    {
         ImGui::Checkbox("Enable Rotation", &m_EnableRotation);
-        ImGui::SliderFloat("Rotation Speed", &m_RotationSpeed, -2.0f, 2.0f);
-        if (ImGui::Button("Reset Rotation")) {
-            m_Rotation = 0.0f;
+        
+        if (m_EnableRotation) {
+            ImGui::SliderFloat("Speed", &m_RotationSpeed, -2.0f, 2.0f, "%.2fx");
+            
+            if (ImGui::Button("Reset", ImVec2(100, 0))) {
+                m_Rotation = 0.0f;
+            }
+        } else {
+            ImGui::TextDisabled("Rotation paused");
         }
     }
 
-    if (ImGui::CollapsingHeader("Rendering")) {
-        ImGui::ColorEdit3("Background Color", &m_BackgroundColor.x);
-        ImGui::Text("Shadow Map Settings:");
-        if (ImGui::SliderInt("Shadow Resolution", &m_ShadowMapResolution, 512, 4096)) {
+    // ===== RENDERING =====
+    if (ImGui::CollapsingHeader("Rendering & Effects")) 
+    {
+        ImGui::Text("Background");
+        ImGui::ColorEdit3("Color##BG", &m_BackgroundColor.x, ImGuiColorEditFlags_NoInputs);
+        
+        ImGui::Spacing();
+        ImGui::Separator();
+        
+        // Fog settings
+        ImGui::Checkbox("Enable Fog", &m_FogEnabled);
+        
+        if (m_FogEnabled) {
+            ImGui::Indent(10.0f);
+            ImGui::ColorEdit3("Fog Color", &m_FogColor.x, ImGuiColorEditFlags_NoInputs);
+            ImGui::DragFloat("Start Distance", &m_FogStart, 0.5f, 0.0f, m_FogEnd, "%.1f");
+            ImGui::DragFloat("End Distance", &m_FogEnd, 0.5f, m_FogStart, 200.0f, "%.1f");
+            
+            if (ImGui::Button("Match Background", ImVec2(-1, 0))) {
+                m_BackgroundColor = glm::vec4(m_FogColor, 1.0f);
+            }
+            ImGui::Unindent(10.0f);
+        }
+        
+        ImGui::Spacing();
+        ImGui::Separator();
+        
+        // Shadow settings
+        ImGui::Text("Shadow Quality");
+        const char* resolutions[] = { "512", "1024", "2048", "4096" };
+        int currentRes = 0;
+        if (m_ShadowMapResolution == 512) currentRes = 0;
+        else if (m_ShadowMapResolution == 1024) currentRes = 1;
+        else if (m_ShadowMapResolution == 2048) currentRes = 2;
+        else if (m_ShadowMapResolution == 4096) currentRes = 3;
+        
+        if (ImGui::Combo("Resolution", &currentRes, resolutions, 4)) {
+            int newRes[] = { 512, 1024, 2048, 4096 };
+            m_ShadowMapResolution = newRes[currentRes];
+            
             Aether::FramebufferSpecification fbSpec;
             fbSpec.Width = m_ShadowMapResolution;
             fbSpec.Height = m_ShadowMapResolution;
             fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
             m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
         }
-
-        ImGui::Separator();
-        ImGui::Text("Fog Settings:");
-        ImGui::Checkbox("Enable Fog", &m_FogEnabled);
-        ImGui::ColorEdit3("Fog Color", &m_FogColor.x);
-        ImGui::DragFloat("Fog Start", &m_FogStart, 0.1f, 0.0f, 100.0f);
-        ImGui::DragFloat("Fog End", &m_FogEnd, 0.1f, 0.0f, 200.0f);
-        if (ImGui::Button("Sync Fog with BG")) {
-            m_BackgroundColor = glm::vec4(m_FogColor, 1.0f);
-        }
     }
 
     ImGui::End();
 }
-
-void GameLayer::OnEvent(Aether::Event& event) {}

@@ -1,5 +1,4 @@
 #include "Aether/Core/EntryPoint.h"
-#include "PBRLayer.h"
 #include "GameLayer.h"
 
 class Sandbox : public Aether::Application {

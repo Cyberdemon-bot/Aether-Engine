@@ -17,7 +17,6 @@ public:
     virtual void OnEvent(Aether::Event& event) override;
 
 private:
-    void HandleInput(Aether::Timestep ts);
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
@@ -41,8 +40,7 @@ private:
     void InitSkybox();
     void RenderSkybox();
 
-    // Camera (still using Legacy Camera for now)
-    Aether::Camera m_Camera;
+    Aether::EditorCamera m_EditorCamera;
     bool m_CursorLocked = false;
     glm::vec2 m_LastMousePos = { 0.0f, 0.0f };
 
