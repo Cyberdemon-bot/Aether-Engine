@@ -18,6 +18,8 @@ in vec2 v_TexCoord;
 
 uniform vec4 u_Color; uniform sampler2D u_Texture;
 
+float aberrationAmount = 0.005;
+
 void main() 
 { 
     float r = texture(u_Texture, v_TexCoord + vec2(-aberrationAmount, 0.0)).r;

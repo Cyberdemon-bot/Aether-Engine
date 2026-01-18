@@ -10,13 +10,15 @@ GameLayer::GameLayer()
 
 void GameLayer::Detach()
 {
-    m_VAO.reset(); m_VBO.reset(); m_IBO.reset();
-    m_Shader.reset(); m_ShadowShader.reset();
-    m_Texture.reset(); m_ShadowFBO.reset();
+    m_VAO.reset();
+    m_Shader.reset();
+    m_ShadowShader.reset();
+    m_Texture.reset();
+    m_ShadowFBO.reset();
     m_CameraUBO.reset();
+    m_InstanceVBO.reset();
     
     m_SkyboxVAO.reset();
-    m_SkyboxVBO.reset();
     m_SkyboxShader.reset();
     m_SkyboxTexture.reset();
 }
@@ -26,8 +28,7 @@ void GameLayer::Attach()
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
-    Aether::Legacy::LegacyAPI::Init();
-
+    // Create cube geometry
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
@@ -55,41 +56,55 @@ void GameLayer::Attach()
         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f
     };
 
-    unsigned int indices[] = {
+    uint32_t indices[] = {
         0,1,2, 2,3,0, 4,5,6, 6,7,4, 8,9,10, 10,11,8,
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    m_VAO = Aether::CreateRef<Aether::Legacy::VertexArray>();
-    m_VBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(vertices, sizeof(vertices));
-    Aether::Legacy::VertexBufferLayout layout;
-    layout.Push<float>(3); layout.Push<float>(3); layout.Push<float>(2);
-    m_VAO->AddBuffer(*m_VBO, layout);
-    m_IBO = Aether::CreateRef<Aether::Legacy::IndexBuffer>(indices, 36);
+    // Create VAO using new API
+    m_VAO = Aether::VertexArray::Create();
+    
+    // Create VBO
+    Aether::Ref<Aether::VertexBuffer> vbo = Aether::VertexBuffer::Create(vertices, sizeof(vertices));
+    Aether::BufferLayout layout = {
+        { "a_Position", Aether::ShaderDataType::Float3 },
+        { "a_Normal",   Aether::ShaderDataType::Float3 },
+        { "a_TexCoord", Aether::ShaderDataType::Float2 }
+    };
+    vbo->SetLayout(layout);
+    m_VAO->AddVertexBuffer(vbo);
+    
+    // Create IBO
+    Aether::Ref<Aether::IndexBuffer> ibo = Aether::IndexBuffer::Create(indices, 36);
+    m_VAO->SetIndexBuffer(ibo);
 
+    // Create Camera UBO
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
-    m_CameraUBO = Aether::CreateRef<Aether::Legacy::UniformBuffer>(uboSize, 0);
+    m_CameraUBO = Aether::UniformBuffer::Create(uboSize, 0);
 
-    m_Shader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/LightingShadow.shader");
-    m_ShadowShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/ShadowMap.shader");
-    m_Texture = Aether::CreateRef<Aether::Legacy::Texture>("assets/textures/wood.jpg");
+    // Load shaders
+    m_Shader = Aether::Shader::Create("assets/shaders/LightingShadow.shader");
+    m_ShadowShader = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
+    
+    // Load texture
+    m_Texture = Aether::Texture2D::Create("assets/textures/wood.jpg");
 
-    m_Shader->Bind();
-    m_Shader->BindUniformBlock("CameraData", 0);
-
+    // Initialize skybox
     InitSkybox();
 
-    Aether::Legacy::FramebufferSpecification fbSpec;
+    // Create shadow framebuffer
+    Aether::FramebufferSpecification fbSpec;
     fbSpec.Width = m_ShadowMapResolution;
     fbSpec.Height = m_ShadowMapResolution;
-    fbSpec.Attachments = { Aether::Legacy::FramebufferTextureFormat::DEPTH24STENCIL8 };
-    m_ShadowFBO = Aether::CreateRef<Aether::Legacy::FrameBuffer>(fbSpec);
+    fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
+    m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
+
+    AE_CORE_INFO("GameLayer initialized with new API!");
 }
 
 void GameLayer::InitSkybox()
 {
     float skyboxVertices[] = {
-        //   X      Y      Z
         -1.0f, -1.0f,  1.0f, 
          1.0f, -1.0f,  1.0f, 
          1.0f, -1.0f, -1.0f, 
@@ -100,48 +115,40 @@ void GameLayer::InitSkybox()
         -1.0f,  1.0f, -1.0f  
     };
 
-    unsigned int skyboxIndices[] = {
-        1, 2, 6,
-        6, 5, 1,
-
-        0, 4, 7,
-        7, 3, 0,
-
-        4, 5, 6,
-        6, 7, 4,
-       
-        0, 3, 2,
-        2, 1, 0,
-       
-        0, 1, 5,
-        5, 4, 0,
-        
-        3, 7, 6,
-        6, 2, 3
+    uint32_t skyboxIndices[] = {
+        1, 2, 6, 6, 5, 1,
+        0, 4, 7, 7, 3, 0,
+        4, 5, 6, 6, 7, 4,
+        0, 3, 2, 2, 1, 0,
+        0, 1, 5, 5, 4, 0,
+        3, 7, 6, 6, 2, 3
     };
 
-    m_SkyboxVAO = Aether::CreateRef<Aether::Legacy::VertexArray>();
-    m_SkyboxVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(skyboxVertices, sizeof(skyboxVertices));
-    m_SkyboxIBO = Aether::CreateRef<Aether::Legacy::IndexBuffer>(skyboxIndices, 36);
+    m_SkyboxVAO = Aether::VertexArray::Create();
     
-    Aether::Legacy::VertexBufferLayout layout;
-    layout.Push<float>(3); // Only position
-    m_SkyboxVAO->AddBuffer(*m_SkyboxVBO, layout);
+    Aether::Ref<Aether::VertexBuffer> skyboxVBO = Aether::VertexBuffer::Create(skyboxVertices, sizeof(skyboxVertices));
+    Aether::BufferLayout skyboxLayout = {
+        { "a_Position", Aether::ShaderDataType::Float3 }
+    };
+    skyboxVBO->SetLayout(skyboxLayout);
+    m_SkyboxVAO->AddVertexBuffer(skyboxVBO);
+    
+    Aether::Ref<Aether::IndexBuffer> skyboxIBO = Aether::IndexBuffer::Create(skyboxIndices, 36);
+    m_SkyboxVAO->SetIndexBuffer(skyboxIBO);
 
-    m_SkyboxShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/Skybox.shader");
-    m_SkyboxTexture = Aether::CreateRef<Aether::Legacy::TextureCube>("assets/textures/skybox.png");
-    m_SkyboxTexture->Bind(0);
-
-    m_SkyboxShader->Bind();
-    m_SkyboxShader->BindUniformBlock("CameraData", 0);
-    m_SkyboxShader->SetUniform1i("u_Skybox", 0);
+    m_SkyboxShader = Aether::Shader::Create("assets/shaders/Skybox.shader");
+    m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
 void GameLayer::RenderSkybox()
 {
-    Aether::Legacy::LegacyAPI::SetDepthFunc(GL_LEQUAL);
-    Aether::Legacy::LegacyAPI::Draw(*m_SkyboxVAO, *m_SkyboxIBO, *m_SkyboxShader);
-    Aether::Legacy::LegacyAPI::SetDepthFunc(GL_LESS);
+    m_SkyboxTexture->Bind(0);
+    m_SkyboxShader->Bind();
+    m_SkyboxShader->SetInt("u_Skybox", 0);
+    
+    Aether::RenderCommand::SetDepthFunc(GL_LEQUAL);
+    Aether::RenderCommand::DrawIndexed(m_SkyboxVAO);
+    Aether::RenderCommand::SetDepthFunc(GL_LESS);
 }
 
 void GameLayer::Update(Aether::Timestep ts)
@@ -195,24 +202,26 @@ glm::mat4 GameLayer::CalculateLightSpaceMatrix()
 void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
 {
     m_ShadowFBO->Bind();
-    Aether::Legacy::LegacyAPI::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
-    Aether::Legacy::LegacyAPI::Clear();
+    Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
+    Aether::RenderCommand::Clear();
 
     m_ShadowShader->Bind();
-    m_ShadowShader->SetUniformMat4f("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_ShadowShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
     RenderScene(m_ShadowShader);
+    
     m_ShadowFBO->Unbind();
 }
 
 void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix)
 {
-    Aether::Legacy::LegacyAPI::SetViewport(0, 0, width, height);
+    Aether::RenderCommand::SetViewport(0, 0, width, height);
 
     if (m_FogEnabled)
-        Aether::Legacy::LegacyAPI::SetClearColor(glm::vec4(m_FogColor, 1.0f));
+        Aether::RenderCommand::SetClearColor(glm::vec4(m_FogColor, 1.0f));
     else
-        Aether::Legacy::LegacyAPI::SetClearColor(m_BackgroundColor);
-    Aether::Legacy::LegacyAPI::Clear();
+        Aether::RenderCommand::SetClearColor(m_BackgroundColor);
+    
+    Aether::RenderCommand::Clear();
 
     // Update Camera UBO
     float aspectRatio = (float)width / (float)height;
@@ -223,57 +232,63 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
     m_CameraUBO->SetData(glm::value_ptr(m_Camera.Position), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
 
+    // Render skybox
     RenderSkybox();
 
+    // Main scene rendering
     m_Shader->Bind();
     
     m_Texture->Bind(0);
-    m_Shader->SetUniform1i("u_Texture", 0);
+    m_Shader->SetInt("u_Texture", 0);
     m_ShadowFBO->BindDepthTexture(1);
-    m_Shader->SetUniform1i("u_ShadowMap", 1);
+    m_Shader->SetInt("u_ShadowMap", 1);
 
-    m_Shader->SetUniform3f("u_LightPos", m_LightPos);
-    m_Shader->SetUniform3f("u_LightDir", m_LightDir);
-    m_Shader->SetUniform1f("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
-    m_Shader->SetUniform1f("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
-    m_Shader->SetUniformMat4f("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_Shader->SetFloat3("u_LightPos", m_LightPos);
+    m_Shader->SetFloat3("u_LightDir", m_LightDir);
+    m_Shader->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
+    m_Shader->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
+    m_Shader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
 
-    m_Shader->SetUniform1i("u_IsLightSource", 0);
+    m_Shader->SetInt("u_IsLightSource", 0);
+    m_Shader->SetInt("u_FogEnabled", m_FogEnabled);
+    m_Shader->SetFloat3("u_FogColor", m_FogColor);
+    m_Shader->SetFloat("u_FogStart", m_FogStart);
+    m_Shader->SetFloat("u_FogEnd", m_FogEnd);
+    
     RenderScene(m_Shader);
 
+    // Render light source indicator
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
     model = glm::scale(model, glm::vec3(0.2f));
-    m_Shader->SetUniformMat4f("u_Model", model);
-    m_Shader->SetUniform1i("u_IsLightSource", 1);
-    m_Shader->SetUniform3f("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
-    Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *m_Shader);
-    m_Shader->SetUniform1i("u_IsLightSource", 0);
-
-    m_Shader->SetUniform1i("u_FogEnabled", m_FogEnabled);
-    m_Shader->SetUniform3f("u_FogColor", m_FogColor);
-    m_Shader->SetUniform1f("u_FogStart", m_FogStart);
-    m_Shader->SetUniform1f("u_FogEnd", m_FogEnd);
+    m_Shader->SetMat4("u_Model", model);
+    m_Shader->SetInt("u_IsLightSource", 1);
+    m_Shader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
+    Aether::RenderCommand::DrawIndexed(m_VAO);
+    m_Shader->SetInt("u_IsLightSource", 0);
 }
 
-void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
+void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
 {
+    // Cube A
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
     model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
-    shader->SetUniformMat4f("u_Model", model);
-    shader->SetUniform1i("u_UseInstancing", 0); // Tắt instancing
-    Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
+    shader->SetMat4("u_Model", model);
+    shader->SetInt("u_UseInstancing", 0);
+    Aether::RenderCommand::DrawIndexed(m_VAO);
 
+    // Cube B
     model = glm::translate(glm::mat4(1.0f), m_TranslationB);
     model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
-    shader->SetUniformMat4f("u_Model", model);
-    Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(m_VAO);
 
+    // Random cubes with instancing
     if (!m_RandomCubes.empty())
     {
-        instanceModels.clear();
-        instanceModels.reserve(m_RandomCubes.size());
+        m_InstanceModels.clear();
+        m_InstanceModels.reserve(m_RandomCubes.size());
 
         for (size_t i = 0; i < m_RandomCubes.size(); i++) 
         {
@@ -283,38 +298,46 @@ void GameLayer::RenderScene(std::shared_ptr<Aether::Legacy::Shader> shader)
             glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
             instModel = glm::rotate(instModel, m_Rotation * rot, glm::vec3(0.5f, 1.0f, 0.0f));
             instModel = glm::scale(instModel, glm::vec3(size * m_CubeScale));
-            instanceModels.push_back(instModel);
+            m_InstanceModels.push_back(instModel);
         }
 
-        uint32_t dataSize = (uint32_t)instanceModels.size() * sizeof(glm::mat4);
+        uint32_t dataSize = (uint32_t)m_InstanceModels.size() * sizeof(glm::mat4);
 
+        // Check if we need to recreate the buffer (doesn't exist or too small)
         if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
         {
-            m_InstanceVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(nullptr, dataSize);
-
-            Aether::Legacy::VertexBufferLayout instanceLayout;
-            instanceLayout.Push<float>(4);
-            instanceLayout.Push<float>(4);
-            instanceLayout.Push<float>(4);
-            instanceLayout.Push<float>(4);
-            m_VAO->AddInstanceBuffer(*m_InstanceVBO, instanceLayout, 3);
+            // Recreate with larger size (2x current need to reduce reallocations)
+            uint32_t newSize = dataSize * 2;
+            m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
+            
+            Aether::BufferLayout instanceLayout = {
+                { "a_InstanceModel_Row0", Aether::ShaderDataType::Float4 },
+                { "a_InstanceModel_Row1", Aether::ShaderDataType::Float4 },
+                { "a_InstanceModel_Row2", Aether::ShaderDataType::Float4 },
+                { "a_InstanceModel_Row3", Aether::ShaderDataType::Float4 }
+            };
+            m_InstanceVBO->SetLayout(instanceLayout);
+            m_VAO->AddInstanceBuffer(m_InstanceVBO, 3);
         }
-        m_InstanceVBO->SetData(instanceModels.data(), dataSize);
+        
+        // Upload instance data
+        m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
 
-        shader->SetUniform1i("u_UseInstancing", 1); 
-        Aether::Legacy::LegacyAPI::DrawInstanced(*m_VAO, *m_IBO, *shader, (uint32_t)m_RandomCubes.size());
-        shader->SetUniform1i("u_UseInstancing", 0); 
+        shader->SetInt("u_UseInstancing", 1);
+        Aether::RenderCommand::DrawInstanced(m_VAO, (uint32_t)m_RandomCubes.size());
+        shader->SetInt("u_UseInstancing", 0);
     }
 
+    // Floor
     model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
-    shader->SetUniformMat4f("u_Model", model);
-    Aether::Legacy::LegacyAPI::Draw(*m_VAO, *m_IBO, *shader);
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(m_VAO);
 }
 
 void GameLayer::OnImGuiRender()
 {
-   ImGui::Begin("Spotlight Controls");
+    ImGui::Begin("Spotlight Controls");
 
     ImGui::Text("FPS: %.1f (%.3f ms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
     ImGui::Text("Camera Position: (%.1f, %.1f, %.1f)",
@@ -396,11 +419,11 @@ void GameLayer::OnImGuiRender()
         ImGui::ColorEdit3("Background Color", &m_BackgroundColor.x);
         ImGui::Text("Shadow Map Settings:");
         if (ImGui::SliderInt("Shadow Resolution", &m_ShadowMapResolution, 512, 4096)) {
-            Aether::Legacy::FramebufferSpecification fbSpec;
+            Aether::FramebufferSpecification fbSpec;
             fbSpec.Width = m_ShadowMapResolution;
             fbSpec.Height = m_ShadowMapResolution;
-            fbSpec.Attachments = { Aether::Legacy::FramebufferTextureFormat::DEPTH24STENCIL8 };
-            m_ShadowFBO = Aether::CreateRef<Aether::Legacy::FrameBuffer>(fbSpec);
+            fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
+            m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
         }
 
         ImGui::Separator();

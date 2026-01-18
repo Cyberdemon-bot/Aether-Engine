@@ -7,7 +7,7 @@ namespace Aether::Legacy {
         : m_RendererID(0), m_FilePath(path), m_LocalBuffer(nullptr), m_Width(0), m_Height(0), m_BPP(0)
     {
         stbi_set_flip_vertically_on_load(1);
-       void* data = nullptr;
+        void* data = nullptr;
         GLenum internalFormat = 0;
         GLenum dataFormat = 0;
         GLenum type = 0;

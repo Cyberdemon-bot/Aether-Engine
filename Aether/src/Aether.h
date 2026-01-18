@@ -14,3 +14,10 @@
 
 #include "Aether/Renderer/RenderCommand.h"
 #include "Aether/Renderer/Legacy/LegacyAPI.h"
+
+#include "Aether/Renderer/Buffer.h"
+#include "Aether/Renderer/Shader.h"
+#include "Aether/Renderer/Texture.h"
+#include "Aether/Renderer/VertexArray.h"
+#include "Aether/Renderer/UniformBuffer.h"
+#include "Aether/Renderer/FrameBuffer.h"

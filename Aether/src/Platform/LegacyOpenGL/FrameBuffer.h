@@ -42,7 +42,7 @@ namespace Aether::Legacy {
 		bool SwapChainTarget = false;
 	};
 
-	class AETHER_API FrameBuffer
+	class FrameBuffer
 	{
 	public:
 		FrameBuffer(const FramebufferSpecification& spec);
