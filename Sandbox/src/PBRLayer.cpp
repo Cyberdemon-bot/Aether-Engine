@@ -11,8 +11,6 @@ PBRLayer::PBRLayer()
 void PBRLayer::Detach()
 {
     m_MeshVAOs.clear();
-    m_MeshVBOs.clear();
-    m_MeshIBOs.clear();
     m_Meshes.clear();
     
     m_PBRShader.reset();
@@ -21,8 +19,6 @@ void PBRLayer::Detach()
     m_CameraUBO.reset();
     
     m_SkyboxVAO.reset();
-    m_SkyboxVBO.reset();
-    m_SkyboxIBO.reset();
     m_SkyboxShader.reset();
     m_SkyboxTexture.reset();
 }
@@ -32,28 +28,23 @@ void PBRLayer::Attach()
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
-    Aether::Legacy::LegacyAPI::Init();
-
-    // Create camera UBO
+    // Create camera UBO using new API
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
-    m_CameraUBO = Aether::CreateRef<Aether::Legacy::UniformBuffer>(uboSize, 0);
+    m_CameraUBO = Aether::UniformBuffer::Create(uboSize, 0);
 
-    // Load shaders
-    m_PBRShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/PBR.shader");
-    m_ShadowShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/PBRShadowMap.shader");
-    
-    m_PBRShader->Bind();
-    m_PBRShader->BindUniformBlock("CameraData", 0);
+    // Load shaders using new API
+    m_PBRShader = Aether::Shader::Create("assets/shaders/PBR.shader");
+    m_ShadowShader = Aether::Shader::Create("assets/shaders/PBRShadowMap.shader");
 
     // Initialize skybox
     InitSkybox();
 
-    // Setup shadow framebuffer
-    Aether::Legacy::FramebufferSpecification fbSpec;
+    // Setup shadow framebuffer using new API
+    Aether::FramebufferSpecification fbSpec;
     fbSpec.Width = m_ShadowMapResolution;
     fbSpec.Height = m_ShadowMapResolution;
-    fbSpec.Attachments = { Aether::Legacy::FramebufferTextureFormat::DEPTH24STENCIL8 };
-    m_ShadowFBO = Aether::CreateRef<Aether::Legacy::FrameBuffer>(fbSpec);
+    fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
+    m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
 
     // Create test meshes
     m_Meshes.push_back(CreateCubeMesh("Floor"));
@@ -97,6 +88,8 @@ void PBRLayer::Attach()
         glm::vec3(4.0f, 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f),
         glm::vec3(0.9f, 0.9f, 0.95f), 1.0f, 0.1f, 1.0f
     });
+
+    AE_CORE_INFO("PBRLayer initialized with new API!");
 }
 
 Aether::Mesh PBRLayer::CreateCubeMesh(const std::string& name)
@@ -159,36 +152,36 @@ void PBRLayer::SetupMeshRendering(Aether::Mesh& mesh)
 {
     const auto& data = mesh.GetData();
     
-    // Create VAO
-    auto vao = Aether::CreateRef<Aether::Legacy::VertexArray>();
+    // Create VAO using new API
+    auto vao = Aether::VertexArray::Create();
     
     // Create VBO
-    auto vbo = Aether::CreateRef<Aether::Legacy::VertexBuffer>(
-        data.Vertices.data(), 
+    auto vbo = Aether::VertexBuffer::Create(
+        (float*)data.Vertices.data(), 
         static_cast<uint32_t>(data.Vertices.size() * sizeof(Aether::Vertex))
     );
     
-    // Setup vertex layout for Vertex struct
-    Aether::Legacy::VertexBufferLayout layout;
-    layout.Push<float>(3); // Position
-    layout.Push<float>(3); // Normal
-    layout.Push<float>(3); // Tangent
-    layout.Push<float>(2); // TexCoord
-    layout.Push<unsigned int>(4);   // BoneIDs
-    layout.Push<float>(4); // Weights
-    layout.Push<float>(1); // Orientation
-    
-    vao->AddBuffer(*vbo, layout);
+    // Setup vertex layout for Vertex struct using new API
+    Aether::BufferLayout layout = {
+        { "a_Position",    Aether::ShaderDataType::Float3 },
+        { "a_Normal",      Aether::ShaderDataType::Float3 },
+        { "a_Tangent",     Aether::ShaderDataType::Float3 },
+        { "a_TexCoord",    Aether::ShaderDataType::Float2 },
+        { "a_BoneIDs",     Aether::ShaderDataType::Int4 },
+        { "a_Weights",     Aether::ShaderDataType::Float4 },
+        { "a_Orientation", Aether::ShaderDataType::Float }
+    };
+    vbo->SetLayout(layout);
+    vao->AddVertexBuffer(vbo);
     
     // Create IBO
-    auto ibo = Aether::CreateRef<Aether::Legacy::IndexBuffer>(
-        data.Indices.data(), 
+    auto ibo = Aether::IndexBuffer::Create(
+        (uint32_t*)data.Indices.data(), 
         static_cast<uint32_t>(data.Indices.size())
     );
+    vao->SetIndexBuffer(ibo);
     
     m_MeshVAOs.push_back(vao);
-    m_MeshVBOs.push_back(vbo);
-    m_MeshIBOs.push_back(ibo);
 }
 
 void PBRLayer::InitSkybox()
@@ -204,7 +197,7 @@ void PBRLayer::InitSkybox()
         -1.0f,  1.0f, -1.0f  
     };
 
-    unsigned int skyboxIndices[] = {
+    uint32_t skyboxIndices[] = {
         1, 2, 6, 6, 5, 1,
         0, 4, 7, 7, 3, 0,
         4, 5, 6, 6, 7, 4,
@@ -213,28 +206,32 @@ void PBRLayer::InitSkybox()
         3, 7, 6, 6, 2, 3
     };
 
-    m_SkyboxVAO = Aether::CreateRef<Aether::Legacy::VertexArray>();
-    m_SkyboxVBO = Aether::CreateRef<Aether::Legacy::VertexBuffer>(skyboxVertices, sizeof(skyboxVertices));
-    m_SkyboxIBO = Aether::CreateRef<Aether::Legacy::IndexBuffer>(skyboxIndices, 36);
+    // Create skybox using new API
+    m_SkyboxVAO = Aether::VertexArray::Create();
     
-    Aether::Legacy::VertexBufferLayout layout;
-    layout.Push<float>(3);
-    m_SkyboxVAO->AddBuffer(*m_SkyboxVBO, layout);
+    auto skyboxVBO = Aether::VertexBuffer::Create(skyboxVertices, sizeof(skyboxVertices));
+    Aether::BufferLayout skyboxLayout = {
+        { "a_Position", Aether::ShaderDataType::Float3 }
+    };
+    skyboxVBO->SetLayout(skyboxLayout);
+    m_SkyboxVAO->AddVertexBuffer(skyboxVBO);
+    
+    auto skyboxIBO = Aether::IndexBuffer::Create(skyboxIndices, 36);
+    m_SkyboxVAO->SetIndexBuffer(skyboxIBO);
 
-    m_SkyboxShader = Aether::CreateRef<Aether::Legacy::Shader>("assets/shaders/Skybox.shader");
-    m_SkyboxTexture = Aether::CreateRef<Aether::Legacy::TextureCube>("assets/textures/skybox.png");
-    
-    m_SkyboxShader->Bind();
-    m_SkyboxShader->BindUniformBlock("CameraData", 0);
-    m_SkyboxShader->SetUniform1i("u_Skybox", 0);
+    m_SkyboxShader = Aether::Shader::Create("assets/shaders/Skybox.shader");
+    m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
 void PBRLayer::RenderSkybox()
 {
     m_SkyboxTexture->Bind(0);
-    Aether::Legacy::LegacyAPI::SetDepthFunc(GL_LEQUAL);
-    Aether::Legacy::LegacyAPI::Draw(*m_SkyboxVAO, *m_SkyboxIBO, *m_SkyboxShader);
-    Aether::Legacy::LegacyAPI::SetDepthFunc(GL_LESS);
+    m_SkyboxShader->Bind();
+    m_SkyboxShader->SetInt("u_Skybox", 0);
+    
+    Aether::RenderCommand::SetDepthFunc(GL_LEQUAL);
+    Aether::RenderCommand::DrawIndexed(m_SkyboxVAO);
+    Aether::RenderCommand::SetDepthFunc(GL_LESS);
 }
 
 void PBRLayer::Update(Aether::Timestep ts)
@@ -288,11 +285,11 @@ glm::mat4 PBRLayer::CalculateLightSpaceMatrix()
 void PBRLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
 {
     m_ShadowFBO->Bind();
-    Aether::Legacy::LegacyAPI::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
-    Aether::Legacy::LegacyAPI::Clear();
+    Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
+    Aether::RenderCommand::Clear();
 
     m_ShadowShader->Bind();
-    m_ShadowShader->SetUniformMat4f("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_ShadowShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
     RenderMeshes(m_ShadowShader);
     
     m_ShadowFBO->Unbind();
@@ -300,14 +297,14 @@ void PBRLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
 
 void PBRLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix)
 {
-    Aether::Legacy::LegacyAPI::SetViewport(0, 0, width, height);
+    Aether::RenderCommand::SetViewport(0, 0, width, height);
 
     if (m_FogEnabled)
-        Aether::Legacy::LegacyAPI::SetClearColor(glm::vec4(m_FogColor, 1.0f));
+        Aether::RenderCommand::SetClearColor(glm::vec4(m_FogColor, 1.0f));
     else
-        Aether::Legacy::LegacyAPI::SetClearColor(m_BackgroundColor);
+        Aether::RenderCommand::SetClearColor(m_BackgroundColor);
     
-    Aether::Legacy::LegacyAPI::Clear();
+    Aether::RenderCommand::Clear();
 
     // Update Camera UBO
     float aspectRatio = (float)width / (float)height;
@@ -318,6 +315,7 @@ void PBRLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& 
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
     m_CameraUBO->SetData(glm::value_ptr(m_Camera.Position), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
 
+    // Render skybox
     RenderSkybox();
 
     // Render meshes with PBR
@@ -325,26 +323,26 @@ void PBRLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& 
     
     // Bind shadow map
     m_ShadowFBO->BindDepthTexture(0);
-    m_PBRShader->SetUniform1i("u_ShadowMap", 0);
+    m_PBRShader->SetInt("u_ShadowMap", 0);
     
     // Bind skybox for IBL
     m_SkyboxTexture->Bind(1);
-    m_PBRShader->SetUniform1i("u_IrradianceMap", 1);
+    m_PBRShader->SetInt("u_IrradianceMap", 1);
     
     // Set spotlight parameters
-    m_PBRShader->SetUniform3f("u_LightPos", m_LightPos);
-    m_PBRShader->SetUniform3f("u_LightDir", m_LightDir);
-    m_PBRShader->SetUniform3f("u_LightColor", m_LightColor);
-    m_PBRShader->SetUniform1f("u_LightIntensity", m_LightIntensity);
-    m_PBRShader->SetUniform1f("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
-    m_PBRShader->SetUniform1f("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
-    m_PBRShader->SetUniformMat4f("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_PBRShader->SetFloat3("u_LightPos", m_LightPos);
+    m_PBRShader->SetFloat3("u_LightDir", m_LightDir);
+    m_PBRShader->SetFloat3("u_LightColor", m_LightColor);
+    m_PBRShader->SetFloat("u_LightIntensity", m_LightIntensity);
+    m_PBRShader->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
+    m_PBRShader->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
+    m_PBRShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
     
     // Fog settings
-    m_PBRShader->SetUniform1i("u_FogEnabled", m_FogEnabled);
-    m_PBRShader->SetUniform3f("u_FogColor", m_FogColor);
-    m_PBRShader->SetUniform1f("u_FogStart", m_FogStart);
-    m_PBRShader->SetUniform1f("u_FogEnd", m_FogEnd);
+    m_PBRShader->SetInt("u_FogEnabled", m_FogEnabled);
+    m_PBRShader->SetFloat3("u_FogColor", m_FogColor);
+    m_PBRShader->SetFloat("u_FogStart", m_FogStart);
+    m_PBRShader->SetFloat("u_FogEnd", m_FogEnd);
     
     RenderMeshes(m_PBRShader);
     
@@ -352,17 +350,17 @@ void PBRLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& 
     if (m_MeshVAOs.size() > 1) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
         model = glm::scale(model, glm::vec3(0.3f));
-        m_PBRShader->SetUniformMat4f("u_Model", model);
-        m_PBRShader->SetUniform3f("u_Albedo", glm::vec3(1.0f, 1.0f, 0.0f));
-        m_PBRShader->SetUniform1f("u_Metallic", 0.0f);
-        m_PBRShader->SetUniform1f("u_Roughness", 1.0f);
-        m_PBRShader->SetUniform1f("u_AO", 1.0f);
-        m_PBRShader->SetUniform1i("u_IsLightSource", 1);
-        Aether::Legacy::LegacyAPI::Draw(*m_MeshVAOs[1], *m_MeshIBOs[1], *m_PBRShader);
+        m_PBRShader->SetMat4("u_Model", model);
+        m_PBRShader->SetFloat3("u_Albedo", glm::vec3(1.0f, 1.0f, 0.0f));
+        m_PBRShader->SetFloat("u_Metallic", 0.0f);
+        m_PBRShader->SetFloat("u_Roughness", 1.0f);
+        m_PBRShader->SetFloat("u_AO", 1.0f);
+        m_PBRShader->SetInt("u_IsLightSource", 1);
+        Aether::RenderCommand::DrawIndexed(m_MeshVAOs[1]);
     }
 }
 
-void PBRLayer::RenderMeshes(Aether::Ref<Aether::Legacy::Shader> shader)
+void PBRLayer::RenderMeshes(Aether::Ref<Aether::Shader> shader)
 {
     for (size_t i = 0; i < m_Meshes.size(); i++) {
         if (i >= m_MeshInstances.size()) continue;
@@ -378,18 +376,18 @@ void PBRLayer::RenderMeshes(Aether::Ref<Aether::Legacy::Shader> shader)
         
         model = glm::scale(model, instance.scale);
         
-        shader->SetUniformMat4f("u_Model", model);
+        shader->SetMat4("u_Model", model);
         
         // Set PBR material properties (only for PBR shader)
         if (shader == m_PBRShader) {
-            shader->SetUniform3f("u_Albedo", instance.albedo);
-            shader->SetUniform1f("u_Metallic", instance.metallic);
-            shader->SetUniform1f("u_Roughness", instance.roughness);
-            shader->SetUniform1f("u_AO", instance.ao);
-            shader->SetUniform1i("u_IsLightSource", 0);
+            shader->SetFloat3("u_Albedo", instance.albedo);
+            shader->SetFloat("u_Metallic", instance.metallic);
+            shader->SetFloat("u_Roughness", instance.roughness);
+            shader->SetFloat("u_AO", instance.ao);
+            shader->SetInt("u_IsLightSource", 0);
         }
         
-        Aether::Legacy::LegacyAPI::Draw(*m_MeshVAOs[i], *m_MeshIBOs[i], *shader);
+        Aether::RenderCommand::DrawIndexed(m_MeshVAOs[i]);
     }
 }
 
@@ -455,11 +453,11 @@ void PBRLayer::OnImGuiRender()
         ImGui::ColorEdit3("Background Color", &m_BackgroundColor.x);
         ImGui::Text("Shadow Map Settings:");
         if (ImGui::SliderInt("Shadow Resolution", &m_ShadowMapResolution, 512, 4096)) {
-            Aether::Legacy::FramebufferSpecification fbSpec;
+            Aether::FramebufferSpecification fbSpec;
             fbSpec.Width = m_ShadowMapResolution;
             fbSpec.Height = m_ShadowMapResolution;
-            fbSpec.Attachments = { Aether::Legacy::FramebufferTextureFormat::DEPTH24STENCIL8 };
-            m_ShadowFBO = Aether::CreateRef<Aether::Legacy::FrameBuffer>(fbSpec);
+            fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
+            m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
         }
         ImGui::Separator();
         ImGui::Text("Fog Settings:");
