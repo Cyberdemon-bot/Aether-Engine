@@ -2,6 +2,8 @@
 #include "Application.h"
 #include "Aether/Core/Log.h"
 
+#include "Aether/Renderer/Renderer.h"
+
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
 
@@ -13,6 +15,8 @@ namespace Aether {
         s_Instance = this;
         m_Window = Window::Create(WinProps("Aether Engine", 1600, 900));
         m_Window->SetEventCallback(AE_BIND_EVENT_FN(OnEvent));
+
+        Renderer::Init();  
 
         m_ImGuiLayer = new ImGuiLayer();
         PushOverlay(m_ImGuiLayer);

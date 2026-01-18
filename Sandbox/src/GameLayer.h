@@ -21,41 +21,38 @@ private:
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
-    void RenderScene(Aether::Ref<Aether::Legacy::Shader> shader);
+    void RenderScene(Aether::Ref<Aether::Shader> shader);
 
 private:
-    Aether::Ref<Aether::Legacy::VertexArray> m_VAO;
-    Aether::Ref<Aether::Legacy::VertexBuffer> m_VBO;
-    Aether::Ref<Aether::Legacy::IndexBuffer> m_IBO;
-    Aether::Ref<Aether::Legacy::Shader> m_Shader;
-    Aether::Ref<Aether::Legacy::Shader> m_ShadowShader;
-    Aether::Ref<Aether::Legacy::Texture> m_Texture;
-    Aether::Ref<Aether::Legacy::FrameBuffer> m_ShadowFBO;
+    // New API rendering objects
+    Aether::Ref<Aether::VertexArray> m_VAO;
+    Aether::Ref<Aether::Shader> m_Shader;
+    Aether::Ref<Aether::Shader> m_ShadowShader;
+    Aether::Ref<Aether::Texture2D> m_Texture;
+    Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
+    Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
+    Aether::Ref<Aether::VertexBuffer> m_InstanceVBO;
 
-    // --- CẢI TIẾN: Thêm Uniform Buffer cho Camera ---
-    Aether::Ref<Aether::Legacy::UniformBuffer> m_CameraUBO;
-    Aether::Ref<Aether::Legacy::VertexBuffer> m_InstanceVBO;
-    // ------------------------------------------------
-
-    Aether::Ref<Aether::Legacy::VertexArray> m_SkyboxVAO;
-    Aether::Ref<Aether::Legacy::VertexBuffer> m_SkyboxVBO;
-    Aether::Ref<Aether::Legacy::IndexBuffer> m_SkyboxIBO;
-    Aether::Ref<Aether::Legacy::Shader> m_SkyboxShader;
-    Aether::Ref<Aether::Legacy::TextureCube> m_SkyboxTexture;
+    // Skybox (using Legacy TextureCube temporarily until ported)
+    Aether::Ref<Aether::VertexArray> m_SkyboxVAO;
+    Aether::Ref<Aether::Shader> m_SkyboxShader;
+    Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
     
     void InitSkybox();
     void RenderSkybox();
 
+    // Camera (still using Legacy Camera for now)
     Aether::Legacy::Camera m_Camera;
     bool m_CursorLocked = false;
     glm::vec2 m_LastMousePos = { 0.0f, 0.0f };
 
+    // Scene objects
     glm::vec3 m_TranslationA = { -2.0f, 0.5f, 0.0f };
     glm::vec3 m_TranslationB = { 2.0f, 0.5f, 0.0f };
     std::vector<glm::vec3> m_RandomCubes;
     std::vector<float> m_CubesSize;
     std::vector<float> m_CubeRot;
-    std::vector<glm::mat4> instanceModels;
+    std::vector<glm::mat4> m_InstanceModels;
 
     float m_CubeScale = 1.0f;
     float m_FloorScale = 15.0f;
@@ -63,14 +60,17 @@ private:
     float m_RotationSpeed = 0.5f;
     bool m_EnableRotation = true;
 
+    // Lighting
     glm::vec3 m_LightPos = { 0.0f, 8.0f, 0.0f };
     glm::vec3 m_LightDir = { 0.0f, -1.0f, 0.0f };
     float m_InnerAngle = 20.0f;
     float m_OuterAngle = 30.0f;
 
+    // Rendering settings
     glm::vec4 m_BackgroundColor = { 0.1f, 0.1f, 0.1f, 1.0f };
     int m_ShadowMapResolution = 2048;
 
+    // Fog
     bool m_FogEnabled = true;
     glm::vec3 m_FogColor = { 0.1f, 0.1f, 0.1f };
     float m_FogStart = 10.0f;

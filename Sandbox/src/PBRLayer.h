@@ -4,7 +4,6 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-
 class PBRLayer : public Aether::Layer
 {
 public:
@@ -22,7 +21,7 @@ private:
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
-    void RenderMeshes(Aether::Ref<Aether::Legacy::Shader> shader);
+    void RenderMeshes(Aether::Ref<Aether::Shader> shader);
     
     // Mesh creation helpers
     Aether::Mesh CreateCubeMesh(const std::string& name = "Cube");
@@ -31,31 +30,27 @@ private:
 private:
     // Mesh storage
     std::vector<Aether::Mesh> m_Meshes;
-    std::vector<Aether::Ref<Aether::Legacy::VertexArray>> m_MeshVAOs;
-    std::vector<Aether::Ref<Aether::Legacy::VertexBuffer>> m_MeshVBOs;
-    std::vector<Aether::Ref<Aether::Legacy::IndexBuffer>> m_MeshIBOs;
+    std::vector<Aether::Ref<Aether::VertexArray>> m_MeshVAOs;
     
-    // Shaders
-    Aether::Ref<Aether::Legacy::Shader> m_PBRShader;
-    Aether::Ref<Aether::Legacy::Shader> m_ShadowShader;
+    // Shaders (New API)
+    Aether::Ref<Aether::Shader> m_PBRShader;
+    Aether::Ref<Aether::Shader> m_ShadowShader;
     
-    // Shadow mapping
-    Aether::Ref<Aether::Legacy::FrameBuffer> m_ShadowFBO;
+    // Shadow mapping (New API)
+    Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
     
-    // Camera UBO
-    Aether::Ref<Aether::Legacy::UniformBuffer> m_CameraUBO;
+    // Camera UBO (New API)
+    Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     
-    // Skybox
-    Aether::Ref<Aether::Legacy::VertexArray> m_SkyboxVAO;
-    Aether::Ref<Aether::Legacy::VertexBuffer> m_SkyboxVBO;
-    Aether::Ref<Aether::Legacy::IndexBuffer> m_SkyboxIBO;
-    Aether::Ref<Aether::Legacy::Shader> m_SkyboxShader;
-    Aether::Ref<Aether::Legacy::TextureCube> m_SkyboxTexture;
+    // Skybox (New API)
+    Aether::Ref<Aether::VertexArray> m_SkyboxVAO;
+    Aether::Ref<Aether::Shader> m_SkyboxShader;
+    Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
     
     void InitSkybox();
     void RenderSkybox();
 
-    // Camera
+    // Camera (Still using Legacy temporarily)
     Aether::Legacy::Camera m_Camera;
     bool m_CursorLocked = false;
     glm::vec2 m_LastMousePos = { 0.0f, 0.0f };
