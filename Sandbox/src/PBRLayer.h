@@ -51,7 +51,7 @@ private:
     void RenderSkybox();
 
     // Camera (Still using Legacy temporarily)
-    Aether::Legacy::Camera m_Camera;
+    Aether::Camera m_Camera;
     bool m_CursorLocked = false;
     glm::vec2 m_LastMousePos = { 0.0f, 0.0f };
 

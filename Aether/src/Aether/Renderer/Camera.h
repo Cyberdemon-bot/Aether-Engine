@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace Aether::Legacy {
+namespace Aether {
     // Hướng di chuyển
     enum Camera_Movement {
         FORWARD,
