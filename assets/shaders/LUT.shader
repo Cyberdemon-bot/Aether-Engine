@@ -1,7 +1,6 @@
 #shader vertex
 #version 330 core
 
-// Input vertex chuẩn cho Quad (đã sửa trong C++ để dùng DrawIndexed)
 layout(location = 0) in vec2 a_Position;
 layout(location = 1) in vec2 a_TexCoord;
 
@@ -10,7 +9,6 @@ out vec2 v_TexCoord;
 void main()
 {
     v_TexCoord = a_TexCoord;
-    // Vẽ full màn hình (-1 đến 1)
     gl_Position = vec4(a_Position.x, a_Position.y, 0.0, 1.0);
 }
 
@@ -20,59 +18,48 @@ void main()
 out vec4 color;
 in vec2 v_TexCoord;
 
-uniform sampler2D u_SceneTexture; // Texture 0: Ảnh game
-uniform sampler2D u_LutTexture;   // Texture 1: Ảnh LUT
-uniform float u_LutIntensity;     // 0.0 - 1.0
+uniform sampler2D u_SceneTexture;
+uniform sampler2D u_LutTexture;
+uniform float u_LutIntensity;
 
 void main()
 {
     vec4 sceneColor = texture(u_SceneTexture, v_TexCoord);
     
-    // --- CẤU HÌNH LUT ---
-    // Hard code size 16 như yêu cầu (LUT Strip 256x16)
-    float size = 16.0; 
+    // LUT Configuration (256x16 for 16x16x16 color cube)
+    const float SIZE = 16.0;
+    const float COLORS = SIZE - 1.0; // 15.0
     
-    // 1. Tính toán lớp (Slice) dựa trên kênh Blue
-    float blueColor = sceneColor.b * (size - 1.0);
+    // Map color from [0,1] to LUT coordinates [0,15]
+    vec3 lutCoords = sceneColor.rgb * COLORS;
     
-    float quad1_y = floor(floor(blueColor) / size);
-    float quad1_x = floor(blueColor) - (quad1_y * size);
+    // Split into integer and fractional parts
+    vec3 lutCoords_floor = floor(lutCoords);
+    vec3 lutCoords_fract = fract(lutCoords);
     
-    float quad2_y = floor(ceil(blueColor) / size);
-    float quad2_x = ceil(blueColor) - (quad2_y * size);
+    // Calculate which blue slice we're in
+    float blueSlice1 = lutCoords_floor.b;
+    float blueSlice2 = min(blueSlice1 + 1.0, COLORS);
     
-    // 2. Tính toán UV chuẩn xác (Pixel Perfect Sampling)
-    // Để tránh lỗi viền (bleeding), ta phải map 0.0-1.0 vào vùng an toàn: [0.5/Size, 1.0 - 0.5/Size]
+    // Convert 3D LUT coordinates to 2D texture coordinates
+    // Formula: x = (blueSlice * 16 + red) / 256
+    //          y = green / 16
+    vec2 uv1, uv2;
     
-    // Kích thước texture thực tế
-    float texWidth  = size * size; // 256.0
-    float texHeight = size;        // 16.0
-
-    // Offset nửa pixel (Half-pixel offset)
-    float halfPixelX = 0.5 / texWidth;
-    float halfPixelY = 0.5 / texHeight;
-
-    // Phạm vi quét an toàn (trừ đi 1 pixel mỗi chiều để không liếm sang ô bên cạnh)
-    float rangeX = (1.0 / size) - (1.0 / texWidth);
-    float rangeY = (size - 1.0) / size; // Tương đương: 1.0 - (1.0 / texHeight)
-
-    vec2 texPos1;
-    // X: Vị trí bắt đầu Slice + Offset an toàn + Màu Đỏ * Phạm vi an toàn
-    texPos1.x = (quad1_x / size) + halfPixelX + (sceneColor.r * rangeX);
-    // Y: Offset an toàn + Màu Xanh * Phạm vi an toàn
-    texPos1.y = halfPixelY + (sceneColor.g * rangeY);
-
-    vec2 texPos2;
-    texPos2.x = (quad2_x / size) + halfPixelX + (sceneColor.r * rangeX);
-    texPos2.y = texPos1.y; // Y giống nhau vì strip nằm ngang 1 hàng
-
-    // 3. Trộn màu (Linear Interpolation)
-    vec4 newColor1 = texture(u_LutTexture, texPos1);
-    vec4 newColor2 = texture(u_LutTexture, texPos2);
+    // Add 0.5 to sample from pixel centers
+    uv1.x = (blueSlice1 * SIZE + lutCoords_floor.r + 0.5) / (SIZE * SIZE);
+    uv1.y = (lutCoords_floor.g + 0.5) / SIZE;
     
-    // Trộn giữa 2 slice dựa trên phần lẻ của màu Blue
-    vec4 lutColor = mix(newColor1, newColor2, fract(blueColor));
+    uv2.x = (blueSlice2 * SIZE + lutCoords_floor.r + 0.5) / (SIZE * SIZE);
+    uv2.y = (lutCoords_floor.g + 0.5) / SIZE;
     
-    // 4. Kết quả cuối cùng (Trộn với ảnh gốc theo Intensity)
+    // Sample both slices
+    vec4 color1 = texture(u_LutTexture, uv1);
+    vec4 color2 = texture(u_LutTexture, uv2);
+    
+    // Interpolate between the two blue slices
+    vec4 lutColor = mix(color1, color2, lutCoords_fract.b);
+    
+    // Apply LUT with intensity control
     color = mix(sceneColor, lutColor, u_LutIntensity);
 }
