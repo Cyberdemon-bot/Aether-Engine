@@ -56,11 +56,11 @@ namespace Aether {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, m_Spec.WrapMode);
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(const std::string& path, bool wrapMode)
+    OpenGLTexture2D::OpenGLTexture2D(const std::string& path, bool wrapMode, bool flip)
     : m_Path(path)
     {
         int width, height, channels;
-        stbi_set_flip_vertically_on_load(1);
+        if(flip) stbi_set_flip_vertically_on_load(1);
         
         bool isHDR = stbi_is_hdr(path.c_str());
         

@@ -49,7 +49,7 @@ namespace Aether {
 	{
 	public:
 		static Ref<Texture2D> Create(const TextureSpec& spec);
-		static Ref<Texture2D> Create(const std::string& path, bool wrapMode = false);
+		static Ref<Texture2D> Create(const std::string& path, bool wrapMode = false, bool flip = true);
 	};
 
     class TextureCube : public Texture

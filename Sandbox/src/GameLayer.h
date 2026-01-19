@@ -36,9 +36,17 @@ private:
     Aether::Ref<Aether::VertexArray> m_SkyboxVAO;
     Aether::Ref<Aether::Shader> m_SkyboxShader;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
+
+    Aether::Ref<Aether::FrameBuffer> m_SceneFBO;      // FBO lưu ảnh game
+    Aether::Ref<Aether::Texture2D> m_LutTexture;      // Texture LUT.png
+    Aether::Ref<Aether::Shader> m_LutShader;          // Shader xử lý LUT
+
+    Aether::Ref<Aether::VertexArray> m_ScreenQuadVAO;
+    float m_LutIntensity = 1.0f;
     
     void InitSkybox();
     void RenderSkybox();
+    void InitScreenQuad();
 
     Aether::EditorCamera m_EditorCamera;
     bool m_CursorLocked = false;

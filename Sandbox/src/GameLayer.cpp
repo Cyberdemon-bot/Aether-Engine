@@ -101,6 +101,59 @@ void GameLayer::Attach()
     m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
 
     AE_CORE_INFO("GameLayer initialized with new API!");
+
+
+    Aether::FramebufferSpecification sceneFbSpec;
+    sceneFbSpec.Width = Aether::Application::Get().GetWindow().GetWidth();
+    sceneFbSpec.Height = Aether::Application::Get().GetWindow().GetHeight();
+
+    sceneFbSpec.Attachments = { 
+        Aether::FramebufferTextureFormat::RGBA8, 
+        Aether::FramebufferTextureFormat::DEPTH24STENCIL8 
+    };
+    m_SceneFBO = Aether::FrameBuffer::Create(sceneFbSpec);
+
+    m_LutShader = Aether::Shader::Create("assets/shaders/LUT.shader");
+    m_LutTexture = Aether::Texture2D::Create("assets/textures/LUT.png", true, false);
+
+    InitScreenQuad();
+
+    AE_CORE_INFO("LUT System Initialized!");
+}
+
+void GameLayer::InitScreenQuad()
+{
+    // 1. Dữ liệu Đỉnh (4 đỉnh duy nhất: Trái-Trên, Trái-Dưới, Phải-Dưới, Phải-Trên)
+    float quadVertices[] = { 
+        // a_Position        // a_TexCoord
+        -1.0f,  1.0f,        0.0f, 1.0f, // 0: Top-Left
+        -1.0f, -1.0f,        0.0f, 0.0f, // 1: Bottom-Left
+         1.0f, -1.0f,        1.0f, 0.0f, // 2: Bottom-Right
+         1.0f,  1.0f,        1.0f, 1.0f  // 3: Top-Right
+    };
+
+    // 2. Dữ liệu Index (Thứ tự nối đỉnh thành 2 tam giác)
+    // Tam giác 1: 0->1->2, Tam giác 2: 2->3->0
+    uint32_t quadIndices[] = { 
+        0, 1, 2, 
+        2, 3, 0 
+    };
+
+    // 3. Khởi tạo VAO
+    m_ScreenQuadVAO = Aether::VertexArray::Create();
+
+    // 4. Tạo Vertex Buffer (VBO)
+    Aether::Ref<Aether::VertexBuffer> quadVBO = Aether::VertexBuffer::Create(quadVertices, sizeof(quadVertices));
+    Aether::BufferLayout layout = {
+        { "a_Position", Aether::ShaderDataType::Float2 },
+        { "a_TexCoord", Aether::ShaderDataType::Float2 }
+    };
+    quadVBO->SetLayout(layout);
+    m_ScreenQuadVAO->AddVertexBuffer(quadVBO);
+
+    // 5. Tạo Index Buffer (IBO) và gắn vào VAO <-- QUAN TRỌNG
+    Aether::Ref<Aether::IndexBuffer> quadIBO = Aether::IndexBuffer::Create(quadIndices, sizeof(quadIndices) / sizeof(uint32_t));
+    m_ScreenQuadVAO->SetIndexBuffer(quadIBO);
 }
 
 void GameLayer::InitSkybox()
@@ -161,7 +214,26 @@ void GameLayer::Update(Aether::Timestep ts)
 
     glm::mat4 lightSpaceMatrix = CalculateLightSpaceMatrix();
     RenderShadowPass(lightSpaceMatrix);
-    RenderMainPass(window.GetFramebufferWidth(), window.GetFramebufferHeight(), lightSpaceMatrix);
+    m_SceneFBO->Bind();
+    RenderMainPass(m_SceneFBO->GetSpecification().Width, m_SceneFBO->GetSpecification().Height, lightSpaceMatrix);
+    m_SceneFBO->Unbind();
+
+    Aether::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+    Aether::RenderCommand::Clear();
+    Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
+
+    m_LutShader->Bind();
+
+    m_SceneFBO->BindColorTexture(0); 
+
+    m_LutShader->SetInt("u_SceneTexture", 0);
+
+    m_LutTexture->Bind(1);
+    m_LutShader->SetInt("u_LutTexture", 1);
+
+    m_LutShader->SetFloat("u_LutIntensity", m_LutIntensity);
+
+    Aether::RenderCommand::DrawIndexed(m_ScreenQuadVAO);
 }
 
 glm::mat4 GameLayer::CalculateLightSpaceMatrix()
@@ -542,6 +614,20 @@ void GameLayer::OnImGuiRender()
             fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
             m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
         }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            
+            // --- THÊM PHẦN NÀY ---
+            ImGui::Text("Color Grading (LUT)");
+            ImGui::SliderFloat("Intensity", &m_LutIntensity, 0.0f, 1.0f);
+            
+            // Hiển thị ảnh LUT cho đẹp (Optional)
+            ImGui::Image((void*)(intptr_t)m_LutTexture->GetRendererID(), ImVec2(256, 16));
+            // ---------------------
+
+            ImGui::Spacing();
+            ImGui::Separator();
     }
 
     ImGui::End();
