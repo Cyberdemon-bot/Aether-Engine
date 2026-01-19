@@ -28,6 +28,18 @@ namespace Aether {
 		return nullptr;
 	}
 
+	Ref<Texture2D> Texture2D::Create(void* data, size_t size)
+	{
+		switch (Renderer::GetAPI())
+		{
+			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2D>(data, size);
+		}
+
+		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
+		return nullptr;
+	}
+
 	Ref<TextureCube> TextureCube::Create(const std::string& path)
     {
         switch (Renderer::GetAPI())
@@ -63,5 +75,15 @@ namespace Aether {
 	bool Texture2DLibrary::Exists(const std::string& name) const
 	{
 		return m_Textures.find(name) != m_Textures.end();
+	}
+
+	void Texture2DLibrary::Add(const std::string& name, Ref<Texture2D> texture);
+	{
+		if (Exists(name)) 
+		{
+			AE_CORE_WARN("Texture {0} already exists!", name);
+			return;
+		}
+		m_Textures[name] = texture;
 	}
 }

@@ -20,7 +20,7 @@ namespace Aether {
 		ImageFormat Format = ImageFormat::RGBA8;
 		bool GenerateMips = true;
 
-        GLenum WrapMode = GL_REPEAT;
+        bool WrapMode = false;
 	};
 
 	class Texture
@@ -49,6 +49,7 @@ namespace Aether {
 	{
 	public:
 		static Ref<Texture2D> Create(const TextureSpec& spec);
+		static Ref<Texture2D> Create(void* data, size_t size);
 		static Ref<Texture2D> Create(const std::string& path, bool wrapMode = false, bool flip = true);
 	};
 
@@ -63,6 +64,8 @@ namespace Aether {
     public:
         Ref<Texture2D> Load(const std::string& name, const std::string& filepath, bool wrapMode = false, bool flip = true);
         Ref<Texture2D> Get(const std::string& name);
+
+		void Add(const std::string& name, Ref<Texture2D> texture);
         
         bool Exists(const std::string& name) const;
     private:
