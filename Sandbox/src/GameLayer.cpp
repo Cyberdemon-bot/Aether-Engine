@@ -386,8 +386,10 @@ void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
 
 void GameLayer::OnEvent(Aether::Event& event)
 {
-    // Chuyển sự kiện vào camera xử lý
-    m_EditorCamera.OnEvent(event);
+    if (!event.Handled) 
+    {
+        m_EditorCamera.OnEvent(event);
+    }
 }
 
 // ... (Keep all other methods the same, only replacing OnImGuiRender)
