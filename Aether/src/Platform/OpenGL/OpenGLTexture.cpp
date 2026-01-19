@@ -44,6 +44,7 @@ namespace Aether {
 
         GLenum dataType = GL_UNSIGNED_BYTE;
         if (m_Spec.Format == ImageFormat::RGBA16F || m_Spec.Format == ImageFormat::RGBA32F) dataType = GL_FLOAT;
+        GLenum glWrapMode = m_Spec.WrapMode ? GL_CLAMP_TO_EDGE : GL_REPEAT;
 
         GLCall(glGenTextures(1, &m_RendererID));
         GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
@@ -52,8 +53,59 @@ namespace Aether {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, m_Spec.WrapMode);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, m_Spec.WrapMode);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapMode);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapMode);
+    }
+
+    OpenGLTexture2D::OpenGLTexture2D(void* data, size_t size)
+    {
+        int width, height, channels;
+
+        stbi_set_flip_vertically_on_load(0); 
+        stbi_uc* imgData = stbi_load_from_memory((const stbi_uc*)data, (int)size, &width, &height, &channels, 0);
+
+        if (imgData)
+        {
+            m_IsLoaded = true;
+            m_Width = width;
+            m_Height = height;
+
+            GLenum type = GL_UNSIGNED_BYTE;
+            if (channels == 4)
+            {
+                m_InternalFormat = GL_RGBA8;
+                m_DataFormat = GL_RGBA;
+                m_Spec.Format = ImageFormat::RGBA8;
+            }
+            else if (channels == 3)
+            {
+                m_InternalFormat = GL_RGB8;
+                m_DataFormat = GL_RGB;
+                m_Spec.Format = ImageFormat::RGB8;
+            }
+            else
+            {
+                m_InternalFormat = GL_RGBA8;
+                m_DataFormat = GL_RGBA;
+                m_Spec.Format = ImageFormat::RGBA8;
+            }
+
+            m_Spec.Width = m_Width;
+            m_Spec.Height = m_Height;
+
+            GLCall(glGenTextures(1, &m_RendererID));
+            GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
+
+            glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0, m_DataFormat, type, imgData);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+            stbi_image_free(imgData);
+        }
     }
 
     OpenGLTexture2D::OpenGLTexture2D(const std::string& path, bool wrapMode, bool flip)
