@@ -57,4 +57,16 @@ namespace Aether {
 	public:
 		static Ref<TextureCube> Create(const std::string& path);
 	};
+
+	class Texture2DLibrary
+    {
+    public:
+        Ref<Texture2D> Load(const std::string& name, const std::string& filepath, bool wrapMode = false, bool flip = true);
+        Ref<Texture2D> Get(const std::string& name);
+        
+        bool Exists(const std::string& name) const;
+    private:
+        std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
+        Ref<Texture2D> m_ErrorTexture = Texture2D::Create("assets/textures/wood.jpg");
+    };
 }

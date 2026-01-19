@@ -12,16 +12,15 @@ GameLayer::GameLayer()
 void GameLayer::Detach()
 {
     m_VAO.reset();
-    m_Shader.reset();
-    m_ShadowShader.reset();
-    m_Texture.reset();
     m_ShadowFBO.reset();
     m_CameraUBO.reset();
     m_InstanceVBO.reset();
     
     m_SkyboxVAO.reset();
-    m_SkyboxShader.reset();
     m_SkyboxTexture.reset();
+    
+    m_SceneFBO.reset();
+    m_ScreenQuadVAO.reset();
 }
 
 void GameLayer::Attach()
@@ -29,7 +28,17 @@ void GameLayer::Attach()
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
-    // Create cube geometry
+    // ===== LOAD ALL SHADERS =====
+    m_ShaderLibrary.Load("Lighting", "assets/shaders/LightingShadow.shader");
+    m_ShaderLibrary.Load("Shadow", "assets/shaders/ShadowMap.shader");
+    m_ShaderLibrary.Load("Skybox", "assets/shaders/Skybox.shader");
+    m_ShaderLibrary.Load("LUT", "assets/shaders/LUT.shader");
+
+    // ===== LOAD ALL TEXTURES =====
+    m_TextureLibrary.Load("Wood", "assets/textures/wood.jpg");
+    m_TextureLibrary.Load("LUT", "assets/textures/LUT.png", true, false);
+
+    // ===== CREATE CUBE GEOMETRY =====
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
@@ -62,10 +71,8 @@ void GameLayer::Attach()
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    // Create VAO using new API
     m_VAO = Aether::VertexArray::Create();
     
-    // Create VBO
     Aether::Ref<Aether::VertexBuffer> vbo = Aether::VertexBuffer::Create(vertices, sizeof(vertices));
     Aether::BufferLayout layout = {
         { "a_Position", Aether::ShaderDataType::Float3 },
@@ -75,74 +82,54 @@ void GameLayer::Attach()
     vbo->SetLayout(layout);
     m_VAO->AddVertexBuffer(vbo);
     
-    // Create IBO
     Aether::Ref<Aether::IndexBuffer> ibo = Aether::IndexBuffer::Create(indices, 36);
     m_VAO->SetIndexBuffer(ibo);
 
-    // Create Camera UBO
+    // ===== CREATE CAMERA UBO =====
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
     m_CameraUBO = Aether::UniformBuffer::Create(uboSize, 0);
 
-    // Load shaders
-    m_Shader = Aether::Shader::Create("assets/shaders/LightingShadow.shader");
-    m_ShadowShader = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
-    
-    // Load texture
-    m_Texture = Aether::Texture2D::Create("assets/textures/wood.jpg");
-
-    // Initialize skybox
+    // ===== INITIALIZE SUBSYSTEMS =====
     InitSkybox();
+    InitScreenQuad();
 
-    // Create shadow framebuffer
+    // ===== CREATE SHADOW FRAMEBUFFER =====
     Aether::FramebufferSpecification fbSpec;
     fbSpec.Width = m_ShadowMapResolution;
     fbSpec.Height = m_ShadowMapResolution;
     fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
     m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
 
-    AE_CORE_INFO("GameLayer initialized with new API!");
-
-
+    // ===== CREATE SCENE FRAMEBUFFER =====
     Aether::FramebufferSpecification sceneFbSpec;
     sceneFbSpec.Width = Aether::Application::Get().GetWindow().GetWidth();
     sceneFbSpec.Height = Aether::Application::Get().GetWindow().GetHeight();
-
     sceneFbSpec.Attachments = { 
         Aether::FramebufferTextureFormat::RGBA8, 
         Aether::FramebufferTextureFormat::DEPTH24STENCIL8 
     };
     m_SceneFBO = Aether::FrameBuffer::Create(sceneFbSpec);
 
-    m_LutShader = Aether::Shader::Create("assets/shaders/LUT.shader");
-    m_LutTexture = Aether::Texture2D::Create("assets/textures/LUT.png", true, false);
-
-    InitScreenQuad();
-
-    AE_CORE_INFO("LUT System Initialized!");
+    AE_CORE_INFO("GameLayer initialized successfully!");
 }
 
 void GameLayer::InitScreenQuad()
 {
-    // 1. Dữ liệu Đỉnh (4 đỉnh duy nhất: Trái-Trên, Trái-Dưới, Phải-Dưới, Phải-Trên)
     float quadVertices[] = { 
-        // a_Position        // a_TexCoord
-        -1.0f,  1.0f,        0.0f, 1.0f, // 0: Top-Left
-        -1.0f, -1.0f,        0.0f, 0.0f, // 1: Bottom-Left
-         1.0f, -1.0f,        1.0f, 0.0f, // 2: Bottom-Right
-         1.0f,  1.0f,        1.0f, 1.0f  // 3: Top-Right
+        // a_Position   // a_TexCoord
+        -1.0f,  1.0f,   0.0f, 1.0f, // Top-Left
+        -1.0f, -1.0f,   0.0f, 0.0f, // Bottom-Left
+         1.0f, -1.0f,   1.0f, 0.0f, // Bottom-Right
+         1.0f,  1.0f,   1.0f, 1.0f  // Top-Right
     };
 
-    // 2. Dữ liệu Index (Thứ tự nối đỉnh thành 2 tam giác)
-    // Tam giác 1: 0->1->2, Tam giác 2: 2->3->0
     uint32_t quadIndices[] = { 
         0, 1, 2, 
         2, 3, 0 
     };
 
-    // 3. Khởi tạo VAO
     m_ScreenQuadVAO = Aether::VertexArray::Create();
 
-    // 4. Tạo Vertex Buffer (VBO)
     Aether::Ref<Aether::VertexBuffer> quadVBO = Aether::VertexBuffer::Create(quadVertices, sizeof(quadVertices));
     Aether::BufferLayout layout = {
         { "a_Position", Aether::ShaderDataType::Float2 },
@@ -151,7 +138,6 @@ void GameLayer::InitScreenQuad()
     quadVBO->SetLayout(layout);
     m_ScreenQuadVAO->AddVertexBuffer(quadVBO);
 
-    // 5. Tạo Index Buffer (IBO) và gắn vào VAO <-- QUAN TRỌNG
     Aether::Ref<Aether::IndexBuffer> quadIBO = Aether::IndexBuffer::Create(quadIndices, sizeof(quadIndices) / sizeof(uint32_t));
     m_ScreenQuadVAO->SetIndexBuffer(quadIBO);
 }
@@ -190,15 +176,16 @@ void GameLayer::InitSkybox()
     Aether::Ref<Aether::IndexBuffer> skyboxIBO = Aether::IndexBuffer::Create(skyboxIndices, 36);
     m_SkyboxVAO->SetIndexBuffer(skyboxIBO);
 
-    m_SkyboxShader = Aether::Shader::Create("assets/shaders/Skybox.shader");
     m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
 void GameLayer::RenderSkybox()
 {
+    auto skyboxShader = m_ShaderLibrary.Get("Skybox");
+    
     m_SkyboxTexture->Bind(0);
-    m_SkyboxShader->Bind();
-    m_SkyboxShader->SetInt("u_Skybox", 0);
+    skyboxShader->Bind();
+    skyboxShader->SetInt("u_Skybox", 0);
     
     Aether::RenderCommand::SetDepthFunc(GL_LEQUAL);
     Aether::RenderCommand::DrawIndexed(m_SkyboxVAO);
@@ -212,26 +199,31 @@ void GameLayer::Update(Aether::Timestep ts)
     auto& window = Aether::Application::Get().GetWindow();
     m_EditorCamera.Update(ts);
 
+    // ===== SHADOW PASS =====
     glm::mat4 lightSpaceMatrix = CalculateLightSpaceMatrix();
     RenderShadowPass(lightSpaceMatrix);
+    
+    // ===== MAIN RENDERING PASS =====
     m_SceneFBO->Bind();
     RenderMainPass(m_SceneFBO->GetSpecification().Width, m_SceneFBO->GetSpecification().Height, lightSpaceMatrix);
     m_SceneFBO->Unbind();
 
+    // ===== POST-PROCESSING PASS (LUT) =====
     Aether::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
     Aether::RenderCommand::Clear();
     Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
 
-    m_LutShader->Bind();
+    auto lutShader = m_ShaderLibrary.Get("LUT");
+    auto lutTexture = m_TextureLibrary.Get("LUT");
 
+    lutShader->Bind();
+    
     m_SceneFBO->BindColorTexture(0); 
+    lutShader->SetInt("u_SceneTexture", 0);
 
-    m_LutShader->SetInt("u_SceneTexture", 0);
-
-    m_LutTexture->Bind(1);
-    m_LutShader->SetInt("u_LutTexture", 1);
-
-    m_LutShader->SetFloat("u_LutIntensity", m_LutIntensity);
+    lutTexture->Bind(1);
+    lutShader->SetInt("u_LutTexture", 1);
+    lutShader->SetFloat("u_LutIntensity", m_LutIntensity);
 
     Aether::RenderCommand::DrawIndexed(m_ScreenQuadVAO);
 }
@@ -252,9 +244,10 @@ void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
     Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
     Aether::RenderCommand::Clear();
 
-    m_ShadowShader->Bind();
-    m_ShadowShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
-    RenderScene(m_ShadowShader);
+    auto shadowShader = m_ShaderLibrary.Get("Shadow");
+    shadowShader->Bind();
+    shadowShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
+    RenderScene(shadowShader);
     
     m_ShadowFBO->Unbind();
 }
@@ -285,35 +278,38 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     RenderSkybox();
 
     // Main scene rendering
-    m_Shader->Bind();
+    auto mainShader = m_ShaderLibrary.Get("Lighting");
+    auto woodTexture = m_TextureLibrary.Get("Wood");
     
-    m_Texture->Bind(0);
-    m_Shader->SetInt("u_Texture", 0);
+    mainShader->Bind();
+    
+    woodTexture->Bind(0);
+    mainShader->SetInt("u_Texture", 0);
     m_ShadowFBO->BindDepthTexture(1);
-    m_Shader->SetInt("u_ShadowMap", 1);
+    mainShader->SetInt("u_ShadowMap", 1);
 
-    m_Shader->SetFloat3("u_LightPos", m_LightPos);
-    m_Shader->SetFloat3("u_LightDir", m_LightDir);
-    m_Shader->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
-    m_Shader->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
-    m_Shader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
+    mainShader->SetFloat3("u_LightPos", m_LightPos);
+    mainShader->SetFloat3("u_LightDir", m_LightDir);
+    mainShader->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
+    mainShader->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
+    mainShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
 
-    m_Shader->SetInt("u_IsLightSource", 0);
-    m_Shader->SetInt("u_FogEnabled", m_FogEnabled);
-    m_Shader->SetFloat3("u_FogColor", m_FogColor);
-    m_Shader->SetFloat("u_FogStart", m_FogStart);
-    m_Shader->SetFloat("u_FogEnd", m_FogEnd);
+    mainShader->SetInt("u_IsLightSource", 0);
+    mainShader->SetInt("u_FogEnabled", m_FogEnabled);
+    mainShader->SetFloat3("u_FogColor", m_FogColor);
+    mainShader->SetFloat("u_FogStart", m_FogStart);
+    mainShader->SetFloat("u_FogEnd", m_FogEnd);
     
-    RenderScene(m_Shader);
+    RenderScene(mainShader);
 
     // Render light source indicator
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
     model = glm::scale(model, glm::vec3(0.2f));
-    m_Shader->SetMat4("u_Model", model);
-    m_Shader->SetInt("u_IsLightSource", 1);
-    m_Shader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
+    mainShader->SetMat4("u_Model", model);
+    mainShader->SetInt("u_IsLightSource", 1);
+    mainShader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
     Aether::RenderCommand::DrawIndexed(m_VAO);
-    m_Shader->SetInt("u_IsLightSource", 0);
+    mainShader->SetInt("u_IsLightSource", 0);
 }
 
 void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
@@ -352,10 +348,8 @@ void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
 
         uint32_t dataSize = (uint32_t)m_InstanceModels.size() * sizeof(glm::mat4);
 
-        // Check if we need to recreate the buffer (doesn't exist or too small)
         if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
         {
-            // Recreate with larger size (2x current need to reduce reallocations)
             uint32_t newSize = dataSize * 2;
             m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
             
@@ -369,7 +363,6 @@ void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
             m_VAO->AddInstanceBuffer(m_InstanceVBO, 3);
         }
         
-        // Upload instance data
         m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
 
         shader->SetInt("u_UseInstancing", 1);
@@ -391,8 +384,6 @@ void GameLayer::OnEvent(Aether::Event& event)
         m_EditorCamera.OnEvent(event);
     }
 }
-
-// ... (Keep all other methods the same, only replacing OnImGuiRender)
 
 void GameLayer::OnImGuiRender()
 {
@@ -459,7 +450,7 @@ void GameLayer::OnImGuiRender()
         glm::vec3 pos = m_EditorCamera.GetPosition();
         ImGui::Text("Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
         ImGui::Text("Distance: %.1f units", m_EditorCamera.GetDistance());
-        ImGui::Text("Pitch: %.1f° | Yaw: %.1f°", 
+        ImGui::Text("Pitch: %.1fÂ° | Yaw: %.1fÂ°", 
             glm::degrees(m_EditorCamera.GetPitch()), 
             glm::degrees(m_EditorCamera.GetYaw()));
         
@@ -490,8 +481,8 @@ void GameLayer::OnImGuiRender()
         
         // Cone angles with visual feedback
         ImGui::Text("Cone Shape");
-        ImGui::SliderFloat("Inner Angle", &m_InnerAngle, 1.0f, 80.0f, "%.1f°");
-        ImGui::SliderFloat("Outer Angle", &m_OuterAngle, m_InnerAngle, 90.0f, "%.1f°");
+        ImGui::SliderFloat("Inner Angle", &m_InnerAngle, 1.0f, 80.0f, "%.1fÂ°");
+        ImGui::SliderFloat("Outer Angle", &m_OuterAngle, m_InnerAngle, 90.0f, "%.1fÂ°");
 
         if (m_InnerAngle > m_OuterAngle) m_InnerAngle = m_OuterAngle;
         
@@ -620,12 +611,12 @@ void GameLayer::OnImGuiRender()
             ImGui::Spacing();
             ImGui::Separator();
             
-            // --- THÊM PHẦN NÀY ---
+            // --- THÃŠM PHáº¦N NÃ€Y ---
             ImGui::Text("Color Grading (LUT)");
             ImGui::SliderFloat("Intensity", &m_LutIntensity, 0.0f, 1.0f);
             
-            // Hiển thị ảnh LUT cho đẹp (Optional)
-            ImGui::Image((void*)(intptr_t)m_LutTexture->GetRendererID(), ImVec2(256, 16));
+            // Hiá»ƒn thá»‹ áº£nh LUT cho Ä‘áº¹p (Optional)
+            ImGui::Image((void*)(intptr_t)m_TextureLibrary.Get("LUT")->GetRendererID(), ImVec2(256, 16));
             // ---------------------
 
             ImGui::Spacing();

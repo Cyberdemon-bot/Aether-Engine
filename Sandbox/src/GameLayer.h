@@ -23,25 +23,25 @@ private:
     void RenderScene(Aether::Ref<Aether::Shader> shader);
 
 private:
-    // New API rendering objects
+    // Rendering objects
     Aether::Ref<Aether::VertexArray> m_VAO;
-    Aether::Ref<Aether::Shader> m_Shader;
-    Aether::Ref<Aether::Shader> m_ShadowShader;
-    Aether::Ref<Aether::Texture2D> m_Texture;
     Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::VertexBuffer> m_InstanceVBO;
 
-    // Skybox (using Legacy TextureCube temporarily until ported)
+    // Skybox
     Aether::Ref<Aether::VertexArray> m_SkyboxVAO;
-    Aether::Ref<Aether::Shader> m_SkyboxShader;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
-
-    Aether::Ref<Aether::FrameBuffer> m_SceneFBO;      // FBO lưu ảnh game
-    Aether::Ref<Aether::Texture2D> m_LutTexture;      // Texture LUT.png
-    Aether::Ref<Aether::Shader> m_LutShader;          // Shader xử lý LUT
-
+    
+    // Post-processing
+    Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
     Aether::Ref<Aether::VertexArray> m_ScreenQuadVAO;
+
+    // Resource libraries
+    Aether::ShaderLibrary m_ShaderLibrary;
+    Aether::Texture2DLibrary m_TextureLibrary;
+
+    // LUT settings
     float m_LutIntensity = 1.0f;
     
     void InitSkybox();

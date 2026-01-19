@@ -60,7 +60,7 @@ namespace Aether {
     : m_Path(path)
     {
         int width, height, channels;
-        if(flip) stbi_set_flip_vertically_on_load(1);
+        stbi_set_flip_vertically_on_load(flip);
         
         bool isHDR = stbi_is_hdr(path.c_str());
         
