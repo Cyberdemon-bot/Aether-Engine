@@ -119,6 +119,13 @@ namespace Aether {
         glBindTexture(GL_TEXTURE_2D, m_DepthAttachment);
     }
 
+	void OpenGLFrameBuffer::BindColorTexture(uint32_t slot, uint32_t index) const
+	{
+		AE_CORE_ASSERT(index < m_ColorAttachments.size(), "Index out of range!");
+		glActiveTexture(GL_TEXTURE0 + slot);
+		glBindTexture(GL_TEXTURE_2D, m_ColorAttachments[index]);
+	}
+
 	void OpenGLFrameBuffer::Invalidate()
 	{
 		if (m_RendererID)

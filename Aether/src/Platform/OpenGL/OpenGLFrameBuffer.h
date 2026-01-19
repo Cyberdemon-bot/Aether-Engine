@@ -22,6 +22,7 @@ namespace Aether {
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
 
         virtual void BindDepthTexture(uint32_t slot = 0) const override;
+		virtual void BindColorTexture(uint32_t slot = 0, uint32_t index = 0) const override;
 
 		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override { AE_CORE_ASSERT(index < m_ColorAttachments.size()); return m_ColorAttachments[index]; }
         virtual uint32_t GetDepthAttachmentRendererID() const override { return m_DepthAttachment; }
