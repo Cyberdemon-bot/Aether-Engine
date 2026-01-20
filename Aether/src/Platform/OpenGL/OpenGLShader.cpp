@@ -31,7 +31,7 @@ namespace Aether {
         GLCall(glUniform1i(GetUniformLocation(name), value));
     }
 
-    void OpenGLShader::SetIntArray(const std::string& name, int* values, uint32_t count)
+    void OpenGLShader::SetIntArray(const std::string& name,const int* values, uint32_t count)
     {
         GLCall(glUniform1iv(GetUniformLocation(name), count, values));
     }
@@ -63,7 +63,7 @@ namespace Aether {
             return m_UniformLocationCache[name];
 
         GLCall(int location = glGetUniformLocation(m_RendererID, name.c_str()));
-        if (location == -1) AE_CORE_WARN("Warning: uniform '{0}' doesn't exist!", name); 
+        if (location == -1) AE_CORE_TRACE("Warning: uniform '{0}' doesn't exist!", name, location); 
 
         m_UniformLocationCache[name] = location;
         return location;
