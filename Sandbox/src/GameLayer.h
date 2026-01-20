@@ -23,19 +23,19 @@ private:
     void RenderScene(Aether::Ref<Aether::Shader> shader);
 
 private:
-    // Rendering objects
-    Aether::Ref<Aether::VertexArray> m_VAO;
+    // Rendering objects - CHANGED: Using Mesh instead of raw VAO
+    Aether::Ref<Aether::Mesh> m_CubeMesh;
     Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::VertexBuffer> m_InstanceVBO;
 
-    // Skybox
-    Aether::Ref<Aether::VertexArray> m_SkyboxVAO;
+    // Skybox - CHANGED: Using Mesh
+    Aether::Ref<Aether::Mesh> m_SkyboxMesh;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
     
-    // Post-processing
+    // Post-processing - CHANGED: Using Mesh
     Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
-    Aether::Ref<Aether::VertexArray> m_ScreenQuadVAO;
+    Aether::Ref<Aether::Mesh> m_ScreenQuadMesh;
 
     // Resource libraries
     Aether::ShaderLibrary m_ShaderLibrary;
