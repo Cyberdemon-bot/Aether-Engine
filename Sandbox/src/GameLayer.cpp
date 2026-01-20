@@ -21,6 +21,11 @@ void GameLayer::Detach()
     
     m_SceneFBO.reset();
     m_ScreenQuadMesh.reset();
+
+    m_LightingMaterial.reset();
+    m_ShadowMaterial.reset();
+    m_SkyboxMaterial.reset();
+    m_LUTMaterial.reset();
 }
 
 void GameLayer::Attach()
@@ -86,6 +91,7 @@ void GameLayer::Attach()
     // ===== INITIALIZE SUBSYSTEMS =====
     InitSkybox();
     InitScreenQuad();
+    InitMaterials();
 
     // ===== CREATE SHADOW FRAMEBUFFER =====
     Aether::FramebufferSpecification fbSpec;
@@ -105,6 +111,24 @@ void GameLayer::Attach()
     m_SceneFBO = Aether::FrameBuffer::Create(sceneFbSpec);
 
     AE_CORE_INFO("GameLayer initialized successfully!");
+}
+
+void GameLayer::InitMaterials()
+{
+    // Shadow material - no textures needed
+    m_ShadowMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Shadow"));
+
+    // Lighting material - wood texture at slot 0, shadow map will be at slot 1
+    m_LightingMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Lighting"));
+    m_LightingMaterial->SetTexture("u_Texture", m_TextureLibrary.Get("Wood"));
+
+    // Skybox material - cubemap at slot 0
+    m_SkyboxMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Skybox"));
+    // Note: We'll bind the cubemap manually in RenderSkybox since it's a TextureCube, not Texture2D
+
+    // LUT material - scene texture at slot 0, LUT at slot 1
+    m_LUTMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("LUT"));
+    m_LUTMaterial->SetTexture("u_LutTexture", m_TextureLibrary.Get("LUT"));
 }
 
 void GameLayer::InitScreenQuad()
@@ -162,11 +186,11 @@ void GameLayer::InitSkybox()
 
 void GameLayer::RenderSkybox()
 {
-    auto skyboxShader = m_ShaderLibrary.Get("Skybox");
+    m_SkyboxMaterial->Bind(0);
     
+    // Manually bind cubemap since Material only handles Texture2D
     m_SkyboxTexture->Bind(0);
-    skyboxShader->Bind();
-    skyboxShader->SetInt("u_Skybox", 0);
+    m_SkyboxMaterial->GetShader()->SetInt("u_Skybox", 0);
     
     Aether::RenderCommand::SetDepthFunc(GL_LEQUAL);
     Aether::RenderCommand::DrawIndexed(m_SkyboxMesh->GetVertexArray());
@@ -194,26 +218,21 @@ void GameLayer::Update(Aether::Timestep ts)
     Aether::RenderCommand::Clear();
     Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
 
-    auto lutShader = m_ShaderLibrary.Get("LUT");
-    auto lutTexture = m_TextureLibrary.Get("LUT");
-
-    lutShader->Bind();
+    // Bind scene texture manually to slot 0, then bind LUT material which will bind LUT texture to slot 1
+    m_SceneFBO->BindColorTexture(0);
+    m_LUTMaterial->GetShader()->SetInt("u_SceneTexture", 0);
     
-    m_SceneFBO->BindColorTexture(0); 
-    lutShader->SetInt("u_SceneTexture", 0);
-
-    lutTexture->Bind(1);
-    lutShader->SetInt("u_LutTexture", 1);
-    lutShader->SetFloat("u_LutIntensity", m_LutIntensity);
+    m_LUTMaterial->Bind(1); // LUT texture starts at slot 1
+    m_LUTMaterial->SetFloat("u_LutIntensity", m_LutIntensity);
+    m_LUTMaterial->UploadMaterial();
 
     Aether::RenderCommand::DrawIndexed(m_ScreenQuadMesh->GetVertexArray());
 }
 
-// Rest of the Update methods stay the same...
-
-void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
+void GameLayer::RenderScene(Aether::Ref<Aether::Material> material)
 {
     auto cubeVAO = m_CubeMesh->GetVertexArray();
+    auto shader = material->GetShader();
 
     // Cube A
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
@@ -294,10 +313,11 @@ void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
     Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
     Aether::RenderCommand::Clear();
 
-    auto shadowShader = m_ShaderLibrary.Get("Shadow");
-    shadowShader->Bind();
-    shadowShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
-    RenderScene(shadowShader);
+    m_ShadowMaterial->Bind(0);
+    m_ShadowMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_ShadowMaterial->UploadMaterial();
+    
+    RenderScene(m_ShadowMaterial);
     
     m_ShadowFBO->Unbind();
 }
@@ -327,39 +347,38 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     // Render skybox
     RenderSkybox();
 
-    // Main scene rendering
-    auto mainShader = m_ShaderLibrary.Get("Lighting");
-    auto woodTexture = m_TextureLibrary.Get("Wood");
+    // Main scene rendering with lighting material
+    m_LightingMaterial->Bind(0); // Wood texture at slot 0
     
-    mainShader->Bind();
-    
-    woodTexture->Bind(0);
-    mainShader->SetInt("u_Texture", 0);
+    // Shadow map at slot 1 (manual bind to avoid overwriting)
     m_ShadowFBO->BindDepthTexture(1);
-    mainShader->SetInt("u_ShadowMap", 1);
+    m_LightingMaterial->GetShader()->SetInt("u_ShadowMap", 1);
 
-    mainShader->SetFloat3("u_LightPos", m_LightPos);
-    mainShader->SetFloat3("u_LightDir", m_LightDir);
-    mainShader->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
-    mainShader->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
-    mainShader->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
+    // Set lighting uniforms
+    m_LightingMaterial->SetFloat3("u_LightPos", m_LightPos);
+    m_LightingMaterial->SetFloat3("u_LightDir", m_LightDir);
+    m_LightingMaterial->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
+    m_LightingMaterial->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
+    m_LightingMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
 
-    mainShader->SetInt("u_IsLightSource", 0);
-    mainShader->SetInt("u_FogEnabled", m_FogEnabled);
-    mainShader->SetFloat3("u_FogColor", m_FogColor);
-    mainShader->SetFloat("u_FogStart", m_FogStart);
-    mainShader->SetFloat("u_FogEnd", m_FogEnd);
+    m_LightingMaterial->SetInt("u_IsLightSource", 0);
+    m_LightingMaterial->SetInt("u_FogEnabled", m_FogEnabled);
+    m_LightingMaterial->SetFloat3("u_FogColor", m_FogColor);
+    m_LightingMaterial->SetFloat("u_FogStart", m_FogStart);
+    m_LightingMaterial->SetFloat("u_FogEnd", m_FogEnd);
     
-    RenderScene(mainShader);
+    m_LightingMaterial->UploadMaterial();
+    
+    RenderScene(m_LightingMaterial);
 
     // Render light source indicator
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
     model = glm::scale(model, glm::vec3(0.2f));
-    mainShader->SetMat4("u_Model", model);
-    mainShader->SetInt("u_IsLightSource", 1);
-    mainShader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
+    m_LightingMaterial->GetShader()->SetMat4("u_Model", model);
+    m_LightingMaterial->GetShader()->SetInt("u_IsLightSource", 1);
+    m_LightingMaterial->GetShader()->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
     Aether::RenderCommand::DrawIndexed(m_CubeMesh->GetVertexArray());
-    mainShader->SetInt("u_IsLightSource", 0);
+    m_LightingMaterial->GetShader()->SetInt("u_IsLightSource", 0);
 }
 
 void GameLayer::OnEvent(Aether::Event& event)
@@ -432,7 +451,7 @@ void GameLayer::OnImGuiRender()
         glm::vec3 pos = m_EditorCamera.GetPosition();
         ImGui::Text("Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
         ImGui::Text("Distance: %.1f units", m_EditorCamera.GetDistance());
-        ImGui::Text("Pitch: %.1fÂ° | Yaw: %.1fÂ°", 
+        ImGui::Text("Pitch: %.1f° | Yaw: %.1f°", 
             glm::degrees(m_EditorCamera.GetPitch()), 
             glm::degrees(m_EditorCamera.GetYaw()));
         
@@ -463,8 +482,8 @@ void GameLayer::OnImGuiRender()
         
         // Cone angles with visual feedback
         ImGui::Text("Cone Shape");
-        ImGui::SliderFloat("Inner Angle", &m_InnerAngle, 1.0f, 80.0f, "%.1fÂ°");
-        ImGui::SliderFloat("Outer Angle", &m_OuterAngle, m_InnerAngle, 90.0f, "%.1fÂ°");
+        ImGui::SliderFloat("Inner Angle", &m_InnerAngle, 1.0f, 80.0f, "%.1f°");
+        ImGui::SliderFloat("Outer Angle", &m_OuterAngle, m_InnerAngle, 90.0f, "%.1f°");
 
         if (m_InnerAngle > m_OuterAngle) m_InnerAngle = m_OuterAngle;
         
@@ -590,19 +609,18 @@ void GameLayer::OnImGuiRender()
             m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
         }
 
-            ImGui::Spacing();
-            ImGui::Separator();
-            
-            // --- THÃŠM PHáº¦N NÃ€Y ---
-            ImGui::Text("Color Grading (LUT)");
-            ImGui::SliderFloat("Intensity", &m_LutIntensity, 0.0f, 1.0f);
-            
-            // Hiá»ƒn thá»‹ áº£nh LUT cho Ä‘áº¹p (Optional)
-            ImGui::Image((void*)(intptr_t)m_TextureLibrary.Get("LUT")->GetRendererID(), ImVec2(256, 16));
-            // ---------------------
-
-            ImGui::Spacing();
-            ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::Separator();
+        
+        // Color Grading (LUT)
+        ImGui::Text("Color Grading (LUT)");
+        ImGui::SliderFloat("Intensity", &m_LutIntensity, 0.0f, 1.0f);
+        
+        // Display LUT texture preview
+        ImGui::Image((void*)(intptr_t)m_TextureLibrary.Get("LUT")->GetRendererID(), ImVec2(256, 16));
+        
+        ImGui::Spacing();
+        ImGui::Separator();
     }
 
     ImGui::End();

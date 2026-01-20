@@ -20,20 +20,20 @@ private:
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
-    void RenderScene(Aether::Ref<Aether::Shader> shader);
+    void RenderScene(Aether::Ref<Aether::Material> material);
 
 private:
-    // Rendering objects - CHANGED: Using Mesh instead of raw VAO
+    // Rendering objects
     Aether::Ref<Aether::Mesh> m_CubeMesh;
     Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::VertexBuffer> m_InstanceVBO;
 
-    // Skybox - CHANGED: Using Mesh
+    // Skybox
     Aether::Ref<Aether::Mesh> m_SkyboxMesh;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
     
-    // Post-processing - CHANGED: Using Mesh
+    // Post-processing
     Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
     Aether::Ref<Aether::Mesh> m_ScreenQuadMesh;
 
@@ -41,12 +41,19 @@ private:
     Aether::ShaderLibrary m_ShaderLibrary;
     Aether::Texture2DLibrary m_TextureLibrary;
 
+    // Materials
+    Aether::Ref<Aether::Material> m_LightingMaterial;
+    Aether::Ref<Aether::Material> m_ShadowMaterial;
+    Aether::Ref<Aether::Material> m_SkyboxMaterial;
+    Aether::Ref<Aether::Material> m_LUTMaterial;
+
     // LUT settings
     float m_LutIntensity = 1.0f;
     
     void InitSkybox();
     void RenderSkybox();
     void InitScreenQuad();
+    void InitMaterials();
 
     Aether::EditorCamera m_EditorCamera;
     bool m_CursorLocked = false;
