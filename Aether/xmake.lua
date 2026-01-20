@@ -52,6 +52,7 @@ target("Aether")
 
     if is_os("windows") then
         add_syslinks("opengl32")
+        
     elseif is_os("macosx") then
         add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo")
     elseif is_os("linux") then

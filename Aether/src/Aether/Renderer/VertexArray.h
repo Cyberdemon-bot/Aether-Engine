@@ -3,7 +3,7 @@
 #include "Aether/Renderer/Buffer.h"
 #include "aepch.h"
 namespace Aether {
-    class VertexArray
+    class AETHER_API VertexArray
     {
     public:
         virtual ~VertexArray() = default;

@@ -2,7 +2,7 @@
 
 namespace Aether {
 
-	class GraphicsContext
+	class AETHER_API GraphicsContext
 	{
 	public:
 		virtual ~GraphicsContext() = default;

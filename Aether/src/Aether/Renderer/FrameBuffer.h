@@ -42,7 +42,7 @@ namespace Aether {
 		bool SwapChainTarget = false;
 	};
 
-	class FrameBuffer
+	class AETHER_API FrameBuffer
 	{
 	public:
 		virtual ~FrameBuffer() = default;

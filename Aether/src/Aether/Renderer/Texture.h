@@ -23,7 +23,7 @@ namespace Aether {
         bool WrapMode = false;
 	};
 
-	class Texture
+	class AETHER_API Texture
 	{
 	public:
 		virtual ~Texture() = default;
@@ -59,7 +59,7 @@ namespace Aether {
 		static Ref<TextureCube> Create(const std::string& path);
 	};
 
-	class Texture2DLibrary
+	class AETHER_API Texture2DLibrary
     {
     public:
         Ref<Texture2D> Load(const std::string& name, const std::string& filepath, bool wrapMode = false, bool flip = true);

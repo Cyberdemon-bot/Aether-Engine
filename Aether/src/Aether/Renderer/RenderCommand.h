@@ -2,7 +2,7 @@
 #include "Aether/Renderer/RendererAPI.h"
 
 namespace Aether {
-    class RenderCommand {
+    class AETHER_API RenderCommand {
     public:
         static void Init() {
             s_RendererAPI->Init();

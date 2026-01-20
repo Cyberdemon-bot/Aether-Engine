@@ -28,6 +28,7 @@ namespace Aether {
         }
 
         AE_CORE_ASSERT(false, "Unknown ShaderDataType");
+        return 0;
     };
 
     struct BufferElement
@@ -101,7 +102,7 @@ namespace Aether {
         }
     };
 
-    class VertexBuffer
+    class AETHER_API VertexBuffer
     {
     public:
         virtual ~VertexBuffer() = default;
@@ -119,7 +120,7 @@ namespace Aether {
         static Ref<VertexBuffer> Create(float* vertices, uint32_t size);
     };
 
-    class IndexBuffer
+    class AETHER_API IndexBuffer
     {
     public:
         virtual ~IndexBuffer() = default;
