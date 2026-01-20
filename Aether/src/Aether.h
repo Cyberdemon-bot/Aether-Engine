@@ -22,3 +22,4 @@
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Renderer/EditorCamera.h"
+#include "Aether/Renderer/Mesh.h"

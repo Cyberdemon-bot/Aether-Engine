@@ -11,16 +11,16 @@ GameLayer::GameLayer()
 
 void GameLayer::Detach()
 {
-    m_VAO.reset();
+    m_CubeMesh.reset();
     m_ShadowFBO.reset();
     m_CameraUBO.reset();
     m_InstanceVBO.reset();
     
-    m_SkyboxVAO.reset();
+    m_SkyboxMesh.reset();
     m_SkyboxTexture.reset();
     
     m_SceneFBO.reset();
-    m_ScreenQuadVAO.reset();
+    m_ScreenQuadMesh.reset();
 }
 
 void GameLayer::Attach()
@@ -38,7 +38,7 @@ void GameLayer::Attach()
     m_TextureLibrary.Load("Wood", "assets/textures/wood.jpg");
     m_TextureLibrary.Load("LUT", "assets/textures/LUT.png", true, false);
 
-    // ===== CREATE CUBE GEOMETRY =====
+    // ===== CREATE CUBE GEOMETRY USING MESH =====
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
@@ -71,19 +71,13 @@ void GameLayer::Attach()
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    m_VAO = Aether::VertexArray::Create();
-    
-    Aether::Ref<Aether::VertexBuffer> vbo = Aether::VertexBuffer::Create(vertices, sizeof(vertices));
-    Aether::BufferLayout layout = {
+    Aether::BufferLayout cubeLayout = {
         { "a_Position", Aether::ShaderDataType::Float3 },
         { "a_Normal",   Aether::ShaderDataType::Float3 },
         { "a_TexCoord", Aether::ShaderDataType::Float2 }
     };
-    vbo->SetLayout(layout);
-    m_VAO->AddVertexBuffer(vbo);
-    
-    Aether::Ref<Aether::IndexBuffer> ibo = Aether::IndexBuffer::Create(indices, 36);
-    m_VAO->SetIndexBuffer(ibo);
+
+    m_CubeMesh = Aether::CreateRef<Aether::Mesh>(vertices, 24, indices, 36, cubeLayout);
 
     // ===== CREATE CAMERA UBO =====
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -117,10 +111,10 @@ void GameLayer::InitScreenQuad()
 {
     float quadVertices[] = { 
         // a_Position   // a_TexCoord
-        -1.0f,  1.0f,   0.0f, 1.0f, // Top-Left
-        -1.0f, -1.0f,   0.0f, 0.0f, // Bottom-Left
-         1.0f, -1.0f,   1.0f, 0.0f, // Bottom-Right
-         1.0f,  1.0f,   1.0f, 1.0f  // Top-Right
+        -1.0f,  1.0f,   0.0f, 1.0f,
+        -1.0f, -1.0f,   0.0f, 0.0f,
+         1.0f, -1.0f,   1.0f, 0.0f,
+         1.0f,  1.0f,   1.0f, 1.0f
     };
 
     uint32_t quadIndices[] = { 
@@ -128,18 +122,12 @@ void GameLayer::InitScreenQuad()
         2, 3, 0 
     };
 
-    m_ScreenQuadVAO = Aether::VertexArray::Create();
-
-    Aether::Ref<Aether::VertexBuffer> quadVBO = Aether::VertexBuffer::Create(quadVertices, sizeof(quadVertices));
-    Aether::BufferLayout layout = {
+    Aether::BufferLayout quadLayout = {
         { "a_Position", Aether::ShaderDataType::Float2 },
         { "a_TexCoord", Aether::ShaderDataType::Float2 }
     };
-    quadVBO->SetLayout(layout);
-    m_ScreenQuadVAO->AddVertexBuffer(quadVBO);
 
-    Aether::Ref<Aether::IndexBuffer> quadIBO = Aether::IndexBuffer::Create(quadIndices, sizeof(quadIndices) / sizeof(uint32_t));
-    m_ScreenQuadVAO->SetIndexBuffer(quadIBO);
+    m_ScreenQuadMesh = Aether::CreateRef<Aether::Mesh>(quadVertices, 4, quadIndices, 6, quadLayout);
 }
 
 void GameLayer::InitSkybox()
@@ -164,18 +152,11 @@ void GameLayer::InitSkybox()
         3, 7, 6, 6, 2, 3
     };
 
-    m_SkyboxVAO = Aether::VertexArray::Create();
-    
-    Aether::Ref<Aether::VertexBuffer> skyboxVBO = Aether::VertexBuffer::Create(skyboxVertices, sizeof(skyboxVertices));
     Aether::BufferLayout skyboxLayout = {
         { "a_Position", Aether::ShaderDataType::Float3 }
     };
-    skyboxVBO->SetLayout(skyboxLayout);
-    m_SkyboxVAO->AddVertexBuffer(skyboxVBO);
-    
-    Aether::Ref<Aether::IndexBuffer> skyboxIBO = Aether::IndexBuffer::Create(skyboxIndices, 36);
-    m_SkyboxVAO->SetIndexBuffer(skyboxIBO);
 
+    m_SkyboxMesh = Aether::CreateRef<Aether::Mesh>(skyboxVertices, 8, skyboxIndices, 36, skyboxLayout);
     m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
@@ -188,7 +169,7 @@ void GameLayer::RenderSkybox()
     skyboxShader->SetInt("u_Skybox", 0);
     
     Aether::RenderCommand::SetDepthFunc(GL_LEQUAL);
-    Aether::RenderCommand::DrawIndexed(m_SkyboxVAO);
+    Aether::RenderCommand::DrawIndexed(m_SkyboxMesh->GetVertexArray());
     Aether::RenderCommand::SetDepthFunc(GL_LESS);
 }
 
@@ -225,7 +206,76 @@ void GameLayer::Update(Aether::Timestep ts)
     lutShader->SetInt("u_LutTexture", 1);
     lutShader->SetFloat("u_LutIntensity", m_LutIntensity);
 
-    Aether::RenderCommand::DrawIndexed(m_ScreenQuadVAO);
+    Aether::RenderCommand::DrawIndexed(m_ScreenQuadMesh->GetVertexArray());
+}
+
+// Rest of the Update methods stay the same...
+
+void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
+{
+    auto cubeVAO = m_CubeMesh->GetVertexArray();
+
+    // Cube A
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
+    model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(m_CubeScale));
+    shader->SetMat4("u_Model", model);
+    shader->SetInt("u_UseInstancing", 0);
+    Aether::RenderCommand::DrawIndexed(cubeVAO);
+
+    // Cube B
+    model = glm::translate(glm::mat4(1.0f), m_TranslationB);
+    model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
+    model = glm::scale(model, glm::vec3(m_CubeScale));
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(cubeVAO);
+
+    // Random cubes with instancing
+    if (!m_RandomCubes.empty())
+    {
+        m_InstanceModels.clear();
+        m_InstanceModels.reserve(m_RandomCubes.size());
+
+        for (size_t i = 0; i < m_RandomCubes.size(); i++) 
+        {
+            glm::vec3 pos = m_RandomCubes[i];
+            float size = m_CubesSize[i];
+            float rot = m_CubeRot[i];
+            glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
+            instModel = glm::rotate(instModel, m_Rotation * rot, glm::vec3(0.5f, 1.0f, 0.0f));
+            instModel = glm::scale(instModel, glm::vec3(size * m_CubeScale));
+            m_InstanceModels.push_back(instModel);
+        }
+
+        uint32_t dataSize = (uint32_t)m_InstanceModels.size() * sizeof(glm::mat4);
+
+        if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
+        {
+            uint32_t newSize = dataSize * 2;
+            m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
+            
+            Aether::BufferLayout instanceLayout = {
+                { "a_InstanceModel_Row0", Aether::ShaderDataType::Float4 },
+                { "a_InstanceModel_Row1", Aether::ShaderDataType::Float4 },
+                { "a_InstanceModel_Row2", Aether::ShaderDataType::Float4 },
+                { "a_InstanceModel_Row3", Aether::ShaderDataType::Float4 }
+            };
+            m_InstanceVBO->SetLayout(instanceLayout);
+            cubeVAO->AddInstanceBuffer(m_InstanceVBO, 3);
+        }
+        
+        m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
+
+        shader->SetInt("u_UseInstancing", 1);
+        Aether::RenderCommand::DrawInstanced(cubeVAO, (uint32_t)m_RandomCubes.size());
+        shader->SetInt("u_UseInstancing", 0);
+    }
+
+    // Floor
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(cubeVAO);
 }
 
 glm::mat4 GameLayer::CalculateLightSpaceMatrix()
@@ -308,73 +358,8 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     mainShader->SetMat4("u_Model", model);
     mainShader->SetInt("u_IsLightSource", 1);
     mainShader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
-    Aether::RenderCommand::DrawIndexed(m_VAO);
+    Aether::RenderCommand::DrawIndexed(m_CubeMesh->GetVertexArray());
     mainShader->SetInt("u_IsLightSource", 0);
-}
-
-void GameLayer::RenderScene(Aether::Ref<Aether::Shader> shader)
-{
-    // Cube A
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
-    model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(m_CubeScale));
-    shader->SetMat4("u_Model", model);
-    shader->SetInt("u_UseInstancing", 0);
-    Aether::RenderCommand::DrawIndexed(m_VAO);
-
-    // Cube B
-    model = glm::translate(glm::mat4(1.0f), m_TranslationB);
-    model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
-    model = glm::scale(model, glm::vec3(m_CubeScale));
-    shader->SetMat4("u_Model", model);
-    Aether::RenderCommand::DrawIndexed(m_VAO);
-
-    // Random cubes with instancing
-    if (!m_RandomCubes.empty())
-    {
-        m_InstanceModels.clear();
-        m_InstanceModels.reserve(m_RandomCubes.size());
-
-        for (size_t i = 0; i < m_RandomCubes.size(); i++) 
-        {
-            glm::vec3 pos = m_RandomCubes[i];
-            float size = m_CubesSize[i];
-            float rot = m_CubeRot[i];
-            glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
-            instModel = glm::rotate(instModel, m_Rotation * rot, glm::vec3(0.5f, 1.0f, 0.0f));
-            instModel = glm::scale(instModel, glm::vec3(size * m_CubeScale));
-            m_InstanceModels.push_back(instModel);
-        }
-
-        uint32_t dataSize = (uint32_t)m_InstanceModels.size() * sizeof(glm::mat4);
-
-        if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
-        {
-            uint32_t newSize = dataSize * 2;
-            m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
-            
-            Aether::BufferLayout instanceLayout = {
-                { "a_InstanceModel_Row0", Aether::ShaderDataType::Float4 },
-                { "a_InstanceModel_Row1", Aether::ShaderDataType::Float4 },
-                { "a_InstanceModel_Row2", Aether::ShaderDataType::Float4 },
-                { "a_InstanceModel_Row3", Aether::ShaderDataType::Float4 }
-            };
-            m_InstanceVBO->SetLayout(instanceLayout);
-            m_VAO->AddInstanceBuffer(m_InstanceVBO, 3);
-        }
-        
-        m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
-
-        shader->SetInt("u_UseInstancing", 1);
-        Aether::RenderCommand::DrawInstanced(m_VAO, (uint32_t)m_RandomCubes.size());
-        shader->SetInt("u_UseInstancing", 0);
-    }
-
-    // Floor
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
-    shader->SetMat4("u_Model", model);
-    Aether::RenderCommand::DrawIndexed(m_VAO);
 }
 
 void GameLayer::OnEvent(Aether::Event& event)
@@ -387,11 +372,9 @@ void GameLayer::OnEvent(Aether::Event& event)
 
 void GameLayer::OnImGuiRender()
 {
-    // Main control panel
     ImGui::SetNextWindowSize(ImVec2(420, 700), ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_MenuBar);
 
-    // Menu bar for quick actions
     if (ImGui::BeginMenuBar())
     {
         if (ImGui::BeginMenu("View"))
@@ -400,7 +383,6 @@ void GameLayer::OnImGuiRender()
                 m_EditorCamera.SetDistance(10.0f);
             }
             if (ImGui::MenuItem("Top View")) {
-                // Set camera to look down from above
             }
             ImGui::EndMenu();
         }
