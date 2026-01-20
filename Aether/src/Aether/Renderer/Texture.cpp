@@ -77,7 +77,7 @@ namespace Aether {
 		return m_Textures.find(name) != m_Textures.end();
 	}
 
-	void Texture2DLibrary::Add(const std::string& name, Ref<Texture2D> texture);
+	void Texture2DLibrary::Add(const std::string& name, Ref<Texture2D> texture)
 	{
 		if (Exists(name)) 
 		{

@@ -20,6 +20,7 @@ target("Sandbox")
 
     if is_os("windows") then
         add_syslinks("opengl32")
+        add_cxflag("/utf-8")
     elseif is_os("macosx") then
         add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo")
     elseif is_os("linux") then

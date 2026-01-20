@@ -10,7 +10,7 @@
 
 namespace Aether {
 
-    class EditorCamera : public Camera
+    class AETHER_API EditorCamera : public Camera
     {
     public:
         EditorCamera() = default;

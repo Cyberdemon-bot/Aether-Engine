@@ -11,7 +11,7 @@ namespace Aether {
         std::string GeometrySource;
     };
 
-    class Shader 
+    class AETHER_API Shader 
     {
     public:
         virtual ~Shader() = default;
@@ -29,7 +29,7 @@ namespace Aether {
         static Ref<Shader> Create(const std::string& filepath);
     };
 
-    class ShaderLibrary
+    class AETHER_API ShaderLibrary
     {
     public:
         Ref<Shader> Load(const std::string& name, const std::string& filepath);

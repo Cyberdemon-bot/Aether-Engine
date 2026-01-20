@@ -4,7 +4,7 @@
 
 namespace Aether {
 
-	class UniformBuffer
+	class AETHER_API UniformBuffer
 	{
 	public:
 		virtual ~UniformBuffer() {}
