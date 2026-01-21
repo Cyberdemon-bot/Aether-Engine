@@ -15,7 +15,7 @@ namespace Aether {
                 case ImageFormat::RGBA32F: return GL_RGBA;
 			}
 
-			AE_CORE_ASSERT(false);
+			AE_CORE_ASSERT(false, "Unknown ImageFormat GL type!");
 			return 0;
 		}
 		
@@ -30,7 +30,7 @@ namespace Aether {
                 case ImageFormat::RGBA32F: return GL_RGBA32F;
 			}
 
-			AE_CORE_ASSERT(false);
+			AE_CORE_ASSERT(false, "Unknown ImageFormat GL internal type!");
 			return 0;
 		}
     }

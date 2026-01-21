@@ -17,5 +17,5 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
-#include "Aether/Core/Base.h"
 #include "Aether/Core/Log.h"
+#include "Aether/Core/Base.h"
