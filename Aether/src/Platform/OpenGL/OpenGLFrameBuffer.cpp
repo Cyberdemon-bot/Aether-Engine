@@ -87,7 +87,7 @@ namespace Aether {
                 case FramebufferTextureFormat::DEPTH24STENCIL8: return GL_DEPTH24_STENCIL8;
                 case FramebufferTextureFormat::None:        return 0;
 			}
-			AE_CORE_ASSERT(false);
+			AE_CORE_ASSERT(false, "Unknown ShaderDataType!");
 			return 0;
 		}
 	}
@@ -189,7 +189,7 @@ namespace Aether {
 
 		if (m_ColorAttachments.size() > 1)
 		{
-			AE_CORE_ASSERT(m_ColorAttachments.size() <= 4);
+			AE_CORE_ASSERT(m_ColorAttachments.size() <= 4, "Too much m_ColorAttachments!");
 			GLenum buffers[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 			glDrawBuffers(m_ColorAttachments.size(), buffers);
 		}
@@ -230,7 +230,7 @@ namespace Aether {
 
 	int OpenGLFrameBuffer::ReadPixel(uint32_t attachmentIndex, int x, int y)
 	{
-		AE_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
+		AE_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size(), "attachmentIndex out of range!");
 
 		GLint lastReadBuffer;
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &lastReadBuffer);
@@ -247,7 +247,7 @@ namespace Aether {
 
 	void OpenGLFrameBuffer::ClearAttachment(uint32_t attachmentIndex, int value)
 	{
-		AE_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
+		AE_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size(), "attachmentIndex out of range!");
 
 		GLint lastDrawFramebuffer;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastDrawFramebuffer);

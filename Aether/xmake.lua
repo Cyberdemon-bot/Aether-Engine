@@ -26,12 +26,13 @@ add_requires("filewatch", "glad")
 
 target("Aether")
     set_kind("shared")
+    set_languages("cxx17")
     add_defines("AETHER_BUILD_DLL")
     add_defines("MSDFGEN_USE_CPP11", "MSDFGEN_EXTENSIONS")
 
     if is_mode("debug") then
         add_defines("AETHER_DEBUG", {public = true})
-        add_symbols("debug")
+        set_symbols("debug")
         set_policy("build.sanitizer.address", true)
     end
 
@@ -41,9 +42,9 @@ target("Aether")
     add_files("src/**.cpp")
     add_headerfiles("src/**.h")
     
-    set_pcxxheader("src/aepch.h")
+    set_pcheader("src/aepch.h")
 
-    add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "", "assimp", {public = true})
+    add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "assimp", {public = true})
     add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", {public = true})
 
     if is_plat("mingw") then
