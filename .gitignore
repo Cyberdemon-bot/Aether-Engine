@@ -10,6 +10,7 @@ build/
 *.log
 *.txt
 *.ini
+*.json
 
 # os files (MacOS)
 .DS_Store
