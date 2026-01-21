@@ -43,6 +43,15 @@ void GameLayer::Attach()
     m_TextureLibrary.Load("Wood", "assets/textures/wood.jpg");
     m_TextureLibrary.Load("LUT", "assets/textures/LUT.png", true, false);
 
+    m_ShadowMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Shadow"));
+    m_SkyboxMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Skybox"));
+
+    m_LightingMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Lighting"));
+    m_LightingMaterial->SetTexture("u_Texture", m_TextureLibrary.Get("Wood"));
+
+    m_LUTMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("LUT"));
+    m_LUTMaterial->SetTexture("u_LutTexture", m_TextureLibrary.Get("LUT"));
+
     // ===== CREATE CUBE GEOMETRY USING MESH =====
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
@@ -91,7 +100,6 @@ void GameLayer::Attach()
     // ===== INITIALIZE SUBSYSTEMS =====
     InitSkybox();
     InitScreenQuad();
-    InitMaterials();
 
     // ===== CREATE SHADOW FRAMEBUFFER =====
     Aether::FramebufferSpecification fbSpec;
@@ -111,24 +119,6 @@ void GameLayer::Attach()
     m_SceneFBO = Aether::FrameBuffer::Create(sceneFbSpec);
 
     AE_CORE_INFO("GameLayer initialized successfully!");
-}
-
-void GameLayer::InitMaterials()
-{
-    // Shadow material - no textures needed
-    m_ShadowMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Shadow"));
-
-    // Lighting material - wood texture at slot 0, shadow map will be at slot 1
-    m_LightingMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Lighting"));
-    m_LightingMaterial->SetTexture("u_Texture", m_TextureLibrary.Get("Wood"));
-
-    // Skybox material - cubemap at slot 0
-    m_SkyboxMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Skybox"));
-    // Note: We'll bind the cubemap manually in RenderSkybox since it's a TextureCube, not Texture2D
-
-    // LUT material - scene texture at slot 0, LUT at slot 1
-    m_LUTMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("LUT"));
-    m_LUTMaterial->SetTexture("u_LutTexture", m_TextureLibrary.Get("LUT"));
 }
 
 void GameLayer::InitScreenQuad()
