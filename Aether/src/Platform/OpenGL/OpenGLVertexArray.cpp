@@ -90,31 +90,31 @@ namespace Aether {
                     break;
                 }
                 case ShaderDataType::Mat3:  
-                case ShaderDataType::Mat4:   
+                case ShaderDataType::Mat4:
                 {
                     uint32_t count = element.GetComponentCount();
-                    for(uint32_t i = 0; i < count; i++)
+                    for (uint32_t i = 0; i < count; i++)
                     {
                         GLCall(glEnableVertexAttribArray(m_VertexBufferIndex));
-                        GLCall(glVertexAttribIPointer(
-                            m_VertexBufferIndex,
+                        GLCall(glVertexAttribPointer(m_VertexBufferIndex,
                             count,
                             ShaderDataTypeToOpenGLBaseType(element.Type),
+                            element.Normalized ? GL_TRUE : GL_FALSE,
                             layout.GetStride(),
                             (const void*)(element.Offset + sizeof(float) * count * i)
                         ));
-                        GLCall(glVertexAttribDivisor(m_VertexBufferIndex, 1));
+                        glVertexAttribDivisor(m_VertexBufferIndex, 0);
                         m_VertexBufferIndex++;
                     }
                     break;
-                }
+                } 
                 case ShaderDataType::None: break;
             }
         }
         m_VertexBuffers.push_back(vertexBuffer);
     }
 
-    void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
+    void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer)
     {
         AE_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout");
 
@@ -122,7 +122,6 @@ namespace Aether {
         vertexBuffer->Bind();
 
         const auto& layout = vertexBuffer->GetLayout();
-        uint32_t index = startLocation; 
 
         for (const auto& element : layout)
         {
@@ -133,17 +132,17 @@ namespace Aether {
                 case ShaderDataType::Float3:
                 case ShaderDataType::Float4:
                 {
-                    GLCall(glEnableVertexAttribArray(index));
+                    GLCall(glEnableVertexAttribArray(m_VertexBufferIndex));
                     GLCall(glVertexAttribPointer(
-                        index,
+                        m_VertexBufferIndex,
                         element.GetComponentCount(),
                         ShaderDataTypeToOpenGLBaseType(element.Type),
                         element.Normalized ? GL_TRUE : GL_FALSE,
                         layout.GetStride(),
                         (const void*)element.Offset
                     ));
-                    GLCall(glVertexAttribDivisor(index, 1)); 
-                    index++;
+                    GLCall(glVertexAttribDivisor(m_VertexBufferIndex, 1)); 
+                    m_VertexBufferIndex++;
                     break;
                 }
                 case ShaderDataType::Int:
@@ -152,16 +151,16 @@ namespace Aether {
                 case ShaderDataType::Int4:
                 case ShaderDataType::Bool:
                 {
-                    GLCall(glEnableVertexAttribArray(index));
+                    GLCall(glEnableVertexAttribArray(m_VertexBufferIndex));
                     GLCall(glVertexAttribIPointer(
-                        index,
+                        m_VertexBufferIndex,
                         element.GetComponentCount(),
                         ShaderDataTypeToOpenGLBaseType(element.Type),
                         layout.GetStride(),
                         (const void*)element.Offset
                     ));
-                    GLCall(glVertexAttribDivisor(index, 1));
-                    index++;
+                    GLCall(glVertexAttribDivisor(m_VertexBufferIndex, 1));
+                    m_VertexBufferIndex++;
                     break;
                 }
                 case ShaderDataType::Mat3:
@@ -170,17 +169,17 @@ namespace Aether {
                     uint32_t count = element.GetComponentCount();
                     for (uint32_t i = 0; i < count; i++)
                     {
-                        GLCall(glEnableVertexAttribArray(index));
+                        GLCall(glEnableVertexAttribArray(m_VertexBufferIndex));
                         GLCall(glVertexAttribPointer(
-                            index,
+                            m_VertexBufferIndex,
                             count,
                             ShaderDataTypeToOpenGLBaseType(element.Type),
                             element.Normalized ? GL_TRUE : GL_FALSE,
                             layout.GetStride(),
                             (const void*)(element.Offset + sizeof(float) * count * i)
                         ));
-                        GLCall(glVertexAttribDivisor(index, 1));
-                        index++;
+                        GLCall(glVertexAttribDivisor(m_VertexBufferIndex, 1));
+                        m_VertexBufferIndex++;
                     }
                     break;
                 }

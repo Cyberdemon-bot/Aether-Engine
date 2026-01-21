@@ -264,13 +264,10 @@ void GameLayer::RenderScene(Aether::Ref<Aether::Material> material)
             m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
             
             Aether::BufferLayout instanceLayout = {
-                { "a_InstanceModel_Row0", Aether::ShaderDataType::Float4 },
-                { "a_InstanceModel_Row1", Aether::ShaderDataType::Float4 },
-                { "a_InstanceModel_Row2", Aether::ShaderDataType::Float4 },
-                { "a_InstanceModel_Row3", Aether::ShaderDataType::Float4 }
+                { "a_InstanceModel", Aether::ShaderDataType::Mat4 } 
             };
             m_InstanceVBO->SetLayout(instanceLayout);
-            cubeVAO->AddInstanceBuffer(m_InstanceVBO, 3);
+            cubeVAO->AddInstanceBuffer(m_InstanceVBO);
         }
         
         m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
