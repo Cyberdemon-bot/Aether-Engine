@@ -1,5 +1,6 @@
 #pragma once
 #include "aepch.h"
+#include "Aether/Core/UUID.h"
 #include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/Buffer.h"
 
@@ -16,6 +17,8 @@ namespace Aether {
 
         std::string NodeName;
         glm::mat4 LocalTransform = glm::mat4(1.0f);
+
+        uint32_t MaterialIndex = 0;
     };
 
     class MeshLayout 
@@ -39,7 +42,7 @@ namespace Aether {
             };
         }
 
-        static BufferLayout Skinned() {
+        static BufferLayout PBRSkinned() {
             return {
                 { "a_Position",    ShaderDataType::Float3 },
                 { "a_Normal",      ShaderDataType::Float3 },

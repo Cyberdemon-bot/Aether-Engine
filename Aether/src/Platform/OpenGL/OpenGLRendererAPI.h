@@ -17,6 +17,7 @@ namespace Aether {
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) override;
 		virtual void DrawInstanced(const Ref<VertexArray>& vertexArray, uint32_t instanceCount) override;
 		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
+		void DrawIndexedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex) override;
 
 		virtual void SetLineWidth(float width) override;
 	};
