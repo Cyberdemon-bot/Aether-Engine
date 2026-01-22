@@ -17,6 +17,7 @@ void GameLayer::Detach()
     m_InstanceVBO.reset();
     
     m_SkyboxMesh.reset();
+    m_SkyboxShader.reset();
     m_SkyboxTexture.reset();
     
     m_SceneFBO.reset();
@@ -24,7 +25,6 @@ void GameLayer::Detach()
 
     m_LightingMaterial.reset();
     m_ShadowMaterial.reset();
-    m_SkyboxMaterial.reset();
     m_LUTMaterial.reset();
 }
 
@@ -43,14 +43,17 @@ void GameLayer::Attach()
     m_TextureLibrary.Load("Wood", "assets/textures/wood.jpg");
     m_TextureLibrary.Load("LUT", "assets/textures/LUT.png", true, false);
 
+    // ===== CREATE MATERIALS =====
     m_ShadowMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Shadow"));
-    m_SkyboxMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Skybox"));
 
     m_LightingMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Lighting"));
     m_LightingMaterial->SetTexture("u_Texture", m_TextureLibrary.Get("Wood"));
 
     m_LUTMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("LUT"));
     m_LUTMaterial->SetTexture("u_LutTexture", m_TextureLibrary.Get("LUT"));
+
+    // ===== SKYBOX (raw shader + texture) =====
+    m_SkyboxShader = m_ShaderLibrary.Get("Skybox");
 
     // ===== CREATE CUBE GEOMETRY USING MESH =====
     float vertices[] = {
@@ -176,11 +179,10 @@ void GameLayer::InitSkybox()
 
 void GameLayer::RenderSkybox()
 {
-    m_SkyboxMaterial->Bind(0);
-    
-    // Manually bind cubemap since Material only handles Texture2D
+    // Skybox uses raw shader + texture (since TextureCube isn't supported by Material)
+    m_SkyboxShader->Bind();
     m_SkyboxTexture->Bind(0);
-    m_SkyboxMaterial->GetShader()->SetInt("u_Skybox", 0);
+    m_SkyboxShader->SetInt("u_Skybox", 0);
     
     Aether::RenderCommand::SetDepthFuncEqual();
     Aether::RenderCommand::DrawIndexed(m_SkyboxMesh->GetVertexArray());
@@ -208,28 +210,29 @@ void GameLayer::Update(Aether::Timestep ts)
     Aether::RenderCommand::Clear();
     Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
 
-    // Bind scene texture manually to slot 0, then bind LUT material which will bind LUT texture to slot 1
+    // Bind scene texture to slot 0 manually, then use Material API for LUT
     m_SceneFBO->BindColorTexture(0);
     m_LUTMaterial->GetShader()->SetInt("u_SceneTexture", 0);
     
-    m_LUTMaterial->Bind(1); // LUT texture starts at slot 1
+    m_LUTMaterial->Bind(1); // LUT texture binds at slot 1
     m_LUTMaterial->SetFloat("u_LutIntensity", m_LutIntensity);
     m_LUTMaterial->UploadMaterial();
 
     Aether::RenderCommand::DrawIndexed(m_ScreenQuadMesh->GetVertexArray());
 }
 
-void GameLayer::RenderScene(Aether::Ref<Aether::Material> material)
+void GameLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
 {
     auto cubeVAO = m_CubeMesh->GetVertexArray();
     auto shader = material->GetShader();
+
+    shader->SetInt("u_UseInstancing", 0);
 
     // Cube A
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
     model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(m_CubeScale));
     shader->SetMat4("u_Model", model);
-    shader->SetInt("u_UseInstancing", 0);
     Aether::RenderCommand::DrawIndexed(cubeVAO);
 
     // Cube B
@@ -300,6 +303,7 @@ void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
     Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
     Aether::RenderCommand::Clear();
 
+    // Use Material API
     m_ShadowMaterial->Bind(0);
     m_ShadowMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
     m_ShadowMaterial->UploadMaterial();
@@ -331,41 +335,42 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
     m_CameraUBO->SetData(glm::value_ptr(camPos), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
 
-    // Render skybox
+    // Render skybox (raw shader + texture)
     RenderSkybox();
 
-    // Main scene rendering with lighting material
-    m_LightingMaterial->Bind(0); // Wood texture at slot 0
+    // Main scene rendering - Use Material API consistently
+    m_LightingMaterial->Bind(0); // Binds wood texture at slot 0
     
-    // Shadow map at slot 1 (manual bind to avoid overwriting)
+    // Manually bind shadow map at slot 1 (can't be in Material since it's a framebuffer texture)
     m_ShadowFBO->BindDepthTexture(1);
     m_LightingMaterial->GetShader()->SetInt("u_ShadowMap", 1);
 
-    // Set lighting uniforms
+    // Set all uniforms through Material API
     m_LightingMaterial->SetFloat3("u_LightPos", m_LightPos);
     m_LightingMaterial->SetFloat3("u_LightDir", m_LightDir);
     m_LightingMaterial->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
     m_LightingMaterial->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
     m_LightingMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
-
     m_LightingMaterial->SetInt("u_IsLightSource", 0);
     m_LightingMaterial->SetInt("u_FogEnabled", m_FogEnabled);
     m_LightingMaterial->SetFloat3("u_FogColor", m_FogColor);
     m_LightingMaterial->SetFloat("u_FogStart", m_FogStart);
     m_LightingMaterial->SetFloat("u_FogEnd", m_FogEnd);
     
+    // Upload all uniforms at once
     m_LightingMaterial->UploadMaterial();
     
     RenderScene(m_LightingMaterial);
 
     // Render light source indicator
+    auto shader = m_LightingMaterial->GetShader();
     glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
     model = glm::scale(model, glm::vec3(0.2f));
-    m_LightingMaterial->GetShader()->SetMat4("u_Model", model);
-    m_LightingMaterial->GetShader()->SetInt("u_IsLightSource", 1);
-    m_LightingMaterial->GetShader()->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
+    shader->SetMat4("u_Model", model);
+    shader->SetInt("u_IsLightSource", 1);
+    shader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
     Aether::RenderCommand::DrawIndexed(m_CubeMesh->GetVertexArray());
-    m_LightingMaterial->GetShader()->SetInt("u_IsLightSource", 0);
+    shader->SetInt("u_IsLightSource", 0);
 }
 
 void GameLayer::OnEvent(Aether::Event& event)

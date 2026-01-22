@@ -20,7 +20,7 @@ private:
     glm::mat4 CalculateLightSpaceMatrix();
     void RenderShadowPass(const glm::mat4& lightSpaceMatrix);
     void RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix);
-    void RenderScene(Aether::Ref<Aether::Material> material);
+    void RenderScene(const Aether::Ref<Aether::Material>& material);
 
 private:
     // Rendering objects
@@ -29,8 +29,9 @@ private:
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::VertexBuffer> m_InstanceVBO;
 
-    // Skybox
+    // Skybox (raw shader + texture since it uses TextureCube)
     Aether::Ref<Aether::Mesh> m_SkyboxMesh;
+    Aether::Ref<Aether::Shader> m_SkyboxShader;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
     
     // Post-processing
@@ -41,10 +42,9 @@ private:
     Aether::ShaderLibrary m_ShaderLibrary;
     Aether::Texture2DLibrary m_TextureLibrary;
 
-    // Materials
+    // Materials (using Material API)
     Aether::Ref<Aether::Material> m_LightingMaterial;
     Aether::Ref<Aether::Material> m_ShadowMaterial;
-    Aether::Ref<Aether::Material> m_SkyboxMaterial;
     Aether::Ref<Aether::Material> m_LUTMaterial;
 
     // LUT settings
@@ -53,11 +53,8 @@ private:
     void InitSkybox();
     void RenderSkybox();
     void InitScreenQuad();
-    void InitMaterials();
 
     Aether::EditorCamera m_EditorCamera;
-    bool m_CursorLocked = false;
-    glm::vec2 m_LastMousePos = { 0.0f, 0.0f };
 
     // Scene objects
     glm::vec3 m_TranslationA = { -2.0f, 0.5f, 0.0f };
