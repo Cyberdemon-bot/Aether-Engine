@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aepch.h"
+#include "Aether/Core/UUID.h"
 
 namespace Aether {
 
@@ -62,14 +63,15 @@ namespace Aether {
 	class AETHER_API Texture2DLibrary
     {
     public:
-        Ref<Texture2D> Load(const std::string& name, const std::string& filepath, bool wrapMode = false, bool flip = true);
-        Ref<Texture2D> Get(const std::string& name);
+        static void Init();
+        static void Shutdown();
 
-		void Add(const std::string& name, Ref<Texture2D> texture);
+        static Ref<Texture2D> Load(const std::string& filepath, UUID id, bool wrapMode = false, bool flip = true);
+        static Ref<Texture2D> Get(UUID id);
         
-        bool Exists(const std::string& name) const;
+        static bool Exists(UUID id);
     private:
-        std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
-        Ref<Texture2D> m_ErrorTexture = Texture2D::Create("assets/textures/wood.jpg");
+        static std::unordered_map<UUID, Ref<Texture2D>> s_Textures;
+        static Ref<Texture2D> s_ErrorTexture; // Texture màu hồng tím
     };
 }

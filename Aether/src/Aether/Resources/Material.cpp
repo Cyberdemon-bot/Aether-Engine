@@ -1,9 +1,9 @@
 #include "Aether/Resources/Material.h"
 
 namespace Aether {
-    Material::Material(const Ref<Shader>& shader)
-        : m_Shader(shader)
-    {AE_CORE_ASSERT(shader, "Shader cannot be null!");}
+    Material::Material(UUID ShaderID)
+        : m_Shader(ShaderLibrary::Get(ShaderID))
+    {AE_CORE_ASSERT(m_Shader, "Shader cannot be null!");}
 
 
     void Material::Bind(uint32_t startSlot)
@@ -40,9 +40,9 @@ namespace Aether {
         m_Shader->Unbind();
     }
 
-    void Material::SetTexture(const std::string& name, const Ref<Texture2D>&  texture)
+    void Material::SetTexture(const std::string& name, UUID TextureID)
     {
-        m_Textures[name] = texture;
+        m_Textures[name] = Texture2DLibrary::Get(TextureID);
     }
 
     void Material::SetFloat(const std::string& name, float value)

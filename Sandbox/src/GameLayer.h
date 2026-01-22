@@ -38,10 +38,6 @@ private:
     Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
     Aether::Ref<Aether::Mesh> m_ScreenQuadMesh;
 
-    // Resource libraries
-    Aether::ShaderLibrary m_ShaderLibrary;
-    Aether::Texture2DLibrary m_TextureLibrary;
-
     // Materials (using Material API)
     Aether::Ref<Aether::Material> m_LightingMaterial;
     Aether::Ref<Aether::Material> m_ShadowMaterial;

@@ -32,28 +32,35 @@ void GameLayer::Attach()
 {
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
+    
+    // ===== LOAD ALL SHADERS ====
 
-    // ===== LOAD ALL SHADERS =====
-    m_ShaderLibrary.Load("Lighting", "assets/shaders/LightingShadow.shader");
-    m_ShaderLibrary.Load("Shadow", "assets/shaders/ShadowMap.shader");
-    m_ShaderLibrary.Load("Skybox", "assets/shaders/Skybox.shader");
-    m_ShaderLibrary.Load("LUT", "assets/shaders/LUT.shader");
+    Aether::UUID id_ShaderLighting = Aether::AssetsRegister::Register("Shader_Lighting");
+    Aether::UUID id_ShaderShadow = Aether::AssetsRegister::Register("Shader_Shadow");
+    Aether::UUID id_ShaderLUT = Aether::AssetsRegister::Register("Shader_LUT");
+    Aether::UUID id_ShaderSkybox = Aether::AssetsRegister::Register("Shader_Skybox");
+    
+    Aether::UUID id_TexWood = Aether::AssetsRegister::Register("Tex_Wood");
+    Aether::UUID id_TexLUT = Aether::AssetsRegister::Register("Tex_LUT");
 
-    // ===== LOAD ALL TEXTURES =====
-    m_TextureLibrary.Load("Wood", "assets/textures/wood.jpg");
-    m_TextureLibrary.Load("LUT", "assets/textures/LUT.png", true, false);
+    Aether::ShaderLibrary::Load("assets/shaders/LightingShadow.shader", id_ShaderLighting);
+    Aether::ShaderLibrary::Load("assets/shaders/ShadowMap.shader", id_ShaderShadow);
+    Aether::ShaderLibrary::Load("assets/shaders/Skybox.shader", id_ShaderSkybox);
+    Aether::ShaderLibrary::Load("assets/shaders/LUT.shader", id_ShaderLUT);
+
+    Aether::Texture2DLibrary::Load("assets/textures/wood.jpg", id_TexWood);
+    Aether::Texture2DLibrary::Load("assets/textures/LUT.png", id_TexLUT, true, false);
 
     // ===== CREATE MATERIALS =====
-    m_ShadowMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Shadow"));
+    m_ShadowMaterial = Aether::CreateRef<Aether::Material>(id_ShaderShadow);
+    m_LightingMaterial = Aether::CreateRef<Aether::Material>(id_ShaderLighting);
+    m_LightingMaterial->SetTexture("u_Texture", id_TexWood);
 
-    m_LightingMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("Lighting"));
-    m_LightingMaterial->SetTexture("u_Texture", m_TextureLibrary.Get("Wood"));
-
-    m_LUTMaterial = Aether::CreateRef<Aether::Material>(m_ShaderLibrary.Get("LUT"));
-    m_LUTMaterial->SetTexture("u_LutTexture", m_TextureLibrary.Get("LUT"));
+    m_LUTMaterial = Aether::CreateRef<Aether::Material>(id_ShaderLUT);
+    m_LUTMaterial->SetTexture("u_LutTexture", id_TexLUT);
 
     // ===== SKYBOX (raw shader + texture) =====
-    m_SkyboxShader = m_ShaderLibrary.Get("Skybox");
+    m_SkyboxShader = Aether::ShaderLibrary::Get(id_ShaderSkybox);
 
     // ===== CREATE CUBE GEOMETRY USING MESH =====
     float vertices[] = {
@@ -609,7 +616,7 @@ void GameLayer::OnImGuiRender()
         ImGui::SliderFloat("Intensity", &m_LutIntensity, 0.0f, 1.0f);
         
         // Display LUT texture preview
-        ImGui::Image((void*)(intptr_t)m_TextureLibrary.Get("LUT")->GetRendererID(), ImVec2(256, 16));
+        ImGui::Image((void*)(intptr_t)Aether::Texture2DLibrary::Get(Aether::AssetsRegister::Get("Tex_LUT"))->GetRendererID(), ImVec2(256, 16));
         
         ImGui::Spacing();
         ImGui::Separator();

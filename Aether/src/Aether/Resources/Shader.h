@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aepch.h"
+#include "Aether/Core/UUID.h"
 
 namespace Aether {
 
@@ -32,12 +33,15 @@ namespace Aether {
     class AETHER_API ShaderLibrary
     {
     public:
-        Ref<Shader> Load(const std::string& name, const std::string& filepath);
-        Ref<Shader> Get(const std::string& name);
-        
-        bool Exists(const std::string& name) const;
+        static void Init();
+        static void Shutdown();
+
+        static Ref<Shader> Load(const std::string& filepath, UUID id);
+        static Ref<Shader> Get(UUID id);
+        static bool Exists(UUID id);
+
     private:
-        std::unordered_map<std::string, Ref<Shader>> m_Shaders;
-        Ref<Shader> m_ErrorShader = Shader::Create("assets/shaders/Basic.shader");
+        static std::unordered_map<UUID, Ref<Shader>> s_Shaders;
+        static Ref<Shader> s_ErrorShader; 
     };
 }

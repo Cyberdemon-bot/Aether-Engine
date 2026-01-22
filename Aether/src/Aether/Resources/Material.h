@@ -2,6 +2,7 @@
 #include "aepch.h"
 #include "Aether/Resources/Texture.h"
 #include "Aether/Resources/Shader.h"
+#include "Aether/Core/UUID.h"
 
 namespace Aether {
     enum class MaterialFlag
@@ -17,7 +18,7 @@ namespace Aether {
     class AETHER_API Material 
     {
     public:
-        Material(const Ref<Shader>& shader);
+        Material(UUID ShaderID);
 
         void Bind(uint32_t startSlot = 0);
         void Unbind();
@@ -26,7 +27,7 @@ namespace Aether {
         Ref<Shader> GetShader() const { return m_Shader; }
         Ref<Texture2D> GetTexture(const std::string& name) const;
 
-        void SetTexture(const std::string& name, const Ref<Texture2D>& texture);
+        void SetTexture(const std::string& name,  UUID TextureID);
 
         void SetFloat(const std::string& name, float value);
         void SetInt(const std::string& name, int value);

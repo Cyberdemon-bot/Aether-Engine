@@ -3,7 +3,8 @@
 #include "Aether/Core/Application.h"
 #include "Aether/Core/Layer.h"
 #include "Aether/Core/Log.h"
-
+#include "Aether/Core/UUID.h"
+#include "Aether/Core/AssetsRegister.h"
 #include "Aether/Core/Timestep.h"
 
 #include "Aether/Core/Input.h"
