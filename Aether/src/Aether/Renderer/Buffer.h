@@ -114,6 +114,7 @@ namespace Aether {
 
         virtual const BufferLayout& GetLayout() const = 0;
         virtual uint32_t GetSize() const = 0;
+        virtual void Resize(uint32_t size) = 0;
         virtual void SetLayout(const BufferLayout& layout) = 0;
         
         static Ref<VertexBuffer> Create(uint32_t size);

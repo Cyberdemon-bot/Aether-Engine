@@ -43,6 +43,12 @@ namespace Aether {
         GLCall(glBufferSubData(GL_ARRAY_BUFFER, offset, size, data));
     }
 
+    void OpenGLVertexBuffer::Resize(uint32_t size)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
+        glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    }
+
     // index buffer
     OpenGLIndexBuffer::OpenGLIndexBuffer(uint32_t* indices, uint32_t count)
         : m_Count(count)
