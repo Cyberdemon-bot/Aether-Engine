@@ -4,11 +4,11 @@
 #include <vector>
 #include <glm/glm.hpp> 
 
-class GameLayer : public Aether::Layer
+class DemoLayer : public Aether::Layer
 {
 public:
-    GameLayer();
-    virtual ~GameLayer() = default;
+    DemoLayer();
+    virtual ~DemoLayer() = default;
 
     virtual void Detach() override;
     virtual void Attach() override;
@@ -24,6 +24,7 @@ private:
 
 private:
     // Rendering objects
+
     Aether::Ref<Aether::Mesh> m_CubeMesh;
     Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;

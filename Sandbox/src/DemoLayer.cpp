@@ -1,15 +1,15 @@
-#include "GameLayer.h"
+#include "DemoLayer.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <cstdlib>
 
-GameLayer::GameLayer()
+DemoLayer::DemoLayer()
     : Layer("Spotlight Shadow Demo")
 {
     m_EditorCamera = Aether::EditorCamera(45.0f, 1.778f, 0.1f, 1000.0f);
 }
 
-void GameLayer::Detach()
+void DemoLayer::Detach()
 {
     m_CubeMesh.reset();
     m_ShadowFBO.reset();
@@ -28,7 +28,7 @@ void GameLayer::Detach()
     m_LUTMaterial.reset();
 }
 
-void GameLayer::Attach()
+void DemoLayer::Attach()
 {
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
@@ -42,14 +42,17 @@ void GameLayer::Attach()
     
     Aether::UUID id_TexWood = Aether::AssetsRegister::Register("Tex_Wood");
     Aether::UUID id_TexLUT = Aether::AssetsRegister::Register("Tex_LUT");
+    Aether::UUID id_ShaderPBR = Aether::AssetsRegister::Register("Shader_PBR");
 
     Aether::ShaderLibrary::Load("assets/shaders/LightingShadow.shader", id_ShaderLighting);
     Aether::ShaderLibrary::Load("assets/shaders/ShadowMap.shader", id_ShaderShadow);
     Aether::ShaderLibrary::Load("assets/shaders/Skybox.shader", id_ShaderSkybox);
     Aether::ShaderLibrary::Load("assets/shaders/LUT.shader", id_ShaderLUT);
+    Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
 
     Aether::Texture2DLibrary::Load("assets/textures/wood.jpg", id_TexWood);
     Aether::Texture2DLibrary::Load("assets/textures/LUT.png", id_TexLUT, true, false);
+    
 
     // ===== CREATE MATERIALS =====
     m_ShadowMaterial = Aether::CreateRef<Aether::Material>(id_ShaderShadow);
@@ -122,10 +125,10 @@ void GameLayer::Attach()
     };
     m_SceneFBO = Aether::FrameBuffer::Create(sceneFbSpec);
 
-    AE_CORE_INFO("GameLayer initialized successfully!");
+    AE_CORE_INFO("DemoLayer initialized successfully!");
 }
 
-void GameLayer::InitScreenQuad()
+void DemoLayer::InitScreenQuad()
 {
     float quadVertices[] = { 
         // a_Position   // a_TexCoord
@@ -143,7 +146,7 @@ void GameLayer::InitScreenQuad()
     m_ScreenQuadMesh = Aether::CreateRef<Aether::Mesh>(quadVertices, 4, quadIndices, 6, Aether::MeshLayout::Quad());
 }
 
-void GameLayer::InitSkybox()
+void DemoLayer::InitSkybox()
 {
     float skyboxVertices[] = {
         -1.0f, -1.0f,  1.0f, 
@@ -169,7 +172,7 @@ void GameLayer::InitSkybox()
     m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
-void GameLayer::RenderSkybox()
+void DemoLayer::RenderSkybox()
 {
     // Skybox uses raw shader + texture (since TextureCube isn't supported by Material)
     m_SkyboxShader->Bind();
@@ -181,7 +184,7 @@ void GameLayer::RenderSkybox()
     Aether::RenderCommand::SetDepthFuncEqual(false);
 }
 
-void GameLayer::Update(Aether::Timestep ts)
+void DemoLayer::Update(Aether::Timestep ts)
 {
     if (m_EnableRotation) m_Rotation += ts * m_RotationSpeed;
 
@@ -213,7 +216,7 @@ void GameLayer::Update(Aether::Timestep ts)
     Aether::RenderCommand::DrawIndexed(m_ScreenQuadMesh->GetVertexArray());
 }
 
-void GameLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
+void DemoLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
 {
     auto cubeVAO = m_CubeMesh->GetVertexArray();
     auto shader = material->GetShader();
@@ -279,7 +282,7 @@ void GameLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
     Aether::RenderCommand::DrawIndexed(cubeVAO);
 }
 
-glm::mat4 GameLayer::CalculateLightSpaceMatrix()
+glm::mat4 DemoLayer::CalculateLightSpaceMatrix()
 {
     float aspect = 1.0f;
     float nearPlane = 1.0f;
@@ -289,7 +292,7 @@ glm::mat4 GameLayer::CalculateLightSpaceMatrix()
     return lightProjection * lightView;
 }
 
-void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
+void DemoLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
 {
     m_ShadowFBO->Bind();
     Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
@@ -305,7 +308,7 @@ void GameLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
     m_ShadowFBO->Unbind();
 }
 
-void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix)
+void DemoLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix)
 {
     Aether::RenderCommand::SetViewport(0, 0, width, height);
 
@@ -365,7 +368,7 @@ void GameLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     shader->SetInt("u_IsLightSource", 0);
 }
 
-void GameLayer::OnEvent(Aether::Event& event)
+void DemoLayer::OnEvent(Aether::Event& event)
 {
     if (!event.Handled) 
     {
@@ -373,7 +376,7 @@ void GameLayer::OnEvent(Aether::Event& event)
     }
 }
 
-void GameLayer::OnImGuiRender()
+void DemoLayer::OnImGuiRender()
 {
     ImGui::SetNextWindowSize(ImVec2(420, 700), ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_MenuBar);
