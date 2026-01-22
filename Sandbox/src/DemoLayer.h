@@ -23,37 +23,34 @@ private:
     void RenderScene(const Aether::Ref<Aether::Material>& material);
 
 private:
-    // Rendering objects
+    
 
     Aether::Ref<Aether::Mesh> m_CubeMesh;
+    Aether::Ref<Aether::Mesh> m_ScreenQuadMesh;
+    Aether::Ref<Aether::Mesh> m_SkyboxMesh;
+
     Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
+    Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::VertexBuffer> m_InstanceVBO;
-
-    // Skybox (raw shader + texture since it uses TextureCube)
-    Aether::Ref<Aether::Mesh> m_SkyboxMesh;
+    
+    
     Aether::Ref<Aether::Shader> m_SkyboxShader;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
-    
-    // Post-processing
-    Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
-    Aether::Ref<Aether::Mesh> m_ScreenQuadMesh;
 
-    // Materials (using Material API)
+    
     Aether::Ref<Aether::Material> m_LightingMaterial;
     Aether::Ref<Aether::Material> m_ShadowMaterial;
     Aether::Ref<Aether::Material> m_LUTMaterial;
 
-    // LUT settings
-    float m_LutIntensity = 1.0f;
+    Aether::EditorCamera m_EditorCamera;
+    
     
     void InitSkybox();
     void RenderSkybox();
     void InitScreenQuad();
 
-    Aether::EditorCamera m_EditorCamera;
 
-    // Scene objects
     glm::vec3 m_TranslationA = { -2.0f, 0.5f, 0.0f };
     glm::vec3 m_TranslationB = { 2.0f, 0.5f, 0.0f };
     std::vector<glm::vec3> m_RandomCubes;
@@ -61,6 +58,8 @@ private:
     std::vector<float> m_CubeRot;
     std::vector<glm::mat4> m_InstanceModels;
 
+    
+    float m_LutIntensity = 1.0f;
     float m_CubeScale = 1.0f;
     float m_FloorScale = 15.0f;
     float m_Rotation = 0.0f;
