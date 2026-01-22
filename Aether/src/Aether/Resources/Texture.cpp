@@ -1,4 +1,4 @@
-#include "Aether/Renderer/Texture.h"
+#include "Aether/Resources/Texture.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLTexture.h"
 

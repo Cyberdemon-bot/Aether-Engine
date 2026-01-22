@@ -1,7 +1,7 @@
 #pragma once
 #include "aepch.h"
-#include "Aether/Renderer/Texture.h"
-#include "Aether/Renderer/Shader.h"
+#include "Aether/Resources/Texture.h"
+#include "Aether/Resources/Shader.h"
 
 namespace Aether {
     enum class MaterialFlag
@@ -14,7 +14,7 @@ namespace Aether {
         DisableShadowReceiving = BIT(5)
     };
 
-    class Material 
+    class AETHER_API Material 
     {
     public:
         Material(const Ref<Shader>& shader);
@@ -52,5 +52,10 @@ namespace Aether {
         std::unordered_map<std::string, glm::mat4> m_Mat4Uniforms;
 
         uint32_t m_Flags = 0;
+    };
+
+    class MateriaLibrary
+    {
+
     };
 }
