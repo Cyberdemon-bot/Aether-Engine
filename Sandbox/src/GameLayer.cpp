@@ -182,9 +182,9 @@ void GameLayer::RenderSkybox()
     m_SkyboxTexture->Bind(0);
     m_SkyboxMaterial->GetShader()->SetInt("u_Skybox", 0);
     
-    Aether::RenderCommand::SetDepthFunc(GL_LEQUAL);
+    Aether::RenderCommand::SetDepthFuncEqual();
     Aether::RenderCommand::DrawIndexed(m_SkyboxMesh->GetVertexArray());
-    Aether::RenderCommand::SetDepthFunc(GL_LESS);
+    Aether::RenderCommand::SetDepthFuncEqual(false);
 }
 
 void GameLayer::Update(Aether::Timestep ts)
@@ -264,10 +264,10 @@ void GameLayer::RenderScene(Aether::Ref<Aether::Material> material)
             m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
             
             Aether::BufferLayout instanceLayout = {
-                { "a_InstanceModel", Aether::ShaderDataType::Mat4 } 
+                { "a_InstanceModel", Aether::ShaderDataType::Mat4 }
             };
             m_InstanceVBO->SetLayout(instanceLayout);
-            cubeVAO->AddInstanceBuffer(m_InstanceVBO);
+            cubeVAO->AddInstanceBuffer(m_InstanceVBO, 3);
         }
         
         m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);

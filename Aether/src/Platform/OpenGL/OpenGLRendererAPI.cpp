@@ -19,9 +19,10 @@ namespace Aether
 		glViewport(x, y, width, height);
 	}
 
-	void OpenGLRendererAPI::SetDepthFunc(GLenum func)
+	void OpenGLRendererAPI::SetDepthFuncEqual(bool state)
     {
-        glDepthFunc(func);
+        if (state) glDepthFunc(GL_EQUAL);
+		else glDepthFunc(GL_LEQUAL);
     }
 
     void OpenGLRendererAPI::SetClearColor(const glm::vec4& color) {

@@ -36,9 +36,9 @@ namespace Aether {
 			s_RendererAPI->SetLineWidth(width);
 		}
 
-        static void SetDepthFunc(GLenum func)
+        static void SetDepthFuncEqual(bool state = true)
         {
-            s_RendererAPI->SetDepthFunc(func);
+            s_RendererAPI->SetDepthFuncEqual(state);
         }
 
         static void SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
