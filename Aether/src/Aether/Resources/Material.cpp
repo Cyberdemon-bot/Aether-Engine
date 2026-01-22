@@ -18,6 +18,14 @@ namespace Aether {
         }
     }
 
+    Ref<Texture2D> Material::GetTexture(const std::string& name) const
+    {
+        auto it = m_Textures.find(name);
+        if (it != m_Textures.end())
+            return it->second;
+        return nullptr;
+    }
+
     void Material::UploadMaterial()
     {
         m_Shader->Bind();
