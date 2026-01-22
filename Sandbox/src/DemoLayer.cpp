@@ -560,7 +560,7 @@ void DemoLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
     shader->SetMat4("u_Model", model);
     Aether::RenderCommand::DrawIndexed(cubeVAO);
 
-    // Instanced cubes
+    // Random cubes with instancing
     if (!m_RandomCubes.empty())
     {
         m_InstanceModels.clear();
