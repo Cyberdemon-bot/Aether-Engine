@@ -52,38 +52,47 @@ namespace Aether {
         return nullptr;
     }
 
-	Ref<Texture2D> Texture2DLibrary::Load(const std::string& name, const std::string& filepath, bool wrapMode, bool flip)
-	{
-		if (Exists(name)) return m_Textures[name];
-		auto tex = Texture2D::Create(filepath, wrapMode, flip);
-		if (!tex || !tex->IsLoaded()) 
-		{
-			AE_CORE_ERROR("Texture failed to load: {0}", filepath);
-			return m_ErrorTexture; 
-		}
-        m_Textures[name] = tex;
-        return tex;
-	}
+	void Texture2DLibrary::Init()
+    {
+        uint32_t magenta = 0xff00ffff; // A=ff, B=00, G=ff, R=ff
+        s_ErrorTexture = Texture2D::Create(TextureSpec());
+		s_ErrorTexture->SetData(&magenta, sizeof(uint32_t));
+    }
 
-	Ref<Texture2D> Texture2DLibrary::Get(const std::string& name)
-	{
-		auto it = m_Textures.find(name);
-        if (it == m_Textures.end()) return m_ErrorTexture; 
-        return it->second;
-	}
+    void Texture2DLibrary::Shutdown()
+    {
+        s_Textures.clear();
+        s_ErrorTexture.reset();
+    }
 
-	bool Texture2DLibrary::Exists(const std::string& name) const
-	{
-		return m_Textures.find(name) != m_Textures.end();
-	}
+    Ref<Texture2D> Texture2DLibrary::Load(const std::string& filepath, UUID id, bool wrapMode, bool flip)
+    {
+        if (s_Textures.find(id) != s_Textures.end())
+            return s_Textures[id];
 
-	void Texture2DLibrary::Add(const std::string& name, Ref<Texture2D> texture)
-	{
-		if (Exists(name)) 
-		{
-			AE_CORE_WARN("Texture {0} already exists!", name);
-			return;
-		}
-		m_Textures[name] = texture;
-	}
+        auto texture = Texture2D::Create(filepath, wrapMode, flip);
+        
+        if (!texture || !texture->IsLoaded())
+        {
+            AE_CORE_ERROR("Texture Library: Failed to load '{0}'", filepath);
+            return s_ErrorTexture;
+        }
+        s_Textures[id] = texture;
+        return texture;
+    }
+
+    Ref<Texture2D> Texture2DLibrary::Get(UUID id)
+    {
+        if (s_Textures.find(id) != s_Textures.end())
+            return s_Textures[id];
+        return s_ErrorTexture;
+    }
+
+    bool Texture2DLibrary::Exists(UUID id)
+    {
+        return s_Textures.find(id) != s_Textures.end();
+    }
+
+	std::unordered_map<UUID, Ref<Texture2D>> Texture2DLibrary::s_Textures;
+    Ref<Texture2D> Texture2DLibrary::s_ErrorTexture;
 }

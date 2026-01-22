@@ -10,6 +10,9 @@
 #include <array>
 #include <fstream>
 #include <sstream>
+#include <cstdint>
+#include <cstddef>
+#include <functional>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>

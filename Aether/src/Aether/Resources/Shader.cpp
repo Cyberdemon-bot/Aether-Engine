@@ -15,23 +15,48 @@ namespace Aether {
 		return nullptr;
 	}
 
-	Ref<Shader> ShaderLibrary::Load(const std::string& name, const std::string& filepath)
-	{
-		if (Exists(name)) return m_Shaders[name];
-		auto shader = Shader::Create(filepath);
-        m_Shaders[name] = shader;
+	void ShaderLibrary::Init()
+    {
+        s_ErrorShader = Shader::Create("assets/shaders/Basic.shader"); 
+    }
+
+    void ShaderLibrary::Shutdown()
+    {
+        s_Shaders.clear();
+        s_ErrorShader.reset();
+    }
+
+    Ref<Shader> ShaderLibrary::Load(const std::string& filepath, UUID id)
+    {
+        if (s_Shaders.find(id) != s_Shaders.end())
+            return s_Shaders[id];
+
+        auto shader = Shader::Create(filepath);
+        
+        if (!shader) 
+        {
+            AE_CORE_ERROR("Shader Library: Failed to load '{0}'", filepath);
+            return s_ErrorShader;
+        }
+
+        s_Shaders[id] = shader;
         return shader;
-	}
+    }
 
-	Ref<Shader> ShaderLibrary::Get(const std::string& name)
-	{
-		auto it = m_Shaders.find(name);
-        if (it == m_Shaders.end()) return m_ErrorShader; 
-        return it->second;
-	}
+    Ref<Shader> ShaderLibrary::Get(UUID id)
+    {
+        if (s_Shaders.find(id) != s_Shaders.end())
+            return s_Shaders[id];
 
-	bool ShaderLibrary::Exists(const std::string& name) const
-	{
-		return m_Shaders.find(name) != m_Shaders.end();
-	}
+        AE_CORE_WARN("Shader Library: Shader ID not found!");
+        return s_ErrorShader;
+    }
+
+    bool ShaderLibrary::Exists(UUID id)
+    {
+        return s_Shaders.find(id) != s_Shaders.end();
+    }
+
+	std::unordered_map<UUID, Ref<Shader>> ShaderLibrary::s_Shaders;
+    Ref<Shader> ShaderLibrary::s_ErrorShader;
 }
