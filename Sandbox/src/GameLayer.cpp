@@ -95,13 +95,7 @@ void GameLayer::Attach()
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    Aether::BufferLayout cubeLayout = {
-        { "a_Position", Aether::ShaderDataType::Float3 },
-        { "a_Normal",   Aether::ShaderDataType::Float3 },
-        { "a_TexCoord", Aether::ShaderDataType::Float2 }
-    };
-
-    m_CubeMesh = Aether::CreateRef<Aether::Mesh>(vertices, 24, indices, 36, cubeLayout);
+    m_CubeMesh = Aether::CreateRef<Aether::Mesh>(vertices, 24, indices, 36, Aether::MeshLayout::Phong());
 
     // ===== CREATE CAMERA UBO =====
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -146,12 +140,7 @@ void GameLayer::InitScreenQuad()
         2, 3, 0 
     };
 
-    Aether::BufferLayout quadLayout = {
-        { "a_Position", Aether::ShaderDataType::Float2 },
-        { "a_TexCoord", Aether::ShaderDataType::Float2 }
-    };
-
-    m_ScreenQuadMesh = Aether::CreateRef<Aether::Mesh>(quadVertices, 4, quadIndices, 6, quadLayout);
+    m_ScreenQuadMesh = Aether::CreateRef<Aether::Mesh>(quadVertices, 4, quadIndices, 6, Aether::MeshLayout::Quad());
 }
 
 void GameLayer::InitSkybox()
@@ -176,11 +165,7 @@ void GameLayer::InitSkybox()
         3, 7, 6, 6, 2, 3
     };
 
-    Aether::BufferLayout skyboxLayout = {
-        { "a_Position", Aether::ShaderDataType::Float3 }
-    };
-
-    m_SkyboxMesh = Aether::CreateRef<Aether::Mesh>(skyboxVertices, 8, skyboxIndices, 36, skyboxLayout);
+    m_SkyboxMesh = Aether::CreateRef<Aether::Mesh>(skyboxVertices, 8, skyboxIndices, 36, Aether::MeshLayout::Vertex());
     m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
@@ -219,7 +204,7 @@ void GameLayer::Update(Aether::Timestep ts)
 
     // Bind scene texture to slot 0 manually, then use Material API for LUT
     m_SceneFBO->BindColorTexture(0);
-    m_LUTMaterial->GetShader()->SetInt("u_SceneTexture", 0);
+    m_LUTMaterial->SetInt("u_SceneTexture", 0);
     
     m_LUTMaterial->Bind(1); // LUT texture binds at slot 1
     m_LUTMaterial->SetFloat("u_LutIntensity", m_LutIntensity);

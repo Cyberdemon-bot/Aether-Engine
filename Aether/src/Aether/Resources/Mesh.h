@@ -50,6 +50,19 @@ namespace Aether {
                 { "a_BoneWeights", ShaderDataType::Float4 }
             };
         }
+
+        static BufferLayout Quad() {
+            return {
+                { "a_Position", Aether::ShaderDataType::Float2 },
+                { "a_TexCoord", Aether::ShaderDataType::Float2 }
+            };
+        }
+
+        static BufferLayout Vertex() {
+            return {
+                { "a_Position", Aether::ShaderDataType::Float3 }
+            };
+        }
     };
 
     class AETHER_API Mesh 
