@@ -9,32 +9,13 @@ DemoLayer::DemoLayer()
     m_EditorCamera = Aether::EditorCamera(45.0f, 1.778f, 0.1f, 1000.0f);
 }
 
-void DemoLayer::Detach()
-{
-    m_CubeMesh.reset();
-    m_ShadowFBO.reset();
-    m_CameraUBO.reset();
-    m_InstanceVBO.reset();
-    
-    m_SkyboxMesh.reset();
-    m_SkyboxShader.reset();
-    m_SkyboxTexture.reset();
-    
-    m_SceneFBO.reset();
-    m_ScreenQuadMesh.reset();
-
-    m_LightingMaterial.reset();
-    m_ShadowMaterial.reset();
-    m_LUTMaterial.reset();
-}
-
 void DemoLayer::Attach()
 {
+    // ImGui context
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
     
-    // ===== LOAD ALL SHADERS ====
-
+    // Asset registration
     Aether::UUID id_ShaderLighting = Aether::AssetsRegister::Register("Shader_Lighting");
     Aether::UUID id_ShaderShadow = Aether::AssetsRegister::Register("Shader_Shadow");
     Aether::UUID id_ShaderLUT = Aether::AssetsRegister::Register("Shader_LUT");
@@ -44,25 +25,26 @@ void DemoLayer::Attach()
     Aether::UUID id_TexLUT = Aether::AssetsRegister::Register("Tex_LUT");
     Aether::UUID id_ShaderPBR = Aether::AssetsRegister::Register("Shader_PBR");
 
+    // Load shaders
     Aether::ShaderLibrary::Load("assets/shaders/LightingShadow.shader", id_ShaderLighting);
     Aether::ShaderLibrary::Load("assets/shaders/ShadowMap.shader", id_ShaderShadow);
     Aether::ShaderLibrary::Load("assets/shaders/Skybox.shader", id_ShaderSkybox);
     Aether::ShaderLibrary::Load("assets/shaders/LUT.shader", id_ShaderLUT);
     Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
 
+    // Load textures
     Aether::Texture2DLibrary::Load("assets/textures/wood.jpg", id_TexWood);
     Aether::Texture2DLibrary::Load("assets/textures/LUT.png", id_TexLUT, true, false);
     
 
-    // ===== CREATE MATERIALS =====
+    // Create materials
     m_ShadowMaterial = Aether::CreateRef<Aether::Material>(id_ShaderShadow);
     m_LightingMaterial = Aether::CreateRef<Aether::Material>(id_ShaderLighting);
     m_LightingMaterial->SetTexture("u_Texture", id_TexWood);
-
     m_LUTMaterial = Aether::CreateRef<Aether::Material>(id_ShaderLUT);
     m_LUTMaterial->SetTexture("u_LutTexture", id_TexLUT);
 
-    // ===== SKYBOX (raw shader + texture) =====
+    // Skybox shader
     m_SkyboxShader = Aether::ShaderLibrary::Get(id_ShaderSkybox);
 
     // ===== CREATE CUBE GEOMETRY USING MESH =====
@@ -100,22 +82,21 @@ void DemoLayer::Attach()
 
     m_CubeMesh = Aether::CreateRef<Aether::Mesh>(vertices, 24, indices, 36, Aether::MeshLayout::Phong());
 
-    // ===== CREATE CAMERA UBO =====
+    // Camera uniform buffer
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
     m_CameraUBO = Aether::UniformBuffer::Create(uboSize, 0);
 
-    // ===== INITIALIZE SUBSYSTEMS =====
+    // Subsystems
     InitSkybox();
     InitScreenQuad();
 
-    // ===== CREATE SHADOW FRAMEBUFFER =====
+    // Framebuffers
     Aether::FramebufferSpecification fbSpec;
     fbSpec.Width = m_ShadowMapResolution;
     fbSpec.Height = m_ShadowMapResolution;
     fbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
     m_ShadowFBO = Aether::FrameBuffer::Create(fbSpec);
 
-    // ===== CREATE SCENE FRAMEBUFFER =====
     Aether::FramebufferSpecification sceneFbSpec;
     sceneFbSpec.Width = Aether::Application::Get().GetWindow().GetWidth();
     sceneFbSpec.Height = Aether::Application::Get().GetWindow().GetHeight();
@@ -128,67 +109,32 @@ void DemoLayer::Attach()
     AE_CORE_INFO("DemoLayer initialized successfully!");
 }
 
-void DemoLayer::InitScreenQuad()
+void DemoLayer::Detach()
 {
-    float quadVertices[] = { 
-        // a_Position   // a_TexCoord
-        -1.0f,  1.0f,   0.0f, 1.0f,
-        -1.0f, -1.0f,   0.0f, 0.0f,
-         1.0f, -1.0f,   1.0f, 0.0f,
-         1.0f,  1.0f,   1.0f, 1.0f
-    };
-
-    uint32_t quadIndices[] = { 
-        0, 1, 2, 
-        2, 3, 0 
-    };
-
-    m_ScreenQuadMesh = Aether::CreateRef<Aether::Mesh>(quadVertices, 4, quadIndices, 6, Aether::MeshLayout::Quad());
-}
-
-void DemoLayer::InitSkybox()
-{
-    float skyboxVertices[] = {
-        -1.0f, -1.0f,  1.0f, 
-         1.0f, -1.0f,  1.0f, 
-         1.0f, -1.0f, -1.0f, 
-        -1.0f, -1.0f, -1.0f, 
-        -1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f, 
-         1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f  
-    };
-
-    uint32_t skyboxIndices[] = {
-        1, 2, 6, 6, 5, 1,
-        0, 4, 7, 7, 3, 0,
-        4, 5, 6, 6, 7, 4,
-        0, 3, 2, 2, 1, 0,
-        0, 1, 5, 5, 4, 0,
-        3, 7, 6, 6, 2, 3
-    };
-
-    m_SkyboxMesh = Aether::CreateRef<Aether::Mesh>(skyboxVertices, 8, skyboxIndices, 36, Aether::MeshLayout::Vertex());
-    m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
-}
-
-void DemoLayer::RenderSkybox()
-{
-    // Skybox uses raw shader + texture (since TextureCube isn't supported by Material)
-    m_SkyboxShader->Bind();
-    m_SkyboxTexture->Bind(0);
-    m_SkyboxShader->SetInt("u_Skybox", 0);
+    m_CubeMesh.reset();
+    m_ShadowFBO.reset();
+    m_CameraUBO.reset();
+    m_InstanceVBO.reset();
     
-    Aether::RenderCommand::SetDepthFuncEqual();
-    Aether::RenderCommand::DrawIndexed(m_SkyboxMesh->GetVertexArray());
-    Aether::RenderCommand::SetDepthFuncEqual(false);
+    m_SkyboxMesh.reset();
+    m_SkyboxShader.reset();
+    m_SkyboxTexture.reset();
+    
+    m_SceneFBO.reset();
+    m_ScreenQuadMesh.reset();
+
+    m_LightingMaterial.reset();
+    m_ShadowMaterial.reset();
+    m_LUTMaterial.reset();
 }
+
 
 void DemoLayer::Update(Aether::Timestep ts)
 {
+    // Update logic
     if (m_EnableRotation) m_Rotation += ts * m_RotationSpeed;
 
-    auto& window = Aether::Application::Get().GetWindow();
+    
     m_EditorCamera.Update(ts);
 
     // ===== SHADOW PASS =====
@@ -201,11 +147,6 @@ void DemoLayer::Update(Aether::Timestep ts)
     m_SceneFBO->Unbind();
 
     // ===== POST-PROCESSING PASS (LUT) =====
-    Aether::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
-    Aether::RenderCommand::Clear();
-    Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
-
-    // Bind scene texture to slot 0 manually, then use Material API for LUT
     m_SceneFBO->BindColorTexture(0);
     m_LUTMaterial->SetInt("u_SceneTexture", 0);
     
@@ -213,159 +154,11 @@ void DemoLayer::Update(Aether::Timestep ts)
     m_LUTMaterial->SetFloat("u_LutIntensity", m_LutIntensity);
     m_LUTMaterial->UploadMaterial();
 
+    auto& window = Aether::Application::Get().GetWindow();
+    Aether::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+    Aether::RenderCommand::Clear();
+    Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
     Aether::RenderCommand::DrawIndexed(m_ScreenQuadMesh->GetVertexArray());
-}
-
-void DemoLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
-{
-    auto cubeVAO = m_CubeMesh->GetVertexArray();
-    auto shader = material->GetShader();
-
-    shader->SetInt("u_UseInstancing", 0);
-
-    // Cube A
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
-    model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(m_CubeScale));
-    shader->SetMat4("u_Model", model);
-    Aether::RenderCommand::DrawIndexed(cubeVAO);
-
-    // Cube B
-    model = glm::translate(glm::mat4(1.0f), m_TranslationB);
-    model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
-    model = glm::scale(model, glm::vec3(m_CubeScale));
-    shader->SetMat4("u_Model", model);
-    Aether::RenderCommand::DrawIndexed(cubeVAO);
-
-    // Random cubes with instancing
-    if (!m_RandomCubes.empty())
-    {
-        m_InstanceModels.clear();
-        m_InstanceModels.reserve(m_RandomCubes.size());
-
-        for (size_t i = 0; i < m_RandomCubes.size(); i++) 
-        {
-            glm::vec3 pos = m_RandomCubes[i];
-            float size = m_CubesSize[i];
-            float rot = m_CubeRot[i];
-            glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
-            instModel = glm::rotate(instModel, m_Rotation * rot, glm::vec3(0.5f, 1.0f, 0.0f));
-            instModel = glm::scale(instModel, glm::vec3(size * m_CubeScale));
-            m_InstanceModels.push_back(instModel);
-        }
-
-        uint32_t dataSize = (uint32_t)m_InstanceModels.size() * sizeof(glm::mat4);
-
-        if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
-        {
-            uint32_t newSize = dataSize * 2;
-            m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
-            
-            Aether::BufferLayout instanceLayout = {
-                { "a_InstanceModel", Aether::ShaderDataType::Mat4 }
-            };
-            m_InstanceVBO->SetLayout(instanceLayout);
-            cubeVAO->AddInstanceBuffer(m_InstanceVBO, 3);
-        }
-        
-        m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
-
-        shader->SetInt("u_UseInstancing", 1);
-        Aether::RenderCommand::DrawInstanced(cubeVAO, (uint32_t)m_RandomCubes.size());
-        shader->SetInt("u_UseInstancing", 0);
-    }
-
-    // Floor
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
-    shader->SetMat4("u_Model", model);
-    Aether::RenderCommand::DrawIndexed(cubeVAO);
-}
-
-glm::mat4 DemoLayer::CalculateLightSpaceMatrix()
-{
-    float aspect = 1.0f;
-    float nearPlane = 1.0f;
-    float farPlane = 50.0f;
-    glm::mat4 lightProjection = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
-    glm::mat4 lightView = glm::lookAt(m_LightPos, m_LightPos + m_LightDir, glm::vec3(0.0f, 1.0f, 0.0f));
-    return lightProjection * lightView;
-}
-
-void DemoLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
-{
-    m_ShadowFBO->Bind();
-    Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
-    Aether::RenderCommand::Clear();
-
-    // Use Material API
-    m_ShadowMaterial->Bind(0);
-    m_ShadowMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
-    m_ShadowMaterial->UploadMaterial();
-    
-    RenderScene(m_ShadowMaterial);
-    
-    m_ShadowFBO->Unbind();
-}
-
-void DemoLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix)
-{
-    Aether::RenderCommand::SetViewport(0, 0, width, height);
-
-    if (m_FogEnabled)
-        Aether::RenderCommand::SetClearColor(glm::vec4(m_FogColor, 1.0f));
-    else
-        Aether::RenderCommand::SetClearColor(m_BackgroundColor);
-    
-    Aether::RenderCommand::Clear();
-
-    // Update Camera UBO
-    m_EditorCamera.SetViewportSize((float)width, (float)height);
-
-    glm::mat4 projection = m_EditorCamera.GetProjection();
-    glm::mat4 view = m_EditorCamera.GetViewMatrix();
-    glm::vec3 camPos = m_EditorCamera.GetPosition();
-
-    m_CameraUBO->SetData(glm::value_ptr(projection), sizeof(glm::mat4), 0);
-    m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
-    m_CameraUBO->SetData(glm::value_ptr(camPos), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
-
-    // Render skybox (raw shader + texture)
-    RenderSkybox();
-
-    // Main scene rendering - Use Material API consistently
-    m_LightingMaterial->Bind(0); // Binds wood texture at slot 0
-    
-    // Manually bind shadow map at slot 1 (can't be in Material since it's a framebuffer texture)
-    m_ShadowFBO->BindDepthTexture(1);
-    m_LightingMaterial->GetShader()->SetInt("u_ShadowMap", 1);
-
-    // Set all uniforms through Material API
-    m_LightingMaterial->SetFloat3("u_LightPos", m_LightPos);
-    m_LightingMaterial->SetFloat3("u_LightDir", m_LightDir);
-    m_LightingMaterial->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
-    m_LightingMaterial->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
-    m_LightingMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
-    m_LightingMaterial->SetInt("u_IsLightSource", 0);
-    m_LightingMaterial->SetInt("u_FogEnabled", m_FogEnabled);
-    m_LightingMaterial->SetFloat3("u_FogColor", m_FogColor);
-    m_LightingMaterial->SetFloat("u_FogStart", m_FogStart);
-    m_LightingMaterial->SetFloat("u_FogEnd", m_FogEnd);
-    
-    // Upload all uniforms at once
-    m_LightingMaterial->UploadMaterial();
-    
-    RenderScene(m_LightingMaterial);
-
-    // Render light source indicator
-    auto shader = m_LightingMaterial->GetShader();
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
-    model = glm::scale(model, glm::vec3(0.2f));
-    shader->SetMat4("u_Model", model);
-    shader->SetInt("u_IsLightSource", 1);
-    shader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
-    Aether::RenderCommand::DrawIndexed(m_CubeMesh->GetVertexArray());
-    shader->SetInt("u_IsLightSource", 0);
 }
 
 void DemoLayer::OnEvent(Aether::Event& event)
@@ -612,3 +405,213 @@ void DemoLayer::OnImGuiRender()
 
     ImGui::End();
 }
+
+void DemoLayer::InitScreenQuad()
+{
+    float quadVertices[] = { 
+        // a_Position   // a_TexCoord
+        -1.0f,  1.0f,   0.0f, 1.0f,
+        -1.0f, -1.0f,   0.0f, 0.0f,
+         1.0f, -1.0f,   1.0f, 0.0f,
+         1.0f,  1.0f,   1.0f, 1.0f
+    };
+
+    uint32_t quadIndices[] = { 
+        0, 1, 2, 
+        2, 3, 0 
+    };
+
+    m_ScreenQuadMesh = Aether::CreateRef<Aether::Mesh>(quadVertices, 4, quadIndices, 6, Aether::MeshLayout::Quad());
+}
+
+void DemoLayer::InitSkybox()
+{
+    float skyboxVertices[] = {
+        -1.0f, -1.0f,  1.0f, 
+         1.0f, -1.0f,  1.0f, 
+         1.0f, -1.0f, -1.0f, 
+        -1.0f, -1.0f, -1.0f, 
+        -1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f, 
+         1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f  
+    };
+
+    uint32_t skyboxIndices[] = {
+        1, 2, 6, 6, 5, 1,
+        0, 4, 7, 7, 3, 0,
+        4, 5, 6, 6, 7, 4,
+        0, 3, 2, 2, 1, 0,
+        0, 1, 5, 5, 4, 0,
+        3, 7, 6, 6, 2, 3
+    };
+
+    m_SkyboxMesh = Aether::CreateRef<Aether::Mesh>(skyboxVertices, 8, skyboxIndices, 36, Aether::MeshLayout::Vertex());
+    m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
+}
+
+void DemoLayer::RenderShadowPass(const glm::mat4& lightSpaceMatrix)
+{
+    m_ShadowFBO->Bind();
+    Aether::RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
+    Aether::RenderCommand::Clear();
+
+    // Use Material API
+    m_ShadowMaterial->Bind(0);
+    m_ShadowMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_ShadowMaterial->UploadMaterial();
+    
+    RenderScene(m_ShadowMaterial);
+    
+    m_ShadowFBO->Unbind();
+}
+
+void DemoLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4& lightSpaceMatrix)
+{
+    Aether::RenderCommand::SetViewport(0, 0, width, height);
+
+    if (m_FogEnabled)
+        Aether::RenderCommand::SetClearColor(glm::vec4(m_FogColor, 1.0f));
+    else
+        Aether::RenderCommand::SetClearColor(m_BackgroundColor);
+    
+    Aether::RenderCommand::Clear();
+
+    // Update Camera UBO
+    m_EditorCamera.SetViewportSize((float)width, (float)height);
+
+    glm::mat4 projection = m_EditorCamera.GetProjection();
+    glm::mat4 view = m_EditorCamera.GetViewMatrix();
+    glm::vec3 camPos = m_EditorCamera.GetPosition();
+
+    m_CameraUBO->SetData(glm::value_ptr(projection), sizeof(glm::mat4), 0);
+    m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
+    m_CameraUBO->SetData(glm::value_ptr(camPos), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
+
+    // Render skybox (raw shader + texture)
+    RenderSkybox();
+
+    // Main scene rendering - Use Material API consistently
+    m_LightingMaterial->Bind(0); // Binds wood texture at slot 0
+    
+    // Manually bind shadow map at slot 1 (can't be in Material since it's a framebuffer texture)
+    m_ShadowFBO->BindDepthTexture(1);
+    m_LightingMaterial->GetShader()->SetInt("u_ShadowMap", 1);
+
+    // Set all uniforms through Material API
+    m_LightingMaterial->SetFloat3("u_LightPos", m_LightPos);
+    m_LightingMaterial->SetFloat3("u_LightDir", m_LightDir);
+    m_LightingMaterial->SetFloat("u_CutOff", glm::cos(glm::radians(m_InnerAngle)));
+    m_LightingMaterial->SetFloat("u_OuterCutOff", glm::cos(glm::radians(m_OuterAngle)));
+    m_LightingMaterial->SetMat4("u_LightSpaceMatrix", lightSpaceMatrix);
+    m_LightingMaterial->SetInt("u_IsLightSource", 0);
+    m_LightingMaterial->SetInt("u_FogEnabled", m_FogEnabled);
+    m_LightingMaterial->SetFloat3("u_FogColor", m_FogColor);
+    m_LightingMaterial->SetFloat("u_FogStart", m_FogStart);
+    m_LightingMaterial->SetFloat("u_FogEnd", m_FogEnd);
+    
+    // Upload all uniforms at once
+    m_LightingMaterial->UploadMaterial();
+    
+    RenderScene(m_LightingMaterial);
+
+    // Render light source indicator
+    auto shader = m_LightingMaterial->GetShader();
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_LightPos);
+    model = glm::scale(model, glm::vec3(0.2f));
+    shader->SetMat4("u_Model", model);
+    shader->SetInt("u_IsLightSource", 1);
+    shader->SetFloat3("u_FlatColor", glm::vec3(1.0f, 1.0f, 0.0f));
+    Aether::RenderCommand::DrawIndexed(m_CubeMesh->GetVertexArray());
+    shader->SetInt("u_IsLightSource", 0);
+}
+
+void DemoLayer::RenderSkybox()
+{
+    // Skybox uses raw shader + texture (since TextureCube isn't supported by Material)
+    m_SkyboxShader->Bind();
+    m_SkyboxTexture->Bind(0);
+    m_SkyboxShader->SetInt("u_Skybox", 0);
+    
+    Aether::RenderCommand::SetDepthFuncEqual();
+    Aether::RenderCommand::DrawIndexed(m_SkyboxMesh->GetVertexArray());
+    Aether::RenderCommand::SetDepthFuncEqual(false);
+}
+
+
+void DemoLayer::RenderScene(const Aether::Ref<Aether::Material>& material)
+{
+    auto cubeVAO = m_CubeMesh->GetVertexArray();
+    auto shader = material->GetShader();
+
+    shader->SetInt("u_UseInstancing", 0);
+
+    // Cube A
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_TranslationA);
+    model = glm::rotate(model, m_Rotation, glm::vec3(0.5f, 1.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(m_CubeScale));
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(cubeVAO);
+
+    // Cube B
+    model = glm::translate(glm::mat4(1.0f), m_TranslationB);
+    model = glm::rotate(model, m_Rotation * 0.7f, glm::vec3(1.0f, 0.5f, 0.0f));
+    model = glm::scale(model, glm::vec3(m_CubeScale));
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(cubeVAO);
+
+    // Instanced cubes
+    if (!m_RandomCubes.empty())
+    {
+        m_InstanceModels.clear();
+        m_InstanceModels.reserve(m_RandomCubes.size());
+
+        for (size_t i = 0; i < m_RandomCubes.size(); i++) 
+        {
+            glm::vec3 pos = m_RandomCubes[i];
+            float size = m_CubesSize[i];
+            float rot = m_CubeRot[i];
+            glm::mat4 instModel = glm::translate(glm::mat4(1.0f), pos);
+            instModel = glm::rotate(instModel, m_Rotation * rot, glm::vec3(0.5f, 1.0f, 0.0f));
+            instModel = glm::scale(instModel, glm::vec3(size * m_CubeScale));
+            m_InstanceModels.push_back(instModel);
+        }
+
+        uint32_t dataSize = (uint32_t)m_InstanceModels.size() * sizeof(glm::mat4);
+
+        if (!m_InstanceVBO || m_InstanceVBO->GetSize() < dataSize) 
+        {
+            uint32_t newSize = dataSize * 2;
+            m_InstanceVBO = Aether::VertexBuffer::Create(newSize);
+            
+            Aether::BufferLayout instanceLayout = {
+                { "a_InstanceModel", Aether::ShaderDataType::Mat4 }
+            };
+            m_InstanceVBO->SetLayout(instanceLayout);
+            cubeVAO->AddInstanceBuffer(m_InstanceVBO, 3);
+        }
+        
+        m_InstanceVBO->SetData(m_InstanceModels.data(), dataSize, 0);
+
+        shader->SetInt("u_UseInstancing", 1);
+        Aether::RenderCommand::DrawInstanced(cubeVAO, (uint32_t)m_RandomCubes.size());
+        shader->SetInt("u_UseInstancing", 0);
+    }
+
+    // Floor
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(m_FloorScale, 0.1f, m_FloorScale));
+    shader->SetMat4("u_Model", model);
+    Aether::RenderCommand::DrawIndexed(cubeVAO);
+}
+
+glm::mat4 DemoLayer::CalculateLightSpaceMatrix()
+{
+    float aspect = 1.0f;
+    float nearPlane = 1.0f;
+    float farPlane = 50.0f;
+    glm::mat4 lightProjection = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
+    glm::mat4 lightView = glm::lookAt(m_LightPos, m_LightPos + m_LightDir, glm::vec3(0.0f, 1.0f, 0.0f));
+    return lightProjection * lightView;
+}
+
