@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Aether/Renderer/Texture.h"
+#include "Aether/Resources/Texture.h"
 #include "Platform/OpenGL/OpenGLBase.h"
 
 namespace Aether {

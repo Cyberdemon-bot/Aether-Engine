@@ -21,8 +21,8 @@
 #include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Renderer/EditorCamera.h"
 
-#include "Aether/Renderer/Shader.h"
-#include "Aether/Renderer/Texture.h"
+#include "Aether/Resources/Shader.h"
+#include "Aether/Resources/Texture.h"
 
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Material.h"

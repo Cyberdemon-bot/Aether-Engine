@@ -1,4 +1,4 @@
-#include "Aether/Renderer/Shader.h"
+#include "Aether/Resources/Shader.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLShader.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Aether/Renderer/RenderCommand.h"
-#include "Aether/Renderer/Shader.h"
+#include "Aether/Resources/Shader.h"
 
 namespace Aether {
 
