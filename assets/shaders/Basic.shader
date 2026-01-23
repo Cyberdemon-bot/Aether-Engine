@@ -16,20 +16,11 @@ layout(location = 0) out vec4 color;
 
 in vec2 v_TexCoord;
 
-uniform vec4 u_Color; uniform sampler2D u_Texture;
-
-float aberrationAmount = 0.005;
+uniform vec4 u_Color; 
+uniform sampler2D u_Texture;
 
 void main() 
 { 
-    float r = texture(u_Texture, v_TexCoord + vec2(-aberrationAmount, 0.0)).r;
-    float g = texture(u_Texture, v_TexCoord).g;
-    float b = texture(u_Texture, v_TexCoord + vec2(aberrationAmount, 0.0)).b;
-    vec4 texColor = vec4(r, g, b, texture(u_Texture, v_TexCoord).a);
-
-    vec2 position = (v_TexCoord - 0.5) * 2.0;
-    float len = length(position);
-    float vignette = smoothstep(1.5, 0.5, len); 
-
-    color = texColor * u_Color * vignette;
+    vec4 texColor = texture(u_Texture, v_TexCoord);
+    color = texColor * u_Color;
 }

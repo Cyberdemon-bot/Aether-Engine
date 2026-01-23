@@ -4,6 +4,31 @@
 #include <vector>
 #include <glm/glm.hpp>
 
+struct SubMeshInstance
+{
+    Aether::SubMesh Data;
+    Aether::Ref<Aether::Material> Material;
+    
+    glm::vec3 Position = glm::vec3(0.0f);
+    glm::vec3 Rotation = glm::vec3(0.0f);
+    glm::vec3 Scale = glm::vec3(1.0f);
+    
+    bool Visible = true;
+};
+
+struct ModelFile
+{
+    std::string Name;
+    std::string FilePath;
+    Aether::Ref<Aether::Mesh> Mesh;
+    std::vector<SubMeshInstance> SubMeshes;
+    
+    glm::vec3 BoundsMin = glm::vec3(0.0f);
+    glm::vec3 BoundsMax = glm::vec3(0.0f);
+    
+    bool IsLoaded = false;
+};
+
 class ModelLoaderLayer : public Aether::Layer
 {
 public:
@@ -17,28 +42,21 @@ public:
     virtual void OnEvent(Aether::Event& event) override;
 
 private:
-    void LoadModel(const std::string& filepath);
+    void LoadModelFile(const std::string& filepath);
     void LookAtModel();
+    void RenderSubMesh(ModelFile& model, SubMeshInstance& submesh);
+    Aether::Ref<Aether::Material> CreateMaterialFromTexture(const unsigned char* data, size_t size, int width, int height, const std::string& name);
 
 private:
     // Rendering
-    Aether::Ref<Aether::Mesh> m_ModelMesh;
-    Aether::Ref<Aether::Material> m_Material;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
-    
     Aether::EditorCamera m_EditorCamera;
+    Aether::UUID m_ShaderId;
 
-    // Model data
-    std::vector<Aether::SubMesh> m_SubMeshes;
-    glm::vec3 m_ModelBoundsMin = glm::vec3(0.0f);
-    glm::vec3 m_ModelBoundsMax = glm::vec3(0.0f);
-
-    // Transform
-    glm::vec3 m_ModelPosition = glm::vec3(0.0f);
-    glm::vec3 m_ModelRotation = glm::vec3(0.0f); // Euler angles in degrees
-    glm::vec3 m_ModelScale = glm::vec3(1.0f);
-
+    // Model
+    ModelFile m_Model;
+    int m_SelectedSubMeshIndex = -1;
+    
     // UI
-    bool m_ModelLoaded = false;
-    std::string m_ModelPath = "assets/models/robot.glb";
+    char m_ModelPathBuffer[256] = "assets/models/thanggay.glb";
 };
