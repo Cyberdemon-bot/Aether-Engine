@@ -5,7 +5,7 @@
 
 namespace Aether {
 
-    class AETHER_API AssetsRegister
+    class AssetsRegister
     {
     public:
         static UUID Get(const std::string& key)
