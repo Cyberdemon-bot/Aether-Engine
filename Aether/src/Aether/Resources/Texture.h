@@ -24,7 +24,7 @@ namespace Aether {
         bool WrapMode = false;
 	};
 
-	class AETHER_API Texture
+	class Texture
 	{
 	public:
 		virtual ~Texture() = default;
@@ -46,7 +46,7 @@ namespace Aether {
 		virtual bool operator==(const Texture& other) const = 0;
 	};
 
-	class Texture2D : public Texture
+	class AETHER_API Texture2D : public Texture
 	{
 	public:
 		static Ref<Texture2D> Create(const TextureSpec& spec);
@@ -54,7 +54,7 @@ namespace Aether {
 		static Ref<Texture2D> Create(const std::string& path, bool wrapMode = false, bool flip = true);
 	};
 
-    class TextureCube : public Texture
+    class AETHER_API TextureCube : public Texture
 	{
 	public:
 		static Ref<TextureCube> Create(const std::string& path);
