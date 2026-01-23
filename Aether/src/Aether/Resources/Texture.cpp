@@ -80,6 +80,34 @@ namespace Aether {
         s_Textures[id] = texture;
         return texture;
     }
+    Ref<Texture2D> Texture2DLibrary::Load(void* data, size_t size, UUID id)
+    {
+        if (s_Textures.find(id) != s_Textures.end())
+            return s_Textures[id];
+
+        auto texture = Texture2D::Create(data, size);
+        if (!texture || !texture->IsLoaded())
+        {
+            AE_CORE_ERROR("Texture Library: Failed to load from raw packed data");
+            return s_ErrorTexture;
+        }
+        s_Textures[id] = texture;
+        return texture;
+    }
+	Ref<Texture2D> Texture2DLibrary::Load(const TextureSpec& spec, UUID id)
+    {
+        if (s_Textures.find(id) != s_Textures.end())
+            return s_Textures[id];
+
+        auto texture = Texture2D::Create(spec);
+        if (!texture || !texture->IsLoaded())
+        {
+            AE_CORE_ERROR("Texture Library: Failed to create empty texture");
+            return s_ErrorTexture;
+        }
+        s_Textures[id] = texture;
+        return texture;
+    }
 
     Ref<Texture2D> Texture2DLibrary::Get(UUID id)
     {

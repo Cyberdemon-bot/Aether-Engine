@@ -17,37 +17,41 @@ void ModelLoaderLayer::Attach()
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
-    // Register assets
-    Aether::UUID id_ShaderBasic = Aether::AssetsRegister::Register("Shader_Basic");
-    Aether::UUID id_TexWood = Aether::AssetsRegister::Register("Tex_Wood");
-
-    // Load shader and texture
-    Aether::ShaderLibrary::Load("assets/shaders/Basic.shader", id_ShaderBasic);
-    Aether::Texture2DLibrary::Load("assets/textures/wood.jpg", id_TexWood);
-
-    // Create material
-    m_Material = Aether::CreateRef<Aether::Material>(id_ShaderBasic);
-    m_Material->SetTexture("u_Texture", id_TexWood);
-    m_Material->SetFloat4("u_Color", glm::vec4(1.0f));
+    // Register shader
+    m_ShaderId = Aether::AssetsRegister::Register("Shader_Basic");
+    Aether::ShaderLibrary::Load("assets/shaders/Basic.shader", m_ShaderId);
 
     // Camera UBO
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
     m_CameraUBO = Aether::UniformBuffer::Create(uboSize, 0);
 
-    // Load model
-    LoadModel(m_ModelPath);
+    // Load initial model
+    LoadModelFile(m_ModelPathBuffer);
 
     AE_CORE_INFO("ModelLoaderLayer initialized successfully!");
 }
 
 void ModelLoaderLayer::Detach()
 {
-    m_ModelMesh.reset();
-    m_Material.reset();
+    m_Model = ModelFile();
     m_CameraUBO.reset();
 }
 
-void ModelLoaderLayer::LoadModel(const std::string& filepath)
+Aether::Ref<Aether::Material> ModelLoaderLayer::CreateMaterialFromTexture(const unsigned char* data, size_t size, int width, int height, const std::string& name)
+{
+    // Register texture
+    Aether::UUID texId = Aether::AssetsRegister::Register(name);
+    Aether::Texture2DLibrary::Load((void*)data, size, texId);
+    
+    // Create material
+    auto material = Aether::CreateRef<Aether::Material>(m_ShaderId);
+    material->SetTexture("u_Texture", texId);
+    material->SetFloat4("u_Color", glm::vec4(1.0f));
+    
+    return material;
+}
+
+void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(filepath, 
@@ -62,25 +66,110 @@ void ModelLoaderLayer::LoadModel(const std::string& filepath)
         return;
     }
 
+    // Reset model
+    m_Model = ModelFile();
+    m_Model.FilePath = filepath;
+    m_Model.Name = filepath.substr(filepath.find_last_of("/\\") + 1);
+    
     // Simple layout: Position (3) + TexCoord (2) = 5 floats per vertex
     std::vector<float> vertices;
     std::vector<uint32_t> indices;
-    m_SubMeshes.clear();
+    std::vector<Aether::SubMesh> submeshes;
 
-    m_ModelBoundsMin = glm::vec3(FLT_MAX);
-    m_ModelBoundsMax = glm::vec3(-FLT_MAX);
+    m_Model.BoundsMin = glm::vec3(FLT_MAX);
+    m_Model.BoundsMax = glm::vec3(-FLT_MAX);
+
+    // Load textures/materials for each mesh
+    std::vector<Aether::Ref<Aether::Material>> materials;
+    
+    // First, load all materials from the file
+    for (uint32_t matIdx = 0; matIdx < scene->mNumMaterials; matIdx++)
+    {
+        aiMaterial* aiMat = scene->mMaterials[matIdx];
+        
+        // Try to get texture from material
+        if (aiMat->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+        {
+            aiString texPath;
+            aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
+            
+            // Check if it's an embedded texture
+            const aiTexture* embeddedTex = scene->GetEmbeddedTexture(texPath.C_Str());
+            if (embeddedTex)
+            {
+                size_t size = (embeddedTex->mHeight == 0) ? embeddedTex->mWidth : embeddedTex->mHeight * embeddedTex->mWidth * 4;
+                std::string matName = "Material_" + std::to_string(matIdx);
+                materials.push_back(CreateMaterialFromTexture(
+                    (unsigned char*)embeddedTex->pcData, 
+                    size, 
+                    embeddedTex->mWidth, 
+                    embeddedTex->mHeight,
+                    matName
+                ));
+                continue;
+            }
+        }
+        
+        // If no texture, check for embedded textures by index
+        if (scene->HasTextures() && matIdx < scene->mNumTextures)
+        {
+            const aiTexture* texture = scene->mTextures[matIdx];
+            size_t size = (texture->mHeight == 0) ? texture->mWidth : texture->mHeight * texture->mWidth * 4;
+            std::string matName = "Material_" + std::to_string(matIdx);
+            materials.push_back(CreateMaterialFromTexture(
+                (unsigned char*)texture->pcData, 
+                size, 
+                texture->mWidth, 
+                texture->mHeight,
+                matName
+            ));
+        }
+        else
+        {
+            // Create default material
+            auto defaultMat = Aether::CreateRef<Aether::Material>(m_ShaderId);
+            defaultMat->SetFloat4("u_Color", glm::vec4(0.7f, 0.7f, 0.7f, 1.0f));
+            materials.push_back(defaultMat);
+        }
+    }
+    
+    // If no materials, try to load first embedded texture
+    if (materials.empty() && scene->HasTextures())
+    {
+        const aiTexture* texture = scene->mTextures[0];
+        size_t size = (texture->mHeight == 0) ? texture->mWidth : texture->mHeight * texture->mWidth * 4;
+        materials.push_back(CreateMaterialFromTexture(
+            (unsigned char*)texture->pcData, 
+            size, 
+            texture->mWidth, 
+            texture->mHeight,
+            "DefaultMaterial"
+        ));
+    }
+    
+    // If still no materials, create a default one
+    if (materials.empty())
+    {
+        auto defaultMat = Aether::CreateRef<Aether::Material>(m_ShaderId);
+        defaultMat->SetFloat4("u_Color", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+        materials.push_back(defaultMat);
+    }
 
     // Process all meshes
     for (uint32_t m = 0; m < scene->mNumMeshes; m++)
     {
         aiMesh* mesh = scene->mMeshes[m];
         
-        Aether::SubMesh submesh;
-        submesh.BaseVertex = (uint32_t)vertices.size() / 5; // 5 floats per vertex
-        submesh.BaseIndex = (uint32_t)indices.size();
-        submesh.VertexCount = mesh->mNumVertices;
-        submesh.IndexCount = mesh->mNumFaces * 3;
-        submesh.NodeName = mesh->mName.C_Str();
+        SubMeshInstance submeshInstance;
+        submeshInstance.Data.BaseVertex = (uint32_t)vertices.size() / 5;
+        submeshInstance.Data.BaseIndex = (uint32_t)indices.size();
+        submeshInstance.Data.VertexCount = mesh->mNumVertices;
+        submeshInstance.Data.IndexCount = mesh->mNumFaces * 3;
+        submeshInstance.Data.NodeName = mesh->mName.C_Str();
+        
+        // Assign material (use material index or default to 0)
+        uint32_t matIndex = (mesh->mMaterialIndex < materials.size()) ? mesh->mMaterialIndex : 0;
+        submeshInstance.Material = materials[matIndex];
 
         glm::vec3 subMeshMin(FLT_MAX);
         glm::vec3 subMeshMax(-FLT_MAX);
@@ -97,8 +186,8 @@ void ModelLoaderLayer::LoadModel(const std::string& filepath)
             // Update bounds
             subMeshMin = glm::min(subMeshMin, pos);
             subMeshMax = glm::max(subMeshMax, pos);
-            m_ModelBoundsMin = glm::min(m_ModelBoundsMin, pos);
-            m_ModelBoundsMax = glm::max(m_ModelBoundsMax, pos);
+            m_Model.BoundsMin = glm::min(m_Model.BoundsMin, pos);
+            m_Model.BoundsMax = glm::max(m_Model.BoundsMax, pos);
 
             // TexCoord
             if (mesh->mTextureCoords[0])
@@ -113,8 +202,8 @@ void ModelLoaderLayer::LoadModel(const std::string& filepath)
             }
         }
 
-        submesh.BoundsMin = subMeshMin;
-        submesh.BoundsMax = subMeshMax;
+        submeshInstance.Data.BoundsMin = subMeshMin;
+        submeshInstance.Data.BoundsMax = subMeshMax;
 
         // Extract indices
         for (uint32_t i = 0; i < mesh->mNumFaces; i++)
@@ -126,7 +215,8 @@ void ModelLoaderLayer::LoadModel(const std::string& filepath)
             }
         }
 
-        m_SubMeshes.push_back(submesh);
+        submeshes.push_back(submeshInstance.Data);
+        m_Model.SubMeshes.push_back(submeshInstance);
     }
 
     // Create simple buffer layout for Basic shader
@@ -139,42 +229,71 @@ void ModelLoaderLayer::LoadModel(const std::string& filepath)
     uint32_t vertexCount = (uint32_t)vertices.size() / 5;
     uint32_t indexCount = (uint32_t)indices.size();
     
-    m_ModelMesh = Aether::CreateRef<Aether::Mesh>(
+    m_Model.Mesh = Aether::CreateRef<Aether::Mesh>(
         vertices.data(), 
         vertexCount, 
         indices.data(), 
         indexCount, 
         simpleLayout,
-        m_SubMeshes
+        submeshes
     );
 
-    m_ModelLoaded = true;
+    m_Model.IsLoaded = true;
     
     AE_CORE_INFO("Model loaded: {0}", filepath);
     AE_CORE_INFO("Vertices: {0}, Indices: {1}, SubMeshes: {2}", 
-        vertexCount, indexCount, m_SubMeshes.size());
-    AE_CORE_INFO("Bounds: Min({0}, {1}, {2}) Max({3}, {4}, {5})",
-        m_ModelBoundsMin.x, m_ModelBoundsMin.y, m_ModelBoundsMin.z,
-        m_ModelBoundsMax.x, m_ModelBoundsMax.y, m_ModelBoundsMax.z);
+        vertexCount, indexCount, m_Model.SubMeshes.size());
 
-    // Auto look at model on first load
+    // Auto look at model
     LookAtModel();
 }
 
 void ModelLoaderLayer::LookAtModel()
 {
-    if (!m_ModelLoaded) return;
+    if (!m_Model.IsLoaded) return;
 
     // Calculate model center and size
-    glm::vec3 center = (m_ModelBoundsMin + m_ModelBoundsMax) * 0.5f;
-    glm::vec3 extents = m_ModelBoundsMax - m_ModelBoundsMin;
+    glm::vec3 center = (m_Model.BoundsMin + m_Model.BoundsMax) * 0.5f;
+    glm::vec3 extents = m_Model.BoundsMax - m_Model.BoundsMin;
     float maxExtent = glm::max(extents.x, glm::max(extents.y, extents.z));
 
     // Set camera to look at center from a distance
-    float distance = maxExtent * 2.5f; // Adjust multiplier for framing
+    float distance = maxExtent * 2.5f;
     m_EditorCamera.SetDistance(distance);
     
     AE_CORE_INFO("Camera focused on model. Distance: {0}", distance);
+}
+
+void ModelLoaderLayer::RenderSubMesh(ModelFile& model, SubMeshInstance& submesh)
+{
+    if (!submesh.Visible || !submesh.Material) return;
+
+    submesh.Material->Bind(0);
+
+    // Build transform matrix (model space -> submesh local transform -> world space)
+    glm::mat4 submeshTransform = glm::mat4(1.0f);
+    submeshTransform = glm::translate(submeshTransform, submesh.Position);
+    submeshTransform = glm::rotate(submeshTransform, glm::radians(submesh.Rotation.x), glm::vec3(1, 0, 0));
+    submeshTransform = glm::rotate(submeshTransform, glm::radians(submesh.Rotation.y), glm::vec3(0, 1, 0));
+    submeshTransform = glm::rotate(submeshTransform, glm::radians(submesh.Rotation.z), glm::vec3(0, 0, 1));
+    submeshTransform = glm::scale(submeshTransform, submesh.Scale);
+
+    glm::mat4 projection = m_EditorCamera.GetProjection();
+    glm::mat4 view = m_EditorCamera.GetViewMatrix();
+    glm::mat4 mvp = projection * view * submeshTransform;
+    
+    submesh.Material->SetMat4("u_MVP", mvp);
+    submesh.Material->UploadMaterial();
+
+    auto vao = model.Mesh->GetVertexArray();
+
+    void* indexOffset = (void*)(submesh.Data.BaseIndex * sizeof(uint32_t));
+    Aether::RenderCommand::DrawIndexedBaseVertex(
+        vao, 
+        submesh.Data.IndexCount, 
+        indexOffset, 
+        submesh.Data.BaseVertex
+    );
 }
 
 void ModelLoaderLayer::Update(Aether::Timestep ts)
@@ -201,35 +320,12 @@ void ModelLoaderLayer::Update(Aether::Timestep ts)
     Aether::RenderCommand::Clear();
     Aether::RenderCommand::SetViewport(0, 0, width, height);
 
-    // Render model
-    if (m_ModelLoaded && m_ModelMesh)
+    // Render all submeshes
+    if (m_Model.IsLoaded && m_Model.Mesh)
     {
-        m_Material->Bind(0);
-
-        // Build model matrix
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, m_ModelPosition);
-        model = glm::rotate(model, glm::radians(m_ModelRotation.x), glm::vec3(1, 0, 0));
-        model = glm::rotate(model, glm::radians(m_ModelRotation.y), glm::vec3(0, 1, 0));
-        model = glm::rotate(model, glm::radians(m_ModelRotation.z), glm::vec3(0, 0, 1));
-        model = glm::scale(model, m_ModelScale);
-
-        glm::mat4 mvp = projection * view * model;
-        m_Material->SetMat4("u_MVP", mvp);
-        m_Material->UploadMaterial();
-
-        auto vao = m_ModelMesh->GetVertexArray();
-
-        // Draw each submesh
-        for (const auto& submesh : m_SubMeshes)
+        for (auto& submesh : m_Model.SubMeshes)
         {
-            void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
-            Aether::RenderCommand::DrawIndexedBaseVertex(
-                vao, 
-                submesh.IndexCount, 
-                indexOffset, 
-                submesh.BaseVertex
-            );
+            RenderSubMesh(m_Model, submesh);
         }
     }
 }
@@ -244,7 +340,7 @@ void ModelLoaderLayer::OnEvent(Aether::Event& event)
 
 void ModelLoaderLayer::OnImGuiRender()
 {
-    ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(450, 700), ImGuiCond_FirstUseEver);
     ImGui::Begin("Model Loader", nullptr, ImGuiWindowFlags_MenuBar);
 
     if (ImGui::BeginMenuBar())
@@ -253,7 +349,7 @@ void ModelLoaderLayer::OnImGuiRender()
         {
             if (ImGui::MenuItem("Reload Model"))
             {
-                LoadModel(m_ModelPath);
+                LoadModelFile(m_ModelPathBuffer);
             }
             ImGui::EndMenu();
         }
@@ -266,27 +362,31 @@ void ModelLoaderLayer::OnImGuiRender()
     ImGui::PopStyleColor();
     ImGui::Separator();
 
+    // Load Model Section
+    if (ImGui::CollapsingHeader("Load Model", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::InputText("Path", m_ModelPathBuffer, sizeof(m_ModelPathBuffer));
+        
+        if (ImGui::Button("Load Model", ImVec2(-1, 30)))
+        {
+            LoadModelFile(m_ModelPathBuffer);
+        }
+        
+        if (ImGui::Button("Look At Model", ImVec2(-1, 30)))
+        {
+            LookAtModel();
+        }
+    }
+
     // Model Info
     if (ImGui::CollapsingHeader("Model Info", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (m_ModelLoaded)
+        if (m_Model.IsLoaded)
         {
-            ImGui::Text("Path: %s", m_ModelPath.c_str());
-            ImGui::Text("SubMeshes: %d", (int)m_SubMeshes.size());
-            ImGui::Text("Vertices: %d", m_ModelMesh->GetVertexCount());
-            ImGui::Text("Indices: %d", m_ModelMesh->GetIndexCount());
-            
-            ImGui::Spacing();
-            ImGui::Text("Bounds:");
-            ImGui::Text("  Min: (%.2f, %.2f, %.2f)", 
-                m_ModelBoundsMin.x, m_ModelBoundsMin.y, m_ModelBoundsMin.z);
-            ImGui::Text("  Max: (%.2f, %.2f, %.2f)", 
-                m_ModelBoundsMax.x, m_ModelBoundsMax.y, m_ModelBoundsMax.z);
-
-            if (ImGui::Button("Look At Model", ImVec2(-1, 30)))
-            {
-                LookAtModel();
-            }
+            ImGui::Text("File: %s", m_Model.Name.c_str());
+            ImGui::Text("Objects: %d", (int)m_Model.SubMeshes.size());
+            ImGui::Text("Total Vertices: %d", m_Model.Mesh->GetVertexCount());
+            ImGui::Text("Total Indices: %d", m_Model.Mesh->GetIndexCount());
         }
         else
         {
@@ -295,7 +395,7 @@ void ModelLoaderLayer::OnImGuiRender()
     }
 
     // Camera Controls
-    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Camera"))
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.9f, 1.0f, 1.0f));
         ImGui::TextWrapped("Controls:");
@@ -316,35 +416,76 @@ void ModelLoaderLayer::OnImGuiRender()
         ImGui::Text("Distance: %.1f", m_EditorCamera.GetDistance());
     }
 
-    // Transform
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    // Objects List (SubMeshes)
+    if (ImGui::CollapsingHeader("Objects", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::DragFloat3("Position", &m_ModelPosition.x, 0.1f);
-        ImGui::DragFloat3("Rotation", &m_ModelRotation.x, 1.0f, -180.0f, 180.0f);
-        ImGui::DragFloat3("Scale", &m_ModelScale.x, 0.05f, 0.01f, 10.0f);
-
-        if (ImGui::Button("Reset Transform", ImVec2(-1, 0)))
+        for (size_t i = 0; i < m_Model.SubMeshes.size(); i++)
         {
-            m_ModelPosition = glm::vec3(0.0f);
-            m_ModelRotation = glm::vec3(0.0f);
-            m_ModelScale = glm::vec3(1.0f);
-        }
-    }
-
-    // SubMeshes List
-    if (ImGui::CollapsingHeader("SubMeshes"))
-    {
-        for (size_t i = 0; i < m_SubMeshes.size(); i++)
-        {
-            const auto& sm = m_SubMeshes[i];
+            auto& submesh = m_Model.SubMeshes[i];
             ImGui::PushID((int)i);
             
-            if (ImGui::TreeNode("##submesh", "SubMesh %d: %s", (int)i, sm.NodeName.c_str()))
+            // Object header with visibility checkbox
+            bool isSelected = (int)i == m_SelectedSubMeshIndex;
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
+            if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
+            
+            std::string label = submesh.Data.NodeName.empty() ? 
+                "Object " + std::to_string(i) : submesh.Data.NodeName;
+            
+            bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
+            
+            // Select on click
+            if (ImGui::IsItemClicked())
             {
-                ImGui::Text("Vertices: %d", sm.VertexCount);
-                ImGui::Text("Indices: %d", sm.IndexCount);
-                ImGui::Text("Base Vertex: %d", sm.BaseVertex);
-                ImGui::Text("Base Index: %d", sm.BaseIndex);
+                m_SelectedSubMeshIndex = (int)i;
+            }
+            
+            ImGui::SameLine();
+            ImGui::Checkbox("##visible", &submesh.Visible);
+            
+            if (nodeOpen)
+            {
+                ImGui::Text("Vertices: %d", submesh.Data.VertexCount);
+                ImGui::Text("Indices: %d", submesh.Data.IndexCount);
+                
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Text("Local Transform:");
+                
+                // Transform controls for individual object
+                ImGui::DragFloat3("Position", &submesh.Position.x, 0.1f);
+                ImGui::DragFloat3("Rotation", &submesh.Rotation.x, 1.0f, -180.0f, 180.0f);
+                ImGui::DragFloat3("Scale", &submesh.Scale.x, 0.05f, 0.01f, 10.0f);
+                
+                if (ImGui::Button("Reset Transform", ImVec2(-1, 0)))
+                {
+                    submesh.Position = glm::vec3(0.0f);
+                    submesh.Rotation = glm::vec3(0.0f);
+                    submesh.Scale = glm::vec3(1.0f);
+                }
+                
+                // Show material info
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Text("Material Info:");
+                if (submesh.Material)
+                {
+                    auto tex = submesh.Material->GetTexture("u_Texture");
+                    if (tex)
+                    {
+                        ImGui::Text("Texture: %d x %d", tex->GetWidth(), tex->GetHeight());
+                        
+                        float availWidth = ImGui::GetContentRegionAvail().x;
+                        float aspect = (float)tex->GetHeight() / (float)tex->GetWidth();
+                        ImGui::Image((void*)(uintptr_t)tex->GetRendererID(), 
+                                   ImVec2(availWidth * 0.5f, availWidth * 0.5f * aspect));
+                    }
+                    else
+                    {
+                        ImGui::Text("No texture");
+                    }
+                }
+                
                 ImGui::TreePop();
             }
             

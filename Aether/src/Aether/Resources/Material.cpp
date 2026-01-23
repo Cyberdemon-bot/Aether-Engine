@@ -23,6 +23,7 @@ namespace Aether {
         auto it = m_Textures.find(name);
         if (it != m_Textures.end())
             return it->second;
+        AE_CORE_WARN("NO TEXTURE FOUND IN THIS MATERIAL!");
         return nullptr;
     }
 

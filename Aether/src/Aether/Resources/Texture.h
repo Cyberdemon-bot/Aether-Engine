@@ -67,6 +67,8 @@ namespace Aether {
         static void Shutdown();
 
         static Ref<Texture2D> Load(const std::string& filepath, UUID id, bool wrapMode = false, bool flip = true);
+		static Ref<Texture2D> Load(void* data, size_t size, UUID id);
+		static Ref<Texture2D> Load(const TextureSpec& spec, UUID id);
         static Ref<Texture2D> Get(UUID id);
         
         static bool Exists(UUID id);
