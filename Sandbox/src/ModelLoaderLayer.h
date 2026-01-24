@@ -7,7 +7,6 @@
 struct SubMeshInstance
 {
     Aether::SubMesh Data;
-    Aether::Ref<Aether::Material> Material;
     
     glm::vec3 Position = glm::vec3(0.0f);
     glm::vec3 Rotation = glm::vec3(0.0f);
@@ -45,18 +44,17 @@ private:
     void LoadModelFile(const std::string& filepath);
     void LookAtModel();
     void RenderSubMesh(ModelFile& model, SubMeshInstance& submesh);
-    Aether::Ref<Aether::Material> CreateMaterialFromTexture(const unsigned char* data, size_t size, int width, int height, const std::string& name);
+    
+    // Helper function to create and register material from texture data
+    Aether::UUID CreateMaterialFromTexture(const unsigned char* data, size_t size, int width, int height, const std::string& name);
 
 private:
-    // Rendering
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::EditorCamera m_EditorCamera;
     Aether::UUID m_ShaderId;
+    Aether::UUID m_DefaultMaterialId;
 
-    // Model
     ModelFile m_Model;
+    char m_ModelPathBuffer[256] = "assets/models/thanggay.glb"; // Default path
     int m_SelectedSubMeshIndex = -1;
-    
-    // UI
-    char m_ModelPathBuffer[256] = "assets/models/thanggay.glb";
 };
