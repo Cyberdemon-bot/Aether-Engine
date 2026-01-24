@@ -3,7 +3,7 @@ import os
 # Các đuôi file muốn lấy
 EXTENSIONS = {'.h', '.cpp', '.hpp', '.lua', '.shader'}
 # Các thư mục muốn bỏ qua
-IGNORE_DIRS = {'vendor', 'build', '.xmake', '.git', 'bin'}
+IGNORE_DIRS = {'vendor', 'build', '.xmake', '.git', 'bin', 'models', 'textures'}
 
 def pack_files():
     with open("full_source_code.txt", "w", encoding="utf-8") as outfile:
