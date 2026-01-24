@@ -42,6 +42,5 @@ namespace Aether {
 
     private:
         static std::unordered_map<UUID, Ref<Shader>> s_Shaders;
-        static Ref<Shader> s_ErrorShader; 
     };
 }

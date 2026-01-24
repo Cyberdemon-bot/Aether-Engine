@@ -17,13 +17,12 @@ namespace Aether {
 
 	void ShaderLibrary::Init()
     {
-        s_ErrorShader = Shader::Create("assets/shaders/Basic.shader"); 
+        AE_CORE_INFO("ShaderLibrary initialized");
     }
 
     void ShaderLibrary::Shutdown()
     {
         s_Shaders.clear();
-        s_ErrorShader.reset();
     }
 
     Ref<Shader> ShaderLibrary::Load(const std::string& filepath, UUID id)
@@ -36,7 +35,7 @@ namespace Aether {
         if (!shader) 
         {
             AE_CORE_ERROR("Shader Library: Failed to load '{0}'", filepath);
-            return s_ErrorShader;
+            return nullptr;
         }
 
         s_Shaders[id] = shader;
@@ -49,7 +48,7 @@ namespace Aether {
             return s_Shaders[id];
 
         AE_CORE_WARN("Shader Library: Shader ID not found!");
-        return s_ErrorShader;
+        return nullptr;
     }
 
     bool ShaderLibrary::Exists(UUID id)
@@ -58,5 +57,4 @@ namespace Aether {
     }
 
 	std::unordered_map<UUID, Ref<Shader>> ShaderLibrary::s_Shaders;
-    Ref<Shader> ShaderLibrary::s_ErrorShader;
 }

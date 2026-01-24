@@ -51,6 +51,7 @@ namespace Aether {
     void OpenGLVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
     {
         AE_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout");
+        AE_CORE_ASSERT(startLocation >= m_VertexBufferIndex, "Vertex buffer location {0} conflicts with existing location {1}", startLocation, m_VertexBufferIndex);
 
         GLCall(glBindVertexArray(m_RendererID));
         vertexBuffer->Bind();
@@ -118,6 +119,7 @@ namespace Aether {
                 case ShaderDataType::None: break;
             }
         }
+        m_VertexBufferIndex = std::max(m_VertexBufferIndex, index);
         m_VertexBuffers.push_back(vertexBuffer);
     }
 
@@ -129,6 +131,7 @@ namespace Aether {
     void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
     {
         AE_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout");
+        AE_CORE_ASSERT(startLocation >= m_VertexBufferIndex, "Vertex buffer location {0} conflicts with existing location {1}", startLocation, m_VertexBufferIndex);
 
         GLCall(glBindVertexArray(m_RendererID));
         vertexBuffer->Bind();
@@ -199,6 +202,7 @@ namespace Aether {
                 case ShaderDataType::None: break;
             }
         }
+        m_VertexBufferIndex = std::max(m_VertexBufferIndex, index);
         m_VertexBuffers.push_back(vertexBuffer);
     }
 
