@@ -17,9 +17,14 @@ void ModelLoaderLayer::Attach()
     ImGuiContext* IGContext = Aether::ImGuiLayer::GetContext();
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
-    // Register shader
+    // Register and load shader
     m_ShaderId = Aether::AssetsRegister::Register("Shader_Basic");
     Aether::ShaderLibrary::Load("assets/shaders/Basic.shader", m_ShaderId);
+
+    // Create default material
+    m_DefaultMaterialId = Aether::AssetsRegister::Register("Material_Default");
+    Aether::MaterialLibrary::Load(m_ShaderId, m_DefaultMaterialId);
+    Aether::MaterialLibrary::Get(m_DefaultMaterialId)->SetFloat4("u_Color", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
 
     // Camera UBO
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -37,18 +42,21 @@ void ModelLoaderLayer::Detach()
     m_CameraUBO.reset();
 }
 
-Aether::Ref<Aether::Material> ModelLoaderLayer::CreateMaterialFromTexture(const unsigned char* data, size_t size, int width, int height, const std::string& name)
+Aether::UUID ModelLoaderLayer::CreateMaterialFromTexture(const unsigned char* data, size_t size, int width, int height, const std::string& name)
 {
-    // Register texture
-    Aether::UUID texId = Aether::AssetsRegister::Register(name);
+    // Register and load texture
+    Aether::UUID texId = Aether::AssetsRegister::Register("Tex_" + name);
     Aether::Texture2DLibrary::Load((void*)data, size, texId);
     
-    // Create material
-    auto material = Aether::CreateRef<Aether::Material>(m_ShaderId);
-    material->SetTexture("u_Texture", texId);
-    material->SetFloat4("u_Color", glm::vec4(1.0f));
+    // Register and create material
+    Aether::UUID materialId = Aether::AssetsRegister::Register("Material_" + name);
+    Aether::MaterialLibrary::Load(m_ShaderId, materialId);
     
-    return material;
+    // Configure material
+    Aether::MaterialLibrary::Get(materialId)->SetTexture("u_Texture", texId);
+    Aether::MaterialLibrary::Get(materialId)->SetFloat4("u_Color", glm::vec4(1.0f));
+    
+    return materialId;
 }
 
 void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
@@ -79,8 +87,8 @@ void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
     m_Model.BoundsMin = glm::vec3(FLT_MAX);
     m_Model.BoundsMax = glm::vec3(-FLT_MAX);
 
-    // Load textures/materials for each mesh
-    std::vector<Aether::Ref<Aether::Material>> materials;
+    // Load materials and store their UUIDs
+    std::vector<Aether::UUID> materialIds;
     
     // First, load all materials from the file
     for (uint32_t matIdx = 0; matIdx < scene->mNumMaterials; matIdx++)
@@ -98,14 +106,15 @@ void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
             if (embeddedTex)
             {
                 size_t size = (embeddedTex->mHeight == 0) ? embeddedTex->mWidth : embeddedTex->mHeight * embeddedTex->mWidth * 4;
-                std::string matName = "Material_" + std::to_string(matIdx);
-                materials.push_back(CreateMaterialFromTexture(
+                std::string matName = "Model_" + m_Model.Name + "_Mat_" + std::to_string(matIdx);
+                Aether::UUID matId = CreateMaterialFromTexture(
                     (unsigned char*)embeddedTex->pcData, 
                     size, 
                     embeddedTex->mWidth, 
                     embeddedTex->mHeight,
                     matName
-                ));
+                );
+                materialIds.push_back(matId);
                 continue;
             }
         }
@@ -115,44 +124,43 @@ void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
         {
             const aiTexture* texture = scene->mTextures[matIdx];
             size_t size = (texture->mHeight == 0) ? texture->mWidth : texture->mHeight * texture->mWidth * 4;
-            std::string matName = "Material_" + std::to_string(matIdx);
-            materials.push_back(CreateMaterialFromTexture(
+            std::string matName = "Model_" + m_Model.Name + "_Mat_" + std::to_string(matIdx);
+            Aether::UUID matId = CreateMaterialFromTexture(
                 (unsigned char*)texture->pcData, 
                 size, 
                 texture->mWidth, 
                 texture->mHeight,
                 matName
-            ));
+            );
+            materialIds.push_back(matId);
         }
         else
         {
-            // Create default material
-            auto defaultMat = Aether::CreateRef<Aether::Material>(m_ShaderId);
-            defaultMat->SetFloat4("u_Color", glm::vec4(0.7f, 0.7f, 0.7f, 1.0f));
-            materials.push_back(defaultMat);
+            // Use default material
+            materialIds.push_back(m_DefaultMaterialId);
         }
     }
     
     // If no materials, try to load first embedded texture
-    if (materials.empty() && scene->HasTextures())
+    if (materialIds.empty() && scene->HasTextures())
     {
         const aiTexture* texture = scene->mTextures[0];
         size_t size = (texture->mHeight == 0) ? texture->mWidth : texture->mHeight * texture->mWidth * 4;
-        materials.push_back(CreateMaterialFromTexture(
+        std::string matName = "Model_" + m_Model.Name + "_DefaultMat";
+        Aether::UUID matId = CreateMaterialFromTexture(
             (unsigned char*)texture->pcData, 
             size, 
             texture->mWidth, 
             texture->mHeight,
-            "DefaultMaterial"
-        ));
+            matName
+        );
+        materialIds.push_back(matId);
     }
     
-    // If still no materials, create a default one
-    if (materials.empty())
+    // If still no materials, use default
+    if (materialIds.empty())
     {
-        auto defaultMat = Aether::CreateRef<Aether::Material>(m_ShaderId);
-        defaultMat->SetFloat4("u_Color", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-        materials.push_back(defaultMat);
+        materialIds.push_back(m_DefaultMaterialId);
     }
 
     // Process all meshes
@@ -167,9 +175,9 @@ void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
         submeshInstance.Data.IndexCount = mesh->mNumFaces * 3;
         submeshInstance.Data.NodeName = mesh->mName.C_Str();
         
-        // Assign material (use material index or default to 0)
-        uint32_t matIndex = (mesh->mMaterialIndex < materials.size()) ? mesh->mMaterialIndex : 0;
-        submeshInstance.Material = materials[matIndex];
+        // Assign material UUID (use material index or default to 0)
+        uint32_t matIndex = (mesh->mMaterialIndex < materialIds.size()) ? mesh->mMaterialIndex : 0;
+        submeshInstance.Data.MaterialID = materialIds[matIndex];
 
         glm::vec3 subMeshMin(FLT_MAX);
         glm::vec3 subMeshMax(-FLT_MAX);
@@ -266,9 +274,13 @@ void ModelLoaderLayer::LookAtModel()
 
 void ModelLoaderLayer::RenderSubMesh(ModelFile& model, SubMeshInstance& submesh)
 {
-    if (!submesh.Visible || !submesh.Material) return;
+    if (!submesh.Visible) return;
 
-    submesh.Material->Bind(0);
+    // Get material from MaterialLibrary using UUID stored in SubMesh
+    auto material = Aether::MaterialLibrary::Get(submesh.Data.MaterialID);
+    if (!material) return;
+
+    material->Bind(0);
 
     // Build transform matrix (model space -> submesh local transform -> world space)
     glm::mat4 submeshTransform = glm::mat4(1.0f);
@@ -282,8 +294,8 @@ void ModelLoaderLayer::RenderSubMesh(ModelFile& model, SubMeshInstance& submesh)
     glm::mat4 view = m_EditorCamera.GetViewMatrix();
     glm::mat4 mvp = projection * view * submeshTransform;
     
-    submesh.Material->SetMat4("u_MVP", mvp);
-    submesh.Material->UploadMaterial();
+    material->SetMat4("u_MVP", mvp);
+    material->UploadMaterial();
 
     auto vao = model.Mesh->GetVertexArray();
 
@@ -447,6 +459,7 @@ void ModelLoaderLayer::OnImGuiRender()
             {
                 ImGui::Text("Vertices: %d", submesh.Data.VertexCount);
                 ImGui::Text("Indices: %d", submesh.Data.IndexCount);
+                ImGui::Text("Material ID: %llu", (unsigned long long)submesh.Data.MaterialID);
                 
                 ImGui::Spacing();
                 ImGui::Separator();
@@ -464,13 +477,15 @@ void ModelLoaderLayer::OnImGuiRender()
                     submesh.Scale = glm::vec3(1.0f);
                 }
                 
-                // Show material info
+                // Show material info using MaterialLibrary
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Text("Material Info:");
-                if (submesh.Material)
+                
+                auto material = Aether::MaterialLibrary::Get(submesh.Data.MaterialID);
+                if (material)
                 {
-                    auto tex = submesh.Material->GetTexture("u_Texture");
+                    auto tex = material->GetTexture("u_Texture");
                     if (tex)
                     {
                         ImGui::Text("Texture: %d x %d", tex->GetWidth(), tex->GetHeight());
@@ -482,8 +497,12 @@ void ModelLoaderLayer::OnImGuiRender()
                     }
                     else
                     {
-                        ImGui::Text("No texture");
+                        ImGui::Text("No texture (using color)");
                     }
+                }
+                else
+                {
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Material not found!");
                 }
                 
                 ImGui::TreePop();

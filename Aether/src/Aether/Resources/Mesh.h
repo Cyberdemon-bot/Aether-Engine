@@ -18,7 +18,7 @@ namespace Aether {
         std::string NodeName;
         glm::mat4 LocalTransform = glm::mat4(1.0f);
 
-        uint32_t MaterialIndex = 0;
+        UUID MaterialID = 0;
     };
 
     class MeshLayout 
