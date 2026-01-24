@@ -83,4 +83,41 @@ namespace Aether {
     {
         m_Mat4Uniforms[name] = value;
     }
+
+    void MaterialLibrary::Init()
+    {
+        AE_CORE_INFO("MaterialLibrary initialized");
+    }
+
+    void MaterialLibrary::Shutdown()
+    {
+        s_Materials.clear();
+    }
+
+    Ref<Material> MaterialLibrary::Load(UUID ShaderID, UUID id)
+    {
+        if(s_Materials.find(id) != s_Materials.end()) 
+            return s_Materials[id];
+
+        auto material = CreateRef<Material>(ShaderID);
+
+        s_Materials[id] = material;
+        return material;
+    }
+
+    Ref<Material> MaterialLibrary::Get(UUID id)
+    {
+        if (s_Materials.find(id) != s_Materials.end()) 
+            return s_Materials[id];
+
+        AE_CORE_WARN("Material Library: Material ID not found!");
+        return nullptr;
+    }
+
+    bool MaterialLibrary::Exists(UUID id)
+    {
+        return s_Materials.find(id) != s_Materials.end();
+    }
+
+    std::unordered_map<UUID, Ref<Material>> MaterialLibrary::s_Materials;
 }

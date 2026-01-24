@@ -229,14 +229,14 @@ void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
     uint32_t vertexCount = (uint32_t)vertices.size() / 5;
     uint32_t indexCount = (uint32_t)indices.size();
     
-    m_Model.Mesh = Aether::CreateRef<Aether::Mesh>(
+    m_Model.Mesh = Aether::CreateRef<Aether::Mesh>(Aether::MeshSpec{    
         vertices.data(), 
         vertexCount, 
         indices.data(), 
         indexCount, 
         simpleLayout,
         submeshes
-    );
+    });
 
     m_Model.IsLoaded = true;
     

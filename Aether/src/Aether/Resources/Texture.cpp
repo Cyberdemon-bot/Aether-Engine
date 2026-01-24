@@ -54,15 +54,12 @@ namespace Aether {
 
 	void Texture2DLibrary::Init()
     {
-        uint32_t magenta = 0xff00ffff; // A=ff, B=00, G=ff, R=ff
-        s_ErrorTexture = Texture2D::Create(TextureSpec());
-		s_ErrorTexture->SetData(&magenta, sizeof(uint32_t));
+        AE_CORE_INFO("TextureLibrary initialized");
     }
 
     void Texture2DLibrary::Shutdown()
     {
         s_Textures.clear();
-        s_ErrorTexture.reset();
     }
 
     Ref<Texture2D> Texture2DLibrary::Load(const std::string& filepath, UUID id, bool wrapMode, bool flip)
@@ -75,7 +72,7 @@ namespace Aether {
         if (!texture || !texture->IsLoaded())
         {
             AE_CORE_ERROR("Texture Library: Failed to load '{0}'", filepath);
-            return s_ErrorTexture;
+            return nullptr;
         }
         s_Textures[id] = texture;
         return texture;
@@ -89,7 +86,7 @@ namespace Aether {
         if (!texture || !texture->IsLoaded())
         {
             AE_CORE_ERROR("Texture Library: Failed to load from raw packed data");
-            return s_ErrorTexture;
+            return nullptr;
         }
         s_Textures[id] = texture;
         return texture;
@@ -103,7 +100,7 @@ namespace Aether {
         if (!texture || !texture->IsLoaded())
         {
             AE_CORE_ERROR("Texture Library: Failed to create empty texture");
-            return s_ErrorTexture;
+            return nullptr;
         }
         s_Textures[id] = texture;
         return texture;
@@ -113,7 +110,7 @@ namespace Aether {
     {
         if (s_Textures.find(id) != s_Textures.end())
             return s_Textures[id];
-        return s_ErrorTexture;
+        return nullptr;
     }
 
     bool Texture2DLibrary::Exists(UUID id)
@@ -122,5 +119,4 @@ namespace Aether {
     }
 
 	std::unordered_map<UUID, Ref<Texture2D>> Texture2DLibrary::s_Textures;
-    Ref<Texture2D> Texture2DLibrary::s_ErrorTexture;
 }

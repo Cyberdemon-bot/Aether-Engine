@@ -23,11 +23,6 @@ private:
     void RenderScene(const Aether::Ref<Aether::Material>& material);
 
 private:
-    
-
-    Aether::Ref<Aether::Mesh> m_CubeMesh;
-    Aether::Ref<Aether::Mesh> m_ScreenQuadMesh;
-    Aether::Ref<Aether::Mesh> m_SkyboxMesh;
 
     Aether::Ref<Aether::FrameBuffer> m_ShadowFBO;
     Aether::Ref<Aether::FrameBuffer> m_SceneFBO;
@@ -38,13 +33,7 @@ private:
     Aether::Ref<Aether::Shader> m_SkyboxShader;
     Aether::Ref<Aether::TextureCube> m_SkyboxTexture;
 
-    
-    Aether::Ref<Aether::Material> m_LightingMaterial;
-    Aether::Ref<Aether::Material> m_ShadowMaterial;
-    Aether::Ref<Aether::Material> m_LUTMaterial;
-
     Aether::EditorCamera m_EditorCamera;
-    
     
     void InitSkybox();
     void RenderSkybox();

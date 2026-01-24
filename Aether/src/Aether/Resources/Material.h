@@ -27,7 +27,7 @@ namespace Aether {
         Ref<Shader> GetShader() const { return m_Shader; }
         Ref<Texture2D> GetTexture(const std::string& name) const;
 
-        void SetTexture(const std::string& name,  UUID TextureID);
+        void SetTexture(const std::string& name, UUID TextureID);
 
         void SetFloat(const std::string& name, float value);
         void SetInt(const std::string& name, int value);
@@ -43,6 +43,7 @@ namespace Aether {
         Ref<Shader> m_Shader;
 
         std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
+
         std::unordered_map<std::string, float> m_FloatUniforms;
         std::unordered_map<std::string, int> m_IntUniforms;
         
@@ -55,8 +56,17 @@ namespace Aether {
         uint32_t m_Flags = 0;
     };
 
-    class MateriaLibrary
+    class AETHER_API MaterialLibrary
     {
+    public:
+        static void Init();
+        static void Shutdown();
 
+        static Ref<Material> Load(UUID ShaderID, UUID id);
+        static Ref<Material> Get(UUID id);
+
+        static bool Exists(UUID id);
+    private:
+        static std::unordered_map<UUID, Ref<Material>> s_Materials;
     };
 }

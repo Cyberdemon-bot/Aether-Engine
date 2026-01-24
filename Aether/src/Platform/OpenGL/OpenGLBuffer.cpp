@@ -36,15 +36,18 @@ namespace Aether {
 
     void OpenGLVertexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
     {
-        AE_CORE_ASSERT(offset + size <= m_Size, 
-            "OpenGLVertexBuffer::SetData - Trying to write out of bounds! offset={0}, size={1}, m_Size={2}", 
-            offset, size, m_Size);
+        if (offset + size > m_Size) {
+            AE_CORE_ERROR("OpenGLVertexBuffer::SetData - Out of bounds! offset={0}, size={1}, buffer_size={2}", 
+                offset, size, m_Size);
+            AE_CORE_ASSERT(false, "Buffer overflow detected!");
+        }
         GLCall(glBindBuffer(GL_ARRAY_BUFFER, m_RendererID));
         GLCall(glBufferSubData(GL_ARRAY_BUFFER, offset, size, data));
     }
 
     void OpenGLVertexBuffer::Resize(uint32_t size)
     {
+        m_Size = size;
         glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
         glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
     }
