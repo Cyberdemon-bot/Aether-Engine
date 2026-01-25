@@ -175,9 +175,12 @@ void ModelLoaderLayer::LoadModelFile(const std::string& filepath)
         submeshInstance.Data.IndexCount = mesh->mNumFaces * 3;
         submeshInstance.Data.NodeName = mesh->mName.C_Str();
         
-        // Assign material UUID (use material index or default to 0)
+        // Assign material UUID
         uint32_t matIndex = (mesh->mMaterialIndex < materialIds.size()) ? mesh->mMaterialIndex : 0;
         submeshInstance.Data.MaterialID = materialIds[matIndex];
+        
+        // Initialize LocalTransform as identity matrix
+        submeshInstance.Data.LocalTransform = glm::mat4(1.0f);
 
         glm::vec3 subMeshMin(FLT_MAX);
         glm::vec3 subMeshMax(-FLT_MAX);
@@ -282,17 +285,9 @@ void ModelLoaderLayer::RenderSubMesh(ModelFile& model, SubMeshInstance& submesh)
 
     material->Bind(0);
 
-    // Build transform matrix (model space -> submesh local transform -> world space)
-    glm::mat4 submeshTransform = glm::mat4(1.0f);
-    submeshTransform = glm::translate(submeshTransform, submesh.Position);
-    submeshTransform = glm::rotate(submeshTransform, glm::radians(submesh.Rotation.x), glm::vec3(1, 0, 0));
-    submeshTransform = glm::rotate(submeshTransform, glm::radians(submesh.Rotation.y), glm::vec3(0, 1, 0));
-    submeshTransform = glm::rotate(submeshTransform, glm::radians(submesh.Rotation.z), glm::vec3(0, 0, 1));
-    submeshTransform = glm::scale(submeshTransform, submesh.Scale);
-
     glm::mat4 projection = m_EditorCamera.GetProjection();
     glm::mat4 view = m_EditorCamera.GetViewMatrix();
-    glm::mat4 mvp = projection * view * submeshTransform;
+    glm::mat4 mvp = projection * view * submesh.Data.LocalTransform;
     
     material->SetMat4("u_MVP", mvp);
     material->UploadMaterial();
@@ -460,22 +455,6 @@ void ModelLoaderLayer::OnImGuiRender()
                 ImGui::Text("Vertices: %d", submesh.Data.VertexCount);
                 ImGui::Text("Indices: %d", submesh.Data.IndexCount);
                 ImGui::Text("Material ID: %llu", (unsigned long long)submesh.Data.MaterialID);
-                
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Text("Local Transform:");
-                
-                // Transform controls for individual object
-                ImGui::DragFloat3("Position", &submesh.Position.x, 0.1f);
-                ImGui::DragFloat3("Rotation", &submesh.Rotation.x, 1.0f, -180.0f, 180.0f);
-                ImGui::DragFloat3("Scale", &submesh.Scale.x, 0.05f, 0.01f, 10.0f);
-                
-                if (ImGui::Button("Reset Transform", ImVec2(-1, 0)))
-                {
-                    submesh.Position = glm::vec3(0.0f);
-                    submesh.Rotation = glm::vec3(0.0f);
-                    submesh.Scale = glm::vec3(1.0f);
-                }
                 
                 // Show material info using MaterialLibrary
                 ImGui::Spacing();
