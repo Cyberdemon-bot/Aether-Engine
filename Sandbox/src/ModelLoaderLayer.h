@@ -7,11 +7,6 @@
 struct SubMeshInstance
 {
     Aether::SubMesh Data;
-    
-    glm::vec3 Position = glm::vec3(0.0f);
-    glm::vec3 Rotation = glm::vec3(0.0f);
-    glm::vec3 Scale = glm::vec3(1.0f);
-    
     bool Visible = true;
 };
 
@@ -55,6 +50,6 @@ private:
     Aether::UUID m_DefaultMaterialId;
 
     ModelFile m_Model;
-    char m_ModelPathBuffer[256] = "assets/models/thanggay.glb"; // Default path
+    char m_ModelPathBuffer[256] = "assets/models/thanggay.glb";
     int m_SelectedSubMeshIndex = -1;
 };
