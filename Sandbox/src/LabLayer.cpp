@@ -5,10 +5,10 @@
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 
-Aether::UUID id_ShaderGLTF = Aether::AssetsRegister::Register("Shader_GLTF");
+Aether::UUID id_ShaderPBR = Aether::AssetsRegister::Register("Shader_PBR");
 
 LabLayer::LabLayer()
-    : Layer("GLTF Loader Lab")
+    : Layer("Loader Lab")
 {
     m_Camera = Aether::EditorCamera(45.0f, 1.778f, 0.1f, 1000.0f);
     m_Camera.SetDistance(5.0f);
@@ -20,7 +20,7 @@ void LabLayer::Attach()
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
     // Load GLTF shader
-    Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderGLTF);
+    Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
 
     // Camera UBO
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -100,7 +100,7 @@ void LabLayer::LoadGLBFile(const std::string& filepath)
             std::string("GLTFMat_") + (mat->name ? mat->name : std::to_string(i))
         );
 
-        auto material = Aether::MaterialLibrary::Load(id_ShaderGLTF, matID);
+        auto material = Aether::MaterialLibrary::Load(id_ShaderPBR, matID);
 
         // Base color texture
         if (mat->pbr_metallic_roughness.base_color_texture.texture)
@@ -161,7 +161,7 @@ void LabLayer::LoadGLBFile(const std::string& filepath)
     {
         cgltf_mesh* mesh = &data->meshes[meshIdx];
         
-        GLTFMeshData meshData;
+        MeshData meshData;
         meshData.Name = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
         meshData.MeshID = Aether::AssetsRegister::Register(std::string("GLTFMesh_") + meshData.Name);
 

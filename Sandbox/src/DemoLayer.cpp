@@ -10,7 +10,6 @@ Aether::UUID id_ShaderSkybox = Aether::AssetsRegister::Register("Shader_Skybox")
 
 Aether::UUID id_TexWood = Aether::AssetsRegister::Register("Tex_Wood");
 Aether::UUID id_TexLUT = Aether::AssetsRegister::Register("Tex_LUT");
-Aether::UUID id_ShaderPBR = Aether::AssetsRegister::Register("Shader_PBR");
 
 Aether::UUID id_ShadowMaterial = Aether::AssetsRegister::Register("Material_Shadow");
 Aether::UUID id_LightingMaterial = Aether::AssetsRegister::Register("Material_Lighting");   
@@ -37,7 +36,6 @@ void DemoLayer::Attach()
     Aether::ShaderLibrary::Load("assets/shaders/ShadowMap.shader", id_ShaderShadow);
     Aether::ShaderLibrary::Load("assets/shaders/Skybox.shader", id_ShaderSkybox);
     Aether::ShaderLibrary::Load("assets/shaders/LUT.shader", id_ShaderLUT);
-    Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
 
     // Load textures
     Aether::Texture2DLibrary::Load("assets/textures/wood.jpg", id_TexWood);
