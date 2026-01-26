@@ -4,7 +4,7 @@ add_requires("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw")
 add_requires("imgui v1.89.9-docking", {configs = {glfw_opengl3 = true}})
 add_requires("imguizmo", {configs = {imgui = "imgui"}})
 add_requires("stb")
-add_requires("assimp", {configs = {shared = true}})
+add_requires("cgltf")
 add_requires("joltphysics")
 add_requireconfs("freetype", {
     override = true, 
@@ -44,7 +44,7 @@ target("Aether")
     
     set_pcheader("src/aepch.h")
 
-    add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "assimp", {public = true})
+    add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "cgltf", {public = true})
     add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", {public = true})
 
     if is_plat("mingw") then
