@@ -4,7 +4,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-struct GLTFMeshData
+struct MeshData
 {
     std::string Name;
     std::vector<Aether::UUID> SubmeshMaterialIDs;
@@ -31,7 +31,7 @@ private:
     Aether::EditorCamera m_Camera;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     
-    std::vector<GLTFMeshData> m_LoadedMeshes;
+    std::vector<MeshData> m_LoadedMeshes;
     
     glm::vec3 m_ModelPosition = glm::vec3(0.0f);
     glm::vec3 m_ModelRotation = glm::vec3(0.0f);
