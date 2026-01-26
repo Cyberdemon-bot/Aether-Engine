@@ -20,7 +20,7 @@ void LabLayer::Attach()
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
     // Load GLTF shader
-    Aether::ShaderLibrary::Load("assets/shaders/GLTF.shader", id_ShaderGLTF);
+    Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderGLTF);
 
     // Camera UBO
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -261,7 +261,7 @@ void LabLayer::LoadGLBFile(const std::string& filepath)
                         tangents[v * 4 + 3] = tan[3];
                     }
                 }
-                else if (attr->type == cgltf_attribute_type_texcoord)
+                else if (attr->type == cgltf_attribute_type_texcoord && attr->index == 0)
                 {
                     texCoords.resize(accessor->count * 2);
                     for (size_t v = 0; v < accessor->count; v++)
