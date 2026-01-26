@@ -387,10 +387,7 @@ void LabLayer::LoadGLBFile(const std::string& filepath)
 
 void LabLayer::Update(Aether::Timestep ts)
 {
-    if (m_AutoRotate)
-    {
-        m_ModelRotation.y += ts * m_RotationSpeed;
-    }
+    if (m_AutoRotate) m_ModelRotation.y += ts * m_RotationSpeed;
 
     m_Camera.Update(ts);
 
@@ -459,10 +456,7 @@ void LabLayer::RenderScene()
 
 void LabLayer::OnEvent(Aether::Event& event)
 {
-    if (!event.Handled) 
-    {
-        m_Camera.OnEvent(event);
-    }
+    if (!event.Handled) m_Camera.OnEvent(event);
 }
 
 void LabLayer::OnImGuiRender()
@@ -529,6 +523,69 @@ void LabLayer::OnImGuiRender()
                 
                 const auto& bounds = mesh->GetBoundsCenter();
                 ImGui::Text("Center: (%.2f, %.2f, %.2f)", bounds.x, bounds.y, bounds.z);
+                
+                // Show submeshes with materials
+                ImGui::Separator();
+                const auto& submeshes = mesh->GetSubMeshes();
+                for (size_t j = 0; j < submeshes.size(); j++)
+                {
+                    if (ImGui::TreeNode((void*)(i * 10000 + j), "Submesh %zu", j))
+                    {
+                        const auto& submesh = submeshes[j];
+                        ImGui::Text("Vertices: %u", submesh.VertexCount);
+                        ImGui::Text("Indices: %u", submesh.IndexCount);
+                        
+                        if (j < meshData.SubmeshMaterialIDs.size())
+                        {
+                            Aether::UUID matID = meshData.SubmeshMaterialIDs[j];
+                            if (Aether::MaterialLibrary::Exists(matID))
+                            {
+                                auto material = Aether::MaterialLibrary::Get(matID);
+                                ImGui::Text("Material ID: %llu", (uint64_t)matID);
+                                
+                                ImGui::Spacing();
+                                
+                                // Albedo texture
+                                auto albedoTex = material->GetTexture("u_AlbedoMap");
+                                if (albedoTex)
+                                {
+                                    ImGui::Text("Albedo:");
+                                    ImGui::Image(
+                                        (void*)(intptr_t)albedoTex->GetRendererID(),
+                                        ImVec2(128, 128),
+                                        ImVec2(0, 1), ImVec2(1, 0)
+                                    );
+                                }
+                                
+                                // Metallic-Roughness texture
+                                auto mrTex = material->GetTexture("u_MetallicRoughnessMap");
+                                if (mrTex)
+                                {
+                                    ImGui::Text("Metallic-Roughness:");
+                                    ImGui::Image(
+                                        (void*)(intptr_t)mrTex->GetRendererID(),
+                                        ImVec2(128, 128),
+                                        ImVec2(0, 1), ImVec2(1, 0)
+                                    );
+                                }
+                                
+                                // Normal map
+                                auto normalTex = material->GetTexture("u_NormalMap");
+                                if (normalTex)
+                                {
+                                    ImGui::Text("Normal Map:");
+                                    ImGui::Image(
+                                        (void*)(intptr_t)normalTex->GetRendererID(),
+                                        ImVec2(128, 128),
+                                        ImVec2(0, 1), ImVec2(1, 0)
+                                    );
+                                }
+                            }
+                        }
+                        
+                        ImGui::TreePop();
+                    }
+                }
                 
                 ImGui::TreePop();
             }
