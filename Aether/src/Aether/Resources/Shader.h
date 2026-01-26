@@ -41,6 +41,6 @@ namespace Aether {
         static bool Exists(UUID id);
 
     private:
-        static std::unordered_map<UUID, Ref<Shader>> s_Shaders;
+        static std::unordered_map<UUID, Ref<Shader>>& GetShaders();
     };
 }

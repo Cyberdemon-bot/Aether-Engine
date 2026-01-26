@@ -1,7 +1,6 @@
 #include "Aether/Resources/Shader.h" 
 #include "Platform/OpenGL/OpenGLBase.h"
 #include "glm/glm.hpp"
-#include <glm/gtc/type_ptr.hpp>
 
 namespace Aether {
     class OpenGLShader : public Shader 

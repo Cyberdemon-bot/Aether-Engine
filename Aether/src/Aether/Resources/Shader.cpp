@@ -17,18 +17,20 @@ namespace Aether {
 
 	void ShaderLibrary::Init()
     {
+        GetShaders().reserve(128);
         AE_CORE_INFO("ShaderLibrary initialized");
     }
 
     void ShaderLibrary::Shutdown()
     {
-        s_Shaders.clear();
+        GetShaders().clear();
     }
 
     Ref<Shader> ShaderLibrary::Load(const std::string& filepath, UUID id)
     {
-        if (s_Shaders.find(id) != s_Shaders.end())
-            return s_Shaders[id];
+        auto& shaders = GetShaders();
+        if (shaders.find(id) != shaders.end())
+            return shaders[id];
 
         auto shader = Shader::Create(filepath);
         
@@ -38,14 +40,15 @@ namespace Aether {
             return nullptr;
         }
 
-        s_Shaders[id] = shader;
+        shaders[id] = shader;
         return shader;
     }
 
     Ref<Shader> ShaderLibrary::Get(UUID id)
     {
-        if (s_Shaders.find(id) != s_Shaders.end())
-            return s_Shaders[id];
+        auto& shaders = GetShaders();
+        if (shaders.find(id) != shaders.end())
+            return shaders[id];
 
         AE_CORE_WARN("Shader Library: Shader ID not found!");
         return nullptr;
@@ -53,8 +56,13 @@ namespace Aether {
 
     bool ShaderLibrary::Exists(UUID id)
     {
-        return s_Shaders.find(id) != s_Shaders.end();
+        auto& shaders = GetShaders();
+        return shaders.find(id) != shaders.end();
     }
 
-	std::unordered_map<UUID, Ref<Shader>> ShaderLibrary::s_Shaders;
+	std::unordered_map<UUID, Ref<Shader>>& ShaderLibrary::GetShaders()
+    {
+        static std::unordered_map<UUID, Ref<Shader>> s_Shaders;
+        return s_Shaders;
+    }
 }
