@@ -68,13 +68,18 @@ namespace Aether {
         }
     };
 
+    struct VertexStream
+    {
+        const void* Data = nullptr;
+        uint32_t VertexCount = 0;
+        BufferLayout Layout = MeshLayout::Vertex();
+    };
+
     struct MeshSpec
     {
-        const void* VertexData = nullptr;
-        uint32_t VertexCount = 0;
+        std::vector<VertexStream> Streams;
         const uint32_t* IndexData = nullptr;
         uint32_t IndexCount = 0;
-        BufferLayout Layout;
         std::vector<SubMesh> Submeshes = {};
     };
 
@@ -97,19 +102,16 @@ namespace Aether {
 
     private:
         Ref<VertexArray> m_VertexArray;
-        Ref<VertexBuffer> m_VertexBuffer;
-        Ref<IndexBuffer> m_IndexBuffer;
 
         BufferLayout m_Layout;
         std::vector<SubMesh> m_SubMeshes;
         
         uint32_t m_VertexCount = 0;
         uint32_t m_IndexCount = 0;
-
         glm::vec3 m_BoundsMin = glm::vec3(0.0f);
         glm::vec3 m_BoundsMax = glm::vec3(0.0f);
 
-        void CalculateBounds(const void* vertexData, uint32_t vertexCount);
+        void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
     };
 
     class AETHER_API MeshLibrary
@@ -123,6 +125,6 @@ namespace Aether {
         static bool Exists(UUID id);
 
     private:
-        static std::unordered_map<UUID, Ref<Mesh>> s_Meshes;
+        static std::unordered_map<UUID, Ref<Mesh>>& GetMeshes();
     };
 }

@@ -54,18 +54,20 @@ namespace Aether {
 
 	void Texture2DLibrary::Init()
     {
+        GetTextures().reserve(128);
         AE_CORE_INFO("TextureLibrary initialized");
     }
 
     void Texture2DLibrary::Shutdown()
     {
-        s_Textures.clear();
+        GetTextures().clear();
     }
 
     Ref<Texture2D> Texture2DLibrary::Load(const std::string& filepath, UUID id, bool wrapMode, bool flip)
     {
-        if (s_Textures.find(id) != s_Textures.end())
-            return s_Textures[id];
+        auto& textures = GetTextures();
+        if (textures.find(id) != textures.end())
+            return textures[id];
 
         auto texture = Texture2D::Create(filepath, wrapMode, flip);
         
@@ -74,13 +76,14 @@ namespace Aether {
             AE_CORE_ERROR("Texture Library: Failed to load '{0}'", filepath);
             return nullptr;
         }
-        s_Textures[id] = texture;
+        textures[id] = texture;
         return texture;
     }
     Ref<Texture2D> Texture2DLibrary::Load(void* data, size_t size, UUID id)
     {
-        if (s_Textures.find(id) != s_Textures.end())
-            return s_Textures[id];
+        auto& textures = GetTextures();
+        if (textures.find(id) != textures.end())
+            return textures[id];
 
         auto texture = Texture2D::Create(data, size);
         if (!texture || !texture->IsLoaded())
@@ -88,13 +91,14 @@ namespace Aether {
             AE_CORE_ERROR("Texture Library: Failed to load from raw packed data");
             return nullptr;
         }
-        s_Textures[id] = texture;
+        textures[id] = texture;
         return texture;
     }
 	Ref<Texture2D> Texture2DLibrary::Load(const TextureSpec& spec, UUID id)
     {
-        if (s_Textures.find(id) != s_Textures.end())
-            return s_Textures[id];
+        auto& textures = GetTextures();
+        if (textures.find(id) != textures.end())
+            return textures[id];
 
         auto texture = Texture2D::Create(spec);
         if (!texture || !texture->IsLoaded())
@@ -102,21 +106,27 @@ namespace Aether {
             AE_CORE_ERROR("Texture Library: Failed to create empty texture");
             return nullptr;
         }
-        s_Textures[id] = texture;
+        textures[id] = texture;
         return texture;
     }
 
     Ref<Texture2D> Texture2DLibrary::Get(UUID id)
     {
-        if (s_Textures.find(id) != s_Textures.end())
-            return s_Textures[id];
+        auto& textures = GetTextures();
+        if (textures.find(id) != textures.end())
+            return textures[id];
         return nullptr;
     }
 
     bool Texture2DLibrary::Exists(UUID id)
     {
-        return s_Textures.find(id) != s_Textures.end();
+        auto& textures = GetTextures();
+        return textures.find(id) != textures.end();
     }
 
-	std::unordered_map<UUID, Ref<Texture2D>> Texture2DLibrary::s_Textures;
+    std::unordered_map<UUID, Ref<Texture2D>>& Texture2DLibrary::GetTextures()
+    {
+        static std::unordered_map<UUID, Ref<Texture2D>> s_Textures;
+        return s_Textures;
+    }
 }

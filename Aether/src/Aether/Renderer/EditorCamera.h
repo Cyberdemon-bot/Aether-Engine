@@ -1,6 +1,5 @@
 #pragma once
 
-#include "aepch.h"
 #include "Camera.h"
 #include "Aether/Core/Timestep.h"
 #include "Aether/Events/Event.h"

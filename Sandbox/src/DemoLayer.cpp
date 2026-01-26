@@ -89,7 +89,7 @@ void DemoLayer::Attach()
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    Aether::MeshLibrary::Load(Aether::MeshSpec{vertices, 24, indices, 36, Aether::MeshLayout::Phong()}, id_CubeMesh);
+    Aether::MeshLibrary::Load(Aether::MeshSpec{{Aether::VertexStream{vertices, 24, Aether::MeshLayout::Phong()}}, indices, 36}, id_CubeMesh);
 
     // Camera uniform buffer
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -423,7 +423,7 @@ void DemoLayer::InitScreenQuad()
         2, 3, 0 
     };
 
-    Aether::MeshLibrary::Load(Aether::MeshSpec{quadVertices, 4, quadIndices, 6, Aether::MeshLayout::Quad()}, id_ScreenQuadMesh);
+    Aether::MeshLibrary::Load(Aether::MeshSpec{{Aether::VertexStream{quadVertices, 4, Aether::MeshLayout::Quad()}}, quadIndices, 6}, id_ScreenQuadMesh);
 }
 
 void DemoLayer::InitSkybox()
@@ -448,7 +448,7 @@ void DemoLayer::InitSkybox()
         3, 7, 6, 6, 2, 3
     };
 
-    Aether::MeshLibrary::Load(Aether::MeshSpec{skyboxVertices, 8, skyboxIndices, 36, Aether::MeshLayout::Vertex()}, id_SkyboxMesh);
+    Aether::MeshLibrary::Load(Aether::MeshSpec{{Aether::VertexStream{skyboxVertices, 8, Aether::MeshLayout::Vertex()}}, skyboxIndices, 36}, id_SkyboxMesh);
     m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 

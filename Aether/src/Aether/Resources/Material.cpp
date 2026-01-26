@@ -86,29 +86,32 @@ namespace Aether {
 
     void MaterialLibrary::Init()
     {
+        GetMaterials().reserve(128);
         AE_CORE_INFO("MaterialLibrary initialized");
     }
 
     void MaterialLibrary::Shutdown()
     {
-        s_Materials.clear();
+        GetMaterials().clear();
     }
 
     Ref<Material> MaterialLibrary::Load(UUID ShaderID, UUID id)
     {
-        if(s_Materials.find(id) != s_Materials.end()) 
-            return s_Materials[id];
+        auto& materials = GetMaterials();
+        if(materials.find(id) != materials.end()) 
+            return materials[id];
 
         auto material = CreateRef<Material>(ShaderID);
 
-        s_Materials[id] = material;
+        materials[id] = material;
         return material;
     }
 
     Ref<Material> MaterialLibrary::Get(UUID id)
     {
-        if (s_Materials.find(id) != s_Materials.end()) 
-            return s_Materials[id];
+        auto& materials = GetMaterials();
+        if (materials.find(id) != materials.end()) 
+            return materials[id];
 
         AE_CORE_WARN("Material Library: Material ID not found!");
         return nullptr;
@@ -116,8 +119,13 @@ namespace Aether {
 
     bool MaterialLibrary::Exists(UUID id)
     {
-        return s_Materials.find(id) != s_Materials.end();
+        auto& materials = GetMaterials();
+        return materials.find(id) != materials.end();
     }
 
-    std::unordered_map<UUID, Ref<Material>> MaterialLibrary::s_Materials;
+    std::unordered_map<UUID, Ref<Material>>& MaterialLibrary::GetMaterials()
+    {
+        static std::unordered_map<UUID, Ref<Material>> s_Materials;
+        return s_Materials;
+    }
 }
