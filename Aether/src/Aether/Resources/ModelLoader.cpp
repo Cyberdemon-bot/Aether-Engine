@@ -6,6 +6,7 @@
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
+#include <stb_image.h>
 
 namespace Aether {
     ModelLoadResult ModelLoader::Parsing(const std::string& filepath)
@@ -42,8 +43,25 @@ namespace Aether {
             if (image->buffer_view)
             {
                 cgltf_buffer_view* view = image->buffer_view;
-                const uint8_t* startPtr = (const uint8_t*)view->buffer->data + view->offset;
-                texInfo.RawData.assign(startPtr, startPtr + view->size);
+                const uint8_t* bufferPtr = (const uint8_t*)view->buffer->data + view->offset;
+                size_t bufferSize = view->size;
+                
+                if (bufferPtr)
+                {
+                    int width, height, channels;
+                    stbi_set_flip_vertically_on_load(0);
+                    stbi_uc* pixels = stbi_load_from_memory(bufferPtr, (int)bufferSize, &width, &height, &channels, 4);
+                    if (pixels)
+                    {
+                        texInfo.Spec.Width = width;
+                        texInfo.Spec.Height = height;
+                        texInfo.Spec.Format = ImageFormat::RGBA8; 
+                        texInfo.Spec.GenerateMips = true;
+                        texInfo.Spec.WrapMode = true; 
+                        texInfo.RawData.assign(pixels, pixels + (width * height * 4));
+                        stbi_image_free(pixels);
+                    }
+                }
             
                 AE_CORE_INFO("  Loaded embedded texture [{0}]: {1}", i, image->name ? image->name : "unnamed");
             }
@@ -265,7 +283,9 @@ namespace Aether {
         for (const auto& texInfo : modelData.Textures)
         {
             UUID texID = AssetsRegister::Register(texInfo.DebugName);
-            Texture2DLibrary::Load((void*)texInfo.RawData.data(), texInfo.RawData.size(), texID);
+            auto tex = Texture2DLibrary::Load(texInfo.Spec, texID);
+            if (tex == nullptr) AE_CORE_ERROR("Fail to load texture!");
+            tex->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
             texIDs.push_back(texID);
         }
         

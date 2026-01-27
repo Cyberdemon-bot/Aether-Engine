@@ -11,6 +11,7 @@ namespace Aether {
     struct TextureCreateInfo
     {
         std::string DebugName;
+        TextureSpec Spec;
         std::vector<uint8_t> RawData;
     };
 
