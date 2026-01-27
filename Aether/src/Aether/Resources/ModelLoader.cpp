@@ -284,7 +284,6 @@ namespace Aether {
         {
             UUID texID = AssetsRegister::Register(texInfo.DebugName);
             auto tex = Texture2DLibrary::Load(texInfo.Spec, texID);
-            if (tex == nullptr) AE_CORE_ERROR("Fail to load texture!");
             tex->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
             texIDs.push_back(texID);
         }
