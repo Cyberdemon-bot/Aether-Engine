@@ -27,3 +27,4 @@
 
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Material.h"
+#include "Aether/Resources/ModelLoader.h"

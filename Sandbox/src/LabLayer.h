@@ -1,14 +1,7 @@
 #pragma once
-
 #include <Aether.h>
-#include <vector>
 #include <glm/glm.hpp>
-
-struct MeshData
-{
-    std::string Name;
-    Aether::UUID MeshID;
-};
+#include <vector>
 
 class LabLayer : public Aether::Layer
 {
@@ -23,17 +16,15 @@ public:
     virtual void OnEvent(Aether::Event& event) override;
 
 private:
-    void LoadGLBFile(const std::string& filepath);
     void RenderScene();
 
 private:
     Aether::EditorCamera m_Camera;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
+    std::vector<Aether::UUID> m_MeshIDs;
     
-    std::vector<MeshData> m_LoadedMeshes;
-    
-    glm::vec3 m_ModelPosition = glm::vec3(0.0f);
-    glm::vec3 m_ModelRotation = glm::vec3(0.0f);
+    glm::vec3 m_ModelPos = glm::vec3(0.0f);
+    glm::vec3 m_ModelRot = glm::vec3(0.0f);
     glm::vec3 m_ModelScale = glm::vec3(1.0f);
     
     bool m_AutoRotate = false;
