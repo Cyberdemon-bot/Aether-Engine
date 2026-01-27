@@ -3,6 +3,7 @@
 #include "Aether/Core/Log.h"
 
 #include "Aether/Renderer/Renderer.h"
+#include "Aether/Core/JobSystem.h"
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
@@ -17,6 +18,7 @@ namespace Aether {
         m_Window->SetEventCallback(AE_BIND_EVENT_FN(OnEvent));
 
         Renderer::Init();  
+        JobSystem::Init(2);
 
         m_ImGuiLayer = new ImGuiLayer();
         PushOverlay(m_ImGuiLayer);
@@ -24,6 +26,8 @@ namespace Aether {
 
     Application::~Application()
     {
+        Renderer::Shutdown();
+        JobSystem::Shutdown();
     }
 
     void Application::Close()

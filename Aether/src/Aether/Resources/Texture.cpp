@@ -101,7 +101,7 @@ namespace Aether {
             return textures[id];
 
         auto texture = Texture2D::Create(spec);
-        if (!texture || !texture->IsLoaded())
+        if (!texture)
         {
             AE_CORE_ERROR("Texture Library: Failed to create empty texture");
             return nullptr;

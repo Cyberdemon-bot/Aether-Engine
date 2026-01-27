@@ -1,7 +1,9 @@
 #pragma once
 #include <Aether.h>
+#include "Aether/Resources/ModelLoader.h"
 #include <glm/glm.hpp>
 #include <vector>
+#include <mutex>
 
 class LabLayer : public Aether::Layer
 {
@@ -17,11 +19,17 @@ public:
 
 private:
     void RenderScene();
+    void LoadModelAsync(const std::string& path);
 
 private:
     Aether::EditorCamera m_Camera;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     std::vector<Aether::UUID> m_MeshIDs;
+    
+    // Async loading
+    std::queue<Aether::ModelLoadResult> m_CompletedParses;
+    std::mutex m_ParseMutex;
+    bool m_IsLoading = false;
     
     glm::vec3 m_ModelPos = glm::vec3(0.0f);
     glm::vec3 m_ModelRot = glm::vec3(0.0f);

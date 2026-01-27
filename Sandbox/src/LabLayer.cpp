@@ -1,5 +1,5 @@
 #include "LabLayer.h"
-#include "Aether/Resources/ModelLoader.h"
+#include "Aether/Core/JobSystem.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -20,10 +20,29 @@ void LabLayer::Attach()
     Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
     m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2 + sizeof(glm::vec4), 0);
     
-    auto modelData = Aether::ModelLoader::Parsing("assets/models/robot.glb");
-    m_MeshIDs = Aether::ModelLoader::UploadModel(modelData, id_ShaderPBR);
+    // Load model async
+    LoadModelAsync("assets/models/robot.glb");
+}
+
+void LabLayer::LoadModelAsync(const std::string& path)
+{
+    m_IsLoading = true;
     
-    AE_CORE_INFO("LabLayer loaded {0} meshes", m_MeshIDs.size());
+    // Submit parsing job to worker thread
+    Aether::JobSystem::SubmitJob([this, path]() {
+        AE_CORE_INFO("Worker thread: Parsing {0}", path);
+        
+        // Parse on worker thread (no OpenGL calls)
+        auto modelData = Aether::ModelLoader::Parsing(path);
+        
+        // Push result to queue (thread-safe)
+        {
+            std::lock_guard<std::mutex> lock(m_ParseMutex);
+            m_CompletedParses.push(std::move(modelData));
+        }
+        
+        AE_CORE_INFO("Worker thread: Parsing complete for {0}", path);
+    });
 }
 
 void LabLayer::Detach()
@@ -34,6 +53,24 @@ void LabLayer::Detach()
 
 void LabLayer::Update(Aether::Timestep ts)
 {
+    // Check for completed parses on main thread
+    if (m_IsLoading)
+    {
+        std::lock_guard<std::mutex> lock(m_ParseMutex);
+        if (!m_CompletedParses.empty())
+        {
+            // Upload to GPU on main thread
+            auto modelData = std::move(m_CompletedParses.front());
+            m_CompletedParses.pop();
+            
+            AE_CORE_INFO("Main thread: Uploading to GPU...");
+            m_MeshIDs = Aether::ModelLoader::UploadModel(modelData, id_ShaderPBR);
+            m_IsLoading = false;
+            
+            AE_CORE_INFO("Main thread: Loaded {0} meshes", m_MeshIDs.size());
+        }
+    }
+    
     if (m_AutoRotate) m_ModelRot.y += ts * m_RotationSpeed;
     
     m_Camera.Update(ts);
@@ -53,7 +90,10 @@ void LabLayer::Update(Aether::Timestep ts)
     Aether::RenderCommand::Clear();
     Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
     
-    RenderScene();
+    if (!m_IsLoading)
+    {
+        RenderScene();
+    }
 }
 
 void LabLayer::RenderScene()
@@ -92,17 +132,22 @@ void LabLayer::RenderScene()
 
 void LabLayer::OnEvent(Aether::Event& event)
 {
-    if (!event.Handled)
-    {
-        m_Camera.OnEvent(event);
-    }
+    if (!event.Handled) m_Camera.OnEvent(event);
 }
 
 void LabLayer::OnImGuiRender()
 {
     ImGui::Begin("Model Viewer");
     
-    ImGui::Text("Meshes: %d", (int)m_MeshIDs.size());
+    if (m_IsLoading)
+    {
+        ImGui::Text("Loading model...");
+    }
+    else
+    {
+        ImGui::Text("Meshes: %d", (int)m_MeshIDs.size());
+    }
+    
     ImGui::Separator();
     
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
