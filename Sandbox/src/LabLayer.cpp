@@ -21,14 +21,12 @@ void LabLayer::Attach()
     m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2 + sizeof(glm::vec4), 0);
     
     // Load model async
+    LoadModelAsync("assets/models/human.glb");
     LoadModelAsync("assets/models/robot.glb");
 }
 
 void LabLayer::LoadModelAsync(const std::string& path)
 {
-    m_IsLoading = true;
-    
-    // Submit parsing job to worker thread
     Aether::JobSystem::SubmitJob([this, path]() {
         AE_CORE_INFO("Worker thread: Parsing {0}", path);
         
@@ -54,22 +52,21 @@ void LabLayer::Detach()
 void LabLayer::Update(Aether::Timestep ts)
 {
     // Check for completed parses on main thread
-    if (m_IsLoading)
     {
         std::lock_guard<std::mutex> lock(m_ParseMutex);
-        if (!m_CompletedParses.empty())
+        while (!m_CompletedParses.empty())
         {
             // Upload to GPU on main thread
             auto modelData = std::move(m_CompletedParses.front());
             m_CompletedParses.pop();
             
             AE_CORE_INFO("Main thread: Uploading to GPU...");
-            m_MeshIDs = Aether::ModelLoader::UploadModel(modelData, id_ShaderPBR);
-            m_IsLoading = false;
+            auto newMeshes = Aether::ModelLoader::UploadModel(modelData, id_ShaderPBR);
+            m_MeshIDs.insert(m_MeshIDs.end(), newMeshes.begin(), newMeshes.end());
             
             AE_CORE_INFO("Main thread: Loaded {0} meshes", m_MeshIDs.size());
         }
-    }
+    }   
     
     if (m_AutoRotate) m_ModelRot.y += ts * m_RotationSpeed;
     
@@ -90,10 +87,7 @@ void LabLayer::Update(Aether::Timestep ts)
     Aether::RenderCommand::Clear();
     Aether::RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
     
-    if (!m_IsLoading)
-    {
-        RenderScene();
-    }
+    RenderScene();
 }
 
 void LabLayer::RenderScene()
@@ -139,14 +133,7 @@ void LabLayer::OnImGuiRender()
 {
     ImGui::Begin("Model Viewer");
     
-    if (m_IsLoading)
-    {
-        ImGui::Text("Loading model...");
-    }
-    else
-    {
-        ImGui::Text("Meshes: %d", (int)m_MeshIDs.size());
-    }
+    ImGui::Text("Meshes: %d", (int)m_MeshIDs.size());
     
     ImGui::Separator();
     

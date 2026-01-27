@@ -29,7 +29,6 @@ private:
     // Async loading
     std::queue<Aether::ModelLoadResult> m_CompletedParses;
     std::mutex m_ParseMutex;
-    bool m_IsLoading = false;
     
     glm::vec3 m_ModelPos = glm::vec3(0.0f);
     glm::vec3 m_ModelRot = glm::vec3(0.0f);
