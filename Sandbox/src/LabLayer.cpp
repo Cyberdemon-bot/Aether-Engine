@@ -195,7 +195,6 @@ void LabLayer::LoadGLBFile(const std::string& filepath)
                 if (matIndex < materialIDs.size())
                 {
                     submesh.MaterialID = materialIDs[matIndex];
-                    meshData.SubmeshMaterialIDs.push_back(materialIDs[matIndex]);
                 }
             }
 
@@ -430,9 +429,7 @@ void LabLayer::RenderScene()
             const auto& submesh = submeshes[i];
             
             // Get material for this submesh
-            Aether::UUID matID = (i < meshData.SubmeshMaterialIDs.size()) 
-                ? meshData.SubmeshMaterialIDs[i] 
-                : Aether::UUID(0);
+            Aether::UUID matID = submesh.MaterialID;
 
             if (matID != Aether::UUID(0) && Aether::MaterialLibrary::Exists(matID))
             {
@@ -535,51 +532,48 @@ void LabLayer::OnImGuiRender()
                         ImGui::Text("Vertices: %u", submesh.VertexCount);
                         ImGui::Text("Indices: %u", submesh.IndexCount);
                         
-                        if (j < meshData.SubmeshMaterialIDs.size())
+                        Aether::UUID matID = submesh.MaterialID;
+                        if (Aether::MaterialLibrary::Exists(matID))
                         {
-                            Aether::UUID matID = meshData.SubmeshMaterialIDs[j];
-                            if (Aether::MaterialLibrary::Exists(matID))
+                            auto material = Aether::MaterialLibrary::Get(matID);
+                            ImGui::Text("Material ID: %llu", (uint64_t)matID);
+                            
+                            ImGui::Spacing();
+                            
+                            // Albedo texture
+                            auto albedoTex = material->GetTexture("u_AlbedoMap");
+                            if (albedoTex)
                             {
-                                auto material = Aether::MaterialLibrary::Get(matID);
-                                ImGui::Text("Material ID: %llu", (uint64_t)matID);
-                                
-                                ImGui::Spacing();
-                                
-                                // Albedo texture
-                                auto albedoTex = material->GetTexture("u_AlbedoMap");
-                                if (albedoTex)
-                                {
-                                    ImGui::Text("Albedo:");
-                                    ImGui::Image(
-                                        (void*)(intptr_t)albedoTex->GetRendererID(),
-                                        ImVec2(128, 128),
-                                        ImVec2(0, 1), ImVec2(1, 0)
-                                    );
-                                }
-                                
-                                // Metallic-Roughness texture
-                                auto mrTex = material->GetTexture("u_MetallicRoughnessMap");
-                                if (mrTex)
-                                {
-                                    ImGui::Text("Metallic-Roughness:");
-                                    ImGui::Image(
-                                        (void*)(intptr_t)mrTex->GetRendererID(),
-                                        ImVec2(128, 128),
-                                        ImVec2(0, 1), ImVec2(1, 0)
-                                    );
-                                }
-                                
-                                // Normal map
-                                auto normalTex = material->GetTexture("u_NormalMap");
-                                if (normalTex)
-                                {
-                                    ImGui::Text("Normal Map:");
-                                    ImGui::Image(
-                                        (void*)(intptr_t)normalTex->GetRendererID(),
-                                        ImVec2(128, 128),
-                                        ImVec2(0, 1), ImVec2(1, 0)
-                                    );
-                                }
+                                ImGui::Text("Albedo:");
+                                ImGui::Image(
+                                    (void*)(intptr_t)albedoTex->GetRendererID(),
+                                    ImVec2(128, 128),
+                                    ImVec2(0, 1), ImVec2(1, 0)
+                                );
+                            }
+                            
+                            // Metallic-Roughness texture
+                            auto mrTex = material->GetTexture("u_MetallicRoughnessMap");
+                            if (mrTex)
+                            {
+                                ImGui::Text("Metallic-Roughness:");
+                                ImGui::Image(
+                                    (void*)(intptr_t)mrTex->GetRendererID(),
+                                    ImVec2(128, 128),
+                                    ImVec2(0, 1), ImVec2(1, 0)
+                                );
+                            }
+                            
+                            // Normal map
+                            auto normalTex = material->GetTexture("u_NormalMap");
+                            if (normalTex)
+                            {
+                                ImGui::Text("Normal Map:");
+                                ImGui::Image(
+                                    (void*)(intptr_t)normalTex->GetRendererID(),
+                                    ImVec2(128, 128),
+                                    ImVec2(0, 1), ImVec2(1, 0)
+                                );
                             }
                         }
                         
