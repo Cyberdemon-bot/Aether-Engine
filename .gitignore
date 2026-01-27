@@ -11,6 +11,7 @@ build/
 *.txt
 *.ini
 *.json
+*.py
 
 # os files (MacOS)
 .DS_Store
