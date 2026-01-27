@@ -7,7 +7,6 @@
 struct MeshData
 {
     std::string Name;
-    std::vector<Aether::UUID> SubmeshMaterialIDs;
     Aether::UUID MeshID;
 };
 
