@@ -33,3 +33,4 @@
 #include "Aether/Scene/Scene.h"
 
 #include "Aether/Animation/Animator.h"
+#include "Aether/Animation/Animation.h"

@@ -31,6 +31,16 @@ namespace Aether {
         return newID;
     }
 
+    void AssetsRegister::Register(const std::string& key, UUID id)
+    {
+        if (Exists(key)) {
+            AE_CORE_WARN("Key '{0}' already exists! Returning existing UUID.", key);
+            return;
+        }
+
+        GetMap()[key] = id;
+    }
+
     bool AssetsRegister::Exists(const std::string& key)
     {
         auto& map = GetMap();

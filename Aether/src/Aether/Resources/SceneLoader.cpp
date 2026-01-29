@@ -605,7 +605,6 @@ namespace Aether {
             SkeletonCreateInfo skeleton;
             if (ParseSkeleton(data, &data->skins[i], skeleton))
             {
-                skeleton.meshIndex = static_cast<int32_t>(i); 
                 modelData.Skeletons.push_back(skeleton);
             }
         }
@@ -618,7 +617,6 @@ namespace Aether {
             AnimationCreateInfo animInfo;
             if (ParseAnimationClip(data, &data->animations[i], modelData.Skeletons[0], animInfo.clip))
             {
-                animInfo.skeletonIndex = 0; 
                 modelData.Animations.push_back(animInfo);
             }
         }
