@@ -12,7 +12,6 @@
 
 namespace Aether {
 
-// Vibe coding animation parser, i dont know
     // Find joint index in skin's joints array
     static int32_t FindJointIndex(const cgltf_skin* skin, const cgltf_node* joint)
     {
