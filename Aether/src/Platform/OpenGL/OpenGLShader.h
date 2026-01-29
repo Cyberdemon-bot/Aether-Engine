@@ -18,13 +18,16 @@ namespace Aether {
         virtual void SetFloat3(const std::string& name, const glm::vec3& value) override;
         virtual void SetFloat4(const std::string& name, const glm::vec4& value) override;
         virtual void SetMat4(const std::string& name, const glm::mat4& value) override;
+        virtual void SetUBOSlot(const std::string& name, int slot) override;
 
     private:
         std::string m_FilePath;
         unsigned int m_RendererID;  
         std::unordered_map<std::string, int> m_UniformLocationCache;
+        std::unordered_map<std::string, int> m_UniformBlockLocationCache;
 
         int GetUniformLocation(const std::string& name);
+        int GetUniformBlockLocation(const std::string& name);
         unsigned int CompileShader(unsigned int type, const std::string& source);
         unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader, const std::string& geometryShader);
         ShaderProgramSource ParseShader(const std::string& filepath);

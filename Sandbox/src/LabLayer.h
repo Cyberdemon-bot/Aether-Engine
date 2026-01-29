@@ -1,6 +1,6 @@
 #pragma once
 #include <Aether.h>
-#include "Aether/Resources/ModelLoader.h"
+#include "Aether/Resources/SceneLoader.h"
 #include <glm/glm.hpp>
 #include <vector>
 #include <mutex>
@@ -27,7 +27,7 @@ private:
     std::vector<Aether::UUID> m_MeshIDs;
     
     // Async loading
-    std::queue<Aether::ModelLoadResult> m_CompletedParses;
+    std::queue<Aether::SceneLoadResult> m_CompletedParses;
     std::mutex m_ParseMutex;
     
     glm::vec3 m_ModelPos = glm::vec3(0.0f);
@@ -36,4 +36,10 @@ private:
     
     bool m_AutoRotate = false;
     float m_RotationSpeed = 1.0f;
+
+    std::unique_ptr<Aether::Animator> m_Animator;
+    std::vector<Aether::AnimationClip> m_AnimationClips;
+    Aether::Ref<Aether::UniformBuffer> m_BoneUBO;  // For bone matrices
+    int m_CurrentAnimIndex = 0;
+    bool m_HasAnimations = false;
 };

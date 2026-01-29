@@ -2,12 +2,31 @@
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Texture.h"
 #include "Aether/Resources/Material.h"
+#include "Aether/Animation/AnimationClip.h"
 #include "Aether/Core/UUID.h"
 #include <glm/glm.hpp>
 #include <vector>
 #include <string>
 
 namespace Aether {
+    struct SkeletonCreateInfo
+    {
+        std::string DebugName;
+        std::vector<int32_t> parentIndices;
+        std::vector<glm::mat4> inverseBindMatrices;
+        std::vector<glm::mat4> localBindPose;
+        std::vector<std::string> boneNames; 
+        int32_t meshIndex = -1; 
+    };
+
+    // NEW: Animation data structure
+    struct AnimationCreateInfo
+    {
+        std::string DebugName;
+        AnimationClip clip;
+        int32_t skeletonIndex = -1;  
+    };
+
     struct TextureCreateInfo
     {
         std::string DebugName;
@@ -50,24 +69,30 @@ namespace Aether {
         std::vector<float> TexCoords;
         std::vector<uint32_t> Indices;
 
+        std::vector<float> Weights;
+        std::vector<uint32_t> Joints;
+
         std::vector<SubMeshCreateInfo> SubMeshes;
 
         uint32_t totalVertices = 0;
         uint32_t totalIndices = 0;
     };
 
-    struct ModelLoadResult
+    struct SceneLoadResult
     {
         std::string FilePath;
         std::vector<TextureCreateInfo> Textures;
         std::vector<MaterialCreateInfo> Materials;
         std::vector<MeshCreateInfo> Meshes;
+
+        std::vector<SkeletonCreateInfo> Skeletons;
+        std::vector<AnimationCreateInfo> Animations;
     };
 
-    class AETHER_API ModelLoader
+    class AETHER_API SceneLoader
     {
     public:
-        static ModelLoadResult Parsing(const std::string& path);
-        static std::vector<UUID> UploadModel(const ModelLoadResult& modelData, UUID shaderID);
+        static SceneLoadResult Parsing(const std::string& path);
+        static std::vector<UUID> UploadModel(const SceneLoadResult& modelData, UUID shaderID);
     };
 }

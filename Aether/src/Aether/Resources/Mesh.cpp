@@ -40,7 +40,6 @@ namespace Aether {
             defaultSubMesh.VertexCount = m_VertexCount;
             defaultSubMesh.IndexCount = spec.IndexCount;
             defaultSubMesh.NodeName = "Default";
-            defaultSubMesh.LocalTransform = glm::mat4(1.0f);
             
             m_SubMeshes.push_back(defaultSubMesh);
         }

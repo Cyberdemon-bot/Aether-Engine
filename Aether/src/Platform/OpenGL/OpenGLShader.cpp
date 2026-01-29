@@ -57,6 +57,11 @@ namespace Aether {
         GLCall(glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value)));
     }
 
+    void OpenGLShader::SetUBOSlot(const std::string& name, int slot)
+    {
+        int location = GetUniformBlockLocation(name);
+        GLCall(glUniformBlockBinding(m_RendererID, location, slot));
+    }
 
     int OpenGLShader::GetUniformLocation(const std::string& name)
     {
@@ -67,6 +72,18 @@ namespace Aether {
         if (location == -1) AE_CORE_TRACE("Warning: uniform '{0}' doesn't exist!", name, location); 
 
         m_UniformLocationCache[name] = location;
+        return location;
+    }
+
+    int OpenGLShader::GetUniformBlockLocation(const std::string& name)
+    {
+        if (m_UniformBlockLocationCache.find(name) != m_UniformBlockLocationCache.end())
+            return m_UniformBlockLocationCache[name];
+        
+        GLCall(int location = glGetUniformBlockIndex(m_RendererID, name.c_str()));
+        if (location == -1) AE_CORE_TRACE("Warning: uniform block '{0}' doesn't exist!", name, location); 
+
+        m_UniformBlockLocationCache[name] = location;
         return location;
     }
 

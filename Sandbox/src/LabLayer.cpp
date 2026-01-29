@@ -17,12 +17,15 @@ void LabLayer::Attach()
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
-    Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
+    auto shader = Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
     m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2 + sizeof(glm::vec4), 0);
+    m_BoneUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 100, 1);
+    shader->SetUBOSlot("Camera", 0);
+    shader->SetUBOSlot("Bones", 1);
     
     // Load model async
     LoadModelAsync("assets/models/human.glb");
-    LoadModelAsync("assets/models/robot.glb");
+    //LoadModelAsync("assets/models/robot.glb");
 }
 
 void LabLayer::LoadModelAsync(const std::string& path)
@@ -31,7 +34,7 @@ void LabLayer::LoadModelAsync(const std::string& path)
         AE_CORE_INFO("Worker thread: Parsing {0}", path);
         
         // Parse on worker thread (no OpenGL calls)
-        auto modelData = Aether::ModelLoader::Parsing(path);
+        auto modelData = Aether::SceneLoader::Parsing(path);
         
         // Push result to queue (thread-safe)
         {
@@ -61,13 +64,56 @@ void LabLayer::Update(Aether::Timestep ts)
             m_CompletedParses.pop();
             
             AE_CORE_INFO("Main thread: Uploading to GPU...");
-            auto newMeshes = Aether::ModelLoader::UploadModel(modelData, id_ShaderPBR);
+
+            if (!modelData.Skeletons.empty())
+            {
+                const auto& skeleton = modelData.Skeletons[0];
+                
+                AE_CORE_INFO("Found skeleton with {0} bones", skeleton.parentIndices.size());
+                
+                // Create animator
+                m_Animator = std::make_unique<Aether::Animator>(Aether::AnimatorSpec{
+                    skeleton.parentIndices,
+                    skeleton.inverseBindMatrices,
+                    skeleton.localBindPose
+                });
+                
+                // Load animations
+                if (!modelData.Animations.empty())
+                {
+                    AE_CORE_INFO("Found {0} animations", modelData.Animations.size());
+                    
+                    for (const auto& animInfo : modelData.Animations)
+                    {
+                        m_AnimationClips.push_back(animInfo.clip);
+                        AE_CORE_INFO("  - {0} (duration: {1}s)", 
+                            animInfo.clip.name, animInfo.clip.duration);
+                    }
+                    
+                    // Play first animation
+                    if (!m_AnimationClips.empty())
+                    {
+                        m_Animator->Play(&m_AnimationClips[0], true);
+                        m_HasAnimations = true;
+                    }
+                }
+            }
+
+            auto newMeshes = Aether::SceneLoader::UploadModel(modelData, id_ShaderPBR);
             m_MeshIDs.insert(m_MeshIDs.end(), newMeshes.begin(), newMeshes.end());
             
             AE_CORE_INFO("Main thread: Loaded {0} meshes", m_MeshIDs.size());
         }
     }   
-    
+    if (m_Animator && m_HasAnimations)
+    {
+        m_Animator->Update(ts);
+        
+        const auto& boneMatrices = m_Animator->GetFinalMatrices();
+        m_BoneUBO->SetData(boneMatrices.data(), 
+                          boneMatrices.size() * sizeof(glm::mat4), 0);
+    }
+
     if (m_AutoRotate) m_ModelRot.y += ts * m_RotationSpeed;
     
     m_Camera.Update(ts);
@@ -110,6 +156,16 @@ void LabLayer::RenderScene()
                 auto material = Aether::MaterialLibrary::Get(submesh.MaterialID);
                 material->Bind(0);
                 material->SetMat4("u_Model", transform);
+
+                if (m_HasAnimations && true)
+                {
+                    material->SetInt("u_HasAnimation", 1);
+                }
+                else
+                {
+                    material->SetInt("u_HasAnimation", 0);
+                }
+
                 material->UploadMaterial();
                 
                 void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
@@ -136,6 +192,62 @@ void LabLayer::OnImGuiRender()
     ImGui::Text("Meshes: %d", (int)m_MeshIDs.size());
     
     ImGui::Separator();
+    if (ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (m_HasAnimations && m_Animator)
+        {
+            ImGui::Text("Animations: %d", (int)m_AnimationClips.size());
+            ImGui::Text("Bones: %d", (int)m_Animator->GetBoneCount());
+            
+            // Animation selection
+            if (ImGui::BeginCombo("Current Animation", 
+                m_AnimationClips[m_CurrentAnimIndex].name.c_str()))
+            {
+                for (int i = 0; i < m_AnimationClips.size(); i++)
+                {
+                    bool selected = (i == m_CurrentAnimIndex);
+                    if (ImGui::Selectable(m_AnimationClips[i].name.c_str(), selected))
+                    {
+                        m_CurrentAnimIndex = i;
+                        m_Animator->Play(&m_AnimationClips[i], true);
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            bool isPlaying = m_Animator->IsPlaying();
+            if (ImGui::Checkbox("Playing", &isPlaying))
+            {
+                if (isPlaying)
+                    m_Animator->Resume();
+                else
+                    m_Animator->Pause();
+            }
+            
+            // Playback speed
+            float speed = m_Animator->GetPlaybackSpeed();
+            if (ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f))
+            {
+                m_Animator->SetPlaybackSpeed(speed);
+            }
+            
+            // Current time
+            float currentTime = m_Animator->GetCurrentTime();
+            float duration = m_AnimationClips[m_CurrentAnimIndex].duration;
+            ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
+            ImGui::ProgressBar(currentTime / duration);
+            
+            if (ImGui::Button("Reset"))
+            {
+                m_Animator->Stop();
+                m_Animator->Play(&m_AnimationClips[m_CurrentAnimIndex], true);
+            }
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1, 1, 0, 1), "No animations loaded");
+        }
+    }
     
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
