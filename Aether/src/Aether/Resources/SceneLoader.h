@@ -16,15 +16,12 @@ namespace Aether {
         std::vector<glm::mat4> inverseBindMatrices;
         std::vector<glm::mat4> localBindPose;
         std::vector<std::string> boneNames; 
-        int32_t meshIndex = -1; 
     };
 
-    // NEW: Animation data structure
     struct AnimationCreateInfo
     {
         std::string DebugName;
         AnimationClip clip;
-        int32_t skeletonIndex = -1;  
     };
 
     struct TextureCreateInfo

@@ -12,7 +12,6 @@
 
 namespace Aether {
 
-// Vibe coding animation parser, i dont know
     // Find joint index in skin's joints array
     static int32_t FindJointIndex(const cgltf_skin* skin, const cgltf_node* joint)
     {
@@ -605,7 +604,6 @@ namespace Aether {
             SkeletonCreateInfo skeleton;
             if (ParseSkeleton(data, &data->skins[i], skeleton))
             {
-                skeleton.meshIndex = static_cast<int32_t>(i); 
                 modelData.Skeletons.push_back(skeleton);
             }
         }
@@ -618,7 +616,6 @@ namespace Aether {
             AnimationCreateInfo animInfo;
             if (ParseAnimationClip(data, &data->animations[i], modelData.Skeletons[0], animInfo.clip))
             {
-                animInfo.skeletonIndex = 0; 
                 modelData.Animations.push_back(animInfo);
             }
         }

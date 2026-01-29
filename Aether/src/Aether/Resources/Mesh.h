@@ -80,7 +80,6 @@ namespace Aether {
         const uint32_t* IndexData = nullptr;
         uint32_t IndexCount = 0;
         std::vector<SubMesh> Submeshes = {};
-        UUID AnimatorID = UUID(0);
     };
 
     class AETHER_API Mesh 
