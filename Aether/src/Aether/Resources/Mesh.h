@@ -16,7 +16,6 @@ namespace Aether {
         glm::vec3 BoundsMax = glm::vec3(0.0f);
 
         std::string NodeName;
-        glm::mat4 LocalTransform = glm::mat4(1.0f);
 
         UUID MaterialID = 0;
     };
@@ -81,6 +80,7 @@ namespace Aether {
         const uint32_t* IndexData = nullptr;
         uint32_t IndexCount = 0;
         std::vector<SubMesh> Submeshes = {};
+        UUID AnimatorID = UUID(0);
     };
 
     class AETHER_API Mesh 

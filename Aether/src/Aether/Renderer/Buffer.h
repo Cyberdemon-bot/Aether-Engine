@@ -4,7 +4,7 @@
 namespace Aether {
     enum class ShaderDataType
     {
-        None = 0, Float, Float2, Float3, Float4, Int, Int2, Int3, Int4, Mat3, Mat4, Bool
+        None = 0, Float, Float2, Float3, Float4, Int, Int2, Int3, Int4, Uint, Uint2, Uint3, Uint4, Mat3, Mat4, Bool
     };
 
     static uint32_t ShaderDataTypeSize(ShaderDataType type)
@@ -21,10 +21,15 @@ namespace Aether {
             case ShaderDataType::Int3:   return 4 * 3;
             case ShaderDataType::Int4:   return 4 * 4;
 
+            case ShaderDataType::Uint:   return 4;
+            case ShaderDataType::Uint2:  return 4 * 2;
+            case ShaderDataType::Uint3:  return 4 * 3;
+            case ShaderDataType::Uint4:  return 4 * 4;
+
             case ShaderDataType::Mat3:   return 4 * 3 * 3;
             case ShaderDataType::Mat4:   return 4 * 4 * 4;
             case ShaderDataType::Bool:   return 1;
-            case ShaderDataType::None:     return 0;
+            case ShaderDataType::None:   return 0;
         }
 
         AE_CORE_ASSERT(false, "Unknown ShaderDataType");
@@ -58,10 +63,15 @@ namespace Aether {
 				case ShaderDataType::Int3:    return 3;
 				case ShaderDataType::Int4:    return 4;
 
+                case ShaderDataType::Uint:    return 1;
+				case ShaderDataType::Uint2:   return 2;
+				case ShaderDataType::Uint3:   return 3;
+				case ShaderDataType::Uint4:   return 4;
+
 				case ShaderDataType::Mat3:    return 3; // 3* float3
 				case ShaderDataType::Mat4:    return 4; // 4* float4
 				case ShaderDataType::Bool:    return 1;
-                case ShaderDataType::None:     return 0;
+                case ShaderDataType::None:    return 0;
 			}
 
 			AE_CORE_ASSERT(false, "Unknown ShaderDataType");

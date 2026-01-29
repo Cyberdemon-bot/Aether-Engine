@@ -5,6 +5,8 @@ layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
 layout(location = 2) in vec4 a_Tangent;
 layout(location = 3) in vec2 a_TexCoord;
+layout(location = 4) in uvec4 a_Joints;
+layout(location = 5) in vec4 a_Weights;
 
 layout(std140) uniform Camera
 {
@@ -13,7 +15,13 @@ layout(std140) uniform Camera
     vec3 u_CameraPosition;
 };
 
+layout(std140) uniform Bones
+{
+    mat4 u_BoneMatrices[100];
+};
+
 uniform mat4 u_Model;
+uniform int u_HasAnimation;
 
 out vec3 v_FragPos;
 out vec3 v_Normal;
@@ -23,16 +31,31 @@ out vec3 v_Bitangent;
 
 void main()
 {
-    vec4 worldPos = u_Model * vec4(a_Position, 1.0);
+    vec4 localPos = vec4(a_Position, 1.0);
+    vec3 localNormal = a_Normal;
+    vec3 localTangent = a_Tangent.xyz; 
+
+    if (u_HasAnimation == 1)
+    {
+        mat4 skinMatrix = 
+            a_Weights.x * u_BoneMatrices[a_Joints.x] +
+            a_Weights.y * u_BoneMatrices[a_Joints.y] +
+            a_Weights.z * u_BoneMatrices[a_Joints.z] +
+            a_Weights.w * u_BoneMatrices[a_Joints.w];
+
+        localPos = skinMatrix * localPos;
+        localNormal = mat3(skinMatrix) * localNormal; 
+        localTangent = mat3(skinMatrix) * localTangent;
+    }
+    vec4 worldPos = u_Model * localPos; 
     v_FragPos = worldPos.xyz;
     
     mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
-    v_Normal = normalize(normalMatrix * a_Normal);
-    v_Tangent = normalize(normalMatrix * a_Tangent.xyz);
+    v_Normal = normalize(normalMatrix * localNormal);
+    v_Tangent = normalize(normalMatrix * localTangent);
     v_Bitangent = cross(v_Normal, v_Tangent) * a_Tangent.w;
     
     v_TexCoord = a_TexCoord;
-    
     gl_Position = u_ViewProjection * worldPos;
 }
 

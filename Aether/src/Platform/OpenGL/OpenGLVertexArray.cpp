@@ -15,6 +15,10 @@ namespace Aether {
 			case ShaderDataType::Int2:     return GL_INT;
 			case ShaderDataType::Int3:     return GL_INT;
 			case ShaderDataType::Int4:     return GL_INT;
+            case ShaderDataType::Uint:     return GL_UNSIGNED_INT;
+			case ShaderDataType::Uint2:    return GL_UNSIGNED_INT;
+			case ShaderDataType::Uint3:    return GL_UNSIGNED_INT;
+			case ShaderDataType::Uint4:    return GL_UNSIGNED_INT;
 			case ShaderDataType::Bool:     return GL_BOOL;
             case ShaderDataType::None:     break;
 		}
@@ -84,6 +88,10 @@ namespace Aether {
                 case ShaderDataType::Int2:   
                 case ShaderDataType::Int3:  
                 case ShaderDataType::Int4:  
+                case ShaderDataType::Uint:    
+                case ShaderDataType::Uint2:   
+                case ShaderDataType::Uint3:  
+                case ShaderDataType::Uint4: 
                 case ShaderDataType::Bool:  
                 {
                     GLCall(glEnableVertexAttribArray(index));
@@ -165,6 +173,10 @@ namespace Aether {
                 case ShaderDataType::Int2:
                 case ShaderDataType::Int3:
                 case ShaderDataType::Int4:
+                case ShaderDataType::Uint:    
+                case ShaderDataType::Uint2:   
+                case ShaderDataType::Uint3:  
+                case ShaderDataType::Uint4: 
                 case ShaderDataType::Bool:
                 {
                     GLCall(glEnableVertexAttribArray(index));
