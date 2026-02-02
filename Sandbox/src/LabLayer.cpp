@@ -372,6 +372,142 @@ void LabLayer::OnImGuiRender()
             ImGui::SliderFloat("Speed", &m_RotationSpeed, -5.0f, 5.0f);
         }
     }
+
+    if (ImGui::CollapsingHeader("Texture Debug Viewer", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Text("Click on a mesh to view its textures");
+        ImGui::Separator();
+        
+        static int selectedMeshIdx = -1;
+        
+        // Mesh selector
+        if (ImGui::BeginCombo("Select Mesh", selectedMeshIdx >= 0 && selectedMeshIdx < m_Meshes.size() 
+            ? Aether::AssetsRegister::Get(m_Meshes[selectedMeshIdx]).c_str() 
+            : "None"))
+        {
+            for (int i = 0; i < m_Meshes.size(); i++)
+            {
+                bool isSelected = (selectedMeshIdx == i);
+                if (ImGui::Selectable(Aether::AssetsRegister::Get(m_Meshes[i]).c_str(), isSelected))
+                {
+                    selectedMeshIdx = i;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        
+        if (selectedMeshIdx >= 0 && selectedMeshIdx < m_Meshes.size())
+        {
+            auto mesh = Aether::MeshLibrary::Get(m_Meshes[selectedMeshIdx]);
+            if (mesh)
+            {
+                const auto& submeshes = mesh->GetSubMeshes();
+                
+                for (int subIdx = 0; subIdx < submeshes.size(); subIdx++)
+                {
+                    const auto& submesh = submeshes[subIdx];
+                    
+                    ImGui::PushID(subIdx);
+                    if (ImGui::TreeNode("Submesh", "Submesh %d: %s", subIdx, submesh.NodeName.c_str()))
+                    {
+                        ImGui::Text("Vertices: %u", submesh.VertexCount);
+                        ImGui::Text("Indices: %u", submesh.IndexCount);
+                        
+                        if (submesh.MaterialID && Aether::MaterialLibrary::Exists(submesh.MaterialID))
+                        {
+                            auto material = Aether::MaterialLibrary::Get(submesh.MaterialID);
+                            ImGui::Text("Material: %s", Aether::AssetsRegister::Get(submesh.MaterialID).c_str());
+                            
+                            ImGui::Separator();
+                            ImGui::Text("Textures:");
+                            
+                            // Display Albedo texture
+                            auto albedoTex = material->GetTexture("u_AlbedoMap");
+                            if (albedoTex)
+                            {
+                                ImGui::Text("Albedo Map:");
+                                ImGui::Text("  ID: %llu", (uint64_t)albedoTex->GetRendererID());
+                                ImGui::Text("  Size: %dx%d", albedoTex->GetWidth(), albedoTex->GetHeight());
+                                
+                                // Display the texture
+                                ImTextureID texID = (ImTextureID)(uint64_t)albedoTex->GetRendererID();
+                                float aspectRatio = (float)albedoTex->GetWidth() / (float)albedoTex->GetHeight();
+                                float displayWidth = 256.0f;
+                                float displayHeight = displayWidth / aspectRatio;
+                                
+                                ImGui::Image(texID, ImVec2(displayWidth, displayHeight), 
+                                    ImVec2(0, 1), ImVec2(1, 0));  // Note: UV coords flipped for OpenGL
+                                
+                                if (ImGui::IsItemHovered())
+                                {
+                                    ImGui::BeginTooltip();
+                                    ImGui::Text("Albedo Texture");
+                                    ImGui::Image(texID, ImVec2(512, 512 / aspectRatio), 
+                                        ImVec2(0, 1), ImVec2(1, 0));
+                                    ImGui::EndTooltip();
+                                }
+                            }
+                            else
+                            {
+                                ImGui::Text("Albedo Map: None");
+                            }
+                            
+                            // Display Normal texture
+                            auto normalTex = material->GetTexture("u_NormalMap");
+                            if (normalTex)
+                            {
+                                ImGui::Text("Normal Map:");
+                                ImGui::Text("  ID: %llu", (uint64_t)normalTex->GetRendererID());
+                                ImGui::Text("  Size: %dx%d", normalTex->GetWidth(), normalTex->GetHeight());
+                                
+                                ImTextureID texID = (ImTextureID)(uint64_t)normalTex->GetRendererID();
+                                float aspectRatio = (float)normalTex->GetWidth() / (float)normalTex->GetHeight();
+                                float displayWidth = 256.0f;
+                                float displayHeight = displayWidth / aspectRatio;
+                                
+                                ImGui::Image(texID, ImVec2(displayWidth, displayHeight), 
+                                    ImVec2(0, 1), ImVec2(1, 0));
+                            }
+                            else
+                            {
+                                ImGui::Text("Normal Map: None");
+                            }
+                            
+                            // Display Metallic-Roughness texture
+                            auto mrTex = material->GetTexture("u_MetallicRoughnessMap");
+                            if (mrTex)
+                            {
+                                ImGui::Text("Metallic-Roughness Map:");
+                                ImGui::Text("  ID: %llu", (uint64_t)mrTex->GetRendererID());
+                                ImGui::Text("  Size: %dx%d", mrTex->GetWidth(), mrTex->GetHeight());
+                                
+                                ImTextureID texID = (ImTextureID)(uint64_t)mrTex->GetRendererID();
+                                float aspectRatio = (float)mrTex->GetWidth() / (float)mrTex->GetHeight();
+                                float displayWidth = 256.0f;
+                                float displayHeight = displayWidth / aspectRatio;
+                                
+                                ImGui::Image(texID, ImVec2(displayWidth, displayHeight), 
+                                    ImVec2(0, 1), ImVec2(1, 0));
+                            }
+                            else
+                            {
+                                ImGui::Text("Metallic-Roughness Map: None");
+                            }
+                        }
+                        else
+                        {
+                            ImGui::Text("No material assigned");
+                        }
+                        
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+            }
+        }
+    }
     
     ImGui::End();
 }
