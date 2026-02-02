@@ -514,7 +514,7 @@ namespace Aether {
                     {
                         tangents = ReadAccessorFloat(accessor);
                     }
-                    else if (attr->type == cgltf_attribute_type_texcoord)
+                    else if (attr->type == cgltf_attribute_type_texcoord && attr->index == 0)
                     {
                         texCoords = ReadAccessorFloat(accessor);
                     }
