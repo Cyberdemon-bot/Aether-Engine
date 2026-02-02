@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+#include "Aether/Core/UUID.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
@@ -32,7 +34,7 @@ namespace Aether {
         }
     };
 
-    struct BoneChannel
+    struct Channel
     {
         int32_t boneIdx;
         std::vector<KeyFrame> keyframes;
@@ -70,17 +72,17 @@ namespace Aether {
         }   
     };
 
-    struct AnimationClip
+    struct Clip
     {
-        std::string name;
-        float duration;
-        std::vector<BoneChannel> channels;
+        float Durations;
+        std::vector<Channel> Channels;
+        
+        Clip() = default;
+        Clip(const std::vector<Channel>& channels, float duration = 0.0f) : Durations(duration), Channels(channels) {}
 
-        AnimationClip() : duration(0.0f) {}
-
-        const BoneChannel* FindChannel(int32_t boneIdx) const
+        const Channel* FindChannel(int32_t boneIdx) const
         {
-            for (const auto& channel : channels)
+            for (const auto& channel : Channels)
             {
                 if (channel.boneIdx == boneIdx)
                     return &channel;
@@ -88,4 +90,19 @@ namespace Aether {
             return nullptr;
         }
     };
+
+    class AETHER_API ClipLibrary
+    {
+    public:
+        void Init();
+        void Shutdown();
+
+        static void Add(Ref<Clip> obj, UUID id);
+        static Ref<Clip> Get(UUID id);
+        
+        static bool Exists(UUID id);
+    private:
+        static std::unordered_map<UUID, Ref<Clip>>& GetClips();
+    };
+
 }

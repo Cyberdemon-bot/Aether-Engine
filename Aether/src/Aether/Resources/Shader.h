@@ -37,7 +37,7 @@ namespace Aether {
         static void Init();
         static void Shutdown();
 
-        static Ref<Shader> Load(const std::string& filepath, UUID id);
+        static void Add(Ref<Shader> obj, UUID id);
         static Ref<Shader> Get(UUID id);
         static bool Exists(UUID id);
 

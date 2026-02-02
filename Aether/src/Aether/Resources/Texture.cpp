@@ -63,51 +63,21 @@ namespace Aether {
         GetTextures().clear();
     }
 
-    Ref<Texture2D> Texture2DLibrary::Load(const std::string& filepath, UUID id, bool wrapMode, bool flip)
+    void Texture2DLibrary::Add(Ref<Texture2D> obj, UUID id)
     {
         auto& textures = GetTextures();
         if (textures.find(id) != textures.end())
-            return textures[id];
-
-        auto texture = Texture2D::Create(filepath, wrapMode, flip);
-        
-        if (!texture || !texture->IsLoaded())
         {
-            AE_CORE_ERROR("Texture Library: Failed to load '{0}'", filepath);
-            return nullptr;
+            AE_CORE_ERROR("Texture2D Library: ID already exists");
+            return;
         }
-        textures[id] = texture;
-        return texture;
-    }
-    Ref<Texture2D> Texture2DLibrary::Load(void* data, size_t size, UUID id)
-    {
-        auto& textures = GetTextures();
-        if (textures.find(id) != textures.end())
-            return textures[id];
 
-        auto texture = Texture2D::Create(data, size);
-        if (!texture || !texture->IsLoaded())
+        if (!obj)
         {
-            AE_CORE_ERROR("Texture Library: Failed to load from raw packed data");
-            return nullptr;
+            AE_CORE_ERROR("Texture2D Library: Cannot add null obj");
+            return;
         }
-        textures[id] = texture;
-        return texture;
-    }
-	Ref<Texture2D> Texture2DLibrary::Load(const TextureSpec& spec, UUID id)
-    {
-        auto& textures = GetTextures();
-        if (textures.find(id) != textures.end())
-            return textures[id];
-
-        auto texture = Texture2D::Create(spec);
-        if (!texture)
-        {
-            AE_CORE_ERROR("Texture Library: Failed to create empty texture");
-            return nullptr;
-        }
-        textures[id] = texture;
-        return texture;
+        textures[id] = obj;
     }
 
     Ref<Texture2D> Texture2DLibrary::Get(UUID id)
@@ -115,6 +85,8 @@ namespace Aether {
         auto& textures = GetTextures();
         if (textures.find(id) != textures.end())
             return textures[id];
+        
+        AE_CORE_WARN("Texture2D Library: ID not found!");
         return nullptr;
     }
 

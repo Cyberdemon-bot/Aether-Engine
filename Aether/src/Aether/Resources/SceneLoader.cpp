@@ -73,6 +73,30 @@ namespace Aether {
         }
     }
 
+    static int32_t FindSkeleton(const cgltf_animation* anim, const std::vector<SkeletonCreateInfo>& skeletons)
+    {
+        for (size_t c = 0; c < anim->channels_count; c++)
+        {
+            const cgltf_node* targetNode = anim->channels[c].target_node;
+            if (!targetNode || !targetNode->name) continue;
+
+            std::string nodeName = targetNode->name;
+
+            for (size_t skelIdx = 0; skelIdx < skeletons.size(); skelIdx++)
+            {
+                const auto& skel = skeletons[skelIdx];
+                for (const auto& boneName : skel.boneNames)
+                {
+                    if (boneName == nodeName)
+                    {
+                        return (int32_t)skelIdx;
+                    }
+                }
+            }
+        }
+        return -1; 
+    }
+
     static bool ParseSkeleton(const cgltf_data* gltfData, 
                         const cgltf_skin* skin,
                         SkeletonCreateInfo& outSkeleton)
@@ -81,6 +105,7 @@ namespace Aether {
             return false;
 
         size_t jointCount = skin->joints_count;
+        outSkeleton.DebugName = skin->name ? skin->name : "Unnamed_Skeleton";
         outSkeleton.parentIndices.resize(jointCount);
         outSkeleton.inverseBindMatrices.resize(jointCount);
         outSkeleton.boneNames.resize(jointCount);
@@ -113,7 +138,7 @@ namespace Aether {
             const cgltf_node* joint = skin->joints[i];
             outSkeleton.boneNames[i] = joint->name ? joint->name : "Bone_" + std::to_string(i);
 
-            // *** THIS IS THE FIX *** - Read the node's actual local transform
+            // Read the node's actual local transform
             outSkeleton.localBindPose[i] = GetNodeLocalTransform(joint);
 
             // Find parent
@@ -134,16 +159,16 @@ namespace Aether {
     static bool ParseAnimationClip(const cgltf_data* gltfData,
                                 const cgltf_animation* gltfAnim,
                                 const SkeletonCreateInfo& skeleton,
-                                AnimationClip& outClip)
+                                Clip& outClip)
     {
         if (!gltfAnim || gltfAnim->channels_count == 0)
             return false;
 
-        outClip.name = gltfAnim->name ? gltfAnim->name : "Animation";
-        outClip.duration = 0.0f;
+        float duration = 0.0f;
+        std::vector<Channel> channels;
         
-        // Map: boneIdx -> BoneChannel
-        std::map<int32_t, BoneChannel*> channelMap;
+        // Map: boneIdx -> Channel
+        std::map<int32_t, Channel*> channelMap;
 
         // Process each channel
         for (size_t chanIdx = 0; chanIdx < gltfAnim->channels_count; chanIdx++)
@@ -166,11 +191,11 @@ namespace Aether {
                 continue;  // Joint not in skeleton
 
             // Get or create bone channel
-            BoneChannel* channel = nullptr;
+            Channel* channel = nullptr;
             if (channelMap.find(boneIdx) == channelMap.end())
             {
-                outClip.channels.push_back(BoneChannel());
-                channel = &outClip.channels.back();
+                channels.push_back(Channel());
+                channel = &channels.back();
                 channel->boneIdx = boneIdx;
                 channelMap[boneIdx] = channel;
             }
@@ -187,7 +212,7 @@ namespace Aether {
             if (!times.empty())
             {
                 float maxTime = times.back();
-                outClip.duration = std::max(outClip.duration, maxTime);
+                duration = std::max(duration, maxTime);
             }
 
             glm::vec3 defTranslation(0.0f);
@@ -204,27 +229,33 @@ namespace Aether {
                 for (size_t i = 0; i < times.size(); i++)
                 {
                     KeyFrame* kf = nullptr;
+                    
+                    // Find existing keyframe at this time
                     for (auto& existing : channel->keyframes)
                     {
-                        if (std::abs(existing.time - times[i]) < 0.0001f)
+                        if (fabs(existing.time - times[i]) < 0.0001f)
                         {
                             kf = &existing;
                             break;
                         }
                     }
                     
+                    // Create new keyframe if not found
                     if (!kf)
                     {
                         channel->keyframes.push_back(KeyFrame());
                         kf = &channel->keyframes.back();
                         kf->time = times[i];
-                        kf->rotation = defRotation; 
+                        kf->translation = defTranslation;
+                        kf->rotation = defRotation;
                         kf->scale = defScale;
                     }
                     
-                    kf->translation = glm::vec3(values[i * 3 + 0], 
-                                            values[i * 3 + 1], 
-                                            values[i * 3 + 2]);
+                    kf->translation = glm::vec3(
+                        values[i * 3 + 0],
+                        values[i * 3 + 1],
+                        values[i * 3 + 2]
+                    );
                 }
             }
             else if (gltfChannel.target_path == cgltf_animation_path_type_rotation)
@@ -233,41 +264,10 @@ namespace Aether {
                 for (size_t i = 0; i < times.size(); i++)
                 {
                     KeyFrame* kf = nullptr;
+                    
                     for (auto& existing : channel->keyframes)
                     {
-                        if (std::abs(existing.time - times[i]) < 0.0001f)
-                        {
-                            kf = &existing;
-                            break;
-                        }
-                    }
-                    
-                    if (!kf)
-                    {
-                        channel->keyframes.push_back(KeyFrame());
-                        kf = &channel->keyframes.back();
-                        kf->time = times[i];
-                        kf->translation = defTranslation; 
-                        kf->scale = defScale;
-                    }
-                    
-                    // glTF quaternion order: x, y, z, w
-                    // glm::quat constructor: w, x, y, z
-                    kf->rotation = glm::quat(values[i * 4 + 3],  // w
-                                            values[i * 4 + 0],   // x
-                                            values[i * 4 + 1],   // y
-                                            values[i * 4 + 2]);  // z
-                }
-            }
-            else if (gltfChannel.target_path == cgltf_animation_path_type_scale)
-            {
-                // Scale (vec3)
-                for (size_t i = 0; i < times.size(); i++)
-                {
-                    KeyFrame* kf = nullptr;
-                    for (auto& existing : channel->keyframes)
-                    {
-                        if (std::abs(existing.time - times[i]) < 0.0001f)
+                        if (fabs(existing.time - times[i]) < 0.0001f)
                         {
                             kf = &existing;
                             break;
@@ -281,255 +281,248 @@ namespace Aether {
                         kf->time = times[i];
                         kf->translation = defTranslation;
                         kf->rotation = defRotation;
+                        kf->scale = defScale;
                     }
                     
-                    kf->scale = glm::vec3(values[i * 3 + 0], 
-                                        values[i * 3 + 1], 
-                                        values[i * 3 + 2]);
+                    // GLTF stores quat as (x, y, z, w)
+                    kf->rotation = glm::quat(
+                        values[i * 4 + 3],  // w
+                        values[i * 4 + 0],  // x
+                        values[i * 4 + 1],  // y
+                        values[i * 4 + 2]   // z
+                    );
+                }
+            }
+            else if (gltfChannel.target_path == cgltf_animation_path_type_scale)
+            {
+                // Scale (vec3)
+                for (size_t i = 0; i < times.size(); i++)
+                {
+                    KeyFrame* kf = nullptr;
+                    
+                    for (auto& existing : channel->keyframes)
+                    {
+                        if (fabs(existing.time - times[i]) < 0.0001f)
+                        {
+                            kf = &existing;
+                            break;
+                        }
+                    }
+                    
+                    if (!kf)
+                    {
+                        channel->keyframes.push_back(KeyFrame());
+                        kf = &channel->keyframes.back();
+                        kf->time = times[i];
+                        kf->translation = defTranslation;
+                        kf->rotation = defRotation;
+                        kf->scale = defScale;
+                    }
+                    
+                    kf->scale = glm::vec3(
+                        values[i * 3 + 0],
+                        values[i * 3 + 1],
+                        values[i * 3 + 2]
+                    );
                 }
             }
         }
 
-        for (auto& channel : outClip.channels)
+        // Sort keyframes by time for each channel
+        for (auto& channel : channels)
         {
             std::sort(channel.keyframes.begin(), channel.keyframes.end(),
-                    [](const KeyFrame& a, const KeyFrame& b) { return a.time < b.time; });
+                [](const KeyFrame& a, const KeyFrame& b) { return a.time < b.time; });
         }
 
+        outClip = Clip(channels, duration);
         return true;
     }
-// end of animation parser
 
-    SceneLoadResult SceneLoader::Parsing(const std::string& filepath)
+    SceneLoadResult SceneLoader::Parsing(const std::string& path)
     {
-        SceneLoadResult modelData = {.FilePath = filepath};
+        SceneLoadResult modelData;
+        modelData.FilePath = path;
+
         cgltf_options options = {};
         cgltf_data* data = nullptr;
-        cgltf_result result = cgltf_parse_file(&options, filepath.c_str(), &data);
+        cgltf_result result = cgltf_parse_file(&options, path.c_str(), &data);
+        
         if (result != cgltf_result_success)
         {
-            AE_CORE_ERROR("Failed to parse GLB file: {0}", filepath);
+            AE_CORE_ERROR("Failed to parse GLTF file: {0}", path);
             return modelData;
         }
-
-        result = cgltf_load_buffers(&options, data, filepath.c_str());
+        
+        result = cgltf_load_buffers(&options, data, path.c_str());
         if (result != cgltf_result_success)
         {
-            AE_CORE_ERROR("Failed to load GLB buffers: {0}", filepath);
+            AE_CORE_ERROR("Failed to load GLTF buffers: {0}", path);
             cgltf_free(data);
             return modelData;
         }
 
-        AE_CORE_INFO("Loaded GLB file: {0}", filepath);
-        AE_CORE_INFO("  Meshes: {0}", data->meshes_count);
-        AE_CORE_INFO("  Materials: {0}", data->materials_count);
-        AE_CORE_INFO("  Textures: {0}", data->textures_count);
-        AE_CORE_INFO("  Images: {0}", data->images_count);
-
-        //extract textures
+        // Load textures
         for (size_t i = 0; i < data->images_count; i++)
         {
-            cgltf_image* image = &data->images[i];
-            TextureCreateInfo texInfo = {.DebugName = std::string("Tex_") + (image->name ? image->name : std::to_string(i))};
-
+            const cgltf_image* image = &data->images[i];
+            TextureCreateInfo texInfo;
+            texInfo.DebugName = image->name ? image->name : ("Texture_" + std::to_string(i));
+            stbi_set_flip_vertically_on_load(0);
+            
             if (image->buffer_view)
             {
-                cgltf_buffer_view* view = image->buffer_view;
-                const uint8_t* bufferPtr = (const uint8_t*)view->buffer->data + view->offset;
-                size_t bufferSize = view->size;
+                const cgltf_buffer_view* view = image->buffer_view;
+                const uint8_t* imageData = (const uint8_t*)view->buffer->data + view->offset;
                 
-                if (bufferPtr)
+                int width, height, channels;
+                stbi_uc* pixels = stbi_load_from_memory(imageData, (int)view->size, 
+                    &width, &height, &channels, 4);
+                
+                if (pixels)
                 {
-                    int width, height, channels;
-                    stbi_set_flip_vertically_on_load(0);
-                    stbi_uc* pixels = stbi_load_from_memory(bufferPtr, (int)bufferSize, &width, &height, &channels, 4);
-                    if (pixels)
-                    {
-                        texInfo.Spec.Width = width;
-                        texInfo.Spec.Height = height;
-                        texInfo.Spec.Format = ImageFormat::RGBA8; 
-                        texInfo.Spec.GenerateMips = true;
-                        texInfo.Spec.WrapMode = true; 
-                        texInfo.RawData.assign(pixels, pixels + (width * height * 4));
-                        stbi_image_free(pixels);
-                    }
+                    texInfo.Spec.Width = width;
+                    texInfo.Spec.Height = height;
+                    texInfo.Spec.Format = ImageFormat::RGBA8;
+                    texInfo.Spec.GenerateMips = true;
+                    texInfo.Spec.WrapMode = true;
+                    
+                    size_t dataSize = width * height * 4;
+                    texInfo.RawData.resize(dataSize);
+                    memcpy(texInfo.RawData.data(), pixels, dataSize);
+                    
+                    stbi_image_free(pixels);
+                    modelData.Textures.push_back(texInfo);
                 }
-            
-                AE_CORE_INFO("  Loaded embedded texture [{0}]: {1}", i, image->name ? image->name : "unnamed");
             }
-            
-            modelData.Textures.push_back(std::move(texInfo));
+            else if (image->uri)
+            {
+                std::string imagePath = path.substr(0, path.find_last_of("/\\") + 1) + image->uri;
+                
+                int width, height, channels;
+                stbi_uc* pixels = stbi_load(imagePath.c_str(), &width, &height, &channels, 4);
+                
+                if (pixels)
+                {
+                    texInfo.Spec.Width = width;
+                    texInfo.Spec.Height = height;
+                    texInfo.Spec.Format = ImageFormat::RGBA8;
+                    texInfo.Spec.GenerateMips = true;
+                    texInfo.Spec.WrapMode = true;
+                    
+                    size_t dataSize = width * height * 4;
+                    texInfo.RawData.resize(dataSize);
+                    memcpy(texInfo.RawData.data(), pixels, dataSize);
+                    
+                    stbi_image_free(pixels);
+                    modelData.Textures.push_back(texInfo);
+                }
+            }
         }
 
-        //extract materials
+        // Load materials
         for (size_t i = 0; i < data->materials_count; i++)
         {
-            cgltf_material* mat = &data->materials[i];
-            MaterialCreateInfo matInfo = {.DebugName = std::string("Mat_") + (mat->name ? mat->name : std::to_string(i))};
-            // Base color texture
-            if (mat->pbr_metallic_roughness.base_color_texture.texture)
+            const cgltf_material* mat = &data->materials[i];
+            MaterialCreateInfo matInfo;
+            matInfo.DebugName = mat->name ? mat->name : ("Material_" + std::to_string(i));
+            
+            if (mat->has_pbr_metallic_roughness)
             {
-                cgltf_texture* tex = mat->pbr_metallic_roughness.base_color_texture.texture;
-                size_t texIndex = tex->image - data->images;
-                if (texIndex < modelData.Textures.size()) matInfo.AlbedoMapIdx = texIndex;
+                const cgltf_pbr_metallic_roughness& pbr = mat->pbr_metallic_roughness;
+                
+                matInfo.AlbedoColor = glm::vec4(
+                    pbr.base_color_factor[0],
+                    pbr.base_color_factor[1],
+                    pbr.base_color_factor[2],
+                    pbr.base_color_factor[3]
+                );
+                
+                matInfo.Metallic = pbr.metallic_factor;
+                matInfo.Roughness = pbr.roughness_factor;
+                
+                if (pbr.base_color_texture.texture)
+                {
+                    matInfo.AlbedoMapIdx = (int)(pbr.base_color_texture.texture->image - data->images);
+                }
+                
+                if (pbr.metallic_roughness_texture.texture)
+                {
+                    matInfo.MetallicRoughnessMapIdx = (int)(pbr.metallic_roughness_texture.texture->image - data->images);
+                }
             }
-
-            // Base color factor
-            glm::vec4 baseColor(
-                mat->pbr_metallic_roughness.base_color_factor[0],
-                mat->pbr_metallic_roughness.base_color_factor[1],
-                mat->pbr_metallic_roughness.base_color_factor[2],
-                mat->pbr_metallic_roughness.base_color_factor[3]
-            );
-            matInfo.AlbedoColor = baseColor;
-
-            // Metallic-Roughness texture
-            if (mat->pbr_metallic_roughness.metallic_roughness_texture.texture)
-            {
-                cgltf_texture* tex = mat->pbr_metallic_roughness.metallic_roughness_texture.texture;
-                size_t texIndex = tex->image - data->images;
-                if (texIndex < modelData.Textures.size()) matInfo.MetallicRoughnessMapIdx = texIndex;
-            }
-
-            matInfo.Metallic = mat->pbr_metallic_roughness.metallic_factor;
-            matInfo.Roughness = mat->pbr_metallic_roughness.roughness_factor;
-
-            // Normal map
+            
             if (mat->normal_texture.texture)
             {
-                cgltf_texture* tex = mat->normal_texture.texture;
-                size_t texIndex = tex->image - data->images;
-                if (texIndex < modelData.Textures.size())  matInfo.NormalMapIdx = texIndex;
+                matInfo.NormalMapIdx = (int)(mat->normal_texture.texture->image - data->images);
             }
-
+            
             modelData.Materials.push_back(matInfo);
-            AE_CORE_INFO("  Created material [{0}]: {1}", i, mat->name ? mat->name : "unnamed");
         }
 
-        //extract mesh
+        // Load meshes
         for (size_t meshIdx = 0; meshIdx < data->meshes_count; meshIdx++)
         {
-            cgltf_mesh* mesh = &data->meshes[meshIdx];
+            const cgltf_mesh* mesh = &data->meshes[meshIdx];
             
-            MeshCreateInfo meshInfo = {.DebugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx))};
-
-            AE_CORE_INFO("Processing mesh [{0}]: {1} with {2} primitives", 
-                meshIdx, meshInfo.DebugName, mesh->primitives_count);
-
-            uint32_t& totalVertices = meshInfo.totalVertices;
-            uint32_t& totalIndices = meshInfo.totalIndices;
-
+            MeshCreateInfo meshInfo;
+            meshInfo.DebugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
+            
+            uint32_t totalVertices = 0;
+            uint32_t totalIndices = 0;
+            
             for (size_t primIdx = 0; primIdx < mesh->primitives_count; primIdx++)
             {
-                cgltf_primitive* prim = &mesh->primitives[primIdx];
-
+                const cgltf_primitive* prim = &mesh->primitives[primIdx];
+                
                 SubMeshCreateInfo subInfo;
+                subInfo.NodeName = meshInfo.DebugName + "_Sub_" + std::to_string(primIdx);
                 subInfo.BaseVertex = totalVertices;
                 subInfo.BaseIndex = totalIndices;
-                subInfo.NodeName = meshInfo.DebugName + "_Prim" + std::to_string(primIdx);
                 
-                // Get material
                 if (prim->material)
                 {
-                    size_t matIndex = prim->material - data->materials;
-                    if (matIndex < modelData.Materials.size()) subInfo.MaterialIdx = matIndex;
+                    subInfo.MaterialIdx = (int)(prim->material - data->materials);
                 }
 
-                std::vector<float> positions;
-                std::vector<float> normals;
-                std::vector<float> tangents;
-                std::vector<float> texCoords;
-                std::vector<float> weights;
+                std::vector<float> positions, normals, tangents, texCoords, weights;
                 std::vector<uint32_t> joints;
 
-                // Extract attributes
                 for (size_t attrIdx = 0; attrIdx < prim->attributes_count; attrIdx++)
                 {
-                    cgltf_attribute* attr = &prim->attributes[attrIdx];
+                    const cgltf_attribute* attr = &prim->attributes[attrIdx];
                     cgltf_accessor* accessor = attr->data;
-                    
+
                     if (attr->type == cgltf_attribute_type_position)
                     {
                         subInfo.VertexCount = (uint32_t)accessor->count;
-                        positions.resize(accessor->count * 3);
+                        positions = ReadAccessorFloat(accessor);
                         
-                        for (size_t v = 0; v < accessor->count; v++)
+                        if (accessor->has_min && accessor->has_max)
                         {
-                            float pos[3];
-                            cgltf_accessor_read_float(accessor, v, pos, 3);
-                            positions[v * 3 + 0] = pos[0];
-                            positions[v * 3 + 1] = pos[1];
-                            positions[v * 3 + 2] = pos[2];
-
-                            // Update bounds
-                            if (v == 0)
-                            {
-                                subInfo.BoundsMin = glm::vec3(pos[0], pos[1], pos[2]);
-                                subInfo.BoundsMax = subInfo.BoundsMin;
-                            }
-                            else
-                            {
-                                subInfo.BoundsMin = glm::min(subInfo.BoundsMin, glm::vec3(pos[0], pos[1], pos[2]));
-                                subInfo.BoundsMax = glm::max(subInfo.BoundsMax, glm::vec3(pos[0], pos[1], pos[2]));
-                            }
+                            subInfo.BoundsMin = glm::vec3(
+                                accessor->min[0], accessor->min[1], accessor->min[2]);
+                            subInfo.BoundsMax = glm::vec3(
+                                accessor->max[0], accessor->max[1], accessor->max[2]);
                         }
                     }
                     else if (attr->type == cgltf_attribute_type_normal)
                     {
-                        normals.resize(accessor->count * 3);
-                        for (size_t v = 0; v < accessor->count; v++)
-                        {
-                            float norm[3];
-                            cgltf_accessor_read_float(accessor, v, norm, 3);
-                            normals[v * 3 + 0] = norm[0];
-                            normals[v * 3 + 1] = norm[1];
-                            normals[v * 3 + 2] = norm[2];
-                        }
+                        normals = ReadAccessorFloat(accessor);
                     }
                     else if (attr->type == cgltf_attribute_type_tangent)
                     {
-                        tangents.resize(accessor->count * 4);
-                        for (size_t v = 0; v < accessor->count; v++)
-                        {
-                            float tan[4];
-                            cgltf_accessor_read_float(accessor, v, tan, 4);
-                            tangents[v * 4 + 0] = tan[0];
-                            tangents[v * 4 + 1] = tan[1];
-                            tangents[v * 4 + 2] = tan[2];
-                            tangents[v * 4 + 3] = tan[3];
-                        }
+                        tangents = ReadAccessorFloat(accessor);
                     }
-                    else if (attr->type == cgltf_attribute_type_texcoord && attr->index == 0)
+                    else if (attr->type == cgltf_attribute_type_texcoord)
                     {
-                        texCoords.resize(accessor->count * 2);
-                        for (size_t v = 0; v < accessor->count; v++)
-                        {
-                            float uv[2];
-                            cgltf_accessor_read_float(accessor, v, uv, 2);
-                            texCoords[v * 2 + 0] = uv[0];
-                            texCoords[v * 2 + 1] = uv[1];
-                        }
+                        texCoords = ReadAccessorFloat(accessor);
                     }
-                    else if (attr->type == cgltf_attribute_type_weights && attr->index == 0)
+                    else if (attr->type == cgltf_attribute_type_weights)
                     {
-                        weights.resize(accessor->count * 4);
-                        for (size_t v = 0; v < accessor->count; v++)
-                        {
-                            float w[4] = {1.0, 0.0, 0.0, 0.0};
-                            cgltf_accessor_read_float(accessor, v, w, 4);
-                            float sum = w[0] + w[1] + w[2] + w[3];
-                            if (sum > 0.0f) // normalize
-                            {
-                                w[0] /= sum; w[1] /= sum;
-                                w[2] /= sum; w[3] /= sum;
-                            }
-                            weights[v * 4 + 0] = w[0];
-                            weights[v * 4 + 1] = w[1];
-                            weights[v * 4 + 2] = w[2];
-                            weights[v * 4 + 3] = w[3];
-                        }
+                        weights = ReadAccessorFloat(accessor);
                     }
-                    else if (attr->type == cgltf_attribute_type_joints && attr->index == 0)
+                    else if (attr->type == cgltf_attribute_type_joints)
                     {
                         joints.resize(accessor->count * 4);
                         for (size_t v = 0; v < accessor->count; v++)
@@ -594,11 +587,16 @@ namespace Aether {
                 totalIndices += subInfo.IndexCount;
                 meshInfo.SubMeshes.push_back(subInfo);
             }
+            
+            meshInfo.totalVertices = totalVertices;
+            meshInfo.totalIndices = totalIndices;
+            
             AE_CORE_INFO("Parsed mesh with {0} vertices, {1} indices, {2} submeshes", 
                 totalVertices, totalIndices, meshInfo.SubMeshes.size());
             modelData.Meshes.push_back(meshInfo);
         }
 
+        // Parse skeletons
         for (size_t i = 0; i < data->skins_count; i++)
         {
             SkeletonCreateInfo skeleton;
@@ -608,15 +606,22 @@ namespace Aether {
             }
         }
 
+        // Parse animations
         for (size_t i = 0; i < data->animations_count; i++)
         {
             if (modelData.Skeletons.empty())
                 break;
 
-            AnimationCreateInfo animInfo;
-            if (ParseAnimationClip(data, &data->animations[i], modelData.Skeletons[0], animInfo.clip))
+            cgltf_animation* gltfAnim = &data->animations[i];
+            int32_t skeletonIdx = FindSkeleton(gltfAnim, modelData.Skeletons);
+
+            ClipCreateInfo clipInfo;
+            clipInfo.DebugName = data->animations[i].name ? 
+                data->animations[i].name : ("Animation_" + std::to_string(i));
+            
+            if (ParseAnimationClip(data, gltfAnim, modelData.Skeletons[skeletonIdx], clipInfo.clip))
             {
-                modelData.Animations.push_back(animInfo);
+                modelData.Clips.push_back(clipInfo);
             }
         }
 
@@ -624,34 +629,33 @@ namespace Aether {
         return modelData;
     }
 
-    std::vector<UUID> SceneLoader::UploadModel(const SceneLoadResult& modelData, UUID shaderID)
+    SceneResult SceneLoader::UploadScene(const SceneLoadResult& sceneData, UUID shaderID)
     {
-        std::vector<UUID> meshIDs;
+        SceneResult res;
         
         // Upload textures
-        std::vector<UUID> texIDs;
-        for (const auto& texInfo : modelData.Textures)
+        for (const auto& texInfo : sceneData.Textures)
         {
             UUID texID = AssetsRegister::Register(texInfo.DebugName);
-            auto tex = Texture2DLibrary::Load(texInfo.Spec, texID);
+            auto tex = Texture2D::Create(texInfo.Spec);
             tex->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
-            texIDs.push_back(texID);
+            Texture2DLibrary::Add(tex, texID);
+            res.texIDs.push_back(texID);
         }
         
         // Upload materials
-        std::vector<UUID> matIDs;
-        for (const auto& matInfo : modelData.Materials)
+        for (const auto& matInfo : sceneData.Materials)
         {
             UUID matID = AssetsRegister::Register(matInfo.DebugName);
-            auto material = MaterialLibrary::Load(shaderID, matID);
+            auto material = Material::Create(shaderID);
             
             // Set textures
-            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < texIDs.size())
-                material->SetTexture("u_AlbedoMap", texIDs[matInfo.AlbedoMapIdx]);
+            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < res.texIDs.size())
+                material->SetTexture("u_AlbedoMap", res.texIDs[matInfo.AlbedoMapIdx]);
             
-            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < texIDs.size())
+            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < res.texIDs.size())
             {
-                material->SetTexture("u_NormalMap", texIDs[matInfo.NormalMapIdx]);
+                material->SetTexture("u_NormalMap", res.texIDs[matInfo.NormalMapIdx]);
                 material->SetInt("u_HasNormalMap", 1);
             }
             else
@@ -659,19 +663,20 @@ namespace Aether {
                 material->SetInt("u_HasNormalMap", 0);
             }
             
-            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < texIDs.size())
-                material->SetTexture("u_MetallicRoughnessMap", texIDs[matInfo.MetallicRoughnessMapIdx]);
+            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < res.texIDs.size())
+                material->SetTexture("u_MetallicRoughnessMap", res.texIDs[matInfo.MetallicRoughnessMapIdx]);
             
             // Set material properties
             material->SetFloat4("u_AlbedoColor", matInfo.AlbedoColor);
             material->SetFloat("u_Metallic", matInfo.Metallic);
             material->SetFloat("u_Roughness", matInfo.Roughness);
             
-            matIDs.push_back(matID);
+            MaterialLibrary::Add(material, matID);
+            res.matIDs.push_back(matID);
         }
         
         // Upload meshes
-        for (const auto& meshInfo : modelData.Meshes)
+        for (const auto& meshInfo : sceneData.Meshes)
         {
             UUID meshID = AssetsRegister::Register(meshInfo.DebugName);
             
@@ -689,8 +694,8 @@ namespace Aether {
                 sm.BoundsMax = subInfo.BoundsMax;
                 
                 // Assign material
-                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < matIDs.size())
-                    sm.MaterialID = matIDs[subInfo.MaterialIdx];
+                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < res.matIDs.size())
+                    sm.MaterialID = res.matIDs[subInfo.MaterialIdx];
                 
                 submeshes.push_back(sm);
             }
@@ -709,15 +714,41 @@ namespace Aether {
             spec.IndexCount = meshInfo.totalIndices;
             spec.Submeshes = submeshes;
             
-            MeshLibrary::Load(spec, meshID);
-            meshIDs.push_back(meshID);
+            auto mesh = Mesh::Create(spec);
+            MeshLibrary::Add(mesh, meshID);
+            res.meshIDs.push_back(meshID);
+        }
+
+        // Upload skeletons
+        for(const auto& skeletonInfo : sceneData.Skeletons)
+        {
+            UUID skeletonID = AssetsRegister::Register(skeletonInfo.DebugName);
+            
+            // Create SkeletonSpec from SkeletonCreateInfo
+            SkeletonSpec spec{
+                skeletonInfo.parentIndices,
+                skeletonInfo.inverseBindMatrices,
+                skeletonInfo.localBindPose
+            };
+            
+            auto animator = CreateRef<SkeletalAnimator>(spec);
+            SkeletalAnimatorLibrary::Add(animator, skeletonID);
+            res.skeletonIDs.push_back(skeletonID);
+        }
+
+        // Upload clips
+        for (const auto& clipInfo : sceneData.Clips)
+        {
+            UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
+            auto clip = CreateRef<Clip>(clipInfo.clip);
+            ClipLibrary::Add(clip, clipID);
+            res.clipIDs.push_back(clipID);
         }
 
         
+        AE_CORE_INFO("Uploaded model: {0} meshes, {1} materials, {2} textures, {3} skeletons, {4} clips",
+            res.meshIDs.size(), res.matIDs.size(), res.texIDs.size(), res.skeletonIDs.size(), res.clipIDs.size());
         
-        AE_CORE_INFO("Uploaded model: {0} meshes, {1} materials, {2} textures", 
-            meshIDs.size(), matIDs.size(), texIDs.size());
-        
-        return meshIDs;
+        return res;
     }
 }

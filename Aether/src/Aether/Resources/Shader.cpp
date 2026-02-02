@@ -26,22 +26,21 @@ namespace Aether {
         GetShaders().clear();
     }
 
-    Ref<Shader> ShaderLibrary::Load(const std::string& filepath, UUID id)
+    void ShaderLibrary::Add(Ref<Shader> obj, UUID id)
     {
         auto& shaders = GetShaders();
         if (shaders.find(id) != shaders.end())
-            return shaders[id];
-
-        auto shader = Shader::Create(filepath);
-        
-        if (!shader) 
         {
-            AE_CORE_ERROR("Shader Library: Failed to load '{0}'", filepath);
-            return nullptr;
+            AE_CORE_ERROR("Shader Library: ID already exists");
+            return;
         }
 
-        shaders[id] = shader;
-        return shader;
+        if (!obj)
+        {
+            AE_CORE_ERROR("Shader Library: Cannot add null obj");
+            return;
+        }
+        shaders[id] = obj;
     }
 
     Ref<Shader> ShaderLibrary::Get(UUID id)
@@ -50,7 +49,7 @@ namespace Aether {
         if (shaders.find(id) != shaders.end())
             return shaders[id];
 
-        AE_CORE_WARN("Shader Library: Shader ID not found!");
+        AE_CORE_WARN("Shader Library: ID not found!");
         return nullptr;
     }
 

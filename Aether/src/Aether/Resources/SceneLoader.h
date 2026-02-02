@@ -3,6 +3,7 @@
 #include "Aether/Resources/Texture.h"
 #include "Aether/Resources/Material.h"
 #include "Aether/Animation/AnimationClip.h"
+#include "Aether/Animation/SkeletalAnimator.h"
 #include "Aether/Core/UUID.h"
 #include <glm/glm.hpp>
 #include <vector>
@@ -18,10 +19,10 @@ namespace Aether {
         std::vector<std::string> boneNames; 
     };
 
-    struct AnimationCreateInfo
+    struct ClipCreateInfo
     {
         std::string DebugName;
-        AnimationClip clip;
+        Clip clip;
     };
 
     struct TextureCreateInfo
@@ -81,15 +82,22 @@ namespace Aether {
         std::vector<TextureCreateInfo> Textures;
         std::vector<MaterialCreateInfo> Materials;
         std::vector<MeshCreateInfo> Meshes;
-
         std::vector<SkeletonCreateInfo> Skeletons;
-        std::vector<AnimationCreateInfo> Animations;
+        std::vector<ClipCreateInfo> Clips;
     };
 
+    struct SceneResult
+    {
+        std::vector<UUID> texIDs;
+        std::vector<UUID> matIDs;
+        std::vector<UUID> meshIDs;
+        std::vector<UUID> skeletonIDs;
+        std::vector<UUID> clipIDs;
+    };
     class AETHER_API SceneLoader
     {
     public:
         static SceneLoadResult Parsing(const std::string& path);
-        static std::vector<UUID> UploadModel(const SceneLoadResult& modelData, UUID shaderID);
+        static SceneResult UploadScene(const SceneLoadResult& sceneData, UUID shaderID);
     };
 }

@@ -1,9 +1,9 @@
 #include "aepch.h"
-#include "Animator.h"
+#include "SkeletalAnimator.h"
 
 namespace Aether {
 
-    Animator::Animator(const AnimatorSpec& spec)
+    SkeletalAnimator::SkeletalAnimator(const SkeletonSpec& spec)
         : parentIndices(spec.parentIndices)
         , inverseBindMatrices(spec.InverseBindMatrices)
         , currentClip(nullptr)
@@ -22,7 +22,7 @@ namespace Aether {
         ResetToBindPose();
     }
 
-    void Animator::Play(const AnimationClip* clip, bool loop)
+    void SkeletalAnimator::Play(const Clip* clip, bool loop)
     {
         if (!clip) return;
         
@@ -33,7 +33,7 @@ namespace Aether {
         isLooping = loop;
     }
 
-    void Animator::Stop()
+    void SkeletalAnimator::Stop()
     {
         isPlaying = false;
         isPaused = false;
@@ -42,35 +42,35 @@ namespace Aether {
         ResetToBindPose();
     }
 
-    void Animator::Pause()
+    void SkeletalAnimator::Pause()
     {
         isPaused = true;
     }
 
-    void Animator::Resume()
+    void SkeletalAnimator::Resume()
     {
         isPaused = false;
     }
 
-    void Animator::Update(Timestep ts)
+    void SkeletalAnimator::Update(Timestep ts)
     {
         if (!isPlaying || isPaused || !currentClip) return;
 
         float deltaTime = ts.GetSeconds();
         currentTime += deltaTime * playbackSpeed;
 
-        if (currentTime >= currentClip->duration)
+        if (currentTime >= currentClip->Durations)
         {
-            if (isLooping)  currentTime = fmod(currentTime, currentClip->duration);
+            if (isLooping)  currentTime = fmod(currentTime, currentClip->Durations);
             else
             {
-                currentTime = currentClip->duration;
+                currentTime = currentClip->Durations;
                 isPlaying = false;
             }
         }
         else if (currentTime < 0.0f)
         {
-            if (isLooping) currentTime = currentClip->duration + fmod(currentTime, currentClip->duration);
+            if (isLooping) currentTime = currentClip->Durations + fmod(currentTime, currentClip->Durations);
             else
             {
                 currentTime = 0.0f;
@@ -80,14 +80,14 @@ namespace Aether {
 
         localTransforms = bindPose;
 
-        for (const BoneChannel& channel : currentClip->channels)
+        for (const Channel& channel : currentClip->Channels)
             if (channel.boneIdx >= 0 && channel.boneIdx < localTransforms.size())
                 localTransforms[channel.boneIdx] = channel.Sample(currentTime);
 
         ComputeFinalMatrices(); 
     }
 
-    void Animator::ComputeFinalMatrices()
+    void SkeletalAnimator::ComputeFinalMatrices()
     {
         std::vector<glm::mat4> worldTransforms(parentIndices.size());
         
@@ -107,36 +107,41 @@ namespace Aether {
         }
     }
 
-    void Animator::ResetToBindPose()
+    void SkeletalAnimator::ResetToBindPose()
     {
         localTransforms = bindPose; 
         ComputeFinalMatrices();
     }
 
-    void AnimatorLibrary::Init()
+    void SkeletalAnimatorLibrary::Init()
     {
         GetAnimators().reserve(128);
         AE_CORE_INFO("AnimatorLibrary initialized");
     }
 
-    void AnimatorLibrary::Shutdown()
+    void SkeletalAnimatorLibrary::Shutdown()
     {
         GetAnimators().clear();
     }
 
-    Ref<Animator> AnimatorLibrary::Load(AnimatorSpec spec, UUID id)
+    void SkeletalAnimatorLibrary::Add(Ref<SkeletalAnimator> obj, UUID id)
     {
         auto& animators = GetAnimators();
-        if(animators.find(id) != animators.end()) 
-            return animators[id];
+        if (animators.find(id) != animators.end())
+        {
+            AE_CORE_ERROR("Skeletal Animator Library: ID already exists");
+            return;
+        }
 
-        auto animator = CreateRef<Animator>(spec);
-
-        animators[id] = animator;
-        return animator;
+        if (!obj)
+        {
+            AE_CORE_ERROR("Skeletal Animator Library: Cannot add null obj");
+            return;
+        }
+        animators[id] = obj;
     }
 
-    Ref<Animator> AnimatorLibrary::Get(UUID id)
+    Ref<SkeletalAnimator> SkeletalAnimatorLibrary::Get(UUID id)
     {
         auto& animators = GetAnimators();
         if (animators.find(id) != animators.end()) 
@@ -146,15 +151,15 @@ namespace Aether {
         return nullptr;
     }
 
-    bool AnimatorLibrary::Exists(UUID id)
+    bool SkeletalAnimatorLibrary::Exists(UUID id)
     {
         auto& animators = GetAnimators();
         return animators.find(id) != animators.end();
     }
 
-    std::unordered_map<UUID, Ref<Animator>>& AnimatorLibrary::GetAnimators()
+    std::unordered_map<UUID, Ref<SkeletalAnimator>>& SkeletalAnimatorLibrary::GetAnimators()
     {
-        static std::unordered_map<UUID, Ref<Animator>> s_Animators;
+        static std::unordered_map<UUID, Ref<SkeletalAnimator>> s_Animators;
         return s_Animators;
     }
 }

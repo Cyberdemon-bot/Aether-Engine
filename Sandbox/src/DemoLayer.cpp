@@ -32,18 +32,33 @@ void DemoLayer::Attach()
     if (IGContext) ImGui::SetCurrentContext(IGContext);
 
     // Load shaders
-    Aether::ShaderLibrary::Load("assets/shaders/LightingShadow.shader", id_ShaderLighting);
-    Aether::ShaderLibrary::Load("assets/shaders/ShadowMap.shader", id_ShaderShadow);
-    Aether::ShaderLibrary::Load("assets/shaders/Skybox.shader", id_ShaderSkybox);
-    Aether::ShaderLibrary::Load("assets/shaders/LUT.shader", id_ShaderLUT);
+    auto shaderLighting = Aether::Shader::Create("assets/shaders/LightingShadow.shader");
+    Aether::ShaderLibrary::Add(shaderLighting, id_ShaderLighting);
+    
+    auto shaderShadow = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
+    Aether::ShaderLibrary::Add(shaderShadow, id_ShaderShadow);
+    
+    auto shaderSkybox = Aether::Shader::Create("assets/shaders/Skybox.shader");
+    Aether::ShaderLibrary::Add(shaderSkybox, id_ShaderSkybox);
+    
+    auto shaderLUT = Aether::Shader::Create("assets/shaders/LUT.shader");
+    Aether::ShaderLibrary::Add(shaderLUT, id_ShaderLUT);
 
     // Load textures
-    Aether::Texture2DLibrary::Load("assets/textures/wood.jpg", id_TexWood);
-    Aether::Texture2DLibrary::Load("assets/textures/LUT.png", id_TexLUT, true, false);
+    auto texWood = Aether::Texture2D::Create("assets/textures/wood.jpg");
+    Aether::Texture2DLibrary::Add(texWood, id_TexWood);
     
-    Aether::MaterialLibrary::Load(id_ShaderShadow, id_ShadowMaterial);
-    Aether::MaterialLibrary::Load(id_ShaderLighting, id_LightingMaterial);
-    Aether::MaterialLibrary::Load(id_ShaderLUT, id_LUTMaterial);
+    auto texLUT = Aether::Texture2D::Create("assets/textures/LUT.png", true, false);
+    Aether::Texture2DLibrary::Add(texLUT, id_TexLUT);
+    
+    auto materialShadow = Aether::Material::Create(id_ShaderShadow);
+    Aether::MaterialLibrary::Add(materialShadow, id_ShadowMaterial);
+    
+    auto materialLighting = Aether::Material::Create(id_ShaderLighting);
+    Aether::MaterialLibrary::Add(materialLighting, id_LightingMaterial);
+    
+    auto materialLUT = Aether::Material::Create(id_ShaderLUT);
+    Aether::MaterialLibrary::Add(materialLUT, id_LUTMaterial);
 
     // Create materials
     Aether::MaterialLibrary::Get(id_LightingMaterial)->SetTexture("u_Texture", id_TexWood);
@@ -87,7 +102,8 @@ void DemoLayer::Attach()
         12,13,14, 14,15,12, 16,17,18, 18,19,16, 20,21,22, 22,23,20
     };
 
-    Aether::MeshLibrary::Load(Aether::MeshSpec{{Aether::VertexStream{vertices, 24, Aether::MeshLayout::Phong()}}, indices, 36}, id_CubeMesh);
+    auto cubeMesh = Aether::Mesh::Create(Aether::MeshSpec{{Aether::VertexStream{vertices, 24, Aether::MeshLayout::Phong()}}, indices, 36});
+    Aether::MeshLibrary::Add(cubeMesh, id_CubeMesh);
 
     // Camera uniform buffer
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
@@ -397,7 +413,7 @@ void DemoLayer::OnImGuiRender()
         ImGui::SliderFloat("Intensity", &m_LutIntensity, 0.0f, 1.0f);
         
         // Display LUT texture preview
-        ImGui::Image((void*)(intptr_t)Aether::Texture2DLibrary::Get(Aether::AssetsRegister::Get("Tex_LUT"))->GetRendererID(), ImVec2(256, 16));
+        ImGui::Image((void*)(intptr_t)Aether::Texture2DLibrary::Get(id_TexLUT)->GetRendererID(), ImVec2(256, 16));
         
         ImGui::Spacing();
         ImGui::Separator();
@@ -421,7 +437,8 @@ void DemoLayer::InitScreenQuad()
         2, 3, 0 
     };
 
-    Aether::MeshLibrary::Load(Aether::MeshSpec{{Aether::VertexStream{quadVertices, 4, Aether::MeshLayout::Quad()}}, quadIndices, 6}, id_ScreenQuadMesh);
+    auto screenQuadMesh = Aether::Mesh::Create(Aether::MeshSpec{{Aether::VertexStream{quadVertices, 4, Aether::MeshLayout::Quad()}}, quadIndices, 6});
+    Aether::MeshLibrary::Add(screenQuadMesh, id_ScreenQuadMesh);
 }
 
 void DemoLayer::InitSkybox()
@@ -446,7 +463,8 @@ void DemoLayer::InitSkybox()
         3, 7, 6, 6, 2, 3
     };
 
-    Aether::MeshLibrary::Load(Aether::MeshSpec{{Aether::VertexStream{skyboxVertices, 8, Aether::MeshLayout::Vertex()}}, skyboxIndices, 36}, id_SkyboxMesh);
+    auto skyboxMesh = Aether::Mesh::Create(Aether::MeshSpec{{Aether::VertexStream{skyboxVertices, 8, Aether::MeshLayout::Vertex()}}, skyboxIndices, 36});
+    Aether::MeshLibrary::Add(skyboxMesh, id_SkyboxMesh);
     m_SkyboxTexture = Aether::TextureCube::Create("assets/textures/skybox.png");
 }
 
@@ -620,4 +638,3 @@ glm::mat4 DemoLayer::CalculateLightSpaceMatrix()
     glm::mat4 lightView = glm::lookAt(m_LightPos, m_LightPos + m_LightDir, glm::vec3(0.0f, 1.0f, 0.0f));
     return lightProjection * lightView;
 }
-

@@ -9,9 +9,9 @@
 
 struct AnimationBinding
 {
-    std::string MeshName;
-    std::string AnimatorName;
-    std::string AnimationName;
+    Aether::UUID mesh = Aether::UUID(0);
+    Aether::UUID skeleton = Aether::UUID(0);
+    Aether::UUID anim = Aether::UUID(0);
     bool IsActive = false;
 };
 
@@ -35,10 +35,10 @@ private:
     Aether::EditorCamera m_Camera;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::UniformBuffer> m_BoneUBO;
-    
-    std::vector<std::string> m_MeshNames;
-    std::vector<std::string> m_AnimatorNames;
-    std::vector<std::string> m_AnimationNames;
+
+    std::vector<Aether::UUID> m_Meshes;
+    std::vector<Aether::UUID> m_SkeletalAnimator;
+    std::vector<Aether::UUID> m_SkeletalAnim;
     
     std::queue<Aether::SceneLoadResult> m_CompletedParses;
     std::mutex m_ParseMutex;

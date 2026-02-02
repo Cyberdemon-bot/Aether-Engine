@@ -7,12 +7,11 @@ namespace Aether {
     class AssetsRegister
     {
     public:
-        static UUID Get(const std::string& key);
-        static UUID Register(const std::string& key);
-        static void Register(const std::string& key, UUID id);
-        static bool Exists(const std::string& key);
+        static std::string Get(UUID key);
+        static UUID Register(const std::string& name);
+        static bool Exists(UUID key);
 
     private:
-        static std::unordered_map<std::string, UUID>& GetMap();
+        static std::unordered_map<UUID, std::string>& GetMap();
     };
 }

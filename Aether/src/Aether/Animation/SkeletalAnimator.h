@@ -8,19 +8,19 @@
 #include <vector>
 
 namespace Aether {
-    struct AnimatorSpec
+    struct SkeletonSpec
     {
         const std::vector<int32_t>& parentIndices;
         const std::vector<glm::mat4>& InverseBindMatrices;
         const std::vector<glm::mat4>& localBindPose;
     };
     
-    class AETHER_API Animator
+    class AETHER_API SkeletalAnimator
     {
     public:
-        Animator(const AnimatorSpec& spec);
+        SkeletalAnimator(const SkeletonSpec& spec);
 
-        void Play(const AnimationClip* clip, bool loop = true);
+        void Play(const Clip* clip, bool loop = true);
         void Stop();
         void Pause();
         void Resume();
@@ -31,7 +31,7 @@ namespace Aether {
         bool IsPlaying() { return isPlaying && !isPaused; }
         float GetCurrentTime() const { return currentTime; }
         size_t GetBoneCount() { return parentIndices.size(); }
-        const AnimationClip* GetCurrentClip() { return currentClip; }
+        const Clip* GetCurrentClip() { return currentClip; }
 
         void SetPlaybackSpeed(float speed) { playbackSpeed = speed; }
         float GetPlaybackSpeed() const { return playbackSpeed; }
@@ -46,7 +46,7 @@ namespace Aether {
         std::vector<glm::mat4> finalBoneMatrices;
         std::vector<glm::mat4> bindPose;
 
-        const AnimationClip* currentClip;
+        const Clip* currentClip;
         float currentTime;
         float playbackSpeed;
         bool isPlaying;
@@ -54,18 +54,18 @@ namespace Aether {
         bool isLooping;
     };
 
-    class AETHER_API AnimatorLibrary
+    class AETHER_API SkeletalAnimatorLibrary
     {
     public:
         static void Init();
         static void Shutdown();
 
-        static Ref<Animator> Load(AnimatorSpec spec, UUID id);
-        static Ref<Animator> Get(UUID id);
+        static void Add(Ref<SkeletalAnimator> obj, UUID id);
+        static Ref<SkeletalAnimator> Get(UUID id);
 
         static bool Exists(UUID id);
     private:
-        static std::unordered_map<UUID, Ref<Animator>>& GetAnimators();
+        static std::unordered_map<UUID, Ref<SkeletalAnimator>>& GetAnimators();
     };
 }   
 
