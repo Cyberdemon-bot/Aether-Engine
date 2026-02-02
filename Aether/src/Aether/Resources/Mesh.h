@@ -86,6 +86,8 @@ namespace Aether {
     {
     public:
         Mesh(const MeshSpec& spec);
+        template<typename... Args>
+        static Ref<Mesh> Create(Args&&... args) { return CreateRef<Mesh>(std::forward<Args>(args)...); }
         
         Ref<VertexArray> GetVertexArray() const { return m_VertexArray; }
         const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
@@ -119,7 +121,7 @@ namespace Aether {
         static void Init();
         static void Shutdown();
 
-        static Ref<Mesh> Load(MeshSpec spec, UUID id);
+        static void Add(Ref<Mesh> obj, UUID id);
         static Ref<Mesh> Get(UUID id);
         static bool Exists(UUID id);
 

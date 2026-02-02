@@ -18,7 +18,8 @@ void LabLayer::Attach()
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
-    auto shader = Aether::ShaderLibrary::Load("assets/shaders/PBR.shader", id_ShaderPBR);
+    auto shader = Aether::Shader::Create("assets/shaders/PBR.shader");
+    Aether::ShaderLibrary::Add(shader, id_ShaderPBR);
     m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2 + sizeof(glm::vec4), 0);
     m_BoneUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 100, 1);
     shader->SetUBOSlot("Camera", 0);
@@ -48,9 +49,9 @@ void LabLayer::Detach()
 {
     m_CameraUBO.reset();
     m_BoneUBO.reset();
-    m_MeshNames.clear();
-    m_AnimatorNames.clear();
-    m_AnimationNames.clear();
+    m_Meshes.clear();
+    m_SkeletalAnimator.clear();
+    m_SkeletalAnim.clear();
     m_AnimationBindings.clear();
 }
 
@@ -65,57 +66,20 @@ void LabLayer::Update(Aether::Timestep ts)
             
             AE_CORE_INFO("Main thread: Uploading to GPU...");
 
-            std::string baseName = modelData.FilePath;
-            auto meshIDs = Aether::SceneLoader::UploadModel(modelData, id_ShaderPBR);
-            for (size_t i = 0; i < meshIDs.size(); i++)
-            {
-                std::string meshName = baseName + "_Mesh_" + std::to_string(i);
-                Aether::AssetsRegister::Register(meshName, meshIDs[i]);
-                m_MeshNames.push_back(meshName);
-            }
+            auto result = Aether::SceneLoader::UploadScene(modelData, id_ShaderPBR);
 
-            for (size_t i = 0; i < modelData.Skeletons.size(); i++)
-            {
-                const auto& skeleton = modelData.Skeletons[i];
-                AE_CORE_INFO("Found skeleton with {0} bones", skeleton.parentIndices.size());
-                
-                std::string animatorName = "Animator_" + std::to_string(i);
-                Aether::UUID animatorID = Aether::AssetsRegister::Register(animatorName);
-                
-                auto animator = Aether::AnimatorLibrary::Load(Aether::AnimatorSpec{
-                    skeleton.parentIndices,
-                    skeleton.inverseBindMatrices,
-                    skeleton.localBindPose
-                }, animatorID);
-                
-                m_AnimatorNames.push_back(animatorName);
-            }
-
-            for (const auto& animInfo : modelData.Animations)
-            {
-                AE_CORE_INFO("Found animation: {0} (duration: {1}s)", 
-                    animInfo.clip.name, animInfo.clip.duration);
-                
-                std::string animationName = animInfo.clip.name;
-                Aether::UUID animationID = Aether::AssetsRegister::Register(animationName);
-                
-                auto animation = Aether::AnimationLibrary::Load(animInfo.clip, animationID);
-                
-                m_AnimationNames.push_back(animationName);
-            }
-            
-            AE_CORE_INFO("Main thread: Loaded {0} meshes, {1} animators, {2} animations", 
-                m_MeshNames.size(), m_AnimatorNames.size(), m_AnimationNames.size());
+            m_Meshes.insert(m_Meshes.end(), result.meshIDs.begin(), result.meshIDs.end());
+            m_SkeletalAnimator.insert(m_SkeletalAnimator.end(), result.skeletonIDs.begin(), result.skeletonIDs.end());
+            m_SkeletalAnim.insert(m_SkeletalAnim.end(), result.clipIDs.begin(), result.clipIDs.end());
         }
     }
 
     for (auto& binding : m_AnimationBindings)
     {
         if (!binding.IsActive) continue;
-        if (binding.AnimatorName.empty()) continue;
+        if (uint64_t(binding.skeleton) == 0) continue;
 
-        Aether::UUID animatorID = Aether::AssetsRegister::Get(binding.AnimatorName);
-        auto animator = Aether::AnimatorLibrary::Get(animatorID);
+        auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
         if (!animator) continue;
 
         animator->Update(ts);
@@ -155,9 +119,8 @@ void LabLayer::RenderScene()
     transform = glm::rotate(transform, glm::radians(m_ModelRot.z), glm::vec3(0, 0, 1));
     transform = glm::scale(transform, m_ModelScale);
 
-    for (const auto& meshName : m_MeshNames)
+    for (const auto& meshID : m_Meshes)
     {
-        Aether::UUID meshID = Aether::AssetsRegister::Get(meshName);
         auto mesh = Aether::MeshLibrary::Get(meshID);
         if (!mesh) continue;
         
@@ -166,7 +129,7 @@ void LabLayer::RenderScene()
         bool hasActiveBinding = false;
         for (const auto& binding : m_AnimationBindings)
         {
-            if (binding.IsActive && binding.MeshName == meshName)
+            if (binding.IsActive && uint64_t(binding.mesh) == meshID)
             {
                 hasActiveBinding = true;
                 break;
@@ -213,9 +176,9 @@ void LabLayer::OnImGuiRender()
 {
     ImGui::Begin("Model Viewer");
     
-    ImGui::Text("Meshes: %d", (int)m_MeshNames.size());
-    ImGui::Text("Animators: %d", (int)m_AnimatorNames.size());
-    ImGui::Text("Animations: %d", (int)m_AnimationNames.size());
+    ImGui::Text("Meshes: %d", (int)m_Meshes.size());
+    ImGui::Text("Animators: %d", (int)m_SkeletalAnimator.size());
+    ImGui::Text("Animations: %d", (int)m_SkeletalAnim.size());
     
     ImGui::Separator();
     if (ImGui::CollapsingHeader("Animation Bindings", ImGuiTreeNodeFlags_DefaultOpen))
@@ -246,16 +209,16 @@ void LabLayer::OnImGuiRender()
             
             ImGui::Checkbox("Active", &binding.IsActive);
             
-            std::string currentMeshName = binding.MeshName.empty() ? "None" : binding.MeshName;
+            std::string currentMeshName = uint64_t(binding.mesh) == 0 ? "None" : Aether::AssetsRegister::Get(binding.mesh);
             if (ImGui::BeginCombo("Mesh", currentMeshName.c_str()))
             {
-                for (const auto& meshName : m_MeshNames)
+                for (const auto& mesh : m_Meshes)
                 {
-                    bool isSelected = (binding.MeshName == meshName);
+                    bool isSelected = (uint64_t(binding.mesh) == uint64_t(mesh));
                     
-                    if (ImGui::Selectable(meshName.c_str(), isSelected))
+                    if (ImGui::Selectable(Aether::AssetsRegister::Get(mesh).c_str(), isSelected))
                     {
-                        binding.MeshName = meshName;
+                        binding.mesh = mesh;
                     }
                     
                     if (isSelected)
@@ -264,16 +227,16 @@ void LabLayer::OnImGuiRender()
                 ImGui::EndCombo();
             }
             
-            std::string currentAnimatorName = binding.AnimatorName.empty() ? "None" : binding.AnimatorName;
+            std::string currentAnimatorName = uint64_t(binding.skeleton) == 0 ? "None" : Aether::AssetsRegister::Get(binding.skeleton);
             if (ImGui::BeginCombo("Animator", currentAnimatorName.c_str()))
             {
-                for (const auto& animatorName : m_AnimatorNames)
+                for (const auto& skeleton : m_SkeletalAnimator)
                 {
-                    bool isSelected = (binding.AnimatorName == animatorName);
+                    bool isSelected = (uint64_t(binding.skeleton) == skeleton);
                     
-                    if (ImGui::Selectable(animatorName.c_str(), isSelected))
+                    if (ImGui::Selectable(Aether::AssetsRegister::Get(skeleton).c_str(), isSelected))
                     {
-                        binding.AnimatorName = animatorName;
+                        binding.skeleton = skeleton;
                     }
                     
                     if (isSelected)
@@ -282,28 +245,25 @@ void LabLayer::OnImGuiRender()
                 ImGui::EndCombo();
             }
             
-            std::string currentAnimationName = binding.AnimationName.empty() ? "None" : binding.AnimationName;
+            std::string currentAnimationName = uint64_t(binding.anim) == 0 ? "None" : Aether::AssetsRegister::Get(binding.anim);
             if (ImGui::BeginCombo("Animation", currentAnimationName.c_str()))
             {
-                for (const auto& animationName : m_AnimationNames)
+                for (const auto& anim : m_SkeletalAnim)
                 {
-                    bool isSelected = (binding.AnimationName == animationName);
+                    bool isSelected = (uint64_t(binding.anim) == anim);
                     
-                    if (ImGui::Selectable(animationName.c_str(), isSelected))
+                    if (ImGui::Selectable(Aether::AssetsRegister::Get(anim).c_str(), isSelected))
                     {
-                        binding.AnimationName = animationName;
+                        binding.anim = anim;
                         
-                        if (binding.IsActive && !binding.AnimatorName.empty())
+                        if (binding.IsActive && uint64_t(binding.anim))
                         {
-                            Aether::UUID animatorID = Aether::AssetsRegister::Get(binding.AnimatorName);
-                            auto animator = Aether::AnimatorLibrary::Get(animatorID);
-                            
-                            Aether::UUID animationID = Aether::AssetsRegister::Get(animationName);
-                            auto animation = Aether::AnimationLibrary::Get(animationID);
+                            auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
+                            auto animation = Aether::ClipLibrary::Get(binding.anim);
                             
                             if (animator && animation)
                             {
-                                animator->Play(&animation->Clip, true);
+                                animator->Play(animation.get(), true);
                             }
                         }
                     }
@@ -314,10 +274,9 @@ void LabLayer::OnImGuiRender()
                 ImGui::EndCombo();
             }
             
-            if (binding.IsActive && !binding.AnimatorName.empty())
+            if (binding.IsActive && uint64_t(binding.skeleton))
             {
-                Aether::UUID animatorID = Aether::AssetsRegister::Get(binding.AnimatorName);
-                auto animator = Aether::AnimatorLibrary::Get(animatorID);
+                auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
                 
                 if (animator)
                 {
@@ -326,13 +285,12 @@ void LabLayer::OnImGuiRender()
                     {
                         if (isPlaying)
                         {
-                            if (!binding.AnimationName.empty())
+                            if (uint64_t(binding.anim))
                             {
-                                Aether::UUID animationID = Aether::AssetsRegister::Get(binding.AnimationName);
-                                auto animation = Aether::AnimationLibrary::Get(animationID);
+                                auto animation = Aether::ClipLibrary::Get(binding.anim);
                                 if (animation)
                                 {
-                                    animator->Play(&animation->Clip, true);
+                                    animator->Play(animation.get(), true);
                                 }
                             }
                         }
@@ -348,14 +306,13 @@ void LabLayer::OnImGuiRender()
                         animator->SetPlaybackSpeed(speed);
                     }
                     
-                    if (!binding.AnimationName.empty())
+                    if (uint64_t(binding.anim))
                     {
-                        Aether::UUID animationID = Aether::AssetsRegister::Get(binding.AnimationName);
-                        auto animation = Aether::AnimationLibrary::Get(animationID);
+                        auto animation = Aether::ClipLibrary::Get(binding.anim);
                         if (animation)
                         {
                             float currentTime = animator->GetCurrentTime();
-                            float duration = animation->Clip.duration;
+                            float duration = animation->Durations;
                             ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
                             ImGui::ProgressBar(currentTime / duration);
                         }
@@ -364,13 +321,12 @@ void LabLayer::OnImGuiRender()
                     if (ImGui::Button("Reset"))
                     {
                         animator->Stop();
-                        if (!binding.AnimationName.empty())
+                        if (uint64_t(binding.anim))
                         {
-                            Aether::UUID animationID = Aether::AssetsRegister::Get(binding.AnimationName);
-                            auto animation = Aether::AnimationLibrary::Get(animationID);
+                            auto animation = Aether::ClipLibrary::Get(binding.anim);
                             if (animation)
                             {
-                                animator->Play(&animation->Clip, true);
+                                animator->Play(animation.get(), true);
                             }
                         }
                     }

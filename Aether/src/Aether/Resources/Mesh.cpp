@@ -73,19 +73,24 @@ namespace Aether {
 
     void MeshLibrary::Shutdown()
     {
-        
-         GetMeshes().clear();
+        GetMeshes().clear();
     }
 
-    Ref<Mesh> MeshLibrary::Load(MeshSpec spec, UUID id)
+    void MeshLibrary::Add(Ref<Mesh> obj, UUID id)
     {
         auto& meshes = GetMeshes();
         if (meshes.find(id) != meshes.end())
-            return meshes[id];
+        {
+            AE_CORE_ERROR("Mesh Library: ID already exists");
+            return;
+        }
 
-        auto mesh = CreateRef<Mesh>(spec);
-        meshes[id] = mesh;
-        return mesh;
+        if (!obj)
+        {
+            AE_CORE_ERROR("Mesh Library: Cannot add null obj");
+            return;
+        }
+        meshes[id] = obj;
     }
 
     Ref<Mesh> MeshLibrary::Get(UUID id)
@@ -93,6 +98,8 @@ namespace Aether {
         auto& meshes = GetMeshes();
         if (meshes.find(id) != meshes.end())
             return meshes[id];
+        
+        AE_CORE_WARN("Mesh Library: ID not found!");
         return nullptr;
     }
 

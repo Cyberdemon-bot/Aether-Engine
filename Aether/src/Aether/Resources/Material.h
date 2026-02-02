@@ -19,6 +19,8 @@ namespace Aether {
     {
     public:
         Material(UUID ShaderID);
+        template<typename... Args>
+        static Ref<Material> Create(Args&&... args) { return CreateRef<Material>(std::forward<Args>(args)...); }
 
         void Bind(uint32_t startSlot = 0);
         void Unbind();
@@ -62,7 +64,7 @@ namespace Aether {
         static void Init();
         static void Shutdown();
 
-        static Ref<Material> Load(UUID ShaderID, UUID id);
+        static void Add(Ref<Material> obj, UUID id);
         static Ref<Material> Get(UUID id);
 
         static bool Exists(UUID id);

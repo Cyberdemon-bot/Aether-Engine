@@ -95,16 +95,21 @@ namespace Aether {
         GetMaterials().clear();
     }
 
-    Ref<Material> MaterialLibrary::Load(UUID ShaderID, UUID id)
+    void MaterialLibrary::Add(Ref<Material> obj, UUID id)
     {
         auto& materials = GetMaterials();
-        if(materials.find(id) != materials.end()) 
-            return materials[id];
+        if (materials.find(id) != materials.end())
+        {
+            AE_CORE_ERROR("Material Library: ID already exists");
+            return;
+        }
 
-        auto material = CreateRef<Material>(ShaderID);
-
-        materials[id] = material;
-        return material;
+        if (!obj)
+        {
+            AE_CORE_ERROR("Material Library: Cannot add null obj");
+            return;
+        }
+        materials[id] = obj;
     }
 
     Ref<Material> MaterialLibrary::Get(UUID id)
@@ -113,7 +118,7 @@ namespace Aether {
         if (materials.find(id) != materials.end()) 
             return materials[id];
 
-        AE_CORE_WARN("Material Library: Material ID not found!");
+        AE_CORE_WARN("Material Library: ID not found!");
         return nullptr;
     }
 

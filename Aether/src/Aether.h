@@ -32,5 +32,5 @@
 #include "Aether/Scene/Component.h"
 #include "Aether/Scene/Scene.h"
 
-#include "Aether/Animation/Animator.h"
-#include "Aether/Animation/Animation.h"
+#include "Aether/Animation/SkeletalAnimator.h"
+#include "Aether/Animation/AnimationClip.h"
