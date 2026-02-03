@@ -51,4 +51,11 @@ private:
     float m_RotationSpeed = 1.0f;
 
     std::vector<AnimationBinding> m_AnimationBindings;
+
+    std::vector<std::string> m_ConsoleItems = { 
+        "[System] Console Initialized...",
+        "[Info] Type 'help' for commands."
+    };
+    char m_InputBuf[256] = ""; // Buffer chứa text đang nhập
+    bool m_ScrollToBottom = true; // Cờ để tự động cuộn xuống dưới
 };
