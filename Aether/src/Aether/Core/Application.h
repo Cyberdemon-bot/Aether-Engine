@@ -5,6 +5,7 @@
 #include "Aether/Events/Event.h"
 #include "Aether/Events/ApplicationEvent.h"
 #include "Aether/ImGui/ImGuiLayer.h"
+#include "Aether/Console/ConsoleLayer.h"
 
 #include "Aether/Core/Timestep.h"
 
@@ -33,6 +34,7 @@ namespace Aether {
         LayerStack m_LayerStack;
         float m_LastFrameTime = 0.0f;
         ImGuiLayer* m_ImGuiLayer;
+        ConsoleLayer* m_Console;
     };
 
     Application* CreateApplication();

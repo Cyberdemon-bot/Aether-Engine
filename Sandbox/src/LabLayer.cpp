@@ -3,6 +3,8 @@
 #include "Aether/Core/AssetsRegister.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 Aether::UUID id_ShaderPBR = Aether::AssetsRegister::Register("Shader_PBR");
 
@@ -24,13 +26,13 @@ void LabLayer::Attach()
     m_BoneUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 100, 1);
     shader->SetUBOSlot("Camera", 0);
     shader->SetUBOSlot("Bones", 1);
-    
-    LoadModelAsync("assets/models/human.glb");
-    LoadModelAsync("assets/models/robot.glb");
+
+    Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
 }
 
-void LabLayer::LoadModelAsync(const std::string& path)
+void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
 {
+    std::string path = args[0];
     Aether::JobSystem::SubmitJob([this, path]() {
         AE_CORE_INFO("Worker thread: Parsing {0}", path);
         
@@ -55,6 +57,31 @@ void LabLayer::Detach()
     m_AnimationBindings.clear();
 }
 
+void LabLayer::PrintSceneLog(const Aether::SceneResult& result)
+{
+    Aether::ConsoleLayer::PushLog("========================================");
+    std::string meshInfo = "Meshes Loaded: " + std::to_string(result.meshIDs.size());
+    Aether::ConsoleLayer::PushLog(meshInfo);
+    for (size_t i = 0; i < result.meshIDs.size(); i++)
+    {
+        Aether::UUID meshID = result.meshIDs[i];
+        std::string name = Aether::AssetsRegister::Get(meshID);
+        std::string line = "   -> [" + std::to_string(i) + "] " + name;
+        Aether::ConsoleLayer::PushLog(line);
+    }
+    if (!result.clipIDs.empty())
+    {
+        std::string animInfo = "Animations Loaded: " + std::to_string(result.clipIDs.size());
+        Aether::ConsoleLayer::PushLog(animInfo);
+    }
+    if (!result.skeletonIDs.empty())
+    {
+        std::string skelInfo = "Skeletons Loaded: " + std::to_string(result.skeletonIDs.size());
+        Aether::ConsoleLayer::PushLog(skelInfo);
+    }
+    Aether::ConsoleLayer::PushLog("========================================");
+}
+
 void LabLayer::Update(Aether::Timestep ts)
 {
     {
@@ -71,6 +98,8 @@ void LabLayer::Update(Aether::Timestep ts)
             m_Meshes.insert(m_Meshes.end(), result.meshIDs.begin(), result.meshIDs.end());
             m_SkeletalAnimator.insert(m_SkeletalAnimator.end(), result.skeletonIDs.begin(), result.skeletonIDs.end());
             m_SkeletalAnim.insert(m_SkeletalAnim.end(), result.clipIDs.begin(), result.clipIDs.end());
+            for (size_t i = 0; i < result.meshIDs.size(); i++)  m_Transforms.push_back(Transform()); 
+            PrintSceneLog(result);
         }
     }
 
@@ -88,10 +117,16 @@ void LabLayer::Update(Aether::Timestep ts)
         m_BoneUBO->SetData(boneMatrices.data(), 
                           boneMatrices.size() * sizeof(glm::mat4), 0);
     }
-
-    if (m_AutoRotate) m_ModelRot.y += ts * m_RotationSpeed;
     
     if (!ImGui::GetIO().WantCaptureKeyboard) m_Camera.Update(ts);
+
+    if (m_AutoRotate)
+    {
+        for (int i = 0; i < m_Transforms.size(); i++)
+        {
+            m_Transforms[i].m_ModelRot.y += ts * m_RotationSpeed;
+        }
+    }
     
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
@@ -113,14 +148,18 @@ void LabLayer::Update(Aether::Timestep ts)
 
 void LabLayer::RenderScene()
 {
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), m_ModelPos);
-    transform = glm::rotate(transform, glm::radians(m_ModelRot.x), glm::vec3(1, 0, 0));
-    transform = glm::rotate(transform, glm::radians(m_ModelRot.y), glm::vec3(0, 1, 0));
-    transform = glm::rotate(transform, glm::radians(m_ModelRot.z), glm::vec3(0, 0, 1));
-    transform = glm::scale(transform, m_ModelScale);
-
-    for (const auto& meshID : m_Meshes)
+    for (int i = 0; i < m_Meshes.size(); i++)
     {
+        Aether::UUID meshID = m_Meshes[i];
+        glm::vec3 pos = m_Transforms[i].m_ModelPos;
+        glm::vec3 rot = m_Transforms[i].m_ModelRot;
+        glm::vec3 scale = m_Transforms[i].m_ModelScale;
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), pos);
+        glm::quat rotationQuat = glm::quat(glm::radians(rot)); 
+        glm::mat4 rotationMatrix = glm::toMat4(rotationQuat);
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), scale);
+        glm::mat4 transform = translationMatrix * rotationMatrix * scaleMatrix;
+
         auto mesh = Aether::MeshLibrary::Get(meshID);
         if (!mesh) continue;
         
@@ -354,16 +393,44 @@ void LabLayer::OnImGuiRender()
         
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::DragFloat3("Position", &m_ModelPos.x, 0.1f);
-            ImGui::DragFloat3("Rotation", &m_ModelRot.x, 1.0f);
-            ImGui::DragFloat3("Scale", &m_ModelScale.x, 0.1f, 0.01f, 10.0f);
-            
-            if (ImGui::Button("Reset Transform"))
+            std::string previewName = "None";
+            if (m_SelectedMeshIndex >= 0 && m_SelectedMeshIndex < m_Meshes.size())
+                previewName = Aether::AssetsRegister::Get(m_Meshes[m_SelectedMeshIndex]);
+
+            if (ImGui::BeginCombo("Select Mesh", previewName.c_str()))
             {
-                m_ModelPos = glm::vec3(0.0f);
-                m_ModelRot = glm::vec3(0.0f);
-                m_ModelScale = glm::vec3(1.0f);
+                for (int i = 0; i < m_Meshes.size(); i++)
+                {
+                    bool isSelected = (m_SelectedMeshIndex == i);
+                    std::string name = std::to_string(i) + ": " + Aether::AssetsRegister::Get(m_Meshes[i]);
+
+                    if (ImGui::Selectable(name.c_str(), isSelected))
+                    {
+                        m_SelectedMeshIndex = i; 
+                    }
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
             }
+            ImGui::Separator();
+            if (m_SelectedMeshIndex >= 0 && m_SelectedMeshIndex < m_Transforms.size())
+            {
+                auto& transform = m_Transforms[m_SelectedMeshIndex]; 
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Editing: %s", previewName.c_str());
+                ImGui::DragFloat3("Position", glm::value_ptr(transform.m_ModelPos), 0.1f);
+                ImGui::DragFloat3("Rotation", glm::value_ptr(transform.m_ModelRot), 1.0f);
+                ImGui::DragFloat3("Scale",    glm::value_ptr(transform.m_ModelScale), 0.05f, 0.01f, 100.0f);
+
+                if (ImGui::Button("Reset Transform"))
+                {
+                    transform.m_ModelPos = glm::vec3(0.0f);
+                    transform.m_ModelRot = glm::vec3(0.0f);
+                    transform.m_ModelScale = glm::vec3(1.0f);
+                }
+            }
+            else ImGui::TextDisabled("Please select a mesh above to edit transform.");
         }
         
         if (ImGui::CollapsingHeader("Auto Rotation"))
@@ -374,208 +441,6 @@ void LabLayer::OnImGuiRender()
                 ImGui::SliderFloat("Speed", &m_RotationSpeed, -5.0f, 5.0f);
             }
         }
-
-        if (ImGui::CollapsingHeader("Texture Debug Viewer", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::Text("Click on a mesh to view its textures");
-            ImGui::Separator();
-            
-            static int selectedMeshIdx = -1;
-            
-            if (ImGui::BeginCombo("Select Mesh", selectedMeshIdx >= 0 && selectedMeshIdx < m_Meshes.size() 
-                ? Aether::AssetsRegister::Get(m_Meshes[selectedMeshIdx]).c_str() 
-                : "None"))
-            {
-                for (int i = 0; i < m_Meshes.size(); i++)
-                {
-                    bool isSelected = (selectedMeshIdx == i);
-                    if (ImGui::Selectable(Aether::AssetsRegister::Get(m_Meshes[i]).c_str(), isSelected))
-                    {
-                        selectedMeshIdx = i;
-                    }
-                    if (isSelected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-            
-            if (selectedMeshIdx >= 0 && selectedMeshIdx < m_Meshes.size())
-            {
-                auto mesh = Aether::MeshLibrary::Get(m_Meshes[selectedMeshIdx]);
-                if (mesh)
-                {
-                    const auto& submeshes = mesh->GetSubMeshes();
-                    
-                    for (int subIdx = 0; subIdx < submeshes.size(); subIdx++)
-                    {
-                        const auto& submesh = submeshes[subIdx];
-                        
-                        ImGui::PushID(subIdx);
-                        if (ImGui::TreeNode("Submesh", "Submesh %d: %s", subIdx, submesh.NodeName.c_str()))
-                        {
-                            ImGui::Text("Vertices: %u", submesh.VertexCount);
-                            ImGui::Text("Indices: %u", submesh.IndexCount);
-                            
-                            if (submesh.MaterialID && Aether::MaterialLibrary::Exists(submesh.MaterialID))
-                            {
-                                auto material = Aether::MaterialLibrary::Get(submesh.MaterialID);
-                                ImGui::Text("Material: %s", Aether::AssetsRegister::Get(submesh.MaterialID).c_str());
-                                
-                                ImGui::Separator();
-                                ImGui::Text("Textures:");
-                                
-                                auto albedoTex = material->GetTexture("u_AlbedoMap");
-                                if (albedoTex)
-                                {
-                                    ImGui::Text("Albedo Map:");
-                                    ImGui::Text("  ID: %llu", (uint64_t)albedoTex->GetRendererID());
-                                    ImGui::Text("  Size: %dx%d", albedoTex->GetWidth(), albedoTex->GetHeight());
-                                    
-                                    ImTextureID texID = (ImTextureID)(uint64_t)albedoTex->GetRendererID();
-                                    float aspectRatio = (float)albedoTex->GetWidth() / (float)albedoTex->GetHeight();
-                                    float displayWidth = 256.0f;
-                                    float displayHeight = displayWidth / aspectRatio;
-                                    
-                                    ImGui::Image(texID, ImVec2(displayWidth, displayHeight), 
-                                        ImVec2(0, 1), ImVec2(1, 0));
-                                    
-                                    if (ImGui::IsItemHovered())
-                                    {
-                                        ImGui::BeginTooltip();
-                                        ImGui::Text("Albedo Texture");
-                                        ImGui::Image(texID, ImVec2(512, 512 / aspectRatio), 
-                                            ImVec2(0, 1), ImVec2(1, 0));
-                                        ImGui::EndTooltip();
-                                    }
-                                }
-                                else
-                                {
-                                    ImGui::Text("Albedo Map: None");
-                                }
-                                
-                                auto normalTex = material->GetTexture("u_NormalMap");
-                                if (normalTex)
-                                {
-                                    ImGui::Text("Normal Map:");
-                                    ImGui::Text("  ID: %llu", (uint64_t)normalTex->GetRendererID());
-                                    ImGui::Text("  Size: %dx%d", normalTex->GetWidth(), normalTex->GetHeight());
-                                    
-                                    ImTextureID texID = (ImTextureID)(uint64_t)normalTex->GetRendererID();
-                                    float aspectRatio = (float)normalTex->GetWidth() / (float)normalTex->GetHeight();
-                                    float displayWidth = 256.0f;
-                                    float displayHeight = displayWidth / aspectRatio;
-                                    
-                                    ImGui::Image(texID, ImVec2(displayWidth, displayHeight), 
-                                        ImVec2(0, 1), ImVec2(1, 0));
-                                }
-                                else
-                                {
-                                    ImGui::Text("Normal Map: None");
-                                }
-                                
-                                auto mrTex = material->GetTexture("u_MetallicRoughnessMap");
-                                if (mrTex)
-                                {
-                                    ImGui::Text("Metallic-Roughness Map:");
-                                    ImGui::Text("  ID: %llu", (uint64_t)mrTex->GetRendererID());
-                                    ImGui::Text("  Size: %dx%d", mrTex->GetWidth(), mrTex->GetHeight());
-                                    
-                                    ImTextureID texID = (ImTextureID)(uint64_t)mrTex->GetRendererID();
-                                    float aspectRatio = (float)mrTex->GetWidth() / (float)mrTex->GetHeight();
-                                    float displayWidth = 256.0f;
-                                    float displayHeight = displayWidth / aspectRatio;
-                                    
-                                    ImGui::Image(texID, ImVec2(displayWidth, displayHeight), 
-                                        ImVec2(0, 1), ImVec2(1, 0));
-                                }
-                                else
-                                {
-                                    ImGui::Text("Metallic-Roughness Map: None");
-                                }
-                            }
-                            else
-                            {
-                                ImGui::Text("No material assigned");
-                            }
-                            
-                            ImGui::TreePop();
-                        }
-                        ImGui::PopID();
-                    }
-                }
-            }
-        }
-    }
-    ImGui::End();
-
-    // Console Window
-    ImGuiWindowFlags console_flags = ImGuiWindowFlags_NoFocusOnAppearing;
-    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Console", nullptr, console_flags))
-    {
-        if (ImGui::Button("Clear")) { m_ConsoleItems.clear(); }
-        ImGui::SameLine();
-        if (ImGui::Button("Add Test Log")) 
-        { 
-            m_ConsoleItems.push_back("[Info] User triggered a test log entry."); 
-            m_ScrollToBottom = true;
-        }
-        
-        ImGui::Separator();
-        const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-        ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1));
-        
-        for (const auto& item : m_ConsoleItems)
-        {
-            bool isError = item.find("[Error]") != std::string::npos;
-            bool isWarn = item.find("[Warning]") != std::string::npos;
-            bool isCmd = item.find("> ") == 0;
-
-            if (isError) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-            else if (isWarn) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.0f, 1.0f));
-            else if (isCmd) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 1.0f, 1.0f));
-            else ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
-
-            ImGui::TextUnformatted(item.c_str());
-            ImGui::PopStyleColor();
-        }
-
-        if (m_ScrollToBottom || ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-            ImGui::SetScrollHereY(1.0f);
-        
-        m_ScrollToBottom = false;
-        ImGui::PopStyleVar();
-        ImGui::EndChild();
-
-        ImGui::Separator();
-
-        bool reclaim_focus = false;
-        ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue;
-        
-        if (ImGui::InputText("##Input", m_InputBuf, IM_ARRAYSIZE(m_InputBuf), input_flags))
-        {
-            char* s = m_InputBuf;
-            while (*s == ' ') s++;
-            
-            if (*s) 
-            {
-                std::string cmd = s;
-                m_ConsoleItems.push_back("> " + cmd);
-
-                if (cmd == "clear") { m_ConsoleItems.clear(); }
-                else if (cmd == "help") { m_ConsoleItems.push_back("[System] Available commands: clear, help"); }
-                else { m_ConsoleItems.push_back("[Error] Unknown command: '" + cmd + "'"); }
-
-                memset(m_InputBuf, 0, sizeof(m_InputBuf)); 
-                m_ScrollToBottom = true;
-                reclaim_focus = true;
-            }
-        }
-        ImGui::SetItemDefaultFocus();
-        if (reclaim_focus)
-            ImGui::SetKeyboardFocusHere(-1);
     }
     ImGui::End();
 }

@@ -21,6 +21,8 @@ namespace Aether {
         JobSystem::Init(2);
 
         m_ImGuiLayer = new ImGuiLayer();
+        m_Console = new ConsoleLayer();
+        PushLayer(m_Console);
         PushOverlay(m_ImGuiLayer);
     }
 
