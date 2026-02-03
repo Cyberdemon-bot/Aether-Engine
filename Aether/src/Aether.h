@@ -12,6 +12,7 @@
 #include "Aether/Core/MouseCodes.h"
 
 #include "Aether/ImGui/ImGuiLayer.h"
+#include "Aether/Console/ConsoleLayer.h"
 
 #include "Aether/Renderer/RenderCommand.h"
 

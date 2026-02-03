@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <functional>
+#include <mutex>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
