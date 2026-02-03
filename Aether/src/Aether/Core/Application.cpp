@@ -14,7 +14,7 @@ namespace Aether {
     Application::Application()
     {
         s_Instance = this;
-        m_Window = Window::Create(WinProps("Aether Engine", 1600, 900));
+        m_Window = Window::Create(WinProps("Aether Engine", 1366, 768));
         m_Window->SetEventCallback(AE_BIND_EVENT_FN(OnEvent));
 
         Renderer::Init();  

@@ -33,15 +33,17 @@ namespace Aether {
 
     void ImGuiLayer::Attach()
     {
-        // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO(); (void)io;
         
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
+        io.ConfigViewportsNoAutoMerge = false;
+        io.ConfigViewportsNoTaskBarIcon = false;
+        
         // Setup Dear ImGui style
         ImGui::StyleColorsDark();
 
@@ -53,33 +55,19 @@ namespace Aether {
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
 
-        // Setup Platform/Renderer backends
         Application& app = Application::Get();
         GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetWindow());
 
         ImGui_ImplGlfw_InitForOpenGL(window, true);
-        
-        ImGui_ImplOpenGL3_Init(nullptr);
-    
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui_ImplOpenGL3_Init("#version 410");
     }
 
     void ImGuiLayer::Detach()
     {
+        ImGui::DestroyPlatformWindows();
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-    }
-    
-    // Hàm này để test thử xem ImGui có hiện không
-    void ImGuiLayer::OnImGuiRender()
-    {
-        static bool show = true;
-        //ImGui::ShowDemoWindow(&show); // Bật dòng này lên nếu muốn xem Demo của ImGui
     }
 
     void ImGuiLayer::Begin()
@@ -96,7 +84,6 @@ namespace Aether {
         io.DisplaySize = ImVec2((float)app.GetWindow().GetWidth(), (float)app.GetWindow().GetHeight());
 
         ImGui::Render();
-        
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         {
