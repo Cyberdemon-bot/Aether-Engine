@@ -121,12 +121,8 @@ void LabLayer::Update(Aether::Timestep ts)
     if (!ImGui::GetIO().WantCaptureKeyboard) m_Camera.Update(ts);
 
     if (m_AutoRotate)
-    {
         for (int i = 0; i < m_Transforms.size(); i++)
-        {
             m_Transforms[i].m_ModelRot.y += ts * m_RotationSpeed;
-        }
-    }
     
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
@@ -183,15 +179,9 @@ void LabLayer::RenderScene()
                 material->Bind(0);
                 material->SetMat4("u_Model", transform);
 
-                if (hasActiveBinding)
-                {
-                    material->SetInt("u_HasAnimation", 1);
-                }
-                else
-                {
-                    material->SetInt("u_HasAnimation", 0);
-                }
-
+                if (hasActiveBinding) material->SetInt("u_HasAnimation", 1);
+                else material->SetInt("u_HasAnimation", 0);
+                
                 material->UploadMaterial();
                 
                 void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
@@ -257,10 +247,7 @@ void LabLayer::OnImGuiRender()
                     {
                         bool isSelected = (uint64_t(binding.mesh) == uint64_t(mesh));
                         
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(mesh).c_str(), isSelected))
-                        {
-                            binding.mesh = mesh;
-                        }
+                        if (ImGui::Selectable(Aether::AssetsRegister::Get(mesh).c_str(), isSelected)) binding.mesh = mesh;
                         
                         if (isSelected)
                             ImGui::SetItemDefaultFocus();
@@ -275,10 +262,7 @@ void LabLayer::OnImGuiRender()
                     {
                         bool isSelected = (uint64_t(binding.skeleton) == skeleton);
                         
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(skeleton).c_str(), isSelected))
-                        {
-                            binding.skeleton = skeleton;
-                        }
+                        if (ImGui::Selectable(Aether::AssetsRegister::Get(skeleton).c_str(), isSelected)) binding.skeleton = skeleton;
                         
                         if (isSelected)
                             ImGui::SetItemDefaultFocus();
@@ -302,10 +286,7 @@ void LabLayer::OnImGuiRender()
                                 auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
                                 auto animation = Aether::ClipLibrary::Get(binding.anim);
                                 
-                                if (animator && animation)
-                                {
-                                    animator->Play(animation.get(), true);
-                                }
+                                if (animator && animation) animator->Play(animation.get(), true);
                             }
                         }
                         
@@ -329,23 +310,14 @@ void LabLayer::OnImGuiRender()
                                 if (uint64_t(binding.anim))
                                 {
                                     auto animation = Aether::ClipLibrary::Get(binding.anim);
-                                    if (animation)
-                                    {
-                                        animator->Play(animation.get(), true);
-                                    }
+                                    if (animation)  animator->Play(animation.get(), true);
                                 }
                             }
-                            else
-                            {
-                                animator->Pause();
-                            }
+                            else animator->Pause();
                         }
                         
                         float speed = animator->GetPlaybackSpeed();
-                        if (ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f))
-                        {
-                            animator->SetPlaybackSpeed(speed);
-                        }
+                        if (ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f)) animator->SetPlaybackSpeed(speed);
                         
                         if (uint64_t(binding.anim))
                         {
@@ -385,10 +357,7 @@ void LabLayer::OnImGuiRender()
             ImGui::Text("Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
             ImGui::Text("Distance: %.1f", m_Camera.GetDistance());
             
-            if (ImGui::Button("Reset Camera"))
-            {
-                m_Camera.SetDistance(5.0f);
-            }
+            if (ImGui::Button("Reset Camera")) m_Camera.SetDistance(5.0f);
         }
         
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
@@ -403,14 +372,8 @@ void LabLayer::OnImGuiRender()
                 {
                     bool isSelected = (m_SelectedMeshIndex == i);
                     std::string name = std::to_string(i) + ": " + Aether::AssetsRegister::Get(m_Meshes[i]);
-
-                    if (ImGui::Selectable(name.c_str(), isSelected))
-                    {
-                        m_SelectedMeshIndex = i; 
-                    }
-
-                    if (isSelected)
-                        ImGui::SetItemDefaultFocus();
+                    if (ImGui::Selectable(name.c_str(), isSelected)) m_SelectedMeshIndex = i; 
+                    if (isSelected) ImGui::SetItemDefaultFocus();
                 }
                 ImGui::EndCombo();
             }
@@ -437,9 +400,7 @@ void LabLayer::OnImGuiRender()
         {
             ImGui::Checkbox("Auto Rotate", &m_AutoRotate);
             if (m_AutoRotate)
-            {
                 ImGui::SliderFloat("Speed", &m_RotationSpeed, -5.0f, 5.0f);
-            }
         }
     }
     ImGui::End();

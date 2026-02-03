@@ -1,6 +1,5 @@
 #pragma once
 #include <Aether.h>
-#include "Aether/Resources/SceneLoader.h"
 #include <glm/glm.hpp>
 #include <vector>
 #include <mutex>
@@ -13,6 +12,13 @@ struct AnimationBinding
     Aether::UUID skeleton = Aether::UUID(0);
     Aether::UUID anim = Aether::UUID(0);
     bool IsActive = false;
+};
+
+struct Transform
+{
+    glm::vec3 m_ModelPos = glm::vec3(0.0f);
+    glm::vec3 m_ModelRot = glm::vec3(0.0f);
+    glm::vec3 m_ModelScale = glm::vec3(1.0f);
 };
 
 class LabLayer : public Aether::Layer
@@ -29,7 +35,8 @@ public:
 
 private:
     void RenderScene();
-    void LoadModelAsync(const std::string& path);
+    void LoadModelAsync(const std::vector<std::string>& args);
+    void PrintSceneLog(const Aether::SceneResult& result);
 
 private:
     Aether::EditorCamera m_Camera;
@@ -39,14 +46,12 @@ private:
     std::vector<Aether::UUID> m_Meshes;
     std::vector<Aether::UUID> m_SkeletalAnimator;
     std::vector<Aether::UUID> m_SkeletalAnim;
+    std::vector<Transform> m_Transforms;
     
     std::queue<Aether::SceneLoadResult> m_CompletedParses;
     std::mutex m_ParseMutex;
-    
-    glm::vec3 m_ModelPos = glm::vec3(0.0f);
-    glm::vec3 m_ModelRot = glm::vec3(0.0f);
-    glm::vec3 m_ModelScale = glm::vec3(1.0f);
-    
+
+    int m_SelectedMeshIndex = -1;
     bool m_AutoRotate = false;
     float m_RotationSpeed = 1.0f;
 
