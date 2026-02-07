@@ -9,8 +9,8 @@
 struct AnimationBinding
 {
     Aether::UUID mesh = Aether::UUID(0);
-    Aether::UUID skeleton = Aether::UUID(0);
-    Aether::UUID anim = Aether::UUID(0);
+    Aether::UUID animator = Aether::UUID(0);  // Changed from 'skeleton' to 'animator'
+    Aether::UUID clip = Aether::UUID(0);      // Changed from 'anim' to 'clip'
     bool IsActive = false;
 };
 
@@ -36,7 +36,7 @@ public:
 private:
     void RenderScene();
     void LoadModelAsync(const std::vector<std::string>& args);
-    void PrintSceneLog(const Aether::SceneResult& result);
+    void PrintSceneLog(const Aether::RegisteredScene& result);
 
 private:
     Aether::EditorCamera m_Camera;
@@ -44,16 +44,18 @@ private:
     Aether::Ref<Aether::UniformBuffer> m_BoneUBO;
 
     std::vector<Aether::UUID> m_Meshes;
-    std::vector<Aether::UUID> m_SkeletalAnimator;
-    std::vector<Aether::UUID> m_SkeletalAnim;
+    std::vector<Aether::UUID> m_Skeletons;
+    std::vector<Aether::UUID> m_Animators;  // Animator IDs
+    std::vector<Aether::UUID> m_Clips;
     std::vector<Transform> m_Transforms;
     
-    std::queue<Aether::SceneLoadResult> m_CompletedParses;
+    std::queue<Aether::ParsedScene> m_CompletedParses;
     std::mutex m_ParseMutex;
 
     int m_SelectedMeshIndex = -1;
     bool m_AutoRotate = false;
     float m_RotationSpeed = 1.0f;
+    float m_Speed = 1.0f;
 
     std::vector<AnimationBinding> m_AnimationBindings;
 
@@ -61,6 +63,6 @@ private:
         "[System] Console Initialized...",
         "[Info] Type 'help' for commands."
     };
-    char m_InputBuf[256] = ""; // Buffer chứa text đang nhập
-    bool m_ScrollToBottom = true; // Cờ để tự động cuộn xuống dưới
+    char m_InputBuf[256] = "";
+    bool m_ScrollToBottom = true;
 };
