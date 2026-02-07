@@ -83,4 +83,23 @@ namespace Aether {
 		CameraComponent() = default;
 		CameraComponent(const CameraComponent&) = default;
 	};
+
+    struct SkeletonComponent
+    {
+        UUID SkeletonID;  
+        SkeletonComponent() = default;
+        SkeletonComponent(UUID id) : SkeletonID(id) {}
+    };
+
+    struct AnimationComponent
+    {
+        UUID CurrentClip = UUID(0);
+        std::vector<UUID> AvailableClips;
+        float PlaybackSpeed = 1.0f;
+        float CurrentTime = 0.0f;
+        bool IsPlaying = false;
+        bool Loop = true;
+        
+        AnimationComponent() = default;
+    };
 }

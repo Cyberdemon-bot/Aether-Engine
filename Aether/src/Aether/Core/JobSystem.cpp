@@ -9,8 +9,13 @@ namespace Aether {
     std::condition_variable JobSystem::s_Condition;
     bool JobSystem::s_Stop = false;
 
+    std::atomic<uint32_t> JobSystem::s_ActiveJobCount = 0;
+    std::condition_variable JobSystem::s_WaitCondition;
+    std::mutex JobSystem::s_WaitMutex;
+
     void JobSystem::Init(uint32_t numThreads)
     {
+        s_ActiveJobCount = 0;
         s_Stop = false;
         for (uint32_t i = 0; i < numThreads; ++i)
         {
@@ -33,10 +38,15 @@ namespace Aether {
                 worker.join();
         }
         s_Workers.clear();
+
+        std::queue<Job> empty;
+        std::swap(s_JobQueue, empty);
+        s_ActiveJobCount = 0;
     }
 
     void JobSystem::SubmitJob(Job job)
     {
+        s_ActiveJobCount++;
         {
             std::unique_lock<std::mutex> lock(s_QueueMutex);
             s_JobQueue.push(std::move(job));
@@ -61,6 +71,46 @@ namespace Aether {
             }
             
             job();
+
+            if (s_ActiveJobCount.fetch_sub(1) == 1)
+            {
+                std::lock_guard<std::mutex> lock(s_WaitMutex);
+                s_WaitCondition.notify_all(); // Đánh thức WaitAll()
+            }
+        }
+    }
+
+    void JobSystem::WaitAll()
+    {
+        while (s_ActiveJobCount.load() > 0)
+        {
+            Job job;
+            bool foundJob = false;
+
+            {
+                std::unique_lock<std::mutex> lock(s_QueueMutex);
+                if (!s_JobQueue.empty())
+                {
+                    job = std::move(s_JobQueue.front());
+                    s_JobQueue.pop();
+                    foundJob = true;
+                }
+            }
+
+            if (foundJob)
+            {
+                job();
+                if (s_ActiveJobCount.fetch_sub(1) == 1)
+                {
+                    std::lock_guard<std::mutex> lock(s_WaitMutex);
+                    s_WaitCondition.notify_all();
+                }
+            }
+            else
+            {
+                std::unique_lock<std::mutex> lock(s_WaitMutex);
+                if (s_ActiveJobCount.load() > 0) s_WaitCondition.wait(lock);
+            }
         }
     }
 

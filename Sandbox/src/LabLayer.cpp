@@ -1,6 +1,7 @@
 #include "LabLayer.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Core/AssetsRegister.h"
+#include "Aether/Animation/AnimationManager.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -17,9 +18,15 @@ LabLayer::LabLayer()
 
 void LabLayer::Attach()
 {
+    Aether::AnimationManager::Init();
+    Aether::JobSystem::Init();
+    Aether::MaterialLibrary::Init();
+    Aether::MeshLibrary::Init();
+    Aether::Texture2DLibrary::Init();
+    Aether::ShaderLibrary::Init();
+
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
-
     auto shader = Aether::Shader::Create("assets/shaders/PBR.shader");
     Aether::ShaderLibrary::Add(shader, id_ShaderPBR);
     m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2 + sizeof(glm::vec4), 0);
@@ -28,6 +35,8 @@ void LabLayer::Attach()
     shader->SetUBOSlot("Bones", 1);
 
     Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
+
+    AE_CORE_INFO("Initialize done!");
 }
 
 void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
@@ -35,8 +44,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
     std::string path = args[0];
     Aether::JobSystem::SubmitJob([this, path]() {
         AE_CORE_INFO("Worker thread: Parsing {0}", path);
-        
-        auto modelData = Aether::SceneLoader::Parsing(path);
+        auto modelData = Aether::Importer::Import(path);
         
         {
             std::lock_guard<std::mutex> lock(m_ParseMutex);
@@ -52,12 +60,20 @@ void LabLayer::Detach()
     m_CameraUBO.reset();
     m_BoneUBO.reset();
     m_Meshes.clear();
-    m_SkeletalAnimator.clear();
-    m_SkeletalAnim.clear();
+    m_Skeletons.clear();
+    m_Animators.clear();
+    m_Clips.clear();
     m_AnimationBindings.clear();
+
+    Aether::AnimationManager::Shutdown();
+    Aether::JobSystem::Shutdown();
+    Aether::MaterialLibrary::Shutdown();
+    Aether::MeshLibrary::Shutdown();
+    Aether::Texture2DLibrary::Shutdown();
+    Aether::ShaderLibrary::Shutdown();
 }
 
-void LabLayer::PrintSceneLog(const Aether::SceneResult& result)
+void LabLayer::PrintSceneLog(const Aether::RegisteredScene& result)
 {
     Aether::ConsoleLayer::PushLog("========================================");
     std::string meshInfo = "Meshes Loaded: " + std::to_string(result.meshIDs.size());
@@ -74,9 +90,9 @@ void LabLayer::PrintSceneLog(const Aether::SceneResult& result)
         std::string animInfo = "Animations Loaded: " + std::to_string(result.clipIDs.size());
         Aether::ConsoleLayer::PushLog(animInfo);
     }
-    if (!result.skeletonIDs.empty())
+    if (!result.skelIDs.empty())
     {
-        std::string skelInfo = "Skeletons Loaded: " + std::to_string(result.skeletonIDs.size());
+        std::string skelInfo = "Skeletons Loaded: " + std::to_string(result.skelIDs.size());
         Aether::ConsoleLayer::PushLog(skelInfo);
     }
     Aether::ConsoleLayer::PushLog("========================================");
@@ -84,6 +100,13 @@ void LabLayer::PrintSceneLog(const Aether::SceneResult& result)
 
 void LabLayer::Update(Aether::Timestep ts)
 {
+    auto skelSystem = Aether::AnimationManager::GetSystem<Aether::SkeletalAnimationSystem>(Aether::AnimationType::Skeletal);
+    if (!skelSystem)
+    {
+        AE_CORE_ERROR("LabLayer: Skeletal animation system not initialized!");
+        return;
+    }
+
     {
         std::lock_guard<std::mutex> lock(m_ParseMutex);
         while (!m_CompletedParses.empty())
@@ -93,29 +116,53 @@ void LabLayer::Update(Aether::Timestep ts)
             
             AE_CORE_INFO("Main thread: Uploading to GPU...");
 
-            auto result = Aether::SceneLoader::UploadScene(modelData, id_ShaderPBR);
+            auto result = Aether::Importer::Upload(modelData, id_ShaderPBR);
 
             m_Meshes.insert(m_Meshes.end(), result.meshIDs.begin(), result.meshIDs.end());
-            m_SkeletalAnimator.insert(m_SkeletalAnimator.end(), result.skeletonIDs.begin(), result.skeletonIDs.end());
-            m_SkeletalAnim.insert(m_SkeletalAnim.end(), result.clipIDs.begin(), result.clipIDs.end());
-            for (size_t i = 0; i < result.meshIDs.size(); i++)  m_Transforms.push_back(Transform()); 
+            m_Skeletons.insert(m_Skeletons.end(), result.skelIDs.begin(), result.skelIDs.end());
+            m_Clips.insert(m_Clips.end(), result.clipIDs.begin(), result.clipIDs.end());
+
+            for (size_t i = 0; i < result.skelIDs.size(); i++)
+            {
+                Aether::UUID skeletonID = result.skelIDs[i];
+                Aether::UUID animatorID = Aether::UUID();
+                skelSystem->CreateAnimator(animatorID, skeletonID);
+                
+                m_Animators.push_back(animatorID);
+
+                AE_CORE_INFO("Created animator {0} for skeleton {1}", 
+                    (uint64_t)animatorID, (uint64_t)skeletonID);
+            }
+
+            for (size_t i = 0; i < result.meshIDs.size(); i++) m_Transforms.push_back(Transform());
+
             PrintSceneLog(result);
         }
     }
 
+    // Update all active animation bindings
+    Aether::AnimationManager::Update(ts);
     for (auto& binding : m_AnimationBindings)
     {
         if (!binding.IsActive) continue;
-        if (uint64_t(binding.skeleton) == 0) continue;
+        if (uint64_t(binding.animator) == 0) continue;
+        skelSystem->RequestMatrices(binding.animator);
+    }
+    //skelSystem->Update(ts);
+    skelSystem->ProcessRequests();
 
-        auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
-        if (!animator) continue;
+    for (auto& binding : m_AnimationBindings)
+    {
+        if (!binding.IsActive) continue;
+        if (uint64_t(binding.animator) == 0) continue;
 
-        animator->Update(ts);
-        
-        const auto& boneMatrices = animator->GetFinalMatrices();
-        m_BoneUBO->SetData(boneMatrices.data(), 
-                          boneMatrices.size() * sizeof(glm::mat4), 0);
+        const auto& boneMatrices = skelSystem->GetMatrices(binding.animator);
+        if (!boneMatrices.empty())
+        {
+            m_BoneUBO->SetData(boneMatrices.data(), 
+                              boneMatrices.size() * sizeof(glm::mat4), 0);
+            break; 
+        }
     }
     
     if (!ImGui::GetIO().WantCaptureKeyboard) m_Camera.Update(ts);
@@ -203,15 +250,19 @@ void LabLayer::OnEvent(Aether::Event& event)
 
 void LabLayer::OnImGuiRender()
 {
+    auto skelSystem = Aether::AnimationManager::GetSystem<Aether::SkeletalAnimationSystem>(Aether::AnimationType::Skeletal);
+
     // Model Viewer Window
     ImGuiWindowFlags viewer_flags = ImGuiWindowFlags_NoFocusOnAppearing;
     if (ImGui::Begin("Model Viewer", nullptr, viewer_flags))
     {
         ImGui::Text("Meshes: %d", (int)m_Meshes.size());
-        ImGui::Text("Animators: %d", (int)m_SkeletalAnimator.size());
-        ImGui::Text("Animations: %d", (int)m_SkeletalAnim.size());
+        ImGui::Text("Animators: %d", (int)m_Animators.size());
+        ImGui::Text("Clips: %d", (int)m_Clips.size());
         
         ImGui::Separator();
+        
+        // Animation Bindings Section
         if (ImGui::CollapsingHeader("Animation Bindings", ImGuiTreeNodeFlags_DefaultOpen))
         {
             if (ImGui::Button("Add Binding"))
@@ -240,6 +291,7 @@ void LabLayer::OnImGuiRender()
                 
                 ImGui::Checkbox("Active", &binding.IsActive);
                 
+                // Mesh Selection
                 std::string currentMeshName = uint64_t(binding.mesh) == 0 ? "None" : Aether::AssetsRegister::Get(binding.mesh);
                 if (ImGui::BeginCombo("Mesh", currentMeshName.c_str()))
                 {
@@ -247,7 +299,8 @@ void LabLayer::OnImGuiRender()
                     {
                         bool isSelected = (uint64_t(binding.mesh) == uint64_t(mesh));
                         
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(mesh).c_str(), isSelected)) binding.mesh = mesh;
+                        if (ImGui::Selectable(Aether::AssetsRegister::Get(mesh).c_str(), isSelected))
+                            binding.mesh = mesh;
                         
                         if (isSelected)
                             ImGui::SetItemDefaultFocus();
@@ -255,14 +308,17 @@ void LabLayer::OnImGuiRender()
                     ImGui::EndCombo();
                 }
                 
-                std::string currentAnimatorName = uint64_t(binding.skeleton) == 0 ? "None" : Aether::AssetsRegister::Get(binding.skeleton);
+                // Animator Selection
+                std::string currentAnimatorName = uint64_t(binding.animator) == 0 ? "None" : "Animator_" + std::to_string((uint64_t)binding.animator);
                 if (ImGui::BeginCombo("Animator", currentAnimatorName.c_str()))
                 {
-                    for (const auto& skeleton : m_SkeletalAnimator)
+                    for (const auto& animator : m_Animators)
                     {
-                        bool isSelected = (uint64_t(binding.skeleton) == skeleton);
+                        bool isSelected = (uint64_t(binding.animator) == uint64_t(animator));
+                        std::string name = "Animator_" + std::to_string((uint64_t)animator);
                         
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(skeleton).c_str(), isSelected)) binding.skeleton = skeleton;
+                        if (ImGui::Selectable(name.c_str(), isSelected))
+                            binding.animator = animator;
                         
                         if (isSelected)
                             ImGui::SetItemDefaultFocus();
@@ -270,23 +326,24 @@ void LabLayer::OnImGuiRender()
                     ImGui::EndCombo();
                 }
                 
-                std::string currentAnimationName = uint64_t(binding.anim) == 0 ? "None" : Aether::AssetsRegister::Get(binding.anim);
-                if (ImGui::BeginCombo("Animation", currentAnimationName.c_str()))
+                // Clip Selection
+                std::string currentClipName = uint64_t(binding.clip) == 0 ? "None" : Aether::AssetsRegister::Get(binding.clip);
+                if (ImGui::BeginCombo("Clip", currentClipName.c_str()))
                 {
-                    for (const auto& anim : m_SkeletalAnim)
+                    for (const auto& clip : m_Clips)
                     {
-                        bool isSelected = (uint64_t(binding.anim) == anim);
+                        bool isSelected = (uint64_t(binding.clip) == uint64_t(clip));
                         
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(anim).c_str(), isSelected))
+                        if (ImGui::Selectable(Aether::AssetsRegister::Get(clip).c_str(), isSelected))
                         {
-                            binding.anim = anim;
+                            binding.clip = clip;
                             
-                            if (binding.IsActive && uint64_t(binding.anim))
+                            // If binding is active, bind and play the clip
+                            if (binding.IsActive && uint64_t(binding.clip) && uint64_t(binding.animator) && skelSystem)
                             {
-                                auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
-                                auto animation = Aether::ClipLibrary::Get(binding.anim);
-                                
-                                if (animator && animation) animator->Play(animation.get(), true);
+                                skelSystem->BindClip(binding.animator, binding.clip);
+                                skelSystem->SetLoop(binding.animator, true);
+                                skelSystem->Play(binding.animator);
                             }
                         }
                         
@@ -296,52 +353,54 @@ void LabLayer::OnImGuiRender()
                     ImGui::EndCombo();
                 }
                 
-                if (binding.IsActive && uint64_t(binding.skeleton))
+                // Playback Controls (only if binding is active and has animator)
+                if (binding.IsActive && uint64_t(binding.animator) && skelSystem)
                 {
-                    auto animator = Aether::SkeletalAnimatorLibrary::Get(binding.skeleton);
-                    
-                    if (animator)
+                    bool isPlaying = skelSystem->IsPlaying(binding.animator);
+                    if (ImGui::Checkbox("Playing", &isPlaying))
                     {
-                        bool isPlaying = animator->IsPlaying();
-                        if (ImGui::Checkbox("Playing", &isPlaying))
+                        if (isPlaying)
                         {
-                            if (isPlaying)
+                            if (uint64_t(binding.clip))
                             {
-                                if (uint64_t(binding.anim))
-                                {
-                                    auto animation = Aether::ClipLibrary::Get(binding.anim);
-                                    if (animation)  animator->Play(animation.get(), true);
-                                }
-                            }
-                            else animator->Pause();
-                        }
-                        
-                        float speed = animator->GetPlaybackSpeed();
-                        if (ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f)) animator->SetPlaybackSpeed(speed);
-                        
-                        if (uint64_t(binding.anim))
-                        {
-                            auto animation = Aether::ClipLibrary::Get(binding.anim);
-                            if (animation)
-                            {
-                                float currentTime = animator->GetCurrentTime();
-                                float duration = animation->Durations;
-                                ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
-                                ImGui::ProgressBar(currentTime / duration);
+                                skelSystem->BindClip(binding.animator, binding.clip);
+                                skelSystem->SetLoop(binding.animator, true);
+                                skelSystem->Play(binding.animator);
                             }
                         }
-                        
-                        if (ImGui::Button("Reset"))
+                        else
                         {
-                            animator->Stop();
-                            if (uint64_t(binding.anim))
-                            {
-                                auto animation = Aether::ClipLibrary::Get(binding.anim);
-                                if (animation)
-                                {
-                                    animator->Play(animation.get(), true);
-                                }
-                            }
+                            skelSystem->Pause(binding.animator);
+                        }
+                    }
+                    
+                    if (ImGui::SliderFloat("Speed", &m_Speed, 0.0f, 2.0f))
+                    {
+                        skelSystem->SetSpeed(binding.animator, m_Speed);
+                    }
+                    
+                    // Time display
+                    if (uint64_t(binding.clip))
+                    {
+                        float currentTime = skelSystem->GetCurrentTime(binding.animator);
+                        float duration = skelSystem->GetDuration(binding.animator);
+                        
+                        ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
+                        if (duration > 0.0f)
+                        {
+                            ImGui::ProgressBar(currentTime / duration);
+                        }
+                    }
+                    
+                    // Reset button
+                    if (ImGui::Button("Reset"))
+                    {
+                        skelSystem->Stop(binding.animator);
+                        if (uint64_t(binding.clip))
+                        {
+                            skelSystem->BindClip(binding.animator, binding.clip);
+                            skelSystem->SetLoop(binding.animator, true);
+                            skelSystem->Play(binding.animator);
                         }
                     }
                 }

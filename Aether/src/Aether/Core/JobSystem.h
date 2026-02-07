@@ -17,7 +17,7 @@ namespace Aether {
         static void Shutdown();
         
         static void SubmitJob(Job job);
-        
+        static void WaitAll();
     private:
         static void WorkerThread();
         
@@ -26,6 +26,10 @@ namespace Aether {
         static std::mutex s_QueueMutex;
         static std::condition_variable s_Condition;
         static bool s_Stop;
+
+        static std::atomic<uint32_t> s_ActiveJobCount; 
+        static std::condition_variable s_WaitCondition; 
+        static std::mutex s_WaitMutex;
     };
 
 }

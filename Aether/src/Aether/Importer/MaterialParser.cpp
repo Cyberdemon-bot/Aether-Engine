@@ -1,0 +1,16 @@
+#include "Aether/Importer/Importer.h"
+#include "Platform/Cgltf/GLTF_MaterialParser.h"
+
+namespace Aether {
+    Ref<MaterialParser> MaterialParser::Create()
+    {
+        switch (Importer::GetAPI())
+		{
+			case ImporterAPI::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for ImporterAPI!"); return nullptr;
+			case ImporterAPI::API::Cgltf:  return CreateRef<GLTF_MaterialParser>();
+		}
+
+		AE_CORE_ASSERT(false, "Unknown ImporterAPI!");
+		return nullptr;
+    }
+}

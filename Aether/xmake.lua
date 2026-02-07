@@ -22,7 +22,7 @@ add_requireconfs("msdf-atlas-gen", {
         freetype = true 
     }
 })
-add_requires("filewatch", "glad")
+add_requires("filewatch", "glad", "ozz-animation")
 
 target("Aether")
     set_kind("shared")
@@ -45,7 +45,7 @@ target("Aether")
     set_pcheader("src/aepch.h")
 
     add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "cgltf", {public = true})
-    add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", {public = true})
+    add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", "ozz-animation", {public = true})
 
     if is_plat("mingw") then
         add_syslinks("pthread") 
