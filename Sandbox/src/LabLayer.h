@@ -45,7 +45,7 @@ private:
 
     std::vector<Aether::UUID> m_Meshes;
     std::vector<Aether::UUID> m_Skeletons;
-    std::vector<Aether::UUID> m_Animators;  // Animator IDs
+    std::vector<Aether::UUID> m_Animators; 
     std::vector<Aether::UUID> m_Clips;
     std::vector<Transform> m_Transforms;
     
