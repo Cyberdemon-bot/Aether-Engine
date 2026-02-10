@@ -1,4 +1,5 @@
 #include "Platform/Cgltf/GLTF_AnimationParser.h"
+#include "Platform/Cgltf/GLTF_Utils.h"
 #include <cgltf.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -6,17 +7,17 @@ namespace Aether {
 
     Ref<SkelAnimInfo> GLTF_AnimationParser::Parsing(void* data)
     {
-        return ParseSkelAnim(data);
+        auto result = CreateRef<SkelAnimInfo>();
+        ParseSkels(data, result);
+        ParseClips(data, result);
+        return result;
     }
 
-    Ref<SkelAnimInfo> GLTF_AnimationParser::ParseSkelAnim(void* data)
+    void GLTF_AnimationParser::ParseSkels(void* data, Ref<SkelAnimInfo> result)
     {
         cgltf_data* gltf = static_cast<cgltf_data*>(data);
-        auto result = CreateRef<SkelAnimInfo>();
-
-        // ===== Parse Skeletons (from skins) =====
         result->skeletons.reserve(gltf->skins_count);
-        
+
         for (size_t skinIdx = 0; skinIdx < gltf->skins_count; skinIdx++)
         {
             const cgltf_skin* skin = &gltf->skins[skinIdx];
@@ -25,23 +26,12 @@ namespace Aether {
             skelInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
             skelInfo.Joints.reserve(skin->joints_count);
             
-            // Read inverse bind matrices
-            std::vector<glm::mat4>& inverseBindMatrices = skelInfo.IBM;
             if (skin->inverse_bind_matrices)
             {
                 cgltf_accessor* accessor = skin->inverse_bind_matrices;
-                size_t matCount = accessor->count;
-                inverseBindMatrices.resize(matCount);
-                
-                for (size_t i = 0; i < matCount; i++)
-                {
-                    float mat[16];
-                    cgltf_accessor_read_float(accessor, i, mat, 16);
-                    inverseBindMatrices[i] = glm::make_mat4(mat);
-                }
+                ReadAccessorFloatToMat(accessor, skelInfo.IBM);
             }
-            
-            // Build joint hierarchy
+        
             for (size_t jointIdx = 0; jointIdx < skin->joints_count; jointIdx++)
             {
                 cgltf_node* jointNode = skin->joints[jointIdx];
@@ -49,7 +39,6 @@ namespace Aether {
                 SkeletonCreateInfo::Joint joint;
                 joint.Name = jointNode->name ? jointNode->name : ("Joint_" + std::to_string(jointIdx));
                 
-                // Find parent index
                 joint.ParentIndex = -1;
                 if (jointNode->parent)
                 {
@@ -63,7 +52,6 @@ namespace Aether {
                     }
                 }
                 
-                // Extract local transform
                 if (jointNode->has_translation)
                 {
                     joint.Translation = glm::vec3(
@@ -72,10 +60,7 @@ namespace Aether {
                         jointNode->translation[2]
                     );
                 }
-                else
-                {
-                    joint.Translation = glm::vec3(0.0f);
-                }
+                else joint.Translation = glm::vec3(0.0f);
                 
                 if (jointNode->has_rotation)
                 {
@@ -86,10 +71,7 @@ namespace Aether {
                         jointNode->rotation[2]   // z
                     );
                 }
-                else
-                {
-                    joint.Rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-                }
+                else joint.Rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
                 
                 if (jointNode->has_scale)
                 {
@@ -99,10 +81,7 @@ namespace Aether {
                         jointNode->scale[2]
                     );
                 }
-                else
-                {
-                    joint.Scale = glm::vec3(1.0f);
-                }
+                else joint.Scale = glm::vec3(1.0f);
                 
                 skelInfo.Joints.push_back(joint);
             }
@@ -110,10 +89,13 @@ namespace Aether {
             result->skeletons.push_back(skelInfo);
             AE_CORE_INFO("Parsed skeleton: {0} with {1} joints", skelInfo.DebugName, skelInfo.Joints.size());
         }
+    }
 
-        // ===== Parse Animation Clips =====
+    void GLTF_AnimationParser::ParseClips(void* data, Ref<SkelAnimInfo> result)
+    {
+        cgltf_data* gltf = static_cast<cgltf_data*>(data);
         result->clips.reserve(gltf->animations_count);
-        
+
         for (size_t animIdx = 0; animIdx < gltf->animations_count; animIdx++)
         {
             const cgltf_animation* anim = &gltf->animations[animIdx];
@@ -121,7 +103,6 @@ namespace Aether {
             AnimationClipCreateInfo clipInfo;
             clipInfo.DebugName = anim->name ? anim->name : ("Animation_" + std::to_string(animIdx));
             
-            // Calculate duration from all samplers
             float maxTime = 0.0f;
             for (size_t sampIdx = 0; sampIdx < anim->samplers_count; sampIdx++)
             {
@@ -134,7 +115,7 @@ namespace Aether {
                 }
             }
             clipInfo.Duration = maxTime;
-            clipInfo.SampleRate = 30.0f;  // Default, could be calculated from keyframe density
+            clipInfo.SampleRate = 30.0f;  
             
             // Parse channels
             for (size_t chanIdx = 0; chanIdx < anim->channels_count; chanIdx++)
@@ -145,7 +126,6 @@ namespace Aether {
                 if (!channel->target_node || !sampler->input || !sampler->output)
                     continue;
                 
-                // Find which joint this channel targets (if it's part of a skeleton)
                 int jointIndex = -1;
                 for (size_t skinIdx = 0; skinIdx < gltf->skins_count; skinIdx++)
                 {
@@ -161,9 +141,8 @@ namespace Aether {
                     if (jointIndex >= 0) break;
                 }
                 
-                if (jointIndex < 0) continue;  // Not a skeleton joint, skip
+                if (jointIndex < 0) continue; 
                 
-                // Find or create track for this joint
                 AnimationClipCreateInfo::Track* track = nullptr;
                 for (auto& t : clipInfo.Tracks)
                 {
@@ -181,7 +160,6 @@ namespace Aether {
                     track->JointIndex = jointIndex;
                 }
                 
-                // Read keyframe times
                 std::vector<float> times;
                 times.resize(sampler->input->count);
                 for (size_t i = 0; i < sampler->input->count; i++)
@@ -189,7 +167,6 @@ namespace Aether {
                     cgltf_accessor_read_float(sampler->input, i, &times[i], 1);
                 }
                 
-                // Read keyframe values based on path
                 if (channel->target_path == cgltf_animation_path_type_translation)
                 {
                     track->TranslationTimes = times;
@@ -229,11 +206,7 @@ namespace Aether {
             }
             
             result->clips.push_back(clipInfo);
-            AE_CORE_INFO("Parsed animation: {0}, duration: {1}s, {2} tracks", 
-                clipInfo.DebugName, clipInfo.Duration, clipInfo.Tracks.size());
+            AE_CORE_INFO("Parsed animation: {0}, duration: {1}s, {2} tracks", clipInfo.DebugName, clipInfo.Duration, clipInfo.Tracks.size());
         }
-        
-        return result;
     }
-
 }

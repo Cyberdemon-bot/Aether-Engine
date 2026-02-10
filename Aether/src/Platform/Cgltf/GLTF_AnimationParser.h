@@ -11,7 +11,8 @@ namespace Aether {
         virtual Ref<SkelAnimInfo> Parsing(void* data) override;
     
     private:
-        Ref<SkelAnimInfo> ParseSkelAnim(void* data);
+        void ParseSkels(void* data, Ref<SkelAnimInfo> result);
+        void ParseClips(void* data, Ref<SkelAnimInfo> result);
     };
 
 }

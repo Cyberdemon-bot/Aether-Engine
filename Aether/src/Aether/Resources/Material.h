@@ -22,11 +22,12 @@ namespace Aether {
         template<typename... Args>
         static Ref<Material> Create(Args&&... args) { return CreateRef<Material>(std::forward<Args>(args)...); }
 
-        void Bind(uint32_t startSlot = 0);
+        void Bind(uint32_t startSlot = 0,  bool rebindShader = true);
         void Unbind();
         void UploadMaterial();
 
         Ref<Shader> GetShader() const { return m_Shader; }
+        UUID GetShaderID() const { return m_ShaderID; }
         Ref<Texture2D> GetTexture(const std::string& name) const;
 
         void SetTexture(const std::string& name, UUID TextureID);
@@ -43,6 +44,7 @@ namespace Aether {
         uint32_t GetFlags() const { return m_Flags; }
     private:
         Ref<Shader> m_Shader;
+        UUID m_ShaderID;
 
         std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
 

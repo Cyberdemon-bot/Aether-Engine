@@ -1,7 +1,10 @@
 #pragma once
 
 #include "Aether/Renderer/RenderCommand.h"
+#include "Aether/Renderer/EditorCamera.h"
+#include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Resources/Shader.h"
+#include "Aether/Resources/Mesh.h"
 
 namespace Aether {
 
@@ -17,7 +20,7 @@ namespace Aether {
 	private:
 		struct SceneData
 		{
-			glm::mat4 ViewProjectionMatrix;
+			
 		};
 
 		static Scope<SceneData> s_SceneData;

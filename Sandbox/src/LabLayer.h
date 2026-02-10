@@ -5,14 +5,7 @@
 #include <mutex>
 #include <queue>
 #include <string>
-
-struct AnimationBinding
-{
-    Aether::UUID mesh = Aether::UUID(0);
-    Aether::UUID animator = Aether::UUID(0);  // Changed from 'skeleton' to 'animator'
-    Aether::UUID clip = Aether::UUID(0);      // Changed from 'anim' to 'clip'
-    bool IsActive = false;
-};
+#include <unordered_map>
 
 struct Transform
 {
@@ -40,6 +33,7 @@ private:
 
 private:
     Aether::EditorCamera m_Camera;
+    Aether::Ref<Aether::Shader> m_Shader;
     Aether::Ref<Aether::UniformBuffer> m_CameraUBO;
     Aether::Ref<Aether::UniformBuffer> m_BoneUBO;
 
@@ -49,15 +43,15 @@ private:
     std::vector<Aether::UUID> m_Clips;
     std::vector<Transform> m_Transforms;
     
+    std::unordered_map<Aether::UUID, Aether::UUID> m_SkeletonToAnimator;
+    std::unordered_map<Aether::UUID, Aether::UUID> m_MeshToSkeleton;
+    
     std::queue<Aether::ParsedScene> m_CompletedParses;
     std::mutex m_ParseMutex;
 
     int m_SelectedMeshIndex = -1;
     bool m_AutoRotate = false;
     float m_RotationSpeed = 1.0f;
-    float m_Speed = 1.0f;
-
-    std::vector<AnimationBinding> m_AnimationBindings;
 
     std::vector<std::string> m_ConsoleItems = { 
         "[System] Console Initialized...",

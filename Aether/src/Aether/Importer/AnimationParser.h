@@ -15,7 +15,7 @@ namespace Aether {
         struct Joint
         {
             std::string Name;
-            int16_t ParentIndex;  // -1 for root, ozz uses int16_t
+            int16_t ParentIndex;
             glm::vec3 Translation;
             glm::quat Rotation;
             glm::vec3 Scale;
@@ -29,21 +29,18 @@ namespace Aether {
     {
         std::string DebugName;
         float Duration;
-        float SampleRate;  // Samples per second
+        float SampleRate;  
         
         struct Track
         {
-            int JointIndex;  // Which joint this track animates
+            int JointIndex;  
             
-            // Translation keyframes
             std::vector<float> TranslationTimes;
             std::vector<glm::vec3> TranslationValues;
             
-            // Rotation keyframes
             std::vector<float> RotationTimes;
             std::vector<glm::quat> RotationValues;
             
-            // Scale keyframes
             std::vector<float> ScaleTimes;
             std::vector<glm::vec3> ScaleValues;
         };

@@ -19,7 +19,6 @@ LabLayer::LabLayer()
 void LabLayer::Attach()
 {
     Aether::AnimationManager::Init();
-    Aether::JobSystem::Init();
     Aether::MaterialLibrary::Init();
     Aether::MeshLibrary::Init();
     Aether::Texture2DLibrary::Init();
@@ -27,12 +26,13 @@ void LabLayer::Attach()
 
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
-    auto shader = Aether::Shader::Create("assets/shaders/PBR.shader");
-    Aether::ShaderLibrary::Add(shader, id_ShaderPBR);
-    m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2 + sizeof(glm::vec4), 0);
+    
+    m_Shader = Aether::Shader::Create("assets/shaders/PBR.shader");
+    Aether::ShaderLibrary::Add(m_Shader, id_ShaderPBR);
+    m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2, 0);
     m_BoneUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 100, 1);
-    shader->SetUBOSlot("Camera", 0);
-    shader->SetUBOSlot("Bones", 1);
+    m_Shader->SetUBOSlot("Camera", 0);
+    m_Shader->SetUBOSlot("Bones", 1);
 
     Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
 
@@ -57,16 +57,17 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
 
 void LabLayer::Detach()
 {
+    m_Shader.reset();
     m_CameraUBO.reset();
     m_BoneUBO.reset();
     m_Meshes.clear();
     m_Skeletons.clear();
     m_Animators.clear();
     m_Clips.clear();
-    m_AnimationBindings.clear();
+    m_SkeletonToAnimator.clear();
+    m_MeshToSkeleton.clear();
 
     Aether::AnimationManager::Shutdown();
-    Aether::JobSystem::Shutdown();
     Aether::MaterialLibrary::Shutdown();
     Aether::MeshLibrary::Shutdown();
     Aether::Texture2DLibrary::Shutdown();
@@ -129,6 +130,7 @@ void LabLayer::Update(Aether::Timestep ts)
                 skelSystem->CreateAnimator(animatorID, skeletonID);
                 
                 m_Animators.push_back(animatorID);
+                m_SkeletonToAnimator[skeletonID] = animatorID;
 
                 AE_CORE_INFO("Created animator {0} for skeleton {1}", 
                     (uint64_t)animatorID, (uint64_t)skeletonID);
@@ -140,30 +142,12 @@ void LabLayer::Update(Aether::Timestep ts)
         }
     }
 
-    // Update all active animation bindings
     Aether::AnimationManager::Update(ts);
-    for (auto& binding : m_AnimationBindings)
+    for (const auto& [skeletonID, animatorID] : m_SkeletonToAnimator)
     {
-        if (!binding.IsActive) continue;
-        if (uint64_t(binding.animator) == 0) continue;
-        skelSystem->RequestMatrices(binding.animator);
+        skelSystem->RequestMatrices(animatorID);
     }
-    //skelSystem->Update(ts);
     skelSystem->ProcessRequests();
-
-    for (auto& binding : m_AnimationBindings)
-    {
-        if (!binding.IsActive) continue;
-        if (uint64_t(binding.animator) == 0) continue;
-
-        const auto& boneMatrices = skelSystem->GetMatrices(binding.animator);
-        if (!boneMatrices.empty())
-        {
-            m_BoneUBO->SetData(boneMatrices.data(), 
-                              boneMatrices.size() * sizeof(glm::mat4), 0);
-            break; 
-        }
-    }
     
     if (!ImGui::GetIO().WantCaptureKeyboard) m_Camera.Update(ts);
 
@@ -176,11 +160,9 @@ void LabLayer::Update(Aether::Timestep ts)
     
     glm::mat4 viewProj = m_Camera.GetProjection() * m_Camera.GetViewMatrix();
     glm::mat4 view = m_Camera.GetViewMatrix();
-    glm::vec3 camPos = m_Camera.GetPosition();
     
     m_CameraUBO->SetData(glm::value_ptr(viewProj), sizeof(glm::mat4), 0);
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));
-    m_CameraUBO->SetData(glm::value_ptr(camPos), sizeof(glm::vec3), 2 * sizeof(glm::mat4));
     
     Aether::RenderCommand::SetClearColor({0.2f, 0.2f, 0.25f, 1.0f});
     Aether::RenderCommand::Clear();
@@ -191,6 +173,10 @@ void LabLayer::Update(Aether::Timestep ts)
 
 void LabLayer::RenderScene()
 {
+    m_Shader->Bind();
+    
+    auto skelSystem = Aether::AnimationManager::GetSystem<Aether::SkeletalAnimationSystem>(Aether::AnimationType::Skeletal);
+    
     for (int i = 0; i < m_Meshes.size(); i++)
     {
         Aether::UUID meshID = m_Meshes[i];
@@ -208,15 +194,30 @@ void LabLayer::RenderScene()
         
         const auto& submeshes = mesh->GetSubMeshes();
         
-        bool hasActiveBinding = false;
-        for (const auto& binding : m_AnimationBindings)
+        bool hasAnimation = m_MeshToSkeleton.find(meshID) != m_MeshToSkeleton.end();
+        
+        if (hasAnimation && skelSystem)
         {
-            if (binding.IsActive && uint64_t(binding.mesh) == meshID)
+            auto meshIt = m_MeshToSkeleton.find(meshID);
+            if (meshIt != m_MeshToSkeleton.end())
             {
-                hasActiveBinding = true;
-                break;
+                Aether::UUID skeletonID = meshIt->second;
+                auto skelIt = m_SkeletonToAnimator.find(skeletonID);
+                if (skelIt != m_SkeletonToAnimator.end())
+                {
+                    Aether::UUID animatorID = skelIt->second;
+                    const auto& boneMatrices = skelSystem->GetMatrices(animatorID);
+                    if (!boneMatrices.empty())
+                    {
+                        m_BoneUBO->SetData(boneMatrices.data(), 
+                                          boneMatrices.size() * sizeof(glm::mat4), 0);
+                    }
+                }
             }
         }
+        
+        m_Shader->SetMat4("u_Model", transform);
+        m_Shader->SetInt("u_HasAnimation", hasAnimation ? 1 : 0);
         
         for (const auto& submesh : submeshes)
         {
@@ -224,11 +225,6 @@ void LabLayer::RenderScene()
             {
                 auto material = Aether::MaterialLibrary::Get(submesh.MaterialID);
                 material->Bind(0);
-                material->SetMat4("u_Model", transform);
-
-                if (hasActiveBinding) material->SetInt("u_HasAnimation", 1);
-                else material->SetInt("u_HasAnimation", 0);
-                
                 material->UploadMaterial();
                 
                 void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
@@ -257,157 +253,152 @@ void LabLayer::OnImGuiRender()
     if (ImGui::Begin("Model Viewer", nullptr, viewer_flags))
     {
         ImGui::Text("Meshes: %d", (int)m_Meshes.size());
-        ImGui::Text("Animators: %d", (int)m_Animators.size());
+        ImGui::Text("Skeletons: %d", (int)m_Skeletons.size());
         ImGui::Text("Clips: %d", (int)m_Clips.size());
         
         ImGui::Separator();
         
-        // Animation Bindings Section
-        if (ImGui::CollapsingHeader("Animation Bindings", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Animation Control", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::Button("Add Binding"))
+            static Aether::UUID selectedMesh = Aether::UUID(0);
+            static Aether::UUID selectedSkeleton = Aether::UUID(0);
+            static Aether::UUID selectedClip = Aether::UUID(0);
+            
+            std::string meshName = uint64_t(selectedMesh) == 0 ? "Select Mesh" : Aether::AssetsRegister::Get(selectedMesh);
+            if (ImGui::BeginCombo("Mesh", meshName.c_str()))
             {
-                AnimationBinding newBinding;
-                newBinding.IsActive = false;
-                m_AnimationBindings.push_back(newBinding);
+                for (const auto& meshID : m_Meshes)
+                {
+                    ImGui::PushID((uint64_t)meshID);
+                    
+                    bool isSelected = (uint64_t(selectedMesh) == uint64_t(meshID));
+                    std::string name = Aether::AssetsRegister::Get(meshID);
+                    
+                    if (ImGui::Selectable(name.c_str(), isSelected))
+                        selectedMesh = meshID;
+                    
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                    
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+            
+            std::string skelName = uint64_t(selectedSkeleton) == 0 ? "Select Skeleton" : Aether::AssetsRegister::Get(selectedSkeleton);
+            if (ImGui::BeginCombo("Skeleton", skelName.c_str()))
+            {
+                for (const auto& skeletonID : m_Skeletons)
+                {
+                    ImGui::PushID((uint64_t)skeletonID);
+                    
+                    bool isSelected = (uint64_t(selectedSkeleton) == uint64_t(skeletonID));
+                    std::string name = Aether::AssetsRegister::Get(skeletonID);
+                    
+                    if (ImGui::Selectable(name.c_str(), isSelected))
+                        selectedSkeleton = skeletonID;
+                    
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                    
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+            
+            std::string clipName = uint64_t(selectedClip) == 0 ? "Select Clip" : Aether::AssetsRegister::Get(selectedClip);
+            if (ImGui::BeginCombo("Clip", clipName.c_str()))
+            {
+                for (const auto& clipID : m_Clips)
+                {
+                    ImGui::PushID((uint64_t)clipID);
+                    
+                    bool isSelected = (uint64_t(selectedClip) == uint64_t(clipID));
+                    std::string name = Aether::AssetsRegister::Get(clipID);
+                    
+                    if (ImGui::Selectable(name.c_str(), isSelected))
+                        selectedClip = clipID;
+                    
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                    
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+            
+            if (ImGui::Button("Bind & Play"))
+            {
+                if (uint64_t(selectedMesh) != 0 && uint64_t(selectedSkeleton) != 0 && uint64_t(selectedClip) != 0)
+                {
+                    m_MeshToSkeleton[selectedMesh] = selectedSkeleton;
+                    
+                    auto skelIt = m_SkeletonToAnimator.find(selectedSkeleton);
+                    if (skelIt != m_SkeletonToAnimator.end())
+                    {
+                        Aether::UUID animatorID = skelIt->second;
+                        skelSystem->BindClip(animatorID, selectedClip);
+                        skelSystem->SetLoop(animatorID, true);
+                        skelSystem->SetSpeed(animatorID, 1.0f);
+                        skelSystem->Play(animatorID);
+                    }
+                }
             }
             
             ImGui::Separator();
+            ImGui::Text("Active Bindings:");
+            ImGui::Separator();
             
-            for (int i = 0; i < m_AnimationBindings.size(); i++)
+            Aether::UUID toUnbind = Aether::UUID(0);
+            
+            for (const auto& [meshID, skeletonID] : m_MeshToSkeleton)
             {
-                ImGui::PushID(i);
+                ImGui::PushID((uint64_t)meshID);
                 
-                auto& binding = m_AnimationBindings[i];
+                std::string meshName = Aether::AssetsRegister::Get(meshID);
+                std::string skelName = Aether::AssetsRegister::Get(skeletonID);
                 
-                ImGui::Text("Binding %d", i);
-                ImGui::SameLine();
-                if (ImGui::Button("Remove"))
+                ImGui::Text("%s -> %s", meshName.c_str(), skelName.c_str());
+                
+                auto skelIt = m_SkeletonToAnimator.find(skeletonID);
+                if (skelIt != m_SkeletonToAnimator.end())
                 {
-                    m_AnimationBindings.erase(m_AnimationBindings.begin() + i);
-                    ImGui::PopID();
-                    break;
-                }
-                
-                ImGui::Checkbox("Active", &binding.IsActive);
-                
-                // Mesh Selection
-                std::string currentMeshName = uint64_t(binding.mesh) == 0 ? "None" : Aether::AssetsRegister::Get(binding.mesh);
-                if (ImGui::BeginCombo("Mesh", currentMeshName.c_str()))
-                {
-                    for (const auto& mesh : m_Meshes)
-                    {
-                        bool isSelected = (uint64_t(binding.mesh) == uint64_t(mesh));
-                        
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(mesh).c_str(), isSelected))
-                            binding.mesh = mesh;
-                        
-                        if (isSelected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-                
-                // Animator Selection
-                std::string currentAnimatorName = uint64_t(binding.animator) == 0 ? "None" : "Animator_" + std::to_string((uint64_t)binding.animator);
-                if (ImGui::BeginCombo("Animator", currentAnimatorName.c_str()))
-                {
-                    for (const auto& animator : m_Animators)
-                    {
-                        bool isSelected = (uint64_t(binding.animator) == uint64_t(animator));
-                        std::string name = "Animator_" + std::to_string((uint64_t)animator);
-                        
-                        if (ImGui::Selectable(name.c_str(), isSelected))
-                            binding.animator = animator;
-                        
-                        if (isSelected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-                
-                // Clip Selection
-                std::string currentClipName = uint64_t(binding.clip) == 0 ? "None" : Aether::AssetsRegister::Get(binding.clip);
-                if (ImGui::BeginCombo("Clip", currentClipName.c_str()))
-                {
-                    for (const auto& clip : m_Clips)
-                    {
-                        bool isSelected = (uint64_t(binding.clip) == uint64_t(clip));
-                        
-                        if (ImGui::Selectable(Aether::AssetsRegister::Get(clip).c_str(), isSelected))
-                        {
-                            binding.clip = clip;
-                            
-                            // If binding is active, bind and play the clip
-                            if (binding.IsActive && uint64_t(binding.clip) && uint64_t(binding.animator) && skelSystem)
-                            {
-                                skelSystem->BindClip(binding.animator, binding.clip);
-                                skelSystem->SetLoop(binding.animator, true);
-                                skelSystem->Play(binding.animator);
-                            }
-                        }
-                        
-                        if (isSelected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-                
-                // Playback Controls (only if binding is active and has animator)
-                if (binding.IsActive && uint64_t(binding.animator) && skelSystem)
-                {
-                    bool isPlaying = skelSystem->IsPlaying(binding.animator);
+                    Aether::UUID animatorID = skelIt->second;
+                    
+                    bool isPlaying = skelSystem->IsPlaying(animatorID);
                     if (ImGui::Checkbox("Playing", &isPlaying))
                     {
-                        if (isPlaying)
-                        {
-                            if (uint64_t(binding.clip))
-                            {
-                                skelSystem->BindClip(binding.animator, binding.clip);
-                                skelSystem->SetLoop(binding.animator, true);
-                                skelSystem->Play(binding.animator);
-                            }
-                        }
-                        else
-                        {
-                            skelSystem->Pause(binding.animator);
-                        }
+                        if (isPlaying) skelSystem->Play(animatorID);
+                        else skelSystem->Pause(animatorID);
                     }
                     
-                    if (ImGui::SliderFloat("Speed", &m_Speed, 0.0f, 2.0f))
-                    {
-                        skelSystem->SetSpeed(binding.animator, m_Speed);
-                    }
+                    float speed = skelSystem->GetSpeed(animatorID);
+                    if (ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f))
+                        skelSystem->SetSpeed(animatorID, speed);
                     
-                    // Time display
-                    if (uint64_t(binding.clip))
-                    {
-                        float currentTime = skelSystem->GetCurrentTime(binding.animator);
-                        float duration = skelSystem->GetDuration(binding.animator);
-                        
-                        ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
-                        if (duration > 0.0f)
-                        {
-                            ImGui::ProgressBar(currentTime / duration);
-                        }
-                    }
+                    float currentTime = skelSystem->GetCurrentTime(animatorID);
+                    float duration = skelSystem->GetDuration(animatorID);
+                    ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
+                    if (duration > 0.0f)
+                        ImGui::ProgressBar(currentTime / duration);
                     
-                    // Reset button
-                    if (ImGui::Button("Reset"))
+                    if (ImGui::Button("Stop"))
+                        skelSystem->Stop(animatorID);
+                    
+                    ImGui::SameLine();
+                    if (ImGui::Button("Unbind"))
                     {
-                        skelSystem->Stop(binding.animator);
-                        if (uint64_t(binding.clip))
-                        {
-                            skelSystem->BindClip(binding.animator, binding.clip);
-                            skelSystem->SetLoop(binding.animator, true);
-                            skelSystem->Play(binding.animator);
-                        }
+                        toUnbind = meshID;
+                        skelSystem->Stop(animatorID);
                     }
                 }
                 
                 ImGui::Separator();
                 ImGui::PopID();
             }
+            
+            if (uint64_t(toUnbind) != 0)
+                m_MeshToSkeleton.erase(toUnbind);
         }
         
         if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))

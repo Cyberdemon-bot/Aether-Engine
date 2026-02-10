@@ -12,7 +12,6 @@ layout(std140) uniform Camera
 {
     mat4 u_ViewProjection;
     mat4 u_View;
-    vec3 u_CameraPosition;
 };
 
 layout(std140) uniform Bones
@@ -23,11 +22,10 @@ layout(std140) uniform Bones
 uniform mat4 u_Model;
 uniform int u_HasAnimation;
 
-out vec3 v_FragPos;
-out vec3 v_Normal;
+out vec3 v_ViewPos;
+out vec3 v_ViewNormal;
 out vec2 v_TexCoord;
-out vec3 v_Tangent;
-out vec3 v_Bitangent;
+out mat3 v_TBN;
 
 void main()
 {
@@ -44,16 +42,23 @@ void main()
             a_Weights.w * u_BoneMatrices[a_Joints.w];
 
         localPos = skinMatrix * localPos;
-        localNormal = mat3(skinMatrix) * localNormal; 
-        localTangent = mat3(skinMatrix) * localTangent;
+        mat3 skinMat3 = mat3(skinMatrix);
+        localNormal = skinMat3 * localNormal; 
+        localTangent = skinMat3 * localTangent;
     }
-    vec4 worldPos = u_Model * localPos; 
-    v_FragPos = worldPos.xyz;
     
-    mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
-    v_Normal = normalize(normalMatrix * localNormal);
-    v_Tangent = normalize(normalMatrix * localTangent);
-    v_Bitangent = cross(v_Normal, v_Tangent) * a_Tangent.w;
+    vec4 worldPos = u_Model * localPos;
+    v_ViewPos = (u_View * worldPos).xyz;
+
+    mat3 normalMatrix = mat3(u_View) * transpose(inverse(mat3(u_Model)));
+    vec3 T = normalize(normalMatrix * localTangent);
+    vec3 N = normalize(normalMatrix * localNormal);
+    
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(N, T) * a_Tangent.w;
+    
+    v_TBN = mat3(T, B, N);
+    v_ViewNormal = N;
     
     v_TexCoord = a_TexCoord;
     gl_Position = u_ViewProjection * worldPos;
@@ -64,17 +69,15 @@ void main()
 
 layout(location = 0) out vec4 FragColor;
 
-in vec3 v_FragPos;
-in vec3 v_Normal;
+in vec3 v_ViewPos;
+in vec3 v_ViewNormal;
 in vec2 v_TexCoord;
-in vec3 v_Tangent;
-in vec3 v_Bitangent;
+in mat3 v_TBN;
 
 layout(std140) uniform Camera
 {
     mat4 u_ViewProjection;
     mat4 u_View;
-    vec3 u_CameraPosition;
 };
 
 uniform sampler2D u_AlbedoMap;
@@ -87,99 +90,79 @@ uniform float u_Roughness;
 uniform int u_HasNormalMap;
 
 const float PI = 3.14159265359;
+const vec3 F0_DIELECTRIC = vec3(0.04);
 
-// Simple directional light
-vec3 g_LightDir = normalize(vec3(0.3, -1.0, 0.5));
-vec3 g_LightColor = vec3(1.0);
+const vec3 LIGHT_DIR_WORLD = vec3(0.3, -1.0, 0.5);
+const vec3 LIGHT_COLOR = vec3(1.0);
+const vec3 AMBIENT = vec3(0.03);
 
-float DistributionGGX(vec3 N, vec3 H, float roughness)
+float DistributionGGX(float NdotH, float roughness)
 {
     float a = roughness * roughness;
     float a2 = a * a;
-    float NdotH = max(dot(N, H), 0.0);
     float NdotH2 = NdotH * NdotH;
     
-    float num = a2;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
-    
-    return num / denom;
+    float denom = NdotH2 * (a2 - 1.0) + 1.0;
+    return a2 / (PI * denom * denom);
 }
 
-float GeometrySchlickGGX(float NdotV, float roughness)
+float GeometrySchlickGGX(float NdotV, float k)
 {
-    float r = (roughness + 1.0);
-    float k = (r * r) / 8.0;
-    
-    float num = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
-    
-    return num / denom;
+    return NdotV / (NdotV * (1.0 - k) + k);
 }
 
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+float GeometrySmith(float NdotV, float NdotL, float roughness)
 {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
-    
-    return ggx1 * ggx2;
+    float r = roughness + 1.0;
+    float k = (r * r) * 0.125; 
+    return GeometrySchlickGGX(NdotV, k) * GeometrySchlickGGX(NdotL, k);
 }
 
-vec3 FresnelSchlick(float cosTheta, vec3 F0)
+vec3 FresnelSchlick(float HdotV, vec3 F0)
 {
-    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    float fresnel = pow(1.0 - HdotV, 5.0);
+    return F0 + (1.0 - F0) * fresnel;
 }
 
 void main()
 {
-    // Sample textures
     vec4 albedo = texture(u_AlbedoMap, v_TexCoord) * u_AlbedoColor;
     vec2 metallicRoughness = texture(u_MetallicRoughnessMap, v_TexCoord).bg;
     float metallic = metallicRoughness.r * u_Metallic;
     float roughness = metallicRoughness.g * u_Roughness;
     
-    // Normal mapping
-    vec3 N = v_Normal;
+    vec3 N = v_ViewNormal;
     if (u_HasNormalMap == 1)
     {
         vec3 tangentNormal = texture(u_NormalMap, v_TexCoord).xyz * 2.0 - 1.0;
-        mat3 TBN = mat3(v_Tangent, v_Bitangent, v_Normal);
-        N = normalize(TBN * tangentNormal);
+        N = normalize(v_TBN * tangentNormal);
     }
     
-    vec3 V = normalize(u_CameraPosition - v_FragPos);
-    vec3 L = -g_LightDir;
+    vec3 L = -normalize(mat3(u_View) * LIGHT_DIR_WORLD);
+    vec3 V = normalize(-v_ViewPos);
     vec3 H = normalize(V + L);
     
-    // PBR calculations
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo.rgb, metallic);
-    
-    // Cook-Torrance BRDF
-    float NDF = DistributionGGX(N, H, roughness);
-    float G = GeometrySmith(N, V, L, roughness);
-    vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-    
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metallic;
-    
-    vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-    vec3 specular = numerator / denominator;
-    
     float NdotL = max(dot(N, L), 0.0);
-    vec3 Lo = (kD * albedo.rgb / PI + specular) * g_LightColor * NdotL;
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotH = max(dot(N, H), 0.0);
+    float HdotV = max(dot(H, V), 0.0);
     
-    // Ambient
-    vec3 ambient = vec3(0.03) * albedo.rgb;
+    vec3 F0 = mix(F0_DIELECTRIC, albedo.rgb, metallic);
+    
+    float D = DistributionGGX(NdotH, roughness);
+    float G = GeometrySmith(NdotV, NdotL, roughness);
+    vec3 F = FresnelSchlick(HdotV, F0);
+    
+    vec3 specular = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
+    vec3 kD = (1.0 - F) * (1.0 - metallic);
+    vec3 diffuse = kD * albedo.rgb / PI;
+    
+    vec3 Lo = (diffuse + specular) * LIGHT_COLOR * NdotL;
+    vec3 ambient = AMBIENT * albedo.rgb;
     vec3 color = ambient + Lo;
     
-    // Gamma correction
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0/2.2));
+    color = color / (color + 1.0); 
+    color = pow(color, vec3(1.0 / 2.2)); 
     
     FragColor = vec4(color, albedo.a);
 }
