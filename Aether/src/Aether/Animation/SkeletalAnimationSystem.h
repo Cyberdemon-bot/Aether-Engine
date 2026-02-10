@@ -37,6 +37,7 @@ namespace Aether {
         virtual bool IsPlaying(UUID animatorID) const = 0;
         virtual float GetCurrentTime(UUID animatorID) const = 0;
         virtual float GetDuration(UUID animatorID) const = 0;
+        virtual float GetSpeed(UUID animatorID) const = 0;
 
         static Ref<SkeletalAnimationSystem> Create();
     };

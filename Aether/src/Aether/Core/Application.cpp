@@ -18,7 +18,7 @@ namespace Aether {
         m_Window->SetEventCallback(AE_BIND_EVENT_FN(OnEvent));
 
         Renderer::Init();  
-        JobSystem::Init(2);
+        JobSystem::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -53,8 +53,6 @@ namespace Aether {
     {
         EventDispatcher dispatcher(e);
         dispatcher.Dispatch<WindowCloseEvent>(AE_BIND_EVENT_FN(OnWindowClose));
-
-        AE_CORE_TRACE("{0}", e);
 
         for (auto it = m_LayerStack.end(); it != m_LayerStack.begin();)
         {

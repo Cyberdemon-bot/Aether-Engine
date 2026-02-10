@@ -2,13 +2,13 @@
 
 namespace Aether {
     Material::Material(UUID ShaderID)
-        : m_Shader(ShaderLibrary::Get(ShaderID))
+        : m_Shader(ShaderLibrary::Get(ShaderID)), m_ShaderID(ShaderID)
     {AE_CORE_ASSERT(m_Shader, "Shader cannot be null!");}
 
 
-    void Material::Bind(uint32_t startSlot)
+    void Material::Bind(uint32_t startSlot, bool rebindShader)
     {
-        m_Shader->Bind();
+        if (rebindShader) m_Shader->Bind();
 
         for (const auto& [name, texture] : m_Textures)
         {
@@ -29,8 +29,6 @@ namespace Aether {
 
     void Material::UploadMaterial()
     {
-        m_Shader->Bind();
-
         for (const auto& [name, value] : m_FloatUniforms) m_Shader->SetFloat(name, value);
 
         for (const auto& [name, value] : m_IntUniforms) m_Shader->SetInt(name, value);

@@ -50,6 +50,7 @@ namespace Aether {
         bool IsPlaying(UUID animatorID) const override;
         float GetCurrentTime(UUID animatorID) const override;
         float GetDuration(UUID animatorID) const override;
+        float GetSpeed(UUID animatorID) const override;
 
     private:
         struct OzzSkeleton

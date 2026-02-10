@@ -46,7 +46,6 @@ namespace Aether {
         for (auto& [type, systemPtr] : instance.m_Systems) 
         {
             if (!systemPtr) continue;
-            AE_CORE_ERROR("Crashed here!");
             switch(type)
             {
                 case AnimationType::Skeletal: 

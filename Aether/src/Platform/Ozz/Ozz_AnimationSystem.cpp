@@ -186,7 +186,6 @@ namespace Aether {
 
     void Ozz_AnimationSystem::Update(Timestep ts)
     {
-        AE_CORE_ERROR("Crashed here!");
         for (auto& [id, animator] : m_Animators)
         {
             if (!animator->isPlaying) continue;
@@ -278,6 +277,12 @@ namespace Aether {
     {
         auto it = m_Animators.find(animatorID);
         return (it != m_Animators.end()) ? it->second->currentTime : 0.0f;
+    }
+
+    float Ozz_AnimationSystem::GetSpeed(UUID animatorID) const
+    {
+        auto it = m_Animators.find(animatorID);
+        return (it != m_Animators.end()) ? it->second->playbackSpeed : 0.0f;
     }
 
     float Ozz_AnimationSystem::GetDuration(UUID animatorID) const
