@@ -1,12 +1,14 @@
 #include "Aether/Core/EntryPoint.h"
 #include "DemoLayer.h"
 #include "LabLayer.h"
+#include "PBRDemoLayer.h"
 
 class Sandbox : public Aether::Application {
 public:
     Sandbox() { 
         //PushLayer(new DemoLayer()); 
-        PushLayer(new LabLayer());
+        //PushLayer(new LabLayer());
+        PushLayer(new PBRDemoLayer());
     }
     ~Sandbox() {}
 };

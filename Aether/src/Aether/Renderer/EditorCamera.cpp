@@ -26,8 +26,9 @@ namespace Aether {
         m_Position = CalculatePosition();
 
         glm::quat orientation = GetOrientation();
-        m_ViewMatrix = glm::translate(glm::mat4(1.0f), m_Position) * glm::toMat4(orientation);
-        m_ViewMatrix = glm::inverse(m_ViewMatrix);
+        m_View = glm::translate(glm::mat4(1.0f), m_Position) * glm::toMat4(orientation);
+        m_View = glm::inverse(m_View);
+        m_ViewProjection = m_Projection * m_View;
     }
 
     std::pair<float, float> EditorCamera::PanSpeed() const

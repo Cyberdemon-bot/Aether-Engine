@@ -29,8 +29,10 @@ void LabLayer::Attach()
     
     m_Shader = Aether::Shader::Create("assets/shaders/PBR.shader");
     Aether::ShaderLibrary::Add(m_Shader, id_ShaderPBR);
-    m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2, 0);
-    m_BoneUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 100, 1);
+    m_CameraUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 2);
+    m_BoneUBO = Aether::UniformBuffer::Create(sizeof(glm::mat4) * 100);
+    m_CameraUBO->Bind(0);
+    m_BoneUBO->Bind(1);
     m_Shader->SetUBOSlot("Camera", 0);
     m_Shader->SetUBOSlot("Bones", 1);
 
@@ -158,8 +160,8 @@ void LabLayer::Update(Aether::Timestep ts)
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
     
-    glm::mat4 viewProj = m_Camera.GetProjection() * m_Camera.GetViewMatrix();
-    glm::mat4 view = m_Camera.GetViewMatrix();
+    glm::mat4 viewProj = m_Camera.GetViewProjection();
+    glm::mat4 view = m_Camera.GetView();
     
     m_CameraUBO->SetData(glm::value_ptr(viewProj), sizeof(glm::mat4), 0);
     m_CameraUBO->SetData(glm::value_ptr(view), sizeof(glm::mat4), sizeof(glm::mat4));

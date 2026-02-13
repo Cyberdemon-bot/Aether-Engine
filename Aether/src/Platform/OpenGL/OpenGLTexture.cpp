@@ -115,10 +115,7 @@ namespace Aether {
            
             stbi_image_free(pixelData);
         }
-        else
-        {
-            // Log Error
-        }
+        else AE_CORE_ERROR("Fail to create texture from packed data");
     }
 
     OpenGLTexture2D::OpenGLTexture2D(const std::string& path, bool wrapMode, bool flip)

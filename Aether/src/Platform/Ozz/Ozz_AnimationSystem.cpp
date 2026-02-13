@@ -245,8 +245,6 @@ namespace Aether {
         }
         
         if (requestsCopy.empty()) return;
-
-        AE_CORE_TRACE("Processing {0} animation requests", requestsCopy.size());
         
         // Calculate matrices in parallel
         CalculateMatricesBatch(requestsCopy);
@@ -380,7 +378,6 @@ namespace Aether {
         }
         
         JobSystem::WaitAll();
-        AE_CORE_TRACE("Submitted {0} animation calculation jobs", animatorIDs.size());
     }
 
     // ===== Conversion Helpers =====

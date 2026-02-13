@@ -35,6 +35,12 @@ namespace Aether
 		glDrawElementsBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, baseVertex);
 	}
 
+	void OpenGLRendererAPI::DrawInstancedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
+	{
+		vertexArray->Bind();
+    	glDrawElementsInstancedBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, instanceCount, baseVertex);
+	}
+
     void OpenGLRendererAPI::Clear() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
@@ -63,4 +69,5 @@ namespace Aether
 	{
 		glLineWidth(width);
 	}
+
 }

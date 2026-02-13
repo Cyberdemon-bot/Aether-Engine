@@ -59,8 +59,7 @@ namespace Aether {
 
     void OpenGLShader::SetUBOSlot(const std::string& name, int slot)
     {
-        int location = GetUniformBlockLocation(name);
-        GLCall(glUniformBlockBinding(m_RendererID, location, slot));
+        GLCall(glUniformBlockBinding(m_RendererID, GetUniformBlockLocation(name), slot));
     }
 
     int OpenGLShader::GetUniformLocation(const std::string& name)

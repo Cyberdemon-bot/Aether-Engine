@@ -49,7 +49,18 @@ namespace Aether {
 
     void OpenGLVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer)
     {
-        AddVertexBuffer(vertexBuffer, m_VertexBufferIndex);
+        uint32_t location = 0;
+        for (const auto& vbo : m_VertexBuffers)
+        {
+            const auto& layout = vbo->GetLayout();
+            for (const auto& element : layout) 
+            {
+                if (element.Type == ShaderDataType::Mat4) location += 4;
+                else if (element.Type == ShaderDataType::Mat3) location += 3;
+                else location++;
+            }
+        }
+        AddVertexBuffer(vertexBuffer, location);
     }
 
     void OpenGLVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
@@ -133,7 +144,18 @@ namespace Aether {
 
     void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer)
     {
-        AddInstanceBuffer(vertexBuffer, m_VertexBufferIndex);
+        uint32_t location = 0;
+        for (const auto& vbo : m_VertexBuffers)
+        {
+            const auto& layout = vbo->GetLayout();
+            for (const auto& element : layout) 
+            {
+                if (element.Type == ShaderDataType::Mat4) location += 4;
+                else if (element.Type == ShaderDataType::Mat3) location += 3;
+                else location++;
+            }
+        }
+        AddInstanceBuffer(vertexBuffer, location);
     }
 
     void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
