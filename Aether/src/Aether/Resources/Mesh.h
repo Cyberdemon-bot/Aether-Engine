@@ -27,9 +27,8 @@ namespace Aether {
             return {
                 { "a_Position",  ShaderDataType::Float3 },
                 { "a_Normal",    ShaderDataType::Float3 },
-                { "a_Tangent",   ShaderDataType::Float3 },
-                { "a_Bitangent", ShaderDataType::Float3 },
-                { "a_TexCoord",  ShaderDataType::Float2 }
+                { "a_Tangent",   ShaderDataType::Float4 },  
+                { "a_TexCoord",  ShaderDataType::Float2 },
             };
         }
 
@@ -43,13 +42,12 @@ namespace Aether {
 
         static BufferLayout PBRSkinned() {
             return {
-                { "a_Position",    ShaderDataType::Float3 },
-                { "a_Normal",      ShaderDataType::Float3 },
-                { "a_Tangent",     ShaderDataType::Float3 },
-                { "a_Bitangent",   ShaderDataType::Float3 },
-                { "a_TexCoord",    ShaderDataType::Float2 },
-                { "a_BoneIDs",     ShaderDataType::Int4 },
-                { "a_BoneWeights", ShaderDataType::Float4 }
+                { "a_Position",  ShaderDataType::Float3 },
+                { "a_Normal",    ShaderDataType::Float3 },
+                { "a_Tangent",   ShaderDataType::Float4 },  
+                { "a_TexCoord",  ShaderDataType::Float2 },
+                { "a_Joints",    ShaderDataType::Uint4 },   
+                { "a_Weights",   ShaderDataType::Float4 } 
             };
         }
 

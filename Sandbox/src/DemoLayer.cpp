@@ -107,7 +107,8 @@ void DemoLayer::Attach()
 
     // Camera uniform buffer
     uint32_t uboSize = sizeof(glm::mat4) * 2 + sizeof(glm::vec4);
-    m_CameraUBO = Aether::UniformBuffer::Create(uboSize, 0);
+    m_CameraUBO = Aether::UniformBuffer::Create(uboSize);
+    m_CameraUBO->Bind();
 
     // Subsystems
     InitSkybox();
@@ -499,7 +500,7 @@ void DemoLayer::RenderMainPass(uint32_t width, uint32_t height, const glm::mat4&
     m_EditorCamera.SetViewportSize((float)width, (float)height);
 
     glm::mat4 projection = m_EditorCamera.GetProjection();
-    glm::mat4 view = m_EditorCamera.GetViewMatrix();
+    glm::mat4 view = m_EditorCamera.GetView();
     glm::vec3 camPos = m_EditorCamera.GetPosition();
 
     m_CameraUBO->SetData(glm::value_ptr(projection), sizeof(glm::mat4), 0);

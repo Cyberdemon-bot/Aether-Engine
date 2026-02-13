@@ -15,6 +15,7 @@
 #include "Aether/Console/ConsoleLayer.h"
 
 #include "Aether/Renderer/RenderCommand.h"
+#include "Aether/Renderer/Renderer.h"
 
 
 #include "Aether/Renderer/Buffer.h"
@@ -34,7 +35,3 @@
 
 #include "Aether/Importer/Importer.h"
 #include "Aether/Animation/AnimationManager.h"
-
-//#include "Aether/BasicAnimation/SkeletalAnimator.h"
-//#include "Aether/BasicAnimation/AnimationClip.h"
-//#include "Aether/BasicLoader/SceneLoader.h"

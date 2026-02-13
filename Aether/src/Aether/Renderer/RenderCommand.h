@@ -36,6 +36,11 @@ namespace Aether {
             s_RendererAPI->DrawIndexedBaseVertex(vertexArray, indexCount, indices, baseVertex);
         }
 
+        static void DrawInstancedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
+        {
+            s_RendererAPI->DrawInstancedBaseVertex(vertexArray, indexCount, indices, baseVertex, instanceCount);
+        }
+
 		static void SetLineWidth(float width)
 		{
 			s_RendererAPI->SetLineWidth(width);
