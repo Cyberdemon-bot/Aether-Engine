@@ -31,11 +31,10 @@ namespace Aether {
 		return nullptr;
 	}
 
-    RegisteredScene ImporterAPI::Upload(const ParsedScene& sceneData, UUID shaderID)
+    RegisteredScene ImporterAPI::Upload(const ParsedScene& sceneData)
     {
         RegisteredScene res;
         std::vector<UUID> texIDs;
-        
         // Upload textures
         for (const auto& texInfo : sceneData.Textures)
         {
@@ -45,39 +44,34 @@ namespace Aether {
             Texture2DLibrary::Add(tex, texID);
             texIDs.push_back(texID);
         }
-        
         // Upload materials
         for (const auto& matInfo : sceneData.Materials)
         {
             UUID matID = AssetsRegister::Register(matInfo.DebugName);
-            auto material = Material::Create(shaderID);
+            auto material = Material::Create();
             
             // Set textures
             if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < texIDs.size())
-                material->SetTexture("u_AlbedoMap", texIDs[matInfo.AlbedoMapIdx]);
+                material->AddTexture("u_AlbedoMap", Texture2DLibrary::Get(texIDs[matInfo.AlbedoMapIdx]));
             
             if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < texIDs.size())
             {
-                material->SetTexture("u_NormalMap", texIDs[matInfo.NormalMapIdx]);
-                material->SetInt("u_HasNormalMap", 1);
+                material->AddTexture("u_NormalMap", Texture2DLibrary::Get(texIDs[matInfo.NormalMapIdx]));
+                material->AddInt("u_HasNormalMap", 1);
             }
-            else
-            {
-                material->SetInt("u_HasNormalMap", 0);
-            }
-            
+            else  material->AddInt("u_HasNormalMap", 0);
+
             if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < texIDs.size())
-                material->SetTexture("u_MetallicRoughnessMap", texIDs[matInfo.MetallicRoughnessMapIdx]);
+                material->AddTexture("u_MetallicRoughnessMap", Texture2DLibrary::Get(texIDs[matInfo.MetallicRoughnessMapIdx]));
             
             // Set material properties
-            material->SetFloat4("u_AlbedoColor", matInfo.AlbedoColor);
-            material->SetFloat("u_Metallic", matInfo.Metallic);
-            material->SetFloat("u_Roughness", matInfo.Roughness);
+            material->AddVec4("u_AlbedoColor", matInfo.AlbedoColor);
+            material->AddFloat("u_Metallic", matInfo.Metallic);
+            material->AddFloat("u_Roughness", matInfo.Roughness);
             
             MaterialLibrary::Add(material, matID);
             res.matIDs.push_back(matID);
         }
-        
         // Upload meshes
         for (const auto& meshInfo : sceneData.Meshes)
         {
@@ -121,16 +115,13 @@ namespace Aether {
             MeshLibrary::Add(mesh, meshID);
             res.meshIDs.push_back(meshID);
         }
-
         auto animSystem = AnimationManager::GetSystem<SkeletalAnimationSystem>(AnimationType::Skeletal);
-
         for (const auto& skelInfo : sceneData.Skeletons)
         {
             UUID skelID = AssetsRegister::Register(skelInfo.DebugName);
             animSystem->RegisterSkeleton(skelInfo, skelID);
             res.skelIDs.push_back(skelID);
         }
-        
         for (const auto& clipInfo : sceneData.Clips)
         {
             UUID clipID = AssetsRegister::Register(clipInfo.DebugName);

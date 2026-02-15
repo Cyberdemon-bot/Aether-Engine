@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "Aether/Renderer/Renderer.h"
+#include "Aether/Core/Application.h"
 
 namespace Aether {
 
@@ -18,6 +19,35 @@ namespace Aether {
 
 		s_RenderData->CameraUB->Bind(0);
 		s_RenderData->BoneUB->Bind(1);
+
+		FramebufferSpecification sceneFbSpec;
+		sceneFbSpec.Width = Application::Get().GetWindow().GetWidth();
+		sceneFbSpec.Height = Application::Get().GetWindow().GetHeight();
+		sceneFbSpec.Attachments = { 
+			FramebufferTextureFormat::RGBA8,          
+			FramebufferTextureFormat::DEPTH24STENCIL8  
+		};
+
+		s_RenderData->mainPass.TargetFBO = FrameBuffer::Create(sceneFbSpec);
+		s_RenderData->mainPass.Shader = Shader::Create("assets/shaders/Standard.shader");
+		s_RenderData->s_ScreenShader = Shader::Create("assets/shaders/LUT.shader");
+		s_RenderData->s_LutMap = Texture2D::Create("assets/textures/LUT.png", true, false);
+
+		s_RenderData->mainPass.Shader->Bind();
+		s_RenderData->mainPass.Shader->SetUBOSlot("Camera", 0);
+		s_RenderData->mainPass.Shader->SetUBOSlot("Bones", 1);
+
+		float quadVertices[] = { 
+        -1.0f,  1.0f,  0.0f, 1.0f,  
+        -1.0f, -1.0f,  0.0f, 0.0f,  
+         1.0f, -1.0f,  1.0f, 0.0f,  
+         1.0f,  1.0f,  1.0f, 1.0f   
+		};
+
+		uint32_t quadIndices[] = { 0, 1, 2, 2, 3, 0 };
+
+		s_RenderData->s_Screen = Aether::Mesh::Create(
+			Aether::MeshSpec{{Aether::VertexStream{quadVertices, 4, Aether::MeshLayout::Quad()}}, quadIndices, 6});
 	}
 
 	void Renderer::Shutdown()
@@ -35,7 +65,20 @@ namespace Aether {
 
 	void Renderer::EndScene()
 	{
-		Flush();
+		Flush(s_RenderData->mainPass);
+		auto& window = Application::Get().GetWindow();
+		RenderCommand::Clear();
+		RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
+
+		s_RenderData->mainPass.TargetFBO->BindColorTexture(0);
+		s_RenderData->s_LutMap->Bind(1);
+		s_RenderData->s_ScreenShader->Bind();
+		s_RenderData->s_ScreenShader->SetInt("u_SceneTexture", 0); 
+		s_RenderData->s_ScreenShader->SetInt("u_LutTexture", 1);
+		s_RenderData->s_ScreenShader->SetFloat("u_LutIntensity", s_RenderData->mainPass.m_LutIntensity);
+
+		RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
+		s_SceneData->s_RenderBatches.clear();
 	}
 
 	void Renderer::AddMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform)
@@ -61,21 +104,27 @@ namespace Aether {
 		}
 	}
 
-	void Renderer::Flush()
+	void Renderer::Flush(const RenderPass& pass)
 	{
 		UUID currentMatID = 0;
     	UUID currentMeshID = 0;
 		UUID currentAnimatorID = 0;
 		s_RenderData->CameraUB->SetData(&s_SceneData->camera, sizeof(CameraData));
+		auto shader = pass.Shader; shader->Bind();
+		auto fbo = pass.TargetFBO; fbo->Bind();
+		if (pass.ClearColor || pass.ClearDepth) 
+		{
+        	if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
+			RenderCommand::Clear();  
+		}
+		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
 		for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 		{
-
 			if (currentMatID != key.materialID)
 			{
 				auto material = MaterialLibrary::Get(key.materialID);
-				material->Bind();
-				material->UploadMaterial();
+				material->UploadMaterial(shader);
 				currentMatID = key.materialID;
 			}
 
@@ -85,8 +134,6 @@ namespace Aether {
 				mesh->GetVertexArray()->Bind();
 				currentMeshID = key.meshID;
         	}
-
-			auto shader = MaterialLibrary::Get(key.materialID)->GetShader();
         	const auto& submesh = mesh->GetSubMeshes()[key.subIdx];
 			void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
 
@@ -131,7 +178,7 @@ namespace Aether {
 				Aether::RenderCommand::DrawInstancedBaseVertex(mesh->GetVertexArray(), submesh.IndexCount, indexOffset, submesh.BaseVertex, transforms.static_obj.size());
 			}
 		}
-		s_SceneData->s_RenderBatches.clear();
+		fbo->Unbind();
 	}
 
 	void Renderer::OnWindowResize(uint32_t width, uint32_t height)

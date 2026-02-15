@@ -19,6 +19,7 @@ namespace Aether {
 
         Renderer::Init();  
         JobSystem::Init();
+        AnimationManager::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();

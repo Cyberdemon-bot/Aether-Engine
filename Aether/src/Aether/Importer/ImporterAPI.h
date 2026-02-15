@@ -39,7 +39,7 @@ namespace Aether {
         virtual ~ImporterAPI() = default;
 		virtual ParsedScene Import(const std::string& path) = 0;
         
-        RegisteredScene Upload(const ParsedScene& sceneData, UUID shaderID);
+        RegisteredScene Upload(const ParsedScene& sceneData);
         static API GetAPI() { return s_API; }
         static Scope<ImporterAPI> Create();
 

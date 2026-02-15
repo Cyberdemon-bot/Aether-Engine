@@ -1,3 +1,4 @@
+#if 0
 #include "LabLayer.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Core/AssetsRegister.h"
@@ -18,7 +19,6 @@ LabLayer::LabLayer()
 
 void LabLayer::Attach()
 {
-    Aether::AnimationManager::Init();
     Aether::MaterialLibrary::Init();
     Aether::MeshLibrary::Init();
     Aether::Texture2DLibrary::Init();
@@ -457,3 +457,5 @@ void LabLayer::OnImGuiRender()
     }
     ImGui::End();
 }
+
+#endif

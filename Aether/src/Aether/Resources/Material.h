@@ -18,46 +18,34 @@ namespace Aether {
     class AETHER_API Material 
     {
     public:
-        Material(UUID ShaderID);
-        template<typename... Args>
-        static Ref<Material> Create(Args&&... args) { return CreateRef<Material>(std::forward<Args>(args)...); }
+        Material() {};
+        static Ref<Material> Create() { return CreateRef<Material>(); }
 
-        void Bind(uint32_t startSlot = 0,  bool rebindShader = true);
-        void Unbind();
-        void UploadMaterial();
+        void UploadMaterial(Ref<Shader> shader, uint32_t startSlot = 0);
 
-        Ref<Shader> GetShader() const { return m_Shader; }
-        UUID GetShaderID() const { return m_ShaderID; }
-        Ref<Texture2D> GetTexture(const std::string& name) const;
+        void AddTexture(const std::string& name, Ref<Texture2D> texture) { m_Textures[name] = texture; }
+        void AddFloat(const std::string& name, float value) { m_FloatUniforms[name] = value; }
+        void AddInt(const std::string& name, int value) { m_IntUniforms[name] = value; }
+        void AddIntArray(const std::string& name, int* values, uint32_t count) { m_IntArrayUniforms[name].assign(values, values + count); }
+        void AddVec3(const std::string& name, const glm::vec3& value) { m_Vec3Uniforms[name] = value; }
+        void AddVec4(const std::string& name, const glm::vec4& value) { m_Vec4Uniforms[name] = value; }
+        void AddMat4(const std::string& name, const glm::mat4& value) { m_Mat4Uniforms[name] = value; }
 
-        void SetTexture(const std::string& name, UUID TextureID);
-
-        void SetFloat(const std::string& name, float value);
-        void SetInt(const std::string& name, int value);
-        void SetIntArray(const std::string& name, int* values, uint32_t count);
-        
-        void SetFloat3(const std::string& name, const glm::vec3& value);
-        void SetFloat4(const std::string& name, const glm::vec4& value);
-        void SetMat4(const std::string& name, const glm::mat4& value);
-
-        void SetFlags(uint32_t flags) { m_Flags = flags; }
-        uint32_t GetFlags() const { return m_Flags; }
+        void AddFlag(MaterialFlag flag) { m_Flags |= (uint32_t)flag; }
+        void RemoveFlag(MaterialFlag flag) { m_Flags &= ~(uint32_t)flag; }
+        void ToggleFlag(MaterialFlag flag) { m_Flags ^= (uint32_t)flag; }
+        bool HasFlag(MaterialFlag flag) const { return m_Flags & (uint32_t)flag; }
     private:
-        Ref<Shader> m_Shader;
-        UUID m_ShaderID;
-
-        std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
-
+        
         std::unordered_map<std::string, float> m_FloatUniforms;
         std::unordered_map<std::string, int> m_IntUniforms;
-        
+        std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
         std::unordered_map<std::string, std::vector<int> > m_IntArrayUniforms;
         std::unordered_map<std::string, glm::vec3> m_Vec3Uniforms;
         std::unordered_map<std::string, glm::vec4> m_Vec4Uniforms;
-
         std::unordered_map<std::string, glm::mat4> m_Mat4Uniforms;
 
-        uint32_t m_Flags = 0;
+        uint32_t m_Flags = (uint32_t)MaterialFlag::None;
     };
 
     class AETHER_API MaterialLibrary

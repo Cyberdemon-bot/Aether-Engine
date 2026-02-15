@@ -8,8 +8,8 @@ namespace Aether {
             return s_ImporterAPI->Import(path);
         }
 
-        static RegisteredScene Upload(const ParsedScene& sceneData, UUID shaderID) {
-            return s_ImporterAPI->Upload(sceneData, shaderID);
+        static RegisteredScene Upload(const ParsedScene& sceneData) {
+            return s_ImporterAPI->Upload(sceneData);
         }
 
         static ImporterAPI::API GetAPI() { return ImporterAPI::GetAPI(); }

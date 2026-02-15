@@ -3,6 +3,7 @@
 #include "Aether/Renderer/RenderCommand.h"
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/UniformBuffer.h"
+#include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Resources/Shader.h"
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Material.h"
@@ -28,11 +29,6 @@ namespace Aether {
 		None = 0,
 		Spot, Directional
 	};
-
-	struct Environment
-    {
-        glm::vec3 AmbientColor = { 0.1f, 0.1f, 0.1f };
-    };
 
 	struct CameraData
 	{
@@ -61,6 +57,17 @@ namespace Aether {
 		std::vector<glm::mat4> static_obj;
 	};
 
+	struct RenderPass
+	{
+		Ref<FrameBuffer> TargetFBO;        
+		Ref<Shader> Shader;                
+		bool ClearColor = true;
+		bool ClearDepth = true;
+		bool OnScreen = true;
+		glm::vec4 ClearValue = {0, 0, 0, 1};
+		float m_LutIntensity = 0.0f;
+	};
+
 	class Renderer
 	{
 	public:
@@ -77,7 +84,7 @@ namespace Aether {
 
 		static RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
 	private:
-		static void Flush();
+		static void Flush(const RenderPass& pass);
 		struct SceneData
 		{
 			CameraData camera;
@@ -88,8 +95,12 @@ namespace Aether {
 		{
 			Ref<UniformBuffer> CameraUB;
 			Ref<UniformBuffer> BoneUB;
-
 			Ref<VertexBuffer> s_InstanceVBO;
+			Ref<Mesh> s_Screen;
+			Ref<Shader> s_ScreenShader;
+			Ref<Texture2D> s_LutMap;
+
+			RenderPass mainPass;
 			std::unordered_map<UUID, bool> s_MeshInstanceAssigned;
 		};
 
