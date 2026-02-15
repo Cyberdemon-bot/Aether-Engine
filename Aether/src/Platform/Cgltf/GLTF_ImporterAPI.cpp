@@ -33,6 +33,7 @@ namespace Aether {
         SceneData.Skeletons = m_AnimationParser->Parsing(data)->skeletons;
         SceneData.Clips = m_AnimationParser->Parsing(data)->clips;
 
+        AE_CORE_INFO("Parsed " + path);
         return SceneData;
     }
 }
