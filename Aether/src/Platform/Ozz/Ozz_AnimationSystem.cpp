@@ -25,31 +25,31 @@ namespace Aether {
 
     // ===== Asset Registration =====
 
-    void Ozz_AnimationSystem::RegisterSkeleton(const SkeletonCreateInfo& data, UUID id)
+    void Ozz_AnimationSystem::RegisterSkeleton(const RigCreateInfo& data, UUID id)
     {
-        OzzSkeleton ozzSkel;
-        ozzSkel.sourceData = data;
-        ozzSkel.skeleton = ConvertToOzzSkeleton(data);
+        OzzSkeleton ozzSkeleton;
+        ozzSkeleton.sourceData = data;
+        ozzSkeleton.skeleton = ConvertToOzzSkeleton(data);
 
-        if (!ozzSkel.skeleton) 
+        if (!ozzSkeleton.skeleton) 
         {
             AE_CORE_ERROR("Failed to build ozz skeleton from {0} (Builder returned null)", data.DebugName);
             return;
         }
         
-        if (!ozzSkel.skeleton->num_joints())
+        if (!ozzSkeleton.skeleton->num_joints())
         {
             AE_CORE_ERROR("Failed to create ozz skeleton from {0}", data.DebugName);
             return;
         }
 
         AE_CORE_INFO("Registered skeleton: {0} with {1} joints", 
-            data.DebugName, ozzSkel.skeleton->num_joints());
+            data.DebugName, ozzSkeleton.skeleton->num_joints());
         
-        m_Skeletons[id] = std::move(ozzSkel);
+        m_Skeletons[id] = std::move(ozzSkeleton);
     }
 
-    void Ozz_AnimationSystem::RegisterClip(const AnimationClipCreateInfo& data, UUID id)
+    void Ozz_AnimationSystem::RegisterClip(const ClipCreateInfo& data, UUID id)
     {
         OzzClip ozzClip;
         ozzClip.sourceData = data;
@@ -73,21 +73,21 @@ namespace Aether {
         m_Clips[id] = std::move(ozzClip);
     }
 
-
-    void Ozz_AnimationSystem::CreateAnimator(UUID animatorID, UUID skeletonID)
+    void Ozz_AnimationSystem::CreateAnimator(UUID animatorID, UUID rigID, const std::vector<UUID>& clipIDs)
     {
-        auto skelIt = m_Skeletons.find(skeletonID);
-        if (skelIt == m_Skeletons.end()) { return; }
+        auto rigIt = m_Skeletons.find(rigID);
+        if (rigIt == m_Skeletons.end()) { return; }
 
         auto animator = CreateScope<OzzAnimator>(); 
-        animator->skeletonID = skeletonID;
+        animator->rigID = rigID;
         
-        const ozz::animation::Skeleton& skeleton = *skelIt->second.skeleton; 
+        const ozz::animation::Skeleton& skeleton = *rigIt->second.skeleton; 
         int numJoints = skeleton.num_joints();
         animator->localTransforms.resize(skeleton.num_soa_joints());
         animator->modelMatrices.resize(numJoints);
         animator->finalMatrices.resize(numJoints, glm::mat4(1.0f));
         animator->samplingContext.Resize(numJoints);
+        animator->clipIDs = clipIDs;
         m_Animators[animatorID] = std::move(animator);
         
         AE_CORE_INFO("Created animator {0}...", (uint64_t)animatorID);
@@ -103,8 +103,7 @@ namespace Aether {
         }
     }
 
-
-    void Ozz_AnimationSystem::BindClip(UUID animatorID, UUID clipID)
+    void Ozz_AnimationSystem::AddClip(UUID animatorID, UUID clipID)
     {
         auto animIt = m_Animators.find(animatorID);
         if (animIt == m_Animators.end())
@@ -119,11 +118,99 @@ namespace Aether {
             return;
         }
 
-        animIt->second->clipID = clipID;
+        animIt->second->clipIDs.push_back(clipID);
+        AE_CORE_INFO("Added clip {0} to animator {1}", (uint64_t)clipID, (uint64_t)animatorID);
+    }
+
+    void Ozz_AnimationSystem::BindClip(UUID animatorID, uint32_t idx)
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end())
+        {
+            AE_CORE_ERROR("Animator {0} not found", (uint64_t)animatorID);
+            return;
+        }
+
+        if (idx >= animIt->second->clipIDs.size())
+        {
+            AE_CORE_ERROR("Clip index {0} out of bound", idx);
+            return;
+        }
+
+        animIt->second->currentClip = (int)idx;
         animIt->second->currentTime = 0.0f;
         animIt->second->dirty = true;
-        
-        AE_CORE_INFO("Bound clip {0} to animator {1}", (uint64_t)clipID, (uint64_t)animatorID);
+    }
+
+    void Ozz_AnimationSystem::BindClip(UUID animatorID, UUID clipID)
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end())
+        {
+            AE_CORE_ERROR("Animator {0} not found", (uint64_t)animatorID);
+            return;
+        }
+
+        auto& animator = animIt->second;
+        int idx = -1;
+        for (size_t i = 0; i < animator->clipIDs.size(); i++)
+        {
+            if (animator->clipIDs[i] == clipID)
+            {
+                idx = (int)i;
+                break;
+            }
+        }
+
+        if (idx == -1)
+        {
+            AE_CORE_ERROR("Clip {0} not found in animator {1}", (uint64_t)clipID, (uint64_t)animatorID);
+            return;
+        }
+
+        animator->currentClip = idx;
+        animator->currentTime = 0.0f;
+        animator->dirty = true;
+    }
+       
+
+    std::vector<UUID> Ozz_AnimationSystem::GetClips(UUID animatorID) const
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end())
+        {
+            AE_CORE_ERROR("Animator {0} not found", (uint64_t)animatorID);
+            return {};
+        }
+
+        return animIt->second->clipIDs;
+    }
+
+    bool Ozz_AnimationSystem::HasAnimator(UUID animatorID) const 
+    {
+        auto animIt = m_Animators.find(animatorID);
+        return animIt != m_Animators.end();
+    }
+    uint32_t Ozz_AnimationSystem::GetClipCount(UUID animatorID) const
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end())
+        {
+            AE_CORE_ERROR("Animator {0} not found", (uint64_t)animatorID);
+            return 0;
+        }
+        return animIt->second->clipIDs.size();
+    }
+
+    int Ozz_AnimationSystem::GetCurrentClipIndex(UUID animatorID) const 
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end())
+        {
+            AE_CORE_ERROR("Animator {0} not found", (uint64_t)animatorID);
+            return 0;
+        }
+        return animIt->second->currentClip;
     }
 
     void Ozz_AnimationSystem::SetSpeed(UUID animatorID, float speed)
@@ -189,9 +276,9 @@ namespace Aether {
         for (auto& [id, animator] : m_Animators)
         {
             if (!animator->isPlaying) continue;
-            if (animator->clipID == UUID(0)) continue;
+            if (animator->currentClip == -1) continue;
 
-            auto clipIt = m_Clips.find(animator->clipID);
+            auto clipIt = m_Clips.find(animator->clipIDs[animator->currentClip]);
             if (clipIt == m_Clips.end()) continue;
 
             float duration = clipIt->second.animation->duration();
@@ -286,10 +373,10 @@ namespace Aether {
     float Ozz_AnimationSystem::GetDuration(UUID animatorID) const
     {
         auto it = m_Animators.find(animatorID);
-        if (it == m_Animators.end() || it->second->clipID == UUID(0))
+        if (it == m_Animators.end() || it->second->currentClip == -1)
             return 0.0f;
         
-        auto clipIt = m_Clips.find(it->second->clipID);
+        auto clipIt = m_Clips.find(it->second->clipIDs[it->second->currentClip]);
         return (clipIt != m_Clips.end()) ? clipIt->second.animation->duration() : 0.0f;
     }
 
@@ -306,13 +393,13 @@ namespace Aether {
         if (!animator.dirty) return;
         
         // Get skeleton
-        auto skelIt = m_Skeletons.find(animator.skeletonID);
-        if (skelIt == m_Skeletons.end()) return;
+        auto rigIt = m_Skeletons.find(animator.rigID);
+        if (rigIt == m_Skeletons.end()) return;
         
-        const ozz::animation::Skeleton& skeleton = *(skelIt->second.skeleton);
+        const ozz::animation::Skeleton& skeleton = *(rigIt->second.skeleton);
         
         // Get animation
-        auto clipIt = m_Clips.find(animator.clipID);
+        auto clipIt = m_Clips.find(animator.clipIDs[animator.currentClip]);
         if (clipIt == m_Clips.end())
         {
             // No animation bound, use bind pose
@@ -352,7 +439,7 @@ namespace Aether {
         }
 
         ConvertOzzMatricesToGlm(animator.modelMatrices, animator.finalMatrices);
-        const auto& ibms = skelIt->second.sourceData.IBM;
+        const auto& ibms = rigIt->second.sourceData.IBM;
         int numJoints = (int)animator.modelMatrices.size();
         if (ibms.size() != numJoints)
         {
@@ -382,7 +469,7 @@ namespace Aether {
 
     // ===== Conversion Helpers =====
 
-    ozz::unique_ptr<ozz::animation::Skeleton> Ozz_AnimationSystem::ConvertToOzzSkeleton(const SkeletonCreateInfo& data)
+    ozz::unique_ptr<ozz::animation::Skeleton> Ozz_AnimationSystem::ConvertToOzzSkeleton(const RigCreateInfo& data)
     {
         using namespace ozz::animation::offline;
         
@@ -432,7 +519,7 @@ namespace Aether {
         return builder(rawSkeleton);
     }
 
-    ozz::unique_ptr<ozz::animation::Animation> Ozz_AnimationSystem::ConvertToOzzAnimation(const AnimationClipCreateInfo& data)
+    ozz::unique_ptr<ozz::animation::Animation> Ozz_AnimationSystem::ConvertToOzzAnimation(const ClipCreateInfo& data)
     {
         using namespace ozz::animation::offline;
         

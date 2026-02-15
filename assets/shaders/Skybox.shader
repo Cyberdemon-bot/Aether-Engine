@@ -4,22 +4,19 @@ layout(location = 0) in vec3 a_Position;
 
 out vec3 v_TexCoords;
 
-layout (std140) uniform CameraData
+layout(std140) uniform Camera
 {
-    mat4 u_Projection;
+    mat4 u_ViewProjection;
     mat4 u_View;
-    vec3 u_ViewPos;
+    vec3 u_Position;
+    float _pad;
 };
 
 void main()
 {
     v_TexCoords = a_Position;
-    
-    // Remove translation from view matrix
-    mat4 viewNoTranslation = mat4(mat3(u_View));
-    vec4 pos = u_Projection * viewNoTranslation * vec4(a_Position, 1.0);
-    
-    // Ensure skybox is always at max depth
+    vec3 worldPos = a_Position + u_Position;
+    vec4 pos = u_ViewProjection * vec4(worldPos, 1.0);
     gl_Position = pos.xyww;
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Aether/Animation/SkeletalAnimationSystem.h"
+#include "Aether/Animation/RigSystem.h"
 #include <unordered_map>
 #include <mutex>
 
@@ -15,22 +15,25 @@
 
 namespace Aether {
 
-    class Ozz_AnimationSystem : public SkeletalAnimationSystem
+    class Ozz_AnimationSystem : public RigSystem
     {
     public:
         Ozz_AnimationSystem();
         virtual ~Ozz_AnimationSystem() override;
 
         // ===== Asset Registration =====
-        void RegisterSkeleton(const SkeletonCreateInfo& data, UUID id) override;
-        void RegisterClip(const AnimationClipCreateInfo& data, UUID id) override;
+        void RegisterSkeleton(const RigCreateInfo& data, UUID id) override;
+        void RegisterClip(const ClipCreateInfo& data, UUID id) override;
 
         // ===== Animator Management =====
-        void CreateAnimator(UUID animatorID, UUID skeletonID) override;
+        void CreateAnimator(UUID animatorID, UUID rigID, const std::vector<UUID>& clipIDs = {}) override;
         void DestroyAnimator(UUID animatorID) override;
         
         // ===== Configuration =====
+        void AddClip(UUID animatorID, UUID clipID) override;
+        void BindClip(UUID animatorID, uint32_t idx) override;
         void BindClip(UUID animatorID, UUID clipID) override;
+
         void SetSpeed(UUID animatorID, float speed) override;
         void SetLoop(UUID animatorID, bool loop) override;
         void SetTime(UUID animatorID, float time) override;
@@ -52,23 +55,29 @@ namespace Aether {
         float GetDuration(UUID animatorID) const override;
         float GetSpeed(UUID animatorID) const override;
 
+        bool HasAnimator(UUID animatorID) const override;
+        uint32_t GetClipCount(UUID animatorID) const override;
+        int GetCurrentClipIndex(UUID animatorID) const override;
+        std::vector<UUID> GetClips(UUID animatorID) const override;
+
     private:
         struct OzzSkeleton
         {
             ozz::unique_ptr<ozz::animation::Skeleton> skeleton;
-            SkeletonCreateInfo sourceData; 
+            RigCreateInfo sourceData; 
         };
 
         struct OzzClip
         {
             ozz::unique_ptr<ozz::animation::Animation> animation;
-            AnimationClipCreateInfo sourceData;  
+            ClipCreateInfo sourceData;  
         };
 
         struct OzzAnimator
         {
-            UUID skeletonID;
-            UUID clipID;
+            UUID rigID;
+            int currentClip = -1;
+            std::vector<UUID> clipIDs;
             
             float currentTime = 0.0f;
             float playbackSpeed = 1.0f;
@@ -88,8 +97,8 @@ namespace Aether {
         void CalculateMatricesBatch(const std::vector<UUID>& animatorIDs);
         
         // Conversion helpers
-        ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const SkeletonCreateInfo& data);
-        ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const AnimationClipCreateInfo& data);
+        ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const RigCreateInfo& data);
+        ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipCreateInfo& data);
         void ConvertOzzMatricesToGlm(const ozz::vector<ozz::math::Float4x4>& ozzMats, 
                                       std::vector<glm::mat4>& glmMats);
 

@@ -8,28 +8,45 @@
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Material.h"
 #include "Aether/Renderer/Camera.h"
-#include "Aether/Animation/AnimationManager.h"
 #include "Aether/Core/UUID.h"
 #include <glm/glm.hpp>
+#define MAX_LIGHTS 16
 
 namespace Aether {
 
-	struct LightParameters
-    {
-        glm::vec3 Color = { 1.0f, 1.0f, 1.0f };
-        float Intensity = 1.0f;
-        float Range = 20.0f;          
-        float InnerCone = 12.5f;       
-        float OuterCone = 17.5f;      
-        bool CastShadows = false;
-    };
-
 	enum class LightType
 	{
-		None = 0,
-		Spot, Directional
+		None = 0, Spot, Directional
 	};
 
+	struct LightParam
+	{
+		LightType type;
+		glm::vec3 position;
+		glm::vec3 direction;   
+		glm::vec3 color;
+		float intensity;
+		float range;           
+		float innerCone;       
+		float outerCone;      
+		bool castShadows;
+	};
+
+	struct Light
+	{
+		glm::vec4 positionAndType;    
+		glm::vec4 directionAndRange;  
+		glm::vec4 colorAndIntensity; 
+		glm::vec4 coneAngles;     
+		glm::mat4 lightSpaceMatrix;
+	};
+
+	struct LightsData
+	{
+		Light lights[MAX_LIGHTS];
+		int lightCount;
+		float _pad[3];
+	};
 	struct CameraData
 	{
 		glm::mat4 ViewProjection;
@@ -64,6 +81,9 @@ namespace Aether {
 		bool ClearColor = true;
 		bool ClearDepth = true;
 		bool OnScreen = true;
+		bool UsingSkybox = false;
+		int ColorTexIdx = -1;
+		int DepthTexIdx = -1;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float m_LutIntensity = 0.0f;
 	};
@@ -76,18 +96,22 @@ namespace Aether {
 		
 		static void OnWindowResize(uint32_t width, uint32_t height);
 
-		static void BeginScene(const Camera& camera);
+		static void SetPipeline(const std::vector<RenderPass>& list);
+
+		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
-		static void AddMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
-		static void AddLight(LightType type, const LightParameters& params, const glm::mat4& transform);
+		static void DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
 
 		static RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
 	private:
 		static void Flush(const RenderPass& pass);
+		static void RenderOnScreen(const RenderPass& pass);
+		static void RenderSkybox();
 		struct SceneData
 		{
 			CameraData camera;
+			LightsData lights; 
 			std::map<RenderKey, BatchData> s_RenderBatches;
 		};
 
@@ -95,12 +119,16 @@ namespace Aether {
 		{
 			Ref<UniformBuffer> CameraUB;
 			Ref<UniformBuffer> BoneUB;
+			Ref<UniformBuffer> LightUB;
 			Ref<VertexBuffer> s_InstanceVBO;
 			Ref<Mesh> s_Screen;
+			Ref<Mesh> s_SkyMesh;
 			Ref<Shader> s_ScreenShader;
+			Ref<Shader> s_SkyboxShader;
 			Ref<Texture2D> s_LutMap;
-
-			RenderPass mainPass;
+			Ref<TextureCube> s_Skybox;
+			
+			std::vector<RenderPass> s_PassList;
 			std::unordered_map<UUID, bool> s_MeshInstanceAssigned;
 		};
 

@@ -17,6 +17,21 @@ layout(std140) uniform Camera
     float _pad;
 };
 
+struct Light
+{
+    vec4 positionAndType;
+    vec4 directionAndRange;
+    vec4 colorAndIntensity;
+    vec4 coneAngles;
+    mat4 lightSpaceMatrix;
+};
+
+layout(std140) uniform Lights
+{
+    Light lights[16];
+    int lightCount;
+} u_Lights;
+
 layout(std140) uniform Bones
 {
     mat4 u_BoneMatrices[100];
@@ -30,6 +45,7 @@ out vec3 v_WorldPos;
 out vec3 v_WorldNormal;
 out vec2 v_TexCoord;
 out mat3 v_TBN;
+out vec4 v_LightSpacePos;
 
 void main()
 {
@@ -75,6 +91,16 @@ void main()
     v_WorldNormal = N;
     
     v_TexCoord = a_TexCoord;
+    
+    if (u_Lights.lightCount > 0 && u_Lights.lights[0].coneAngles.z > 0.5)
+    {
+        v_LightSpacePos = u_Lights.lights[0].lightSpaceMatrix * worldPos;
+    }
+    else
+    {
+        v_LightSpacePos = vec4(0.0);
+    }
+    
     gl_Position = u_ViewProjection * worldPos;
 }
 
@@ -87,6 +113,22 @@ in vec3 v_WorldPos;
 in vec3 v_WorldNormal;
 in vec2 v_TexCoord;
 in mat3 v_TBN;
+in vec4 v_LightSpacePos;
+
+struct Light
+{
+    vec4 positionAndType;
+    vec4 directionAndRange;
+    vec4 colorAndIntensity;
+    vec4 coneAngles;
+    mat4 lightSpaceMatrix;
+};
+
+layout(std140) uniform Lights
+{
+    Light lights[16];
+    int lightCount;
+} u_Lights;
 
 layout(std140) uniform Camera
 {
@@ -99,6 +141,7 @@ layout(std140) uniform Camera
 uniform sampler2D u_AlbedoMap;
 uniform sampler2D u_MetallicRoughnessMap;
 uniform sampler2D u_NormalMap;
+uniform sampler2D u_DepthTex;
 
 uniform vec4 u_AlbedoColor;
 uniform float u_Metallic;
@@ -108,12 +151,20 @@ uniform int u_HasNormalMap;
 const float PI = 3.14159265359;
 const vec3 F0_DIELECTRIC = vec3(0.04);
 
-// Single directional light (stronger and from better angle for PBR visibility)
-const vec3 LIGHT_DIR_WORLD = normalize(vec3(-0.5, -1.0, -0.3));  // From upper-left
-const vec3 LIGHT_COLOR = vec3(2.5);  // Brighter light to show specular highlights
-const vec3 AMBIENT = vec3(0.08);     // More ambient to see shapes better
+float SampleShadowMap(vec4 lightSpacePos)
+{
+    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    
+    if (projCoords.z > 1.0) return 1.0;
+    
+    float currentDepth = projCoords.z;
+    float bias = 0.005;
+    float closestDepth = texture(u_DepthTex, projCoords.xy).r;
+    
+    return currentDepth - bias > closestDepth ? 0.3 : 1.0;
+}
 
-// GGX/Trowbridge-Reitz normal distribution function
 float DistributionGGX(float NdotH, float roughness)
 {
     float a = roughness * roughness;
@@ -123,24 +174,21 @@ float DistributionGGX(float NdotH, float roughness)
     float denom = NdotH2 * (a2 - 1.0) + 1.0;
     denom = PI * denom * denom;
     
-    return a2 / max(denom, 0.0000001); // Prevent division by zero
+    return a2 / max(denom, 0.0000001); 
 }
 
-// Schlick-GGX geometry function
 float GeometrySchlickGGX(float NdotV, float k)
 {
     return NdotV / (NdotV * (1.0 - k) + k);
 }
 
-// Smith's method for geometry obstruction
 float GeometrySmith(float NdotV, float NdotL, float roughness)
 {
     float r = roughness + 1.0;
-    float k = (r * r) * 0.125; // k = (r^2) / 8 for direct lighting
+    float k = (r * r) * 0.125;
     return GeometrySchlickGGX(NdotV, k) * GeometrySchlickGGX(NdotL, k);
 }
 
-// Fresnel-Schlick approximation
 vec3 FresnelSchlick(float HdotV, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - HdotV, 0.0, 1.0), 5.0);
@@ -148,15 +196,11 @@ vec3 FresnelSchlick(float HdotV, vec3 F0)
 
 void main()
 {
-    // Sample material textures
     vec4 albedo = texture(u_AlbedoMap, v_TexCoord) * u_AlbedoColor;
-    
-    // glTF 2.0 standard: Green = Roughness, Blue = Metallic
     vec3 metallicRoughnessSample = texture(u_MetallicRoughnessMap, v_TexCoord).rgb;
-    float roughness = clamp(metallicRoughnessSample.g * u_Roughness, 0.04, 1.0); // Clamp to avoid artifacts
+    float roughness = clamp(metallicRoughnessSample.g * u_Roughness, 0.04, 1.0); 
     float metallic = clamp(metallicRoughnessSample.b * u_Metallic, 0.0, 1.0);
     
-    // Normal mapping
     vec3 N = v_WorldNormal;
     if (u_HasNormalMap == 1)
     {
@@ -164,47 +208,80 @@ void main()
         N = normalize(v_TBN * tangentNormal);
     }
     
-    // Calculate lighting vectors in world space
-    vec3 V = normalize(u_Position - v_WorldPos); // View direction
-    vec3 L = -LIGHT_DIR_WORLD;                   // Light direction
-    vec3 H = normalize(V + L);                   // Half vector
+    vec3 V = normalize(u_Position - v_WorldPos);
     
-    // Calculate dot products
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotH = max(dot(N, H), 0.0);
-    float HdotV = max(dot(H, V), 0.0);
+    vec3 Lo = vec3(0.0);
+    float shadow = 1.0;
     
-    // Cook-Torrance BRDF
-    vec3 F0 = mix(F0_DIELECTRIC, albedo.rgb, metallic);
+    if (u_Lights.lightCount > 0 && u_Lights.lights[0].coneAngles.z > 0.5)
+    {
+        shadow = SampleShadowMap(v_LightSpacePos);
+    }
     
-    float D = DistributionGGX(NdotH, roughness);
-    float G = GeometrySmith(NdotV, NdotL, roughness);
-    vec3 F = FresnelSchlick(HdotV, F0);
+    for (int i = 0; i < u_Lights.lightCount && i < 16; i++)
+    {
+        Light light = u_Lights.lights[i];
+        
+        vec3 lightPos = light.positionAndType.xyz;
+        int lightType = int(light.positionAndType.w);
+        vec3 lightDir = light.directionAndRange.xyz;
+        float lightRange = light.directionAndRange.w;
+        vec3 lightColor = light.colorAndIntensity.xyz;
+        float lightIntensity = light.colorAndIntensity.w;
+        
+        vec3 L;
+        float attenuation = 1.0;
+        
+        if (lightType == 1)
+        {
+            L = -lightDir;
+        }
+        else if (lightType == 0)
+        {
+            vec3 lightToFrag = v_WorldPos - lightPos;
+            float distance = length(lightToFrag);
+            L = normalize(-lightToFrag);
+            
+            attenuation = 1.0 / (1.0 + distance * distance / (lightRange * lightRange));
+            
+            float theta = dot(normalize(lightToFrag), lightDir);
+            float innerCone = light.coneAngles.x;
+            float outerCone = light.coneAngles.y;
+            float epsilon = innerCone - outerCone;
+            float spotIntensity = clamp((theta - outerCone) / epsilon, 0.0, 1.0);
+            
+            attenuation *= spotIntensity;
+        }
+        
+        vec3 H = normalize(V + L);
+        
+        float NdotL = max(dot(N, L), 0.0);
+        float NdotV = max(dot(N, V), 0.0);
+        float NdotH = max(dot(N, H), 0.0);
+        float HdotV = max(dot(H, V), 0.0);
+        
+        vec3 F0 = mix(F0_DIELECTRIC, albedo.rgb, metallic);
+        
+        float D = DistributionGGX(NdotH, roughness);
+        float G = GeometrySmith(NdotV, NdotL, roughness);
+        vec3 F = FresnelSchlick(HdotV, F0);
+        
+        vec3 numerator = D * G * F;
+        float denominator = 4.0 * NdotV * NdotL;
+        vec3 specular = numerator / max(denominator, 0.001);
+        
+        vec3 kS = F;
+        vec3 kD = (1.0 - kS) * (1.0 - metallic);
+        vec3 diffuse = kD * albedo.rgb / PI;
+        
+        float shadowFactor = (i == 0 && light.coneAngles.z > 0.5) ? shadow : 1.0;
+        Lo += (diffuse + specular) * lightColor * lightIntensity * NdotL * attenuation * shadowFactor;
+    }
     
-    // Specular contribution
-    vec3 numerator = D * G * F;
-    float denominator = 4.0 * NdotV * NdotL;
-    vec3 specular = numerator / max(denominator, 0.001);
-    
-    // Diffuse contribution (energy conservation)
-    vec3 kS = F;                           // Specular reflection
-    vec3 kD = (1.0 - kS) * (1.0 - metallic); // Diffuse reflection (metals have no diffuse)
-    vec3 diffuse = kD * albedo.rgb / PI;
-    
-    // Direct lighting
-    vec3 Lo = (diffuse + specular) * LIGHT_COLOR * NdotL;
-    
-    // Ambient lighting (cheap approximation)
-    vec3 ambient = AMBIENT * albedo.rgb;
-    
-    // Final color
+    vec3 ambient = vec3(0.03) * albedo.rgb;
     vec3 color = ambient + Lo;
     
-    // Tone mapping (Reinhard)
     color = color / (color + vec3(1.0));
-    
-    // Gamma correction (sRGB)
     color = pow(color, vec3(1.0 / 2.2));
     
     FragColor = vec4(color, 1.0);

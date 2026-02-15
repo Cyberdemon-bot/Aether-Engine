@@ -16,16 +16,17 @@ namespace Aether {
         std::vector<TextureCreateInfo> Textures;
         std::vector<MaterialCreateInfo> Materials;
         std::vector<MeshCreateInfo> Meshes;
-        std::vector<SkeletonCreateInfo> Skeletons;      
-        std::vector<AnimationClipCreateInfo> Clips;
+
+        std::vector<RigCreateInfo> Rigs;      
+        std::vector<ClipCreateInfo> Clips;
+        std::unordered_map<uint32_t, std::vector<uint32_t>> RigMap;
     };
 
     struct RegisteredScene
     {
         std::vector<UUID> matIDs;
         std::vector<UUID> meshIDs;
-        std::vector<UUID> skelIDs;     
-        std::vector<UUID> clipIDs; 
+        std::vector<UUID> animatorIDS;
     };
 
     class AETHER_API ImporterAPI 

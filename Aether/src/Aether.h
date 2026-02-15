@@ -34,4 +34,4 @@
 #include "Aether/Scene/Scene.h"
 
 #include "Aether/Importer/Importer.h"
-#include "Aether/Animation/AnimationManager.h"
+#include "Aether/Animation/AnimationSystem.h"
