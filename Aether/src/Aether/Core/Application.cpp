@@ -4,6 +4,7 @@
 
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Core/JobSystem.h"
+#include "Aether/Animation/AnimationSystem.h"
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
@@ -19,7 +20,11 @@ namespace Aether {
 
         Renderer::Init();  
         JobSystem::Init();
-        AnimationManager::Init();
+        AnimationSystem::Init();
+        MaterialLibrary::Init();
+        MeshLibrary::Init();
+        Texture2DLibrary::Init();
+        ShaderLibrary::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -29,8 +34,13 @@ namespace Aether {
 
     Application::~Application()
     {
+        MaterialLibrary::Shutdown();
+        MeshLibrary::Shutdown();
+        Texture2DLibrary::Shutdown();
+        ShaderLibrary::Shutdown();
         Renderer::Shutdown();
         JobSystem::Shutdown();
+        AnimationSystem::Shutdown();
     }
 
     void Application::Close()

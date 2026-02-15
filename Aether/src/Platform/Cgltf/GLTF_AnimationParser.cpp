@@ -2,54 +2,58 @@
 #include "Platform/Cgltf/GLTF_Utils.h"
 #include <cgltf.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <aepch.h>
 
 namespace Aether {
 
-    Ref<SkelAnimInfo> GLTF_AnimationParser::Parsing(void* data)
+    Ref<RigAnimsCreateInfo> GLTF_AnimationParser::ParseRigAnim(void* data)
     {
-        auto result = CreateRef<SkelAnimInfo>();
-        ParseSkels(data, result);
+        auto result = CreateRef<RigAnimsCreateInfo>();
+        ParseRigs(data, result);
         ParseClips(data, result);
         return result;
     }
 
-    void GLTF_AnimationParser::ParseSkels(void* data, Ref<SkelAnimInfo> result)
+    void GLTF_AnimationParser::ParseRigs(void* data, Ref<RigAnimsCreateInfo> result)
     {
         cgltf_data* gltf = static_cast<cgltf_data*>(data);
-        result->skeletons.reserve(gltf->skins_count);
+        result->rigs.reserve(gltf->skins_count);
 
         for (size_t skinIdx = 0; skinIdx < gltf->skins_count; skinIdx++)
         {
             const cgltf_skin* skin = &gltf->skins[skinIdx];
             
-            SkeletonCreateInfo skelInfo;
-            skelInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
-            skelInfo.Joints.reserve(skin->joints_count);
+            RigCreateInfo rigInfo;
+            rigInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
+            rigInfo.Joints.resize(skin->joints_count);
+
+            std::unordered_map<cgltf_node*, int16_t> node_map;
+            for (size_t i = 0; i < skin->joints_count; i++) node_map[skin->joints[i]] = (int16_t)i;
             
             if (skin->inverse_bind_matrices)
             {
                 cgltf_accessor* accessor = skin->inverse_bind_matrices;
-                ReadAccessorFloatToMat(accessor, skelInfo.IBM);
+                ReadAccessorFloatToMat4(accessor, rigInfo.IBM);
+            }
+            else
+            {
+                rigInfo.IBM.resize(skin->joints_count);
+                for(auto& mat : rigInfo.IBM) mat = glm::mat4(1.0f);
             }
         
             for (size_t jointIdx = 0; jointIdx < skin->joints_count; jointIdx++)
             {
                 cgltf_node* jointNode = skin->joints[jointIdx];
                 
-                SkeletonCreateInfo::Joint joint;
+                RigCreateInfo::Joint joint;
                 joint.Name = jointNode->name ? jointNode->name : ("Joint_" + std::to_string(jointIdx));
                 
                 joint.ParentIndex = -1;
-                if (jointNode->parent)
+                if (jointNode->parent) 
                 {
-                    for (size_t i = 0; i < skin->joints_count; i++)
-                    {
-                        if (skin->joints[i] == jointNode->parent)
-                        {
-                            joint.ParentIndex = (int16_t)i;
-                            break;
-                        }
-                    }
+                    auto it = node_map.find(jointNode->parent);
+                    if (it != node_map.end())
+                        joint.ParentIndex = it->second;
                 }
                 
                 if (jointNode->has_translation)
@@ -83,27 +87,32 @@ namespace Aether {
                 }
                 else joint.Scale = glm::vec3(1.0f);
                 
-                skelInfo.Joints.push_back(joint);
+                rigInfo.Joints[jointIdx] = joint;
             }
             
-            result->skeletons.push_back(skelInfo);
-            AE_CORE_INFO("Parsed skeleton: {0} with {1} joints", skelInfo.DebugName, skelInfo.Joints.size());
+            result->rigs.push_back(rigInfo);
+            AE_CORE_INFO("Parsed skeleton: {0} with {1} joints", rigInfo.DebugName, rigInfo.Joints.size());
         }
     }
 
-    void GLTF_AnimationParser::ParseClips(void* data, Ref<SkelAnimInfo> result)
+    void GLTF_AnimationParser::ParseClips(void* data, Ref<RigAnimsCreateInfo> result)
     {
         cgltf_data* gltf = static_cast<cgltf_data*>(data);
-        result->clips.reserve(gltf->animations_count);
+
+        struct NodeInfo { int rigIdx, jointIdx; };
+        std::unordered_map<cgltf_node*, NodeInfo> node_map;
+
+        for (size_t i = 0; i < gltf->skins_count; i++)
+            for (size_t j = 0; j < gltf->skins[i].joints_count; j++)
+                node_map[gltf->skins[i].joints[j]] = { (int)i, (int)j };
 
         for (size_t animIdx = 0; animIdx < gltf->animations_count; animIdx++)
         {
             const cgltf_animation* anim = &gltf->animations[animIdx];
             
-            AnimationClipCreateInfo clipInfo;
-            clipInfo.DebugName = anim->name ? anim->name : ("Animation_" + std::to_string(animIdx));
-            
+            std::map<int, std::map<cgltf_node*, ClipCreateInfo::Track>> rigTracks;
             float maxTime = 0.0f;
+            
             for (size_t sampIdx = 0; sampIdx < anim->samplers_count; sampIdx++)
             {
                 const cgltf_animation_sampler* sampler = &anim->samplers[sampIdx];
@@ -114,10 +123,7 @@ namespace Aether {
                     maxTime = glm::max(maxTime, lastTime);
                 }
             }
-            clipInfo.Duration = maxTime;
-            clipInfo.SampleRate = 30.0f;  
             
-            // Parse channels
             for (size_t chanIdx = 0; chanIdx < anim->channels_count; chanIdx++)
             {
                 const cgltf_animation_channel* channel = &anim->channels[chanIdx];
@@ -126,87 +132,66 @@ namespace Aether {
                 if (!channel->target_node || !sampler->input || !sampler->output)
                     continue;
                 
-                int jointIndex = -1;
-                for (size_t skinIdx = 0; skinIdx < gltf->skins_count; skinIdx++)
-                {
-                    const cgltf_skin* skin = &gltf->skins[skinIdx];
-                    for (size_t jointIdx = 0; jointIdx < skin->joints_count; jointIdx++)
-                    {
-                        if (skin->joints[jointIdx] == channel->target_node)
-                        {
-                            jointIndex = (int)jointIdx;
-                            break;
-                        }
-                    }
-                    if (jointIndex >= 0) break;
-                }
+                auto it = node_map.find(channel->target_node);
+                if (it == node_map.end()) continue;
+
+                int rigIdx = it->second.rigIdx;
+                int jointIndex = it->second.jointIdx;
                 
-                if (jointIndex < 0) continue; 
-                
-                AnimationClipCreateInfo::Track* track = nullptr;
-                for (auto& t : clipInfo.Tracks)
-                {
-                    if (t.JointIndex == jointIndex)
-                    {
-                        track = &t;
-                        break;
-                    }
-                }
-                
-                if (!track)
-                {
-                    clipInfo.Tracks.push_back(AnimationClipCreateInfo::Track());
-                    track = &clipInfo.Tracks.back();
-                    track->JointIndex = jointIndex;
-                }
-                
-                std::vector<float> times;
-                times.resize(sampler->input->count);
-                for (size_t i = 0; i < sampler->input->count; i++)
-                {
-                    cgltf_accessor_read_float(sampler->input, i, &times[i], 1);
-                }
+                ClipCreateInfo::Track& track = rigTracks[rigIdx][channel->target_node];
+                track.JointIndex = jointIndex;
                 
                 if (channel->target_path == cgltf_animation_path_type_translation)
                 {
-                    track->TranslationTimes = times;
-                    track->TranslationValues.resize(sampler->output->count);
-                    
-                    for (size_t i = 0; i < sampler->output->count; i++)
-                    {
-                        float vec[3];
-                        cgltf_accessor_read_float(sampler->output, i, vec, 3);
-                        track->TranslationValues[i] = glm::vec3(vec[0], vec[1], vec[2]);
-                    }
+                    ReadAccessorFloat(sampler->input, track.TranslationTimes);
+                    ReadAccessorFloatToVec3(sampler->output, track.TranslationValues);
                 }
                 else if (channel->target_path == cgltf_animation_path_type_rotation)
                 {
-                    track->RotationTimes = times;
-                    track->RotationValues.resize(sampler->output->count);
-                    
-                    for (size_t i = 0; i < sampler->output->count; i++)
-                    {
-                        float quat[4];
-                        cgltf_accessor_read_float(sampler->output, i, quat, 4);
-                        track->RotationValues[i] = glm::quat(quat[3], quat[0], quat[1], quat[2]);  // w,x,y,z
-                    }
+                    ReadAccessorFloat(sampler->input, track.RotationTimes);
+                    ReadAccessorFloatToQuat(sampler->output, track.RotationValues);
                 }
                 else if (channel->target_path == cgltf_animation_path_type_scale)
                 {
-                    track->ScaleTimes = times;
-                    track->ScaleValues.resize(sampler->output->count);
-                    
-                    for (size_t i = 0; i < sampler->output->count; i++)
-                    {
-                        float vec[3];
-                        cgltf_accessor_read_float(sampler->output, i, vec, 3);
-                        track->ScaleValues[i] = glm::vec3(vec[0], vec[1], vec[2]);
-                    }
+                    ReadAccessorFloat(sampler->input, track.ScaleTimes);
+                    ReadAccessorFloatToVec3(sampler->output, track.ScaleValues);
                 }
             }
             
-            result->clips.push_back(clipInfo);
-            AE_CORE_INFO("Parsed animation: {0}, duration: {1}s, {2} tracks", clipInfo.DebugName, clipInfo.Duration, clipInfo.Tracks.size());
+            for (auto& [rigIdx, track_map] : rigTracks)
+            {
+                ClipCreateInfo clipInfo;
+                
+                if (rigTracks.size() > 1)
+                {
+                    clipInfo.DebugName = anim->name ? 
+                        std::string(anim->name) + "_Rig" + std::to_string(rigIdx) :
+                        "Animation_" + std::to_string(animIdx) + "_Rig" + std::to_string(rigIdx);
+                }
+                else
+                {
+                    clipInfo.DebugName = anim->name ? anim->name : ("Animation_" + std::to_string(animIdx));
+                }
+                
+                clipInfo.Duration = maxTime;
+                clipInfo.SampleRate = 30.0f;
+                
+                for (auto& [node, trackData] : track_map) 
+                {
+                    if (trackData.TranslationTimes.empty() && 
+                        trackData.RotationTimes.empty() && 
+                        trackData.ScaleTimes.empty())
+                        continue;
+                    clipInfo.Tracks.push_back(trackData);
+                }
+                
+                uint32_t clipIdx = (uint32_t)result->clips.size();
+                result->clips.push_back(clipInfo);
+                result->rig_map[rigIdx].push_back(clipIdx);
+                
+                AE_CORE_INFO("Parsed animation: {0}, duration: {1}s, {2} tracks for rig {3}", 
+                    clipInfo.DebugName, clipInfo.Duration, clipInfo.Tracks.size(), rigIdx);
+            }
         }
     }
 }

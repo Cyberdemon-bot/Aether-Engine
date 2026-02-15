@@ -3,12 +3,15 @@
 #include "Aether/Core/Base.h"
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <map>
+#include <set>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 namespace Aether {
 
-    struct SkeletonCreateInfo
+    struct RigCreateInfo
     {
         std::string DebugName;
         
@@ -25,7 +28,7 @@ namespace Aether {
         std::vector<glm::mat4> IBM;
     };
 
-    struct AnimationClipCreateInfo
+    struct ClipCreateInfo
     {
         std::string DebugName;
         float Duration;
@@ -48,17 +51,18 @@ namespace Aether {
         std::vector<Track> Tracks;
     };
 
-    struct SkelAnimInfo
+    struct RigAnimsCreateInfo
     {
-        std::vector<SkeletonCreateInfo> skeletons;
-        std::vector<AnimationClipCreateInfo> clips;
+        std::vector<RigCreateInfo> rigs;
+        std::vector<ClipCreateInfo> clips;
+        std::unordered_map<uint32_t, std::vector<uint32_t>> rig_map;
     };
 
     class AnimationParser
     {
     public:
         virtual ~AnimationParser() = default;
-        virtual Ref<SkelAnimInfo> Parsing(void* data) = 0;
+        virtual Ref<RigAnimsCreateInfo> ParseRigAnim(void* data) = 0;
         static Ref<AnimationParser> Create();
     };
 }

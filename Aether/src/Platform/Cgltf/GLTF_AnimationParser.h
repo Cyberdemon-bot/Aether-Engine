@@ -8,11 +8,11 @@ namespace Aether {
     {
     public:
         virtual ~GLTF_AnimationParser() = default;
-        virtual Ref<SkelAnimInfo> Parsing(void* data) override;
+        virtual Ref<RigAnimsCreateInfo> ParseRigAnim(void* data) override;
     
     private:
-        void ParseSkels(void* data, Ref<SkelAnimInfo> result);
-        void ParseClips(void* data, Ref<SkelAnimInfo> result);
+        void ParseRigs(void* data, Ref<RigAnimsCreateInfo> result);
+        void ParseClips(void* data, Ref<RigAnimsCreateInfo> result);
     };
 
 }

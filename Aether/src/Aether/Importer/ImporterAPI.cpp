@@ -6,7 +6,8 @@
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Texture.h"
 #include "Aether/Resources/Shader.h"
-#include "Aether/Animation/AnimationManager.h"
+#include "Aether/Animation/AnimationSystem.h"
+#include "Aether/Animation/RigSystem.h"
 
 namespace Aether {
 
@@ -35,6 +36,8 @@ namespace Aether {
     {
         RegisteredScene res;
         std::vector<UUID> texIDs;
+        std::vector<UUID> rigIDs;     
+        std::vector<UUID> clipIDs; 
         // Upload textures
         for (const auto& texInfo : sceneData.Textures)
         {
@@ -115,18 +118,32 @@ namespace Aether {
             MeshLibrary::Add(mesh, meshID);
             res.meshIDs.push_back(meshID);
         }
-        auto animSystem = AnimationManager::GetSystem<SkeletalAnimationSystem>(AnimationType::Skeletal);
-        for (const auto& skelInfo : sceneData.Skeletons)
+        auto animSystem = AnimationSystem::GetModule<RigSystem>();
+        for (const auto& rigInfo : sceneData.Rigs)
         {
-            UUID skelID = AssetsRegister::Register(skelInfo.DebugName);
-            animSystem->RegisterSkeleton(skelInfo, skelID);
-            res.skelIDs.push_back(skelID);
+            UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
+            animSystem->RegisterSkeleton(rigInfo, rigID);
+            rigIDs.push_back(rigID);
         }
+
         for (const auto& clipInfo : sceneData.Clips)
         {
             UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
             animSystem->RegisterClip(clipInfo, clipID);
-            res.clipIDs.push_back(clipID);
+            clipIDs.push_back(clipID);
+        }
+
+        for (auto& [rigIdx, clipIndices] : sceneData.RigMap)
+        {
+            UUID rigID = rigIDs[rigIdx];
+            UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
+            animSystem->CreateAnimator(animatorID, rigID);
+            res.animatorIDS.push_back(animatorID);
+            for (uint32_t clipIdx : clipIndices)
+            {
+                UUID clipID = clipIDs[clipIdx];
+                animSystem->AddClip(animatorID, clipID);
+            }
         }
 
         return res;
