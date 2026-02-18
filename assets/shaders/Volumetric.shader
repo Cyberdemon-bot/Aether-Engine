@@ -50,6 +50,7 @@ uniform float u_Density;
 uniform float u_Intensity;
 uniform int   u_Steps;
 uniform float u_VolBias;
+uniform float u_MaxDistance;
 
 vec3 ReconstructWorldPos(vec2 uv, float depth)
 {
@@ -93,7 +94,7 @@ void main()
     float rawDepth   = texture(u_SceneDepth, v_TexCoord).r;
     vec3  surfacePos = ReconstructWorldPos(v_TexCoord, rawDepth);
 
-    float maxRayLen = 50.0;
+    float maxRayLen = u_MaxDistance;
     vec3  toSurface = surfacePos - u_Position;
     float rayLen    = rawDepth < 0.9999 ? min(length(toSurface), maxRayLen) : maxRayLen;
     vec3  rayDir    = rawDepth < 0.9999

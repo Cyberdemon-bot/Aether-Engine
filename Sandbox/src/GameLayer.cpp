@@ -204,6 +204,7 @@ void GameLayer::Update(Aether::Timestep ts)
     m_VolShader->SetFloat("u_Intensity", m_VolIntensity);
     m_VolShader->SetInt  ("u_Steps",     m_VolSteps);
     m_VolShader->SetFloat("u_VolBias",   m_ShadowBias);
+    m_VolShader->SetFloat("u_MaxDistance", 200.0f);
 
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
