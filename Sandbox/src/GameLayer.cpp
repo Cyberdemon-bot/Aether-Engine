@@ -204,7 +204,7 @@ void GameLayer::Update(Aether::Timestep ts)
     m_VolShader->SetFloat("u_Intensity", m_VolIntensity);
     m_VolShader->SetInt  ("u_Steps",     m_VolSteps);
     m_VolShader->SetFloat("u_VolBias",   m_ShadowBias);
-    m_VolShader->SetFloat("u_MaxDistance", 200.0f);
+    m_VolShader->SetFloat("u_MaxDistance", 100.0f);
 
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
@@ -245,6 +245,11 @@ void GameLayer::OnEvent(Aether::Event& event)
 
 void GameLayer::OnImGuiRender()
 {
+    ImGui::Begin("Performance");
+    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Text("Frame time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+    ImGui::End();
+
     DrawScenePanel();
     DrawAnimationPanel();
     DrawLightingPanel();
