@@ -242,9 +242,9 @@ namespace Aether {
 
 			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 			{
+				auto material = MaterialLibrary::Get(key.materialID);
 				if (currentMatID != key.materialID && pass.UsingMaterial)
 				{
-					auto material = MaterialLibrary::Get(key.materialID);
 					material->UploadMaterial(shader, startSlot);
 					currentMatID = key.materialID;
 				}
@@ -258,25 +258,22 @@ namespace Aether {
 				const auto& submesh = mesh->GetSubMeshes()[key.subIdx];
 				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
 
-				shader->SetInt("u_UseInstancing", 0);
-				shader->SetInt("u_HasAnimation", 1);
-
-				for (const auto& transform : transforms.dynamic_obj) // render non static
+				if (!transforms.dynamic_obj.empty())
 				{
-					shader->SetMat4("u_Model", transform.first);
-					if (currentAnimatorID != transform.second)
-					{
-						const auto& boneMatrices = skelSystem->GetMatrices(transform.second);
-						if (!boneMatrices.empty()) s_RenderData->BoneUB->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
-						currentAnimatorID = transform.second;
-					}
+					shader->SetInt("u_UseInstancing", 0);
+					shader->SetInt("u_HasAnimation", 1);
 
-					RenderCommand::DrawIndexedBaseVertex(
-						mesh->GetVertexArray(),
-						submesh.IndexCount,
-						indexOffset,
-						submesh.BaseVertex
-					);
+					for (const auto& transform : transforms.dynamic_obj) // render non static
+					{
+						shader->SetMat4("u_Model", transform.first);
+						if (currentAnimatorID != transform.second)
+						{
+							const auto& boneMatrices = skelSystem->GetMatrices(transform.second);
+							if (!boneMatrices.empty()) s_RenderData->BoneUB->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
+							currentAnimatorID = transform.second;
+						}
+						RenderCommand::DrawIndexedBaseVertex(mesh->GetVertexArray(), submesh.IndexCount, indexOffset, submesh.BaseVertex);
+					}
 				}
 
 				if (!transforms.static_obj.empty())
