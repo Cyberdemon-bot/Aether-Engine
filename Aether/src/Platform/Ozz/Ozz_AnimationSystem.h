@@ -23,7 +23,7 @@ namespace Aether {
 
         // ===== Asset Registration =====
         void RegisterSkeleton(const RigCreateInfo& data, UUID id) override;
-        void RegisterClip(const ClipCreateInfo& data, UUID id) override;
+        void RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID) override;
 
         // ===== Animator Management =====
         void CreateAnimator(UUID animatorID, UUID rigID, const std::vector<UUID>& clipIDs = {}) override;
@@ -98,7 +98,7 @@ namespace Aether {
         
         // Conversion helpers
         ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const RigCreateInfo& data);
-        ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipCreateInfo& data);
+        ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipCreateInfo& data, int numJoints);
         void ConvertOzzMatricesToGlm(const ozz::vector<ozz::math::Float4x4>& ozzMats, 
                                       std::vector<glm::mat4>& glmMats);
 

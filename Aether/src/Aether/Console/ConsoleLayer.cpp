@@ -54,11 +54,7 @@ namespace Aether {
     void ConsoleLayer::OnImGuiRender()
     {
         ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("Console"))
-        {
-            ImGui::End();
-            return;
-        }
+        ImGui::Begin("Console");
 
         if (ImGui::Button("Clear"))
         {

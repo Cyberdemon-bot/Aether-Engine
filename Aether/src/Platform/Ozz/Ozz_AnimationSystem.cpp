@@ -45,15 +45,34 @@ namespace Aether {
 
         AE_CORE_INFO("Registered skeleton: {0} with {1} joints", 
             data.DebugName, ozzSkeleton.skeleton->num_joints());
+
+        const auto& jointNames = ozzSkeleton.skeleton->joint_names();
+        ozzSkeleton.sourceData.ibmRemap.resize(jointNames.size());
+        for (int ozzIdx = 0; ozzIdx < (int)jointNames.size(); ozzIdx++)
+        {
+            for (int origIdx = 0; origIdx < (int)data.Joints.size(); origIdx++)
+            {
+                if (data.Joints[origIdx].Name == jointNames[ozzIdx])
+                {
+                    ozzSkeleton.sourceData.ibmRemap[ozzIdx] = origIdx;
+                    break;
+                }
+            }
+        }
         
         m_Skeletons[id] = std::move(ozzSkeleton);
     }
 
-    void Ozz_AnimationSystem::RegisterClip(const ClipCreateInfo& data, UUID id)
+    void Ozz_AnimationSystem::RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID)
     {
+        auto rigIt = m_Skeletons.find(skeletonID);
+        if (rigIt == m_Skeletons.end()) { AE_CORE_ERROR("Skeleton not found for clip {0}", data.DebugName); return; }
+        
+        int numJoints = rigIt->second.skeleton->num_joints();
+
         OzzClip ozzClip;
         ozzClip.sourceData = data;
-        ozzClip.animation = ConvertToOzzAnimation(data);
+        ozzClip.animation = ConvertToOzzAnimation(data, numJoints);
 
         if (!ozzClip.animation) 
         {
@@ -448,7 +467,11 @@ namespace Aether {
             animator.dirty = false;
             return;  
         }
-        for (int i = 0; i < numJoints; ++i) animator.finalMatrices[i] = animator.finalMatrices[i] * ibms[i];
+        for (int i = 0; i < numJoints; ++i)
+        {
+            int origIdx = rigIt->second.sourceData.ibmRemap[i];
+            animator.finalMatrices[i] = animator.finalMatrices[i] * ibms[origIdx];
+        }
         
         animator.dirty = false;
     }
@@ -519,18 +542,21 @@ namespace Aether {
         return builder(rawSkeleton);
     }
 
-    ozz::unique_ptr<ozz::animation::Animation> Ozz_AnimationSystem::ConvertToOzzAnimation(const ClipCreateInfo& data)
+    ozz::unique_ptr<ozz::animation::Animation> Ozz_AnimationSystem::ConvertToOzzAnimation(const ClipCreateInfo& data, int numJoints)
     {
         using namespace ozz::animation::offline;
         
         RawAnimation rawAnim;
         rawAnim.duration = data.Duration;
-        rawAnim.tracks.resize(data.Tracks.size());
+        rawAnim.tracks.resize(numJoints);
         
         for (size_t i = 0; i < data.Tracks.size(); i++)
         {
             const auto& srcTrack = data.Tracks[i];
-            RawAnimation::JointTrack& dstTrack = rawAnim.tracks[i];
+            int jointIdx = srcTrack.JointIndex;
+            if (jointIdx < 0 || jointIdx >= numJoints) continue;
+
+            RawAnimation::JointTrack& dstTrack = rawAnim.tracks[jointIdx];
             
             // Translation keys
             for (size_t k = 0; k < srcTrack.TranslationTimes.size(); k++)

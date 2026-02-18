@@ -19,11 +19,23 @@ namespace Aether
 		glViewport(x, y, width, height);
 	}
 
-	void OpenGLRendererAPI::SetDepthFuncEqual(bool state)
+	void OpenGLRendererAPI::SetDepthFuncEqual(State state)
     {
-        if (state) glDepthFunc(GL_EQUAL);
-		else glDepthFunc(GL_LEQUAL);
+        if (state == State::EQUAL || state == State::None) glDepthFunc(GL_EQUAL);
+		if (state == State::LEQUAL) glDepthFunc(GL_LEQUAL);
     }
+
+	void OpenGLRendererAPI::SetCullingMode(State state)
+	{
+		if (state == State::None)
+		{
+			glDisable(GL_CULL_FACE);
+			return;
+		}
+		glEnable(GL_CULL_FACE);
+		if (state == State::FRONT_CULL) glCullFace(GL_FRONT);
+		if (state == State::BACK_CULL) glCullFace(GL_BACK);
+	}
 
     void OpenGLRendererAPI::SetClearColor(const glm::vec4& color) {
         glClearColor(color.r, color.g, color.b, color.a);
@@ -41,9 +53,21 @@ namespace Aether
     	glDrawElementsInstancedBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, instanceCount, baseVertex);
 	}
 
-    void OpenGLRendererAPI::Clear() {
+    void OpenGLRendererAPI::Clear() 
+	{
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
+
+	void OpenGLRendererAPI::ClearColor()
+	{
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
+
+	
+	void OpenGLRendererAPI::ClearDepth() 
+	{
+		glClear(GL_DEPTH_BUFFER_BIT);
+	}
 
 	void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
 	{

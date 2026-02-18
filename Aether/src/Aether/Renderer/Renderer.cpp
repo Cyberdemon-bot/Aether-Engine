@@ -73,6 +73,11 @@ namespace Aether {
 		s_RenderData->s_PassList = list;
 	}
 
+	void Renderer::SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val)
+	{
+		std::get<2>(s_RenderData->s_PassList[PassIdx].readList[AttribIdx]) = val;
+	}
+
 	void Renderer::BeginScene(const Camera& camera, const std::vector<LightParam>& lights)
 	{
 		s_SceneData->camera.Position = camera.GetPosition();
@@ -96,7 +101,13 @@ namespace Aether {
 				{
 					float fov = glm::acos(light.outerCone) * 2.0f;
 					lightProjection = glm::perspective(fov, 1.0f, 0.1f, light.range);
-					lightView = glm::lookAt(light.position, light.position + light.direction, glm::vec3(0, 1, 0));
+					glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+					glm::vec3 dir = glm::normalize(light.direction); 
+					if (glm::abs(glm::dot(dir, up)) > 0.99f) 
+					{
+						up = glm::vec3(0.0f, 0.0f, 1.0f); 
+					}
+					lightView = glm::lookAt(light.position, light.position + dir, up);
 				}
 				else if (light.type == LightType::Directional)
 				{
@@ -130,9 +141,10 @@ namespace Aether {
 		s_RenderData->s_SkyboxShader->Bind();
 		s_RenderData->s_SkyboxShader->SetInt("u_Skybox", 0);
 		
-		RenderCommand::SetDepthFuncEqual();
+		RenderCommand::SetCullingMode(State::None);
+		RenderCommand::SetDepthFuncEqual(State::EQUAL);
 		RenderCommand::DrawIndexed(s_RenderData->s_SkyMesh->GetVertexArray());
-		RenderCommand::SetDepthFuncEqual(false);
+		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 	}
 
 	void Renderer::RenderOnScreen(const RenderPass& pass)
@@ -181,87 +193,109 @@ namespace Aether {
 		int startSlot = 0;
 		auto shader = pass.Shader; shader->Bind();
 		auto fbo = pass.TargetFBO; fbo->Bind();
-		if (pass.ClearColor || pass.ClearDepth) 
+
+		if (pass.ClearColor && pass.ClearDepth) 
 		{
         	if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
 			RenderCommand::Clear();  
 		}
-
-		if (pass.ColorTexIdx >= 0 && pass.ColorTexIdx < s_RenderData->s_PassList.size())
+		if (pass.ClearColor)
 		{
-			s_RenderData->s_PassList[pass.ColorTexIdx].TargetFBO->BindColorTexture(startSlot);
-			shader->SetInt("u_ColorTex", startSlot);
-			startSlot++;
+			if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
+			RenderCommand::ClearColor();  
 		}
-
-		if (pass.DepthTexIdx >= 0 && pass.DepthTexIdx < s_RenderData->s_PassList.size())
-		{
-			s_RenderData->s_PassList[pass.DepthTexIdx].TargetFBO->BindDepthTexture(startSlot);
-			shader->SetInt("u_DepthTex", startSlot);
-			startSlot++;
-		}
-
+		if (pass.ClearDepth) RenderCommand::ClearDepth();  
+		if (pass.CullFace == State::FRONT_CULL) RenderCommand::SetCullingMode(State::FRONT_CULL);
+		if (pass.CullFace == State::BACK_CULL) RenderCommand::SetCullingMode(State::BACK_CULL);
+		if (pass.CullFace == State::None) RenderCommand::SetCullingMode(State::None);
 		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
-		for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
+		for (auto& [type, name, Idx] : pass.readList)
 		{
-			if (currentMatID != key.materialID)
+			if (type == TextureType::Depth)
 			{
-				auto material = MaterialLibrary::Get(key.materialID);
-				material->UploadMaterial(shader, startSlot);
-				currentMatID = key.materialID;
+				s_RenderData->s_PassList[Idx].TargetFBO->BindDepthTexture(startSlot);
+				shader->SetInt(name, startSlot);
+				startSlot++;
 			}
 
-			auto mesh = MeshLibrary::Get(key.meshID);
-			if (currentMeshID != key.meshID) 
+			if (type == TextureType::Color)
 			{
-				mesh->GetVertexArray()->Bind();
-				currentMeshID = key.meshID;
-        	}
-        	const auto& submesh = mesh->GetSubMeshes()[key.subIdx];
-			void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
+				s_RenderData->s_PassList[Idx].TargetFBO->BindColorTexture(startSlot);
+				shader->SetInt(name, startSlot);
+				startSlot++;
+			}
 
-			shader->SetInt("u_UseInstancing", 0);
-			shader->SetInt("u_HasAnimation", 1);
+			if (type == TextureType::None) shader->SetInt(name, Idx);
+		}
+
+		if (pass.UsingGeometry)
+		{
 			auto skelSystem = AnimationSystem::GetModule<RigSystem>();
-
-			std::sort(transforms.dynamic_obj.begin(), transforms.dynamic_obj.end(), 
-			[](const std::pair<glm::mat4, UUID>& a, const std::pair<glm::mat4, UUID>& b) {return a.second < b.second;}); //sort by animator id
-
-			for (const auto& transform : transforms.dynamic_obj) // render non static
+			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 			{
-				shader->SetMat4("u_Model", transform.first);
-				if (currentAnimatorID != transform.second)
-				{
-					const auto& boneMatrices = skelSystem->GetMatrices(transform.second);
-					if (!boneMatrices.empty()) s_RenderData->BoneUB->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
-
-					currentAnimatorID = transform.second;
-				}
-
-				RenderCommand::DrawIndexedBaseVertex(
-                    mesh->GetVertexArray(),
-                    submesh.IndexCount,
-                    indexOffset,
-                    submesh.BaseVertex
-                );
+				std::sort(transforms.dynamic_obj.begin(), transforms.dynamic_obj.end(), 
+				[](const std::pair<glm::mat4, UUID>& a, const std::pair<glm::mat4, UUID>& b) {return a.second < b.second;}); 
+				for (const auto& transform : transforms.dynamic_obj) skelSystem->RequestMatrices(transform.second);
+				skelSystem->ProcessRequests(); // calc animation
 			}
 
-			if (!transforms.static_obj.empty())
+			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 			{
-				shader->SetInt("u_UseInstancing", 1);
-				shader->SetInt("u_HasAnimation", 0);
-
-				uint32_t dataSize = transforms.static_obj.size() * sizeof(glm::mat4);
-				if (s_RenderData->s_InstanceVBO->GetSize() < dataSize) 
+				if (currentMatID != key.materialID && pass.UsingMaterial)
 				{
-					uint32_t newSize = dataSize * 2;
-					s_RenderData->s_InstanceVBO->Resize(newSize);
+					auto material = MaterialLibrary::Get(key.materialID);
+					material->UploadMaterial(shader, startSlot);
+					currentMatID = key.materialID;
 				}
-				s_RenderData->s_InstanceVBO->SetData(transforms.static_obj.data(), dataSize, 0);
-				Aether::RenderCommand::DrawInstancedBaseVertex(mesh->GetVertexArray(), submesh.IndexCount, indexOffset, submesh.BaseVertex, transforms.static_obj.size());
+
+				auto mesh = MeshLibrary::Get(key.meshID);
+				if (currentMeshID != key.meshID) 
+				{
+					mesh->GetVertexArray()->Bind();
+					currentMeshID = key.meshID;
+				}
+				const auto& submesh = mesh->GetSubMeshes()[key.subIdx];
+				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
+
+				shader->SetInt("u_UseInstancing", 0);
+				shader->SetInt("u_HasAnimation", 1);
+
+				for (const auto& transform : transforms.dynamic_obj) // render non static
+				{
+					shader->SetMat4("u_Model", transform.first);
+					if (currentAnimatorID != transform.second)
+					{
+						const auto& boneMatrices = skelSystem->GetMatrices(transform.second);
+						if (!boneMatrices.empty()) s_RenderData->BoneUB->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
+						currentAnimatorID = transform.second;
+					}
+
+					RenderCommand::DrawIndexedBaseVertex(
+						mesh->GetVertexArray(),
+						submesh.IndexCount,
+						indexOffset,
+						submesh.BaseVertex
+					);
+				}
+
+				if (!transforms.static_obj.empty())
+				{
+					shader->SetInt("u_UseInstancing", 1);
+					shader->SetInt("u_HasAnimation", 0);
+
+					uint32_t dataSize = transforms.static_obj.size() * sizeof(glm::mat4);
+					if (s_RenderData->s_InstanceVBO->GetSize() < dataSize) 
+					{
+						uint32_t newSize = dataSize * 2;
+						s_RenderData->s_InstanceVBO->Resize(newSize);
+					}
+					s_RenderData->s_InstanceVBO->SetData(transforms.static_obj.data(), dataSize, 0);
+					Aether::RenderCommand::DrawInstancedBaseVertex(mesh->GetVertexArray(), submesh.IndexCount, indexOffset, submesh.BaseVertex, transforms.static_obj.size());
+				}
 			}
 		}
+		else RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
 		if (pass.UsingSkybox) RenderSkybox();
 		fbo->Unbind();
 	}

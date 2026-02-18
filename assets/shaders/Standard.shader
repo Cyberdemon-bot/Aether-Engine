@@ -53,54 +53,37 @@ void main()
     vec3 localNormal = a_Normal;
     vec3 localTangent = a_Tangent.xyz;
 
-    // Skeletal animation skinning
     if (u_HasAnimation == 1)
     {
-        mat4 skinMatrix = 
+        mat4 skinMatrix =
             a_Weights.x * u_BoneMatrices[a_Joints.x] +
             a_Weights.y * u_BoneMatrices[a_Joints.y] +
             a_Weights.z * u_BoneMatrices[a_Joints.z] +
             a_Weights.w * u_BoneMatrices[a_Joints.w];
-
         localPos = skinMatrix * localPos;
         mat3 skinMat3 = mat3(skinMatrix);
         localNormal = skinMat3 * localNormal;
         localTangent = skinMat3 * localTangent;
     }
 
-    // Choose model matrix based on instancing
     mat4 modelMatrix = u_UseInstancing == 1 ? a_InstanceModel : u_Model;
-
-    // Transform to world space
     vec4 worldPos = modelMatrix * localPos;
     v_WorldPos = worldPos.xyz;
 
-    // Normal matrix (assumes uniform scale for performance)
-    // For non-uniform scale, use: transpose(inverse(mat3(modelMatrix)))
     mat3 normalMatrix = mat3(modelMatrix);
-    
-    // Build TBN matrix in world space
     vec3 T = normalize(normalMatrix * localTangent);
     vec3 N = normalize(normalMatrix * localNormal);
-    
-    // Gram-Schmidt re-orthogonalization
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T) * a_Tangent.w;
-    
     v_TBN = mat3(T, B, N);
     v_WorldNormal = N;
-    
     v_TexCoord = a_TexCoord;
-    
+
     if (u_Lights.lightCount > 0 && u_Lights.lights[0].coneAngles.z > 0.5)
-    {
         v_LightSpacePos = u_Lights.lights[0].lightSpaceMatrix * worldPos;
-    }
     else
-    {
         v_LightSpacePos = vec4(0.0);
-    }
-    
+
     gl_Position = u_ViewProjection * worldPos;
 }
 
@@ -147,22 +130,22 @@ uniform vec4 u_AlbedoColor;
 uniform float u_Metallic;
 uniform float u_Roughness;
 uniform int u_HasNormalMap;
+uniform float u_Bias;
 
 const float PI = 3.14159265359;
 const vec3 F0_DIELECTRIC = vec3(0.04);
 
-float SampleShadowMap(vec4 lightSpacePos)
+float SampleShadowMap(vec4 lightSpacePos, vec3 normal, vec3 lightDir)
 {
     vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords = projCoords * 0.5 + 0.5;
-    
-    if (projCoords.z > 1.0) return 1.0;
-    
+    if (projCoords.z > 1.0) return 0.0;
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+        return 0.0;
     float currentDepth = projCoords.z;
-    float bias = 0.005;
+    float bias = max(u_Bias * (1.0 - dot(normal, lightDir)), u_Bias * 0.1);
     float closestDepth = texture(u_DepthTex, projCoords.xy).r;
-    
-    return currentDepth - bias > closestDepth ? 0.3 : 1.0;
+    return currentDepth - bias > closestDepth ? 0.0 : 1.0;
 }
 
 float DistributionGGX(float NdotH, float roughness)
@@ -170,11 +153,9 @@ float DistributionGGX(float NdotH, float roughness)
     float a = roughness * roughness;
     float a2 = a * a;
     float NdotH2 = NdotH * NdotH;
-    
     float denom = NdotH2 * (a2 - 1.0) + 1.0;
     denom = PI * denom * denom;
-    
-    return a2 / max(denom, 0.0000001); 
+    return a2 / max(denom, 0.0000001);
 }
 
 float GeometrySchlickGGX(float NdotV, float k)
@@ -198,91 +179,75 @@ void main()
 {
     vec4 albedo = texture(u_AlbedoMap, v_TexCoord) * u_AlbedoColor;
     vec3 metallicRoughnessSample = texture(u_MetallicRoughnessMap, v_TexCoord).rgb;
-    float roughness = clamp(metallicRoughnessSample.g * u_Roughness, 0.04, 1.0); 
-    float metallic = clamp(metallicRoughnessSample.b * u_Metallic, 0.0, 1.0);
-    
+    float roughness = clamp(metallicRoughnessSample.g * u_Roughness, 0.04, 1.0);
+    float metallic  = clamp(metallicRoughnessSample.b * u_Metallic,  0.0,  1.0);
+
     vec3 N = v_WorldNormal;
     if (u_HasNormalMap == 1)
     {
         vec3 tangentNormal = texture(u_NormalMap, v_TexCoord).xyz * 2.0 - 1.0;
         N = normalize(v_TBN * tangentNormal);
     }
-    
+
     vec3 V = normalize(u_Position - v_WorldPos);
-    
     vec3 Lo = vec3(0.0);
-    float shadow = 1.0;
-    
-    if (u_Lights.lightCount > 0 && u_Lights.lights[0].coneAngles.z > 0.5)
-    {
-        shadow = SampleShadowMap(v_LightSpacePos);
-    }
-    
+
     for (int i = 0; i < u_Lights.lightCount && i < 16; i++)
     {
         Light light = u_Lights.lights[i];
-        
-        vec3 lightPos = light.positionAndType.xyz;
-        int lightType = int(light.positionAndType.w);
-        vec3 lightDir = light.directionAndRange.xyz;
-        float lightRange = light.directionAndRange.w;
-        vec3 lightColor = light.colorAndIntensity.xyz;
+        vec3  lightPos       = light.positionAndType.xyz;
+        int   lightType      = int(light.positionAndType.w);
+        vec3  lightDir       = normalize(light.directionAndRange.xyz);
+        float lightRange     = light.directionAndRange.w;
+        vec3  lightColor     = light.colorAndIntensity.xyz;
         float lightIntensity = light.colorAndIntensity.w;
-        
-        vec3 L;
+
+        vec3  L = vec3(0.0);
         float attenuation = 1.0;
-        
-        if (lightType == 1)
+
+        if (lightType == 2)
         {
             L = -lightDir;
         }
-        else if (lightType == 0)
+        else if (lightType == 1)
         {
-            vec3 lightToFrag = v_WorldPos - lightPos;
-            float distance = length(lightToFrag);
+            vec3  lightToFrag = v_WorldPos - lightPos;
+            float dist        = length(lightToFrag);
             L = normalize(-lightToFrag);
-            
-            attenuation = 1.0 / (1.0 + distance * distance / (lightRange * lightRange));
-            
-            float theta = dot(normalize(lightToFrag), lightDir);
-            float innerCone = light.coneAngles.x;
-            float outerCone = light.coneAngles.y;
-            float epsilon = innerCone - outerCone;
+            attenuation = 1.0 / (1.0 + dist * dist / (lightRange * lightRange));
+            float theta        = dot(normalize(lightToFrag), lightDir);
+            float innerCone    = light.coneAngles.x;
+            float outerCone    = light.coneAngles.y;
+            float epsilon      = innerCone - outerCone;
             float spotIntensity = clamp((theta - outerCone) / epsilon, 0.0, 1.0);
-            
             attenuation *= spotIntensity;
         }
-        
-        vec3 H = normalize(V + L);
-        
+
+        float shadow = 1.0;
+        if (i == 0 && light.coneAngles.z > 0.5)
+            shadow = SampleShadowMap(v_LightSpacePos, N, L);
+
+        vec3  H     = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
         float NdotV = max(dot(N, V), 0.0);
         float NdotH = max(dot(N, H), 0.0);
         float HdotV = max(dot(H, V), 0.0);
-        
-        vec3 F0 = mix(F0_DIELECTRIC, albedo.rgb, metallic);
-        
-        float D = DistributionGGX(NdotH, roughness);
-        float G = GeometrySmith(NdotV, NdotL, roughness);
-        vec3 F = FresnelSchlick(HdotV, F0);
-        
-        vec3 numerator = D * G * F;
-        float denominator = 4.0 * NdotV * NdotL;
-        vec3 specular = numerator / max(denominator, 0.001);
-        
-        vec3 kS = F;
-        vec3 kD = (1.0 - kS) * (1.0 - metallic);
-        vec3 diffuse = kD * albedo.rgb / PI;
-        
+
+        vec3  F0        = mix(F0_DIELECTRIC, albedo.rgb, metallic);
+        float D         = DistributionGGX(NdotH, roughness);
+        float G         = GeometrySmith(NdotV, NdotL, roughness);
+        vec3  F         = FresnelSchlick(HdotV, F0);
+        vec3  specular  = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
+        vec3  kD        = (1.0 - F) * (1.0 - metallic);
+        vec3  diffuse   = kD * albedo.rgb / PI;
+
         float shadowFactor = (i == 0 && light.coneAngles.z > 0.5) ? shadow : 1.0;
         Lo += (diffuse + specular) * lightColor * lightIntensity * NdotL * attenuation * shadowFactor;
     }
-    
+
     vec3 ambient = vec3(0.03) * albedo.rgb;
-    vec3 color = ambient + Lo;
-    
+    vec3 color   = ambient + Lo;
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
-    
     FragColor = vec4(color, 1.0);
 }

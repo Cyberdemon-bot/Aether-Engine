@@ -32,6 +32,7 @@ layout(std140) uniform Bones
 uniform mat4 u_Model;
 uniform int u_HasAnimation;
 uniform int u_UseInstancing;
+uniform int u_LightIndex;
 
 void main()
 {
@@ -51,14 +52,11 @@ void main()
     mat4 modelMatrix = u_UseInstancing == 1 ? a_InstanceModel : u_Model;
     vec4 worldPos = modelMatrix * localPos;
     
-    if (u_Lights.lightCount > 0)
+    if (u_Lights.lightCount > 0 && u_LightIndex < u_Lights.lightCount)
     {
-        gl_Position = u_Lights.lights[0].lightSpaceMatrix * worldPos;
+        gl_Position = u_Lights.lights[u_LightIndex].lightSpaceMatrix * worldPos;
     }
-    else
-    {
-        gl_Position = vec4(0.0);
-    }
+    else gl_Position = vec4(0.0);
 }
 
 #shader fragment
