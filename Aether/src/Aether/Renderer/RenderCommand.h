@@ -12,8 +12,19 @@ namespace Aether {
             s_RendererAPI->SetClearColor(color);
         }
 
-        static void Clear() {
+        static void Clear() 
+        {
             s_RendererAPI->Clear();
+        }
+
+        static void ClearColor()
+        {
+            s_RendererAPI->ClearColor();
+        }
+
+        static void ClearDepth()
+        {
+            s_RendererAPI->ClearDepth();
         }
 
         static void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0)
@@ -46,9 +57,14 @@ namespace Aether {
 			s_RendererAPI->SetLineWidth(width);
 		}
 
-        static void SetDepthFuncEqual(bool state = true)
+        static void SetDepthFuncEqual(State state)
         {
             s_RendererAPI->SetDepthFuncEqual(state);
+        }
+
+        static void SetCullingMode(State state)
+        {
+            s_RendererAPI->SetCullingMode(state);
         }
 
         static void SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)

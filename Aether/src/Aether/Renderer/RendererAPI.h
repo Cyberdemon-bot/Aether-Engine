@@ -5,6 +5,10 @@
 
 namespace Aether {
 
+    enum class State
+    {
+        None = 0, EQUAL, LEQUAL, FRONT_CULL, BACK_CULL
+    };
     class AETHER_API RendererAPI 
     {
     public:
@@ -18,7 +22,10 @@ namespace Aether {
 		virtual void SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) = 0;
         virtual void SetClearColor(const glm::vec4& color) = 0;
         virtual void Clear() = 0;
-        virtual void SetDepthFuncEqual(bool state) = 0;
+        virtual void ClearColor() = 0;
+        virtual void ClearDepth() = 0;
+        virtual void SetDepthFuncEqual(State state) = 0;
+        virtual void SetCullingMode(State state) = 0;
 
         virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) = 0;
         virtual void DrawInstanced(const Ref<VertexArray>& vertexArray, uint32_t instanceCount) = 0;

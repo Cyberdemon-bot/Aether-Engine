@@ -14,7 +14,7 @@ namespace Aether {
     {
     public:
         virtual void RegisterSkeleton(const RigCreateInfo& data, UUID id) = 0;
-        virtual void RegisterClip(const ClipCreateInfo& data, UUID id) = 0;
+        virtual void RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID) = 0;
 
         virtual void CreateAnimator(UUID animatorID, UUID skeletonID, const std::vector<UUID>& clipIDs = {}) = 0;
         virtual void DestroyAnimator(UUID animatorID) = 0;

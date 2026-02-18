@@ -26,6 +26,7 @@ namespace Aether {
         
         std::vector<Joint> Joints;
         std::vector<glm::mat4> IBM;
+        std::vector<int> ibmRemap;
     };
 
     struct ClipCreateInfo

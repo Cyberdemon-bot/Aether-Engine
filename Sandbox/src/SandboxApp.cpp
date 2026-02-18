@@ -1,10 +1,11 @@
 #include "Aether/Core/EntryPoint.h"
-#include "TestLayer.h"
+//#include "TestLayer.h"
+#include "GameLayer.h"
 
 class Sandbox : public Aether::Application {
 public:
     Sandbox() { 
-        PushLayer(new TestLayer());
+        PushLayer(new GameLayer());
     }
     ~Sandbox() {}
 };

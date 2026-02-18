@@ -129,7 +129,6 @@ namespace Aether {
         for (const auto& clipInfo : sceneData.Clips)
         {
             UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
-            animSystem->RegisterClip(clipInfo, clipID);
             clipIDs.push_back(clipID);
         }
 
@@ -139,9 +138,12 @@ namespace Aether {
             UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
             animSystem->CreateAnimator(animatorID, rigID);
             res.animatorIDS.push_back(animatorID);
+            
             for (uint32_t clipIdx : clipIndices)
             {
+                const auto& clipInfo = sceneData.Clips[clipIdx];
                 UUID clipID = clipIDs[clipIdx];
+                animSystem->RegisterClip(clipInfo, clipID, rigID);
                 animSystem->AddClip(animatorID, clipID);
             }
         }

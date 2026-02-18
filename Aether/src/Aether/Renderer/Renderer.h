@@ -10,6 +10,7 @@
 #include "Aether/Renderer/Camera.h"
 #include "Aether/Core/UUID.h"
 #include <glm/glm.hpp>
+#include <tuple>
 #define MAX_LIGHTS 16
 
 namespace Aether {
@@ -17,6 +18,11 @@ namespace Aether {
 	enum class LightType
 	{
 		None = 0, Spot, Directional
+	};
+	
+	enum class TextureType
+	{
+		None = 0, Depth, Color
 	};
 
 	struct LightParam
@@ -82,8 +88,10 @@ namespace Aether {
 		bool ClearDepth = true;
 		bool OnScreen = true;
 		bool UsingSkybox = false;
-		int ColorTexIdx = -1;
-		int DepthTexIdx = -1;
+		bool UsingMaterial = true;
+		bool UsingGeometry = true;
+		State CullFace = State::None;
+		std::vector<std::tuple<TextureType, std::string, uint32_t>> readList;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float m_LutIntensity = 0.0f;
 	};
@@ -97,6 +105,7 @@ namespace Aether {
 		static void OnWindowResize(uint32_t width, uint32_t height);
 
 		static void SetPipeline(const std::vector<RenderPass>& list);
+		static void SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val);
 
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
