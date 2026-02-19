@@ -36,7 +36,7 @@ namespace Aether {
         virtual const std::vector<glm::mat4>& GetMatrices(UUID animatorID) = 0;
 
         virtual bool IsPlaying(UUID animatorID) const = 0;
-        virtual float GetCurrentTime(UUID animatorID) const = 0;
+        virtual float GetPlayBackTime(UUID animatorID) const = 0;
         virtual float GetDuration(UUID animatorID) const = 0;
         virtual float GetSpeed(UUID animatorID) const = 0;
 

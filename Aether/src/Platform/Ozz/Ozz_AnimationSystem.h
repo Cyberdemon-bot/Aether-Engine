@@ -51,7 +51,7 @@ namespace Aether {
 
         // ===== Query State =====
         bool IsPlaying(UUID animatorID) const override;
-        float GetCurrentTime(UUID animatorID) const override;
+        float GetPlayBackTime(UUID animatorID) const override;
         float GetDuration(UUID animatorID) const override;
         float GetSpeed(UUID animatorID) const override;
 
