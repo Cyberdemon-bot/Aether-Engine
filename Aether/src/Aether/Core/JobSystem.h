@@ -1,4 +1,5 @@
 #pragma once
+#include "Aether/Core/Base.h"
 #include <functional>
 #include <queue>
 #include <thread>
@@ -10,7 +11,7 @@ namespace Aether {
 
     using Job = std::function<void()>;
 
-    class JobSystem
+    class AETHER_API JobSystem
     {
     public:
         static void Init(uint32_t numThreads = std::thread::hardware_concurrency());

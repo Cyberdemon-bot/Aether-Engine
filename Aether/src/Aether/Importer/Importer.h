@@ -1,7 +1,8 @@
+#include "Aether/Core/Base.h"
 #include "Aether/Importer/ImporterAPI.h"
 
 namespace Aether {
-    class Importer
+    class AETHER_API Importer
     {
     public: 
         static ParsedScene Import(const std::string& path) {

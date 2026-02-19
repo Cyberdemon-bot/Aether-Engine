@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
 #include "Aether/Renderer/RenderCommand.h"
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/UniformBuffer.h"
@@ -96,7 +97,7 @@ namespace Aether {
 		float m_LutIntensity = 0.0f;
 	};
 
-	class Renderer
+	class AETHER_API Renderer
 	{
 	public:
 		static void Init();
