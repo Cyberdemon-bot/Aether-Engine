@@ -35,7 +35,7 @@ target("Aether")
     if is_mode("debug") then
         add_defines("AETHER_DEBUG", {public = true})
         set_symbols("debug")
-        --set_policy("build.sanitizer.address", true)
+        set_policy("build.sanitizer.address", true)
     end
 
     add_includedirs("src", {public = true})
@@ -64,3 +64,5 @@ target("Aether")
     elseif is_os("linux") then
         add_syslinks("pthread", "dl", {public = true})
     end
+
+--note for windows: kind = static, turn off shared, dll and asan
