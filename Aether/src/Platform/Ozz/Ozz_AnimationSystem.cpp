@@ -377,7 +377,7 @@ namespace Aether {
         return (it != m_Animators.end()) ? it->second->isPlaying : false;
     }
 
-    float Ozz_AnimationSystem::GetCurrentTime(UUID animatorID) const
+    float Ozz_AnimationSystem::GetPlayBackTime(UUID animatorID) const
     {
         auto it = m_Animators.find(animatorID);
         return (it != m_Animators.end()) ? it->second->currentTime : 0.0f;
@@ -600,7 +600,6 @@ namespace Aether {
             }
         }
         
-        // Build runtime animation
         AnimationBuilder builder;
         return builder(rawAnim);
     }

@@ -489,7 +489,7 @@ void GameLayer::DrawAnimationPanel()
                 rigSystem->SetSpeed(animatorID, speed);
 
             // ── Progress ──────────────────────────────────────────────────────
-            float currentTime = rigSystem->GetCurrentTime(animatorID);
+            float currentTime = rigSystem->GetPlayBackTime(animatorID);
             float duration    = rigSystem->GetDuration(animatorID);
             ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
             if (duration > 0.0f)
