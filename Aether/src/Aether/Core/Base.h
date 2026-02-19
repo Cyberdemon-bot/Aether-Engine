@@ -22,13 +22,25 @@
 #endif
 
 #ifdef AETHER_PLATFORM_WINDOWS
-	#ifdef AETHER_BUILD_DLL
-		#define AETHER_API __declspec(dllexport)
+	#ifdef AETHER_SHARED
+		#ifdef AETHER_BUILD_DLL
+			#define AETHER_API __declspec(dllexport)
+		#else
+			#define AETHER_API __declspec(dllimport)
+		#endif
 	#else
-		#define AETHER_API __declspec(dllimport)
+		#define AETHER_API
 	#endif
 #else
-	#define AETHER_API __attribute__((visibility("default")))
+	#ifdef AETHER_SHARED
+		#ifdef AETHER_BUILD_DLL
+			#define AETHER_API __attribute__((visibility("default")))
+		#else
+			#define AETHER_API __attribute__((visibility("default")))
+		#endif
+	#else
+		#define AETHER_API
+	#endif
 #endif
 
 #ifdef AETHER_PLATFORM_WINDOWS

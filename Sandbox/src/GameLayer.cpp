@@ -84,7 +84,7 @@ void GameLayer::Attach()
     volPass.TargetFBO     = Aether::FrameBuffer::Create(volFbSpec);
     volPass.Shader        = m_VolShader;
     volPass.ClearColor    = true;
-    volPass.ClearDepth    = false;
+    volPass.ClearDepth    = true;
     volPass.CullFace      = Aether::State::None;
     volPass.OnScreen      = true;
     volPass.UsingGeometry = false;
