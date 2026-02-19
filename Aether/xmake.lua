@@ -25,7 +25,6 @@ end
 
 target("Aether")
     set_kind("shared")
-    --set_kind("static")
     set_languages("cxx17")
 
     add_defines("AETHER_SHARED")
@@ -35,7 +34,6 @@ target("Aether")
     if is_mode("debug") then
         add_defines("AETHER_DEBUG", {public = true})
         set_symbols("debug")
-        set_policy("build.sanitizer.address", true)
     end
 
     add_includedirs("src", {public = true})

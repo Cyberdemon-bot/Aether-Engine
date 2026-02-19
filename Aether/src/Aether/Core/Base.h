@@ -21,26 +21,22 @@
 	#error "Unknown platform!"
 #endif
 
-#ifdef AETHER_PLATFORM_WINDOWS
-	#ifdef AETHER_SHARED
+#ifdef AETHER_SHARED
+	#ifdef AETHER_PLATFORM_WINDOWS
 		#ifdef AETHER_BUILD_DLL
 			#define AETHER_API __declspec(dllexport)
 		#else
 			#define AETHER_API __declspec(dllimport)
 		#endif
 	#else
-		#define AETHER_API
-	#endif
-#else
-	#ifdef AETHER_SHARED
 		#ifdef AETHER_BUILD_DLL
 			#define AETHER_API __attribute__((visibility("default")))
 		#else
 			#define AETHER_API __attribute__((visibility("default")))
 		#endif
-	#else
-		#define AETHER_API
 	#endif
+#else 
+	#define AETHER_API
 #endif
 
 #ifdef AETHER_PLATFORM_WINDOWS
