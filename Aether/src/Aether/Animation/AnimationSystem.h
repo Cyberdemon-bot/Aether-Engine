@@ -14,7 +14,7 @@ namespace Aether {
         virtual void Update(Timestep ts) = 0;
     };
 
-    class AnimationSystem
+    class AETHER_API AnimationSystem
     {
     public: 
         static void Init();

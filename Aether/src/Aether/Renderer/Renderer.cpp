@@ -42,6 +42,7 @@ namespace Aether {
 	{
 		RenderCommand::Init();
 		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 } };
+		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 
 		s_RenderData->s_InstanceVBO = VertexBuffer::Create(10 * sizeof(glm::mat4));
 		s_RenderData->s_InstanceVBO->SetLayout(layout);
@@ -142,9 +143,7 @@ namespace Aether {
 		s_RenderData->s_SkyboxShader->SetInt("u_Skybox", 0);
 		
 		RenderCommand::SetCullingMode(State::None);
-		RenderCommand::SetDepthFuncEqual(State::EQUAL);
 		RenderCommand::DrawIndexed(s_RenderData->s_SkyMesh->GetVertexArray());
-		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 	}
 
 	void Renderer::RenderOnScreen(const RenderPass& pass)
@@ -199,12 +198,12 @@ namespace Aether {
         	if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
 			RenderCommand::Clear();  
 		}
-		if (pass.ClearColor)
+		else if (pass.ClearColor)
 		{
 			if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
 			RenderCommand::ClearColor();  
 		}
-		if (pass.ClearDepth) RenderCommand::ClearDepth();  
+		else if (pass.ClearDepth) RenderCommand::ClearDepth();  
 		if (pass.CullFace == State::FRONT_CULL) RenderCommand::SetCullingMode(State::FRONT_CULL);
 		if (pass.CullFace == State::BACK_CULL) RenderCommand::SetCullingMode(State::BACK_CULL);
 		if (pass.CullFace == State::None) RenderCommand::SetCullingMode(State::None);
