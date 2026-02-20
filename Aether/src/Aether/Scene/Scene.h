@@ -32,7 +32,7 @@ namespace Aether {
         Entity FindEntity(UUID id) const;
         UUID GetUUID(Entity entity) const;
 
-        void LoadHierarchy(const RegisteredScene& registered);
+        void LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}

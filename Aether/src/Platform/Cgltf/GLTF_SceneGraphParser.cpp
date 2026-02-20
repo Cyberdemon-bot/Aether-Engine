@@ -9,14 +9,20 @@ namespace Aether {
         if (!gltf) return out;
         cgltf_scene* scene = gltf->scene ? gltf->scene : (gltf->scenes_count > 0 ? &gltf->scenes[0] : nullptr);
         if (!scene) return out;
+        std::unordered_set<cgltf_node*> jointNodes;
+        for (size_t i = 0; i < gltf->skins_count; i++)
+            for (size_t j = 0; j < gltf->skins[i].joints_count; j++)
+                jointNodes.insert(gltf->skins[i].joints[j]);
         for (size_t i = 0; i < scene->nodes_count; i++)
-            ParseNode(gltf, scene->nodes[i], out, -1);
+            ParseNode(gltf, scene->nodes[i], out, -1, jointNodes);
         return out;
     }
 
-    void GLTF_SceneGraphParser::ParseNode(cgltf_data* gltf, cgltf_node* node, Ref<SceneHierarchy> out ,int parentNodeIdx)
+    void GLTF_SceneGraphParser::ParseNode(cgltf_data* gltf, cgltf_node* node, Ref<SceneHierarchy> out ,int parentNodeIdx,
+                                        const std::unordered_set<cgltf_node*>& jointNodes)
     {
         if (!node) return;
+        if (jointNodes.count(node)) return;
 
         Node sceneNode; sceneNode.name = node->name ? node->name : ("Node_" + std::to_string(out->nodes.size()));
 
@@ -59,6 +65,6 @@ namespace Aether {
         else out->nodes[parentNodeIdx].children.push_back(myIdx);
 
         for (size_t i = 0; i < node->children_count; i++)
-            ParseNode(gltf, node->children[i], out, myIdx);
+            ParseNode(gltf, node->children[i], out, myIdx, jointNodes);
     }
 }

@@ -3,7 +3,7 @@
 
 namespace Aether {
 
-	class UUID
+	class AETHER_API UUID
 	{
 	public:
 		UUID();

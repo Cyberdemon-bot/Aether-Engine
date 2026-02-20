@@ -1,4 +1,5 @@
 #include "Aether/Importer/SceneGraphParser.h"
+#include <unordered_set>
 #include <cgltf.h>
 
 namespace Aether {
@@ -9,6 +10,7 @@ namespace Aether {
         Ref<SceneHierarchy> Parsing(void* data) override;
 
     private: 
-        void ParseNode(cgltf_data* gltf, cgltf_node* node, Ref<SceneHierarchy> out ,int parentNodeIdx);
+        void ParseNode(cgltf_data* gltf, cgltf_node* node, Ref<SceneHierarchy> out ,int parentNodeIdx, 
+                        const std::unordered_set<cgltf_node*>& jointNodes);
     };
 }

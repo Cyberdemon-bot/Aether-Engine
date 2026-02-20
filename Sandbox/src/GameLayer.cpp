@@ -166,8 +166,7 @@ void GameLayer::DrainParseQueue()
         auto result = Aether::Importer::Upload(parsed);
 
         for (auto& meshID : result.meshIDs) m_Meshes.push_back(meshID);
-        for (auto& animID : result.animatorIDS)
-            m_Animators.push_back(animID);
+        for (auto& animID : result.animatorIDS) m_Animators.push_back(animID);
 
         m_Scene.LoadHierarchy(result);
 

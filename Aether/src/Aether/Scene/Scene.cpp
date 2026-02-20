@@ -239,10 +239,10 @@ namespace Aether {
             CreateNodeEntity(scene, reg, childIdx, e);
     }
 
-     void Scene::LoadHierarchy(const RegisteredScene& registered)
+     void Scene::LoadHierarchy(const RegisteredScene& registered, Entity parent)
     {
         for (int rootIdx : registered.hierarchy->roots)
-            CreateNodeEntity(*this, registered, rootIdx, Null_Entity);
+            CreateNodeEntity(*this, registered, rootIdx, parent);
     }
 
     void Scene::UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty)
