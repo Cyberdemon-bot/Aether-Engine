@@ -5,22 +5,28 @@
 #include <cstdint>
 #include <unordered_map>
 #include "Aether/Core/UUID.h"
+#include "Aether/Core/Timestep.h"
+#include "Aether/Renderer/Renderer.h"
 
 using Entity = entt::entity;
 static constexpr Entity Null_Entity = entt::null;
 
 namespace Aether {
-    class Scene 
+    class AETHER_API Scene 
     {
     public:
         Scene();
         ~Scene();
 
         Entity CreateEntity();
-        Entity CreateEntity(std::string_view name);
+        Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);
         void DestroyEntity(Entity entity);
+        void DestroyHierarchy(Entity entity);
+        void MakeParent(Entity child, Entity parent);
+        void BreakParent(Entity entity);
 
         bool IsValid(Entity entity) const;
+        void Update(Timestep ts, EditorCamera* camera = nullptr);
 
         Entity FindEntity(UUID id) const;
         UUID GetUUID(Entity entity) const;
@@ -73,5 +79,7 @@ namespace Aether {
     private:
         entt::registry m_Registry;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
+        std::vector<LightParam> m_SceneLights;
+        void UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty);
     };
 }

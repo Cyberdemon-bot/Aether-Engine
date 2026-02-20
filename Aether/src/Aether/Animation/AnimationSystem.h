@@ -3,7 +3,7 @@
 #include "Aether/Core/Timestep.h"
 #include "Aether/Core/Base.h"
 #include <unordered_map>
-#include <typeindex>
+#include <string>
 
 namespace Aether {
 
@@ -12,6 +12,7 @@ namespace Aether {
     public:
         virtual ~AnimationModule() = default;
         virtual void Update(Timestep ts) = 0;
+        virtual const char* GetName() const = 0;
     };
 
     class AETHER_API AnimationSystem
@@ -25,23 +26,23 @@ namespace Aether {
         static void AddModule() 
         {
             auto& instance = GetInstance();
-            instance.m_Modules[std::type_index(typeid(T))] = T::Create();
+            Ref<T> module = T::Create();
+            instance.m_Modules[module->GetName()] = module;
         }
 
         template <typename T>
         static Ref<T> GetModule() 
         {
             auto& instance = GetInstance();
-            auto it = instance.m_Modules.find(std::type_index(typeid(T)));
+            auto it = instance.m_Modules.find(T::ModuleName());
             if (it != instance.m_Modules.end()) 
-            {
                 return std::static_pointer_cast<T>(it->second);
-            }
             return nullptr;
         }
+
     private:
         AnimationSystem() = default;
         static AnimationSystem& GetInstance();
-        std::unordered_map<std::type_index, Ref<AnimationModule>> m_Modules;
+        std::unordered_map<std::string, Ref<AnimationModule>> m_Modules;
     };
 }

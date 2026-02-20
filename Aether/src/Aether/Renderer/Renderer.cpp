@@ -76,7 +76,20 @@ namespace Aether {
 
 	void Renderer::SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val)
 	{
-		std::get<2>(s_RenderData->s_PassList[PassIdx].readList[AttribIdx]) = val;
+		if (PassIdx < s_RenderData->s_PassList.size() && AttribIdx < s_RenderData->s_PassList[PassIdx].readList.size())
+			std::get<2>(s_RenderData->s_PassList[PassIdx].readList[AttribIdx]) = val;
+	}
+
+	void Renderer::ActivatePass(uint32_t PassIdx)
+	{
+		if (PassIdx < s_RenderData->s_PassList.size()) 
+			s_RenderData->s_PassList[PassIdx].IsActive = true;
+	}
+
+	void Renderer::DeactivatePass(uint32_t PassIdx)
+	{
+		if (PassIdx < s_RenderData->s_PassList.size())
+			s_RenderData->s_PassList[PassIdx].IsActive = false;
 	}
 
 	void Renderer::BeginScene(const Camera& camera, const std::vector<LightParam>& lights)
@@ -85,8 +98,8 @@ namespace Aether {
 		s_SceneData->camera.View = camera.GetView();
 		s_SceneData->camera.ViewProjection = camera.GetViewProjection();
 
-		s_SceneData->lights.lightCount = lights.size();
-		for (size_t i = 0; i < lights.size(); i++)
+		s_SceneData->lights.lightCount = std::min(lights.size(), (size_t)16);
+		for (size_t i = 0; i < s_SceneData->lights.lightCount; i++)
 		{
 			const LightParam& light = lights[i];
 			s_SceneData->lights.lights[i].positionAndType = glm::vec4(light.position, (float)light.type);
@@ -129,11 +142,15 @@ namespace Aether {
 		s_RenderData->LightUB->SetData(&s_SceneData->lights, sizeof(LightsData));
 		for (auto& pass : s_RenderData->s_PassList)
 		{
-			Flush(pass);
-			if (pass.OnScreen) mainPass = &pass;
+			if (pass.IsActive)
+			{
+				Flush(pass);
+				if (pass.OnScreen) mainPass = &pass;
+			}
 		}
 		if (mainPass) RenderOnScreen(*mainPass);
 		s_SceneData->s_RenderBatches.clear();
+		s_SceneData->lights.lightCount = 0;
 	}
 
 	void Renderer::RenderSkybox()
@@ -157,7 +174,7 @@ namespace Aether {
 		s_RenderData->s_ScreenShader->Bind();
 		s_RenderData->s_ScreenShader->SetInt("u_SceneTexture", 0); 
 		s_RenderData->s_ScreenShader->SetInt("u_LutTexture", 1);
-		s_RenderData->s_ScreenShader->SetFloat("u_LutIntensity", pass.m_LutIntensity);
+		s_RenderData->s_ScreenShader->SetFloat("u_LutIntensity", pass.LutIntensity);
 		RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
 	}	
 
