@@ -34,7 +34,7 @@ namespace Aether {
     struct TransformComponent
     {
         glm::vec3 Translation = {0.0f, 0.0f, 0.0f};
-        glm::vec3 Rotation = {0.0f, 0.0f, 0.0f};
+        glm::quat Rotation = glm::quat({0.0f, 0.0f, 0.0f});
         glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
 
         glm::mat4 WorldTransform = glm::mat4(1.0f);  
@@ -46,7 +46,7 @@ namespace Aether {
 
         glm::mat4 GetLocalTransform() const
         {
-            glm::mat4 rotation = glm::toMat4(glm::quat(Rotation));
+            glm::mat4 rotation = glm::toMat4(Rotation);
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), Translation);
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), Scale);
 

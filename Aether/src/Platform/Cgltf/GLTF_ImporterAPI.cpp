@@ -34,6 +34,7 @@ namespace Aether {
         SceneData.Rigs = anim->rigs;
         SceneData.Clips = anim->clips;
         SceneData.RigMap = anim->rig_map;
+        SceneData.Hierarchy = m_SceneParser->Parsing(data);
 
         AE_CORE_INFO("Parsed " + path);
         return SceneData;

@@ -15,12 +15,14 @@ namespace Aether {
     Ref<MeshParser> ImporterAPI::m_MeshParser;
     Ref<MaterialParser> ImporterAPI::m_MaterialParser;
     Ref<AnimationParser> ImporterAPI::m_AnimationParser;
+    Ref<SceneGraphParser> ImporterAPI::m_SceneParser;
 
 	Scope<ImporterAPI> ImporterAPI::Create()
 	{
         m_MeshParser = MeshParser::Create();
         m_MaterialParser = MaterialParser::Create();
         m_AnimationParser = AnimationParser::Create();
+        m_SceneParser = SceneGraphParser::Create();
         
 		switch (s_API)
 		{
@@ -38,6 +40,7 @@ namespace Aether {
         std::vector<UUID> texIDs;
         std::vector<UUID> rigIDs;     
         std::vector<UUID> clipIDs; 
+        std::vector<UUID> matIDs;
         // Upload textures
         for (const auto& texInfo : sceneData.Textures)
         {
@@ -73,7 +76,7 @@ namespace Aether {
             material->AddFloat("u_Roughness", matInfo.Roughness);
             
             MaterialLibrary::Add(material, matID);
-            res.matIDs.push_back(matID);
+            matIDs.push_back(matID);
         }
         // Upload meshes
         for (const auto& meshInfo : sceneData.Meshes)
@@ -94,8 +97,8 @@ namespace Aether {
                 sm.BoundsMax = subInfo.BoundsMax;
                 
                 // Assign material
-                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < res.matIDs.size())
-                    sm.MaterialID = res.matIDs[subInfo.MaterialIdx];
+                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < matIDs.size())
+                    sm.MaterialID = matIDs[subInfo.MaterialIdx];
                 
                 submeshes.push_back(sm);
             }
@@ -132,22 +135,28 @@ namespace Aether {
             clipIDs.push_back(clipID);
         }
 
-        for (auto& [rigIdx, clipIndices] : sceneData.RigMap)
+        for (size_t rigIdx = 0; rigIdx < rigIDs.size(); rigIdx++)
         {
             UUID rigID = rigIDs[rigIdx];
             UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
             animSystem->CreateAnimator(animatorID, rigID);
-            res.animatorIDS.push_back(animatorID);
-            
-            for (uint32_t clipIdx : clipIndices)
+            res.animatorIDS.push_back(animatorID); 
+            auto it = sceneData.RigMap.find((uint32_t)rigIdx);
+            if (it != sceneData.RigMap.end())
             {
-                const auto& clipInfo = sceneData.Clips[clipIdx];
-                UUID clipID = clipIDs[clipIdx];
-                animSystem->RegisterClip(clipInfo, clipID, rigID);
-                animSystem->AddClip(animatorID, clipID);
+                const std::vector<uint32_t>& clipIndices = it->second;
+                for (uint32_t clipIdx : clipIndices)
+                {
+                    const auto& clipInfo = sceneData.Clips[clipIdx];
+                    UUID clipID = clipIDs[clipIdx];
+                    
+                    animSystem->RegisterClip(clipInfo, clipID, rigID);
+                    animSystem->AddClip(animatorID, clipID);
+                }
             }
         }
 
+        res.hierarchy = sceneData.Hierarchy;
         return res;
     }
 }

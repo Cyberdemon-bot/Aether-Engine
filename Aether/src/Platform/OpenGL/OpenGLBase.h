@@ -11,7 +11,11 @@
 #endif
 
 #define ASSERT(x) if (!(x)) DEBUG_BREAK();
-#define GLCall(x) GLClearError(); x; ASSERT(GLLogCall(#x, __FILE__, __LINE__));
+#ifdef AETHER_DEBUG
+    #define GLCall(x) GLClearError(); x; ASSERT(GLLogCall(#x, __FILE__, __LINE__));
+#else
+    #define GLCall(x) x;
+#endif
 
 namespace Aether {
     
