@@ -45,6 +45,9 @@ namespace Aether {
         virtual int GetCurrentClipIndex(UUID animatorID) const = 0;
         virtual std::vector<UUID> GetClips(UUID animatorID) const = 0;
 
+        static const char* ModuleName() { return "RigSystem"; }
+        const char* GetName() const override { return "RigSystem"; }
+
         static Ref<RigSystem> Create();
     };
 

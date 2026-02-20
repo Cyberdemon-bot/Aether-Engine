@@ -4,7 +4,7 @@
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/SceneCamera.h"
-
+#include "Aether/Renderer/Renderer.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -44,14 +44,23 @@ namespace Aether {
         TransformComponent(const TransformComponent&) = default;
         TransformComponent(const glm::vec3& translation) : Translation(translation) {}
 
-        void CalcTransform()
+        glm::mat4 GetLocalTransform() const
         {
             glm::mat4 rotation = glm::toMat4(glm::quat(Rotation));
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), Translation);
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), Scale);
 
-            WorldTransform = translation * rotation * scale;
+            return translation * rotation * scale;
         }
+    };
+
+    struct LightComponent
+    {
+        LightParam Config;
+
+        LightComponent() = default;
+        LightComponent(const LightComponent&) = default;
+        LightComponent(const LightParam& param) : Config(param) {}
     };
 
     struct MeshComponent

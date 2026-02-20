@@ -85,6 +85,7 @@ namespace Aether {
 	{
 		Ref<FrameBuffer> TargetFBO;        
 		Ref<Shader> Shader;                
+		bool IsActive = true;
 		bool ClearColor = true;
 		bool ClearDepth = true;
 		bool OnScreen = true;
@@ -94,7 +95,7 @@ namespace Aether {
 		State CullFace = State::None;
 		std::vector<std::tuple<TextureType, std::string, uint32_t>> readList;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
-		float m_LutIntensity = 0.0f;
+		float LutIntensity = 0.0f;
 	};
 
 	class AETHER_API Renderer
@@ -107,6 +108,8 @@ namespace Aether {
 
 		static void SetPipeline(const std::vector<RenderPass>& list);
 		static void SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val);
+		static void ActivatePass(uint32_t PassIdx);
+		static void DeactivatePass(uint32_t PassIdx);
 
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
