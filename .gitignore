@@ -9,7 +9,6 @@ build/
 *.obj
 *.log
 *.txt
-*.ini
 *.json
 *.py
 
