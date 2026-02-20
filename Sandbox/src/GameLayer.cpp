@@ -165,16 +165,11 @@ void GameLayer::DrainParseQueue()
         AE_CORE_INFO("Main thread: Uploading to GPU...");
         auto result = Aether::Importer::Upload(parsed);
 
-        for (auto& meshID : result.meshIDs)
-        {
-            m_Meshes.push_back(meshID);
-            std::string name = Aether::AssetsRegister::Get(meshID);
-            Entity e = m_Scene.CreateEntity(name);
-            m_Scene.AddComponent<Aether::MeshComponent>(e).MeshID = meshID;
-        }
-
+        for (auto& meshID : result.meshIDs) m_Meshes.push_back(meshID);
         for (auto& animID : result.animatorIDS)
             m_Animators.push_back(animID);
+
+        m_Scene.LoadHierarchy(result);
 
         AE_CORE_INFO("Loaded: {0} mesh(es), {1} animator(s)",
             result.meshIDs.size(), result.animatorIDS.size());
@@ -338,7 +333,7 @@ void GameLayer::DrawScenePanel()
 
             if (ImGui::DragFloat3("Position", glm::value_ptr(t.Translation), 0.1f))
                 t.Dirty = true;
-            if (ImGui::DragFloat3("Rotation", glm::value_ptr(t.Rotation),    0.1f))
+            if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation),    0.1f))
                 t.Dirty = true;
             if (ImGui::DragFloat3("Scale",    glm::value_ptr(t.Scale),       0.05f, 0.01f, 100.0f))
                 t.Dirty = true;
@@ -346,7 +341,7 @@ void GameLayer::DrawScenePanel()
             if (ImGui::Button("Reset Transform"))
             {
                 t.Translation = glm::vec3(0.0f);
-                t.Rotation    = glm::vec3(0.0f);
+                t.Rotation    = glm::quat({0.0f, 0.0f, 0.0f});
                 t.Scale       = glm::vec3(1.0f);
                 t.Dirty       = true;
             }

@@ -7,6 +7,7 @@
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Timestep.h"
 #include "Aether/Renderer/Renderer.h"
+#include "Aether/Importer/ImporterAPI.h"
 
 using Entity = entt::entity;
 static constexpr Entity Null_Entity = entt::null;
@@ -30,6 +31,8 @@ namespace Aether {
 
         Entity FindEntity(UUID id) const;
         UUID GetUUID(Entity entity) const;
+
+        void LoadHierarchy(const RegisteredScene& registered);
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}

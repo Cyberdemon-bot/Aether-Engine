@@ -23,8 +23,6 @@ namespace Aether {
         m_Skeletons.clear();
     }
 
-    // ===== Asset Registration =====
-
     void Ozz_AnimationSystem::RegisterSkeleton(const RigCreateInfo& data, UUID id)
     {
         OzzSkeleton ozzSkeleton;
@@ -108,18 +106,12 @@ namespace Aether {
         animator->samplingContext.Resize(numJoints);
         animator->clipIDs = clipIDs;
         m_Animators[animatorID] = std::move(animator);
-        
-        AE_CORE_INFO("Created animator {0}...", (uint64_t)animatorID);
     }
 
     void Ozz_AnimationSystem::DestroyAnimator(UUID animatorID)
     {
         auto it = m_Animators.find(animatorID);
-        if (it != m_Animators.end())
-        {
-            m_Animators.erase(it);
-            AE_CORE_INFO("Destroyed animator {0}", (uint64_t)animatorID);
-        }
+        if (it != m_Animators.end()) m_Animators.erase(it);
     }
 
     void Ozz_AnimationSystem::AddClip(UUID animatorID, UUID clipID)
@@ -138,7 +130,6 @@ namespace Aether {
         }
 
         animIt->second->clipIDs.push_back(clipID);
-        AE_CORE_INFO("Added clip {0} to animator {1}", (uint64_t)clipID, (uint64_t)animatorID);
     }
 
     void Ozz_AnimationSystem::BindClip(UUID animatorID, uint32_t idx)
@@ -369,8 +360,6 @@ namespace Aether {
         return empty;
     }
 
-    // ===== Query State =====
-
     bool Ozz_AnimationSystem::IsPlaying(UUID animatorID) const
     {
         auto it = m_Animators.find(animatorID);
@@ -399,7 +388,6 @@ namespace Aether {
         return (clipIt != m_Clips.end()) ? clipIt->second.animation->duration() : 0.0f;
     }
 
-    // ===== Private Methods =====
 
     void Ozz_AnimationSystem::CalculateMatrices(UUID animatorID)
     {
@@ -408,20 +396,16 @@ namespace Aether {
 
         OzzAnimator& animator = *(animIt->second);
         
-        // Skip if not dirty
         if (!animator.dirty) return;
         
-        // Get skeleton
         auto rigIt = m_Skeletons.find(animator.rigID);
         if (rigIt == m_Skeletons.end()) return;
         
         const ozz::animation::Skeleton& skeleton = *(rigIt->second.skeleton);
         
-        // Get animation
         auto clipIt = m_Clips.find(animator.clipIDs[animator.currentClip]);
         if (clipIt == m_Clips.end())
         {
-            // No animation bound, use bind pose
             for (size_t i = 0; i < animator.finalMatrices.size(); i++)
             {
                 animator.finalMatrices[i] = glm::mat4(1.0f);
@@ -432,7 +416,6 @@ namespace Aether {
         
         const ozz::animation::Animation& animation = *(clipIt->second.animation);
         
-        // Sample animation
         ozz::animation::SamplingJob samplingJob;
         samplingJob.animation = &animation;
         samplingJob.context = &animator.samplingContext;
@@ -445,7 +428,6 @@ namespace Aether {
             return;
         }
         
-        // Convert local transforms to model space
         ozz::animation::LocalToModelJob localToModelJob;
         localToModelJob.skeleton = &skeleton;
         localToModelJob.input = make_span(animator.localTransforms);
@@ -490,7 +472,6 @@ namespace Aether {
         JobSystem::WaitAll();
     }
 
-    // ===== Conversion Helpers =====
 
     ozz::unique_ptr<ozz::animation::Skeleton> Ozz_AnimationSystem::ConvertToOzzSkeleton(const RigCreateInfo& data)
     {
@@ -509,7 +490,6 @@ namespace Aether {
 
         rawSkeleton.roots.resize(1);
         
-        // Build hierarchy recursively
         std::function<void(int, RawSkeleton::Joint&)> buildHierarchy;
         buildHierarchy = [&](int parentIdx, RawSkeleton::Joint& outJoint) 
         {
@@ -537,7 +517,6 @@ namespace Aether {
             return nullptr;
         }
         
-        // Build runtime skeleton
         SkeletonBuilder builder;
         return builder(rawSkeleton);
     }
@@ -558,7 +537,6 @@ namespace Aether {
 
             RawAnimation::JointTrack& dstTrack = rawAnim.tracks[jointIdx];
             
-            // Translation keys
             for (size_t k = 0; k < srcTrack.TranslationTimes.size(); k++)
             {
                 RawAnimation::TranslationKey key;
@@ -571,7 +549,6 @@ namespace Aether {
                 dstTrack.translations.push_back(key);
             }
             
-            // Rotation keys
             for (size_t k = 0; k < srcTrack.RotationTimes.size(); k++)
             {
                 RawAnimation::RotationKey key;
@@ -586,7 +563,6 @@ namespace Aether {
                 dstTrack.rotations.push_back(key);
             }
             
-            // Scale keys
             for (size_t k = 0; k < srcTrack.ScaleTimes.size(); k++)
             {
                 RawAnimation::ScaleKey key;

@@ -7,6 +7,7 @@
 #include "Aether/Importer/MaterialParser.h"
 #include "Aether/Importer/MeshParser.h"
 #include "Aether/Importer/AnimationParser.h"
+#include "Aether/Importer/SceneGraphParser.h"
 
 namespace Aether {
 
@@ -19,14 +20,15 @@ namespace Aether {
 
         std::vector<RigCreateInfo> Rigs;      
         std::vector<ClipCreateInfo> Clips;
+        Ref<SceneHierarchy> Hierarchy;
         std::unordered_map<uint32_t, std::vector<uint32_t>> RigMap;
     };
 
     struct RegisteredScene
     {
-        std::vector<UUID> matIDs;
         std::vector<UUID> meshIDs;
         std::vector<UUID> animatorIDS;
+        Ref<SceneHierarchy> hierarchy;
     };
 
     class AETHER_API ImporterAPI 
@@ -48,6 +50,7 @@ namespace Aether {
         static Ref<MeshParser> m_MeshParser;
         static Ref<MaterialParser> m_MaterialParser;
         static Ref<AnimationParser> m_AnimationParser;
+        static Ref<SceneGraphParser> m_SceneParser;
         
     private:
         static API s_API;

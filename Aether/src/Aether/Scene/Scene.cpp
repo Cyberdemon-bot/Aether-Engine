@@ -217,6 +217,34 @@ namespace Aether {
          return m_Registry.get<IDComponent>(entity).ID;
     }
 
+    static void CreateNodeEntity(Scene& scene, const RegisteredScene& reg, int nodeIdx, Entity parentEntity)
+    {
+        const Node& node = reg.hierarchy->nodes[nodeIdx];
+
+        Entity e = scene.CreateEntity(node.name, parentEntity);
+
+        auto& t       = scene.GetComponent<TransformComponent>(e);
+        t.Translation = node.translation;
+        t.Rotation    = glm::normalize(node.rotation);
+        t.Scale       = node.scale;
+        t.Dirty       = true;
+
+        if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
+            scene.AddComponent<MeshComponent>(e).MeshID = reg.meshIDs[node.meshIdx];
+
+        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animatorIDS.size())
+            scene.AddComponent<AnimatorComponent>(e).AnimatorID = reg.animatorIDS[node.animatorIdx];
+
+        for (int childIdx : node.children)
+            CreateNodeEntity(scene, reg, childIdx, e);
+    }
+
+     void Scene::LoadHierarchy(const RegisteredScene& registered)
+    {
+        for (int rootIdx : registered.hierarchy->roots)
+            CreateNodeEntity(*this, registered, rootIdx, Null_Entity);
+    }
+
     void Scene::UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty)
     {
         auto& transform = GetComponent<TransformComponent>(entity);
