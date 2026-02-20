@@ -25,7 +25,6 @@ end
 
 target("Aether")
     set_kind("shared")
-    --set_kind("static")
     set_languages("cxx17")
 
     add_defines("AETHER_SHARED")
@@ -64,5 +63,3 @@ target("Aether")
     elseif is_os("linux") then
         add_syslinks("pthread", "dl", {public = true})
     end
-
---note for windows: kind = static, turn off shared, dll and asan
