@@ -10,7 +10,7 @@
 
 namespace Aether {
 
-    class RigSystem : public AnimationModule
+    class RigModule : public AnimationModule
     {
     public:
         virtual void RegisterSkeleton(const RigCreateInfo& data, UUID id) = 0;
@@ -45,10 +45,10 @@ namespace Aether {
         virtual int GetCurrentClipIndex(UUID animatorID) const = 0;
         virtual std::vector<UUID> GetClips(UUID animatorID) const = 0;
 
-        static const char* ModuleName() { return "RigSystem"; }
-        const char* GetName() const override { return "RigSystem"; }
+        static const char* ModuleName() { return "RigModule"; }
+        const char* GetName() const override { return "RigModule"; }
 
-        static Ref<RigSystem> Create();
+        static Ref<RigModule> Create();
     };
 
 }

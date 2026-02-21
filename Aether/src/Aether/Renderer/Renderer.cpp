@@ -1,7 +1,7 @@
 #include "aepch.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigSystem.h"
+#include "Aether/Animation/RigModule.h"
 #include "Aether/Core/Application.h"
 
 float quadVertices[] = { 
@@ -61,6 +61,8 @@ namespace Aether {
 
 		s_RenderData->s_SkyMesh = Mesh::Create(
 			MeshSpec{{VertexStream{skyboxVertices, 8, MeshLayout::Vertex()}}, skyboxIndices, 36});
+
+		s_RenderData->lineShader = Shader::Create("assets/shaders/LineShader.shader");
 	}
 
 	void Renderer::Shutdown()
@@ -150,6 +152,7 @@ namespace Aether {
 		}
 		if (mainPass) RenderOnScreen(*mainPass);
 		s_SceneData->s_RenderBatches.clear();
+		s_SceneData->s_RenderBounds.clear();
 		s_SceneData->lights.lightCount = 0;
 	}
 
@@ -201,6 +204,11 @@ namespace Aether {
 		}
 	}
 
+	void Renderer::DrawBox(UUID meshID, const glm::mat4& transform)
+	{
+		s_SceneData->s_RenderBounds.push_back({meshID, transform});
+	}
+
 	void Renderer::Flush(const RenderPass& pass)
 	{
 		UUID currentMatID = 0;
@@ -247,7 +255,7 @@ namespace Aether {
 
 		if (pass.UsingGeometry)
 		{
-			auto skelSystem = AnimationSystem::GetModule<RigSystem>();
+			auto skelSystem = AnimationSystem::GetModule<RigModule>();
 			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 			{
 				std::sort(transforms.dynamic_obj.begin(), transforms.dynamic_obj.end(), 
@@ -307,6 +315,15 @@ namespace Aether {
 					Aether::RenderCommand::DrawInstancedBaseVertex(mesh->GetVertexArray(), submesh.IndexCount, indexOffset, submesh.BaseVertex, transforms.static_obj.size());
 				}
 			}
+
+			for(auto& [id, transform] : s_SceneData->s_RenderBounds)
+			{
+				auto mesh = MeshLibrary::Get(id);
+				auto& boundMin = mesh->GetBoundsMin();
+				auto& boundMax = mesh->GetBoundsMax();
+				RenderBox(boundMin, boundMax, transform, {0.0f, 1.0f, 0.0f, 1.0f});
+			}
+			
 		}
 		else RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
 		if (pass.UsingSkybox) RenderSkybox();
@@ -316,5 +333,41 @@ namespace Aether {
 	void Renderer::OnWindowResize(uint32_t width, uint32_t height)
 	{
 		RenderCommand::SetViewport(0, 0, width, height);
+	}
+
+	void Renderer::RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color)
+	{
+		glm::vec3 l[8] = {
+			{boundMin.x, boundMin.y, boundMin.z}, {boundMax.x, boundMin.y, boundMin.z},
+			{boundMax.x, boundMax.y, boundMin.z}, {boundMin.x, boundMax.y, boundMin.z},
+			{boundMin.x, boundMin.y, boundMax.z}, {boundMax.x, boundMin.y, boundMax.z},
+			{boundMax.x, boundMax.y, boundMax.z}, {boundMin.x, boundMax.y, boundMax.z}
+		};
+		glm::vec3 w[8];
+		for (int i = 0; i < 8; i++) w[i] = glm::vec3(transform * glm::vec4(l[i], 1.0f));
+		static Aether::Ref<Aether::VertexArray> s_VAO;
+		static Aether::Ref<Aether::VertexBuffer> s_VBO;
+
+		if (!s_VAO)
+		{
+			s_VAO = Aether::VertexArray::Create();
+			s_VBO = Aether::VertexBuffer::Create(sizeof(w)); 
+			s_VBO->SetLayout(MeshLayout::Vertex());
+			s_VAO->AddVertexBuffer(s_VBO);
+			uint32_t indices[24] = {
+				0,1, 1,2, 2,3, 3,0,
+				4,5, 5,6, 6,7, 7,4, 
+				0,4, 1,5, 2,6, 3,7  
+			};
+			Aether::Ref<Aether::IndexBuffer> ibo = Aether::IndexBuffer::Create(indices, 24);
+			s_VAO->SetIndexBuffer(ibo);
+		}
+
+		s_VBO->SetData(w, sizeof(w), 0); 
+		auto shader = s_RenderData->lineShader;
+		shader->Bind();
+		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
+		shader->SetFloat4("u_Color", color);
+		RenderCommand::DrawIndexedLines(s_VAO, 24);
 	}
 }

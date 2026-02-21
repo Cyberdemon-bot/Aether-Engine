@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Aether/Animation/RigSystem.h"
+#include "Aether/Animation/RigModule.h"
 #include <unordered_map>
 #include <mutex>
 
@@ -15,7 +15,7 @@
 
 namespace Aether {
 
-    class Ozz_AnimationSystem : public RigSystem
+    class Ozz_AnimationSystem : public RigModule
     {
     public:
         Ozz_AnimationSystem();

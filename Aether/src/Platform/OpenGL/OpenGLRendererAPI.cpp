@@ -83,6 +83,13 @@ namespace Aether
 		glDrawArrays(GL_LINES, 0, vertexCount);
 	}
 
+	void OpenGLRendererAPI::DrawIndexedLines(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
+	{
+		vertexArray->Bind();
+		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexBuffer()->GetCount();
+		glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, nullptr);
+	}
+
 	void OpenGLRendererAPI::DrawInstanced(const Ref<VertexArray>& vertexArray, uint32_t instanceCount)
     {
         vertexArray->Bind();

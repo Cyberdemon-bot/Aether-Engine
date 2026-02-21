@@ -7,7 +7,7 @@
 #include "Aether/Resources/Texture.h"
 #include "Aether/Resources/Shader.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigSystem.h"
+#include "Aether/Animation/RigModule.h"
 
 namespace Aether {
 
@@ -121,7 +121,7 @@ namespace Aether {
             MeshLibrary::Add(mesh, meshID);
             res.meshIDs.push_back(meshID);
         }
-        auto animSystem = AnimationSystem::GetModule<RigSystem>();
+        auto animSystem = AnimationSystem::GetModule<RigModule>();
         for (const auto& rigInfo : sceneData.Rigs)
         {
             UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
