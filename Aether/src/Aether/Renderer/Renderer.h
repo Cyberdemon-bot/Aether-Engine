@@ -115,6 +115,9 @@ namespace Aether {
 		static void EndScene();
 
 		static void DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
+		static void DrawBox(UUID meshID, const glm::mat4& transform);
+
+		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 
 		static RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
 	private:
@@ -126,6 +129,7 @@ namespace Aether {
 			CameraData camera;
 			LightsData lights; 
 			std::map<RenderKey, BatchData> s_RenderBatches;
+			std::vector<std::pair<UUID, glm::mat4>> s_RenderBounds;
 		};
 
 		struct RenderData
@@ -140,6 +144,7 @@ namespace Aether {
 			Ref<Shader> s_SkyboxShader;
 			Ref<Texture2D> s_LutMap;
 			Ref<TextureCube> s_Skybox;
+			Ref<Shader> lineShader;
 			
 			std::vector<RenderPass> s_PassList;
 			std::unordered_map<UUID, bool> s_MeshInstanceAssigned;

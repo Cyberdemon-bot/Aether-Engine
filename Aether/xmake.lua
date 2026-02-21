@@ -3,7 +3,8 @@ includes("packages/*.lua")
 add_requires("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw")
 add_requires("imgui v1.89.9-docking", {configs = {glfw_opengl3 = true}})
 add_requires("imguizmo", {configs = {imgui = "imgui"}})
-add_requires("stb", "cgltf", "joltphysics", "filewatch", "glad", "ozz-animation")
+add_requires("stb", "cgltf", "filewatch", "glad", "ozz-animation")
+add_requires("joltphysics 5.1.0")
 
 add_requireconfs("freetype", {
     override = true,

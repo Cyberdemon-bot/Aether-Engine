@@ -1,9 +1,9 @@
-#include "Aether/Animation/RigSystem.h"
+#include "Aether/Animation/RigModule.h"
 #include "Platform/Ozz/Ozz_AnimationSystem.h"
 
 namespace Aether {
 
-    Ref<RigSystem> RigSystem::Create()
+    Ref<RigModule> RigModule::Create()
     {
         return CreateRef<Ozz_AnimationSystem>();
     }

@@ -1,6 +1,8 @@
 #include "aepch.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/Component.h"
+#include "Aether/Animation/AnimationSystem.h"
+#include "Aether/Animation/RigModule.h"
 
 namespace Aether {
     Scene::Scene() 
@@ -277,7 +279,11 @@ namespace Aether {
             }
         }
 
-        { // 2. Render
+        { // system update
+            AnimationSystem::Update(ts);
+        }
+
+        { // render
             auto camView = View<CameraComponent>();
             
             CameraComponent* mainCamera = nullptr;
@@ -311,13 +317,14 @@ namespace Aether {
 
                 for (auto entity : meshView)
                 {
-                    auto& transform = GetComponent<TransformComponent>(entity).WorldTransform;
+                    auto transform = GetComponent<TransformComponent>(entity);
+                    const auto& hie_trans = transform.WorldTransform;
+
                     UUID meshID = GetComponent<MeshComponent>(entity).MeshID;
-                    
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
 
-                    Renderer::DrawMesh(meshID, animatorID, transform);
+                    Renderer::DrawMesh(meshID, animatorID, hie_trans);
                 }
 
                 Renderer::EndScene();

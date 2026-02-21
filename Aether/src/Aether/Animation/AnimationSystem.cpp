@@ -1,6 +1,6 @@
 #include "aepch.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigSystem.h"
+#include "Aether/Animation/RigModule.h"
 
 namespace Aether {
     AnimationSystem& AnimationSystem::GetInstance()
@@ -11,7 +11,7 @@ namespace Aether {
 
     void AnimationSystem::Init()
     {
-        AddModule<RigSystem>();
+        AddModule<RigModule>();
         AE_CORE_INFO("AnimationSystem initialized");
     }
 

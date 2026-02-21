@@ -2,11 +2,14 @@
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Core/AssetsRegister.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigSystem.h"
+#include "Aether/Animation/RigModule.h"
+#include "Aether/Resources/Mesh.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+
+JPH_SUPPRESS_WARNINGS
 
 GameLayer::GameLayer()
     : Layer("Game Layer")
@@ -118,7 +121,23 @@ void GameLayer::Attach()
     lightTransform.Dirty       = true;
 
     Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
-    Aether::ConsoleLayer::RegisterCommand("add", AE_BIND_CONSOLE_FN(AddEntity));
+    Aether::ConsoleLayer::RegisterCommand("add",  AE_BIND_CONSOLE_FN(AddEntity));
+
+    // Jolt init
+    JPH::RegisterDefaultAllocator();
+    JPH::Factory::sInstance = new JPH::Factory();
+    JPH::RegisterTypes();  // available via Jolt/RegisterTypes.h
+
+    m_TempAllocator = new JPH::TempAllocatorImpl(10 * 1024 * 1024); // 10MB
+    m_JobSystem     = new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 2);
+
+    const JPH::uint maxBodies       = 1024;
+    const JPH::uint maxBodyPairs    = 1024;
+    const JPH::uint maxContactConstraints = 1024;
+
+    m_PhysicsSystem.Init(maxBodies, 0, maxBodyPairs, maxContactConstraints,
+                         m_BPLayerInterface, m_ObjVsBPFilter, m_ObjVsObjFilter);
+    m_PhysicsSystem.SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
     AE_CORE_INFO("GameLayer initialized!");
 }
@@ -130,6 +149,21 @@ void GameLayer::Detach()
     m_VolShader.reset();
     m_Meshes.clear();
     m_Animators.clear();
+
+    // Jolt shutdown
+    auto& bi = m_PhysicsSystem.GetBodyInterface();
+    for (auto& [entity, entry] : m_PhysicsBodies)
+    {
+        bi.RemoveBody(entry.bodyID);
+        bi.DestroyBody(entry.bodyID);
+    }
+    m_PhysicsBodies.clear();
+
+    JPH::UnregisterTypes();
+    delete JPH::Factory::sInstance;
+    JPH::Factory::sInstance = nullptr;
+    delete m_TempAllocator; m_TempAllocator = nullptr;
+    delete m_JobSystem;     m_JobSystem     = nullptr;
 }
 
 void GameLayer::AddEntity(const std::vector<std::string>& args)
@@ -154,6 +188,78 @@ void GameLayer::LoadModelAsync(const std::vector<std::string>& args)
     });
 }
 
+void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic)
+{
+    if (!m_Scene.IsValid(transformEntity)) return;
+
+    auto mesh = Aether::MeshLibrary::Get(colliderMeshID);
+    if (!mesh) return;
+
+    auto& t = m_Scene.GetComponent<Aether::TransformComponent>(transformEntity);
+    const auto& hie_trans = t.WorldTransform;
+    const auto& local_trans = t.GetLocalTransform();
+
+    glm::vec3 localScale(
+        glm::length(glm::vec3(local_trans[0])),
+        glm::length(glm::vec3(local_trans[1])),
+        glm::length(glm::vec3(local_trans[2]))
+    );
+
+    glm::mat3 rotMat(
+        glm::normalize(glm::vec3(hie_trans[0])),
+        glm::normalize(glm::vec3(hie_trans[1])),
+        glm::normalize(glm::vec3(hie_trans[2]))
+    );
+    glm::quat worldRot = glm::quat_cast(rotMat);
+
+    glm::vec3 meshExtents = mesh->GetBoundsExtents();
+    JPH::Vec3 halfExtent(
+        std::max(std::abs(meshExtents.x * localScale.x), 0.001f),
+        std::max(std::abs(meshExtents.y * localScale.y), 0.001f),
+        std::max(std::abs(meshExtents.z * localScale.z), 0.001f)
+    );
+
+    glm::vec3 worldPos = glm::vec3(hie_trans[3]);
+    glm::vec3 meshCenter = mesh->GetBoundsCenter();
+    glm::vec3 finalCenter = worldPos + (rotMat * (meshCenter * localScale));
+
+    JPH::RVec3 joltPos(finalCenter.x, finalCenter.y, finalCenter.z);
+    JPH::Quat  joltRot(worldRot.x, worldRot.y, worldRot.z, worldRot.w);
+    JPH::BoxShapeSettings shapeSettings(halfExtent);
+    float minExtent = std::min({halfExtent.GetX(), halfExtent.GetY(), halfExtent.GetZ()});
+    shapeSettings.mConvexRadius = std::min(0.01f, minExtent * 0.5f);
+    
+    auto shapeResult = shapeSettings.Create();
+    if (shapeResult.HasError())
+    {
+        AE_CORE_ERROR("Jolt shape error: {0}", shapeResult.GetError().c_str());
+        return;
+    }
+
+    auto layer = isDynamic ? Layers::DYNAMIC : Layers::STATIC;
+    auto motion = isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static;
+
+    JPH::BodyCreationSettings bodySettings(
+        shapeResult.Get(), joltPos, joltRot,
+        motion, layer);
+
+    bodySettings.mRestitution = 0.3f;
+    bodySettings.mFriction    = 0.5f;
+
+    auto& bi = m_PhysicsSystem.GetBodyInterface();
+    JPH::Body* body = bi.CreateBody(bodySettings);
+    if (!body) return;
+
+    bi.AddBody(body->GetID(), JPH::EActivation::DontActivate);
+    PhysicsEntry entry;
+    entry.bodyID  = body->GetID();
+    entry.enabled = 0; 
+    m_PhysicsBodies[transformEntity] = entry;
+    m_PhysicsRunning = true;
+
+    if (!isDynamic) m_PhysicsSystem.OptimizeBroadPhase();
+}
+
 void GameLayer::DrainParseQueue()
 {
     std::lock_guard<std::mutex> lock(m_ParseMutex);
@@ -169,6 +275,7 @@ void GameLayer::DrainParseQueue()
         for (auto& animID : result.animatorIDS) m_Animators.push_back(animID);
 
         m_Scene.LoadHierarchy(result);
+        m_PhysicsSystem.OptimizeBroadPhase();
 
         AE_CORE_INFO("Loaded: {0} mesh(es), {1} animator(s)",
             result.meshIDs.size(), result.animatorIDS.size());
@@ -196,9 +303,35 @@ void GameLayer::Update(Aether::Timestep ts)
         }
     }
 
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigSystem>();
-    if (rigSystem)
-        Aether::AnimationSystem::Update(ts);
+    if (m_PhysicsRunning)
+    {
+        auto& bi = m_PhysicsSystem.GetBodyInterface();
+
+        // activate/deactivate based on enabled flag
+        for (auto& [entity, entry] : m_PhysicsBodies)
+        {
+            if (entry.enabled) bi.ActivateBody(entry.bodyID);
+            else               bi.DeactivateBody(entry.bodyID);
+        }
+
+        const int collisionSteps = 1;
+        m_PhysicsSystem.Update(ts, collisionSteps, m_TempAllocator, m_JobSystem);
+
+        // sync active bodies back to transforms
+        for (auto& [entity, entry] : m_PhysicsBodies)
+        {
+            if (!entry.enabled || !bi.IsActive(entry.bodyID)) continue;
+            if (!m_Scene.IsValid(entity)) continue;
+
+            JPH::RVec3 pos = bi.GetPosition(entry.bodyID);
+            JPH::Quat  rot = bi.GetRotation(entry.bodyID);
+
+            auto& t       = m_Scene.GetComponent<Aether::TransformComponent>(entity);
+            t.Translation = glm::vec3(pos.GetX(), pos.GetY(), pos.GetZ());
+            t.Rotation    = glm::quat(rot.GetW(), rot.GetX(), rot.GetY(), rot.GetZ());
+            t.Dirty       = true;
+        }
+    }
 
     m_VolShader->Bind();
     m_VolShader->SetFloat("u_Density",    m_VolDensity);
@@ -312,6 +445,97 @@ void GameLayer::DrawScenePanel()
     ImGui::Text("Animators: %d", (int)m_Animators.size());
     ImGui::Separator();
 
+    if (ImGui::CollapsingHeader("Physics"))
+    {
+        // --- Add Body ---
+        // Node selection (from hierarchy - any entity)
+        std::string nodePreview = "Select Node";
+        if (m_PhysNodeIdx >= 0)
+        {
+            // find entity by index in hierarchy view
+            auto view = m_Scene.View<Aether::HierarchyComponent, Aether::TagComponent>();
+            int idx = 0;
+            for (auto entity : view)
+            {
+                if (idx == m_PhysNodeIdx)
+                {
+                    nodePreview = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
+                    break;
+                }
+                idx++;
+            }
+        }
+
+        if (ImGui::BeginCombo("Node##phys", nodePreview.c_str()))
+        {
+            auto view = m_Scene.View<Aether::HierarchyComponent, Aether::TagComponent>();
+            int idx = 0;
+            for (auto entity : view)
+            {
+                ImGui::PushID(idx);
+                bool selected = (m_PhysNodeIdx == idx);
+                std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
+                if (ImGui::Selectable(tag.c_str(), selected)) m_PhysNodeIdx = idx;
+                if (selected) ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+                idx++;
+            }
+            ImGui::EndCombo();
+        }
+
+        // Mesh selection (for collider shape)
+        std::string meshPreview = (m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_Meshes.size())
+            ? Aether::AssetsRegister::Get(m_Meshes[m_PhysMeshIdx]) : "Select Mesh";
+
+        if (ImGui::BeginCombo("Mesh##phys", meshPreview.c_str()))
+        {
+            for (int i = 0; i < (int)m_Meshes.size(); i++)
+            {
+                ImGui::PushID(i);
+                bool selected = (m_PhysMeshIdx == i);
+                std::string name = Aether::AssetsRegister::Get(m_Meshes[i]);
+                if (ImGui::Selectable(name.c_str(), selected)) m_PhysMeshIdx = i;
+                if (selected) ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::Checkbox("Is Dynamic", &m_PhysIsDynamic);
+
+        bool canAdd = (m_PhysNodeIdx >= 0 && m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_Meshes.size());
+        if (!canAdd) ImGui::BeginDisabled();
+        if (ImGui::Button("Add Physics Body"))
+        {
+            // resolve node entity from index
+            auto view = m_Scene.View<Aether::HierarchyComponent>();
+            int idx = 0;
+            Entity targetEntity = Null_Entity;
+            for (auto entity : view)
+            {
+                if (idx == m_PhysNodeIdx) { targetEntity = entity; break; }
+                idx++;
+            }
+            if (targetEntity != Null_Entity)
+                RegisterPhysicsBody(targetEntity, m_Meshes[m_PhysMeshIdx], m_PhysIsDynamic);
+        }
+        if (!canAdd) ImGui::EndDisabled();
+
+        ImGui::Separator();
+
+        // --- Active bodies list with enable toggle ---
+        for (auto& [entity, entry] : m_PhysicsBodies)
+        {
+            if (!m_Scene.IsValid(entity)) continue;
+            ImGui::PushID((int)(uint32_t)entity);
+            std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
+            bool enabled = (bool)entry.enabled;
+            if (ImGui::Checkbox(tag.c_str(), &enabled))
+                entry.enabled = (uint8_t)enabled;
+            ImGui::PopID();
+        }
+    }
+
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         glm::vec3 pos = m_Camera.GetPosition();
@@ -344,11 +568,21 @@ void GameLayer::DrawScenePanel()
                 t.Scale       = glm::vec3(1.0f);
                 t.Dirty       = true;
             }
+
+            if (t.Dirty)
+            {
+                if (m_PhysicsBodies.find(m_SelectedEntity) != m_PhysicsBodies.end())
+                {
+                    auto& bi = m_PhysicsSystem.GetBodyInterface();
+                    JPH::BodyID bodyID = m_PhysicsBodies[m_SelectedEntity].bodyID;
+
+                    JPH::RVec3 newPos(t.Translation.x, t.Translation.y, t.Translation.z);
+                    JPH::Quat  newRot(t.Rotation.x, t.Rotation.y, t.Rotation.z, t.Rotation.w);
+                    bi.SetPositionAndRotation(bodyID, newPos, newRot, JPH::EActivation::Activate);
+                }
+            }
         }
-        else
-        {
-            ImGui::TextDisabled("Select an entity in the Hierarchy panel.");
-        }
+        else ImGui::TextDisabled("Select an entity in the Hierarchy panel.");
     }
 
     if (ImGui::CollapsingHeader("Auto Rotation"))
@@ -369,7 +603,7 @@ void GameLayer::DrawAnimationPanel()
         return;
     }
 
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigSystem>();
+    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
     if (!rigSystem)
     {
         ImGui::TextDisabled("RigSystem not initialized.");
