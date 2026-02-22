@@ -63,28 +63,19 @@ private:
     int m_BindMeshIndex     = -1;
     int m_BindAnimatorIndex = -1;
 
-    // Physics — keyed by entity, stores bodyID and enabled flag.
-    // lastActive tracks what was last pushed to the API so we only call
-    // SetActive when the desired state actually differs — this avoids redundant
-    // API calls while still fighting the physics engine's auto-sleep, which
-    // would silently deactivate enabled bodies when they come to rest.
     struct PhysicsEntry
     {
         Aether::UUID bodyID;
         bool         enabled    = false;
-        bool         lastActive = false;   // last value sent to PhysicsSystem::SetActive
+        bool         lastActive = false;   
         bool         isDynamic  = true;
     };
     std::unordered_map<Entity, PhysicsEntry> m_PhysicsBodies;
 
-    // Physics UI state
-    // Storing the entity directly avoids the fragile index-into-view approach,
-    // which is unstable across scene changes.
     Entity      m_PhysSelectedEntity = Null_Entity;
     int         m_PhysMeshIdx        = -1;
     bool        m_PhysDynamic        = true;
 
-    // Force / velocity inputs (held in UI state, applied on button press)
     glm::vec3   m_ForceInput    = glm::vec3(0.0f);
     glm::vec3   m_VelocityInput = glm::vec3(0.0f);
 };
