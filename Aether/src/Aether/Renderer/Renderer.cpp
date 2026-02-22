@@ -319,6 +319,7 @@ namespace Aether {
 			for(auto& [id, transform] : s_SceneData->s_RenderBounds)
 			{
 				auto mesh = MeshLibrary::Get(id);
+				glm::vec3 e = mesh->GetBoundsExtents();
 				auto& boundMin = mesh->GetBoundsMin();
 				auto& boundMax = mesh->GetBoundsMax();
 				RenderBox(boundMin, boundMax, transform, {0.0f, 1.0f, 0.0f, 1.0f});
@@ -368,6 +369,8 @@ namespace Aether {
 		shader->Bind();
 		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
 		shader->SetFloat4("u_Color", color);
+		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
 		RenderCommand::DrawIndexedLines(s_VAO, 24);
+		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 	}
 }

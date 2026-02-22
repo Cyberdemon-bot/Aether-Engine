@@ -13,26 +13,10 @@
 
 namespace Aether {
 
-    enum class ColliderType
+    enum class RigidBodyType
     {
-        Box = 0,
-        Sphere,
-        Capsule,
-        Mesh 
+        Static, Dynamic
     };
-
-    struct ColliderComponent
-    {
-        ColliderType Type = ColliderType::Box;
-        glm::vec3 Size = {0.5f, 0.5f, 0.5f}; 
-        glm::vec3 Offset = {0.0f, 0.0f, 0.0f}; 
-        float Friction = 0.5f;    
-        float Restitution = 0.0f;  
-        bool IsDynamic = false;    
-        bool IsTrigger = false;   
-        UUID CustomMeshID = 0;     
-    };
-
     struct IDComponent
     {
         UUID ID;
@@ -121,4 +105,13 @@ namespace Aether {
 		CameraComponent() = default;
 		CameraComponent(const CameraComponent&) = default;
 	};
+
+    struct RigidBodyComponent
+    {
+        UUID BodyID;
+        glm::vec3 ColliderOffset;
+        RigidBodyComponent() = default;
+        RigidBodyComponent(const RigidBodyComponent&) = default;
+        RigidBodyComponent(const UUID& id, const glm::vec3& offset = {0.0f, 0.0f, 0.0f}) : BodyID(id), ColliderOffset(offset) {};
+    };
 }

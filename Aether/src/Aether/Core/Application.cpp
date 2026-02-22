@@ -5,6 +5,7 @@
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Animation/AnimationSystem.h"
+#include "Aether/Physics/PhysicsSystem.h"
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
@@ -21,6 +22,7 @@ namespace Aether {
         Renderer::Init();  
         JobSystem::Init();
         AnimationSystem::Init();
+        PhysicsSystem::Init();
         MaterialLibrary::Init();
         MeshLibrary::Init();
         Texture2DLibrary::Init();
@@ -41,6 +43,7 @@ namespace Aether {
         Renderer::Shutdown();
         JobSystem::Shutdown();
         AnimationSystem::Shutdown();
+        PhysicsSystem::Shutdown();
     }
 
     void Application::Close()

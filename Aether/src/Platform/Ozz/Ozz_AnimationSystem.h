@@ -21,15 +21,12 @@ namespace Aether {
         Ozz_AnimationSystem();
         virtual ~Ozz_AnimationSystem() override;
 
-        // ===== Asset Registration =====
         void RegisterSkeleton(const RigCreateInfo& data, UUID id) override;
         void RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID) override;
 
-        // ===== Animator Management =====
         void CreateAnimator(UUID animatorID, UUID rigID, const std::vector<UUID>& clipIDs = {}) override;
         void DestroyAnimator(UUID animatorID) override;
         
-        // ===== Configuration =====
         void AddClip(UUID animatorID, UUID clipID) override;
         void BindClip(UUID animatorID, uint32_t idx) override;
         void BindClip(UUID animatorID, UUID clipID) override;
@@ -38,18 +35,15 @@ namespace Aether {
         void SetLoop(UUID animatorID, bool loop) override;
         void SetTime(UUID animatorID, float time) override;
 
-        // ===== Playback Control =====
         void Play(UUID animatorID) override;
         void Pause(UUID animatorID) override;
         void Stop(UUID animatorID) override;
 
-        // ===== Update & Calculation =====
         void Update(Timestep ts) override;
         void RequestMatrices(UUID animatorID) override;
         void ProcessRequests() override;
         const std::vector<glm::mat4>& GetMatrices(UUID animatorID) override;
 
-        // ===== Query State =====
         bool IsPlaying(UUID animatorID) const override;
         float GetPlayBackTime(UUID animatorID) const override;
         float GetDuration(UUID animatorID) const override;
