@@ -30,6 +30,16 @@ namespace Aether {
             s_PhysicsAPI->DestroyBody(bodyID);
         }
 
+        static RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
+        {
+            return s_PhysicsAPI->CastRay(origin, direction, distance);
+        }
+
+        static std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) 
+        {
+            return s_PhysicsAPI->CastRayAll(origin, direction, distance);
+        }
+
         static void SetActive(UUID bodyID, bool active)
         {
             s_PhysicsAPI->SetActive(bodyID, active);

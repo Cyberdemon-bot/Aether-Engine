@@ -14,6 +14,9 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>  
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/RegisterTypes.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 
 namespace JPH {
     namespace Layers {
@@ -234,6 +237,7 @@ namespace Aether {
         bodyInfo.mRestitution = config.restitution;
         bodyInfo.mFriction = config.friction;
         bodyInfo.mIsSensor = config.isSensor;
+        bodyInfo.mUserData = static_cast<uint64_t>(bodyID);
 
         if (motionType == JPH::EMotionType::Dynamic) 
         {
@@ -271,6 +275,80 @@ namespace Aether {
         }
 
         return m_Bodies[bodyID].Shape;
+    }
+
+    RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
+    {
+        RaycastHit result;
+        const JPH::NarrowPhaseQuery& query = m_PhysicsSystem->GetNarrowPhaseQuery();
+        glm::vec3 rayDir = glm::normalize(direction) * distance;
+
+        JPH::RVec3 joltOrigin(origin.x, origin.y, origin.z);
+        JPH::Vec3 joltDir(rayDir.x, rayDir.y, rayDir.z);
+
+        JPH::RRayCast ray{ joltOrigin, joltDir };
+        JPH::RayCastResult hit; 
+
+        if (query.CastRay(ray, hit))
+        {
+            result.Hit = true;
+            result.Distance = distance * hit.mFraction;
+            result.Position = origin + (glm::normalize(direction) * result.Distance);
+
+            JPH::BodyID bodyID = hit.mBodyID;
+
+            JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), bodyID);
+            if (lock.Succeeded())
+            {
+                const JPH::Body& body = lock.GetBody();
+                result.HitEntityID = static_cast<UUID>(body.GetUserData()); 
+
+                JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
+                JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
+                result.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
+            }
+        }
+
+        return result;
+    }
+
+    std::vector<RaycastHit> Jolt_PhysicsAPI::CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance)
+    {
+        std::vector<RaycastHit> results;
+        const JPH::NarrowPhaseQuery& query = m_PhysicsSystem->GetNarrowPhaseQuery();
+        JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
+        glm::vec3 rayDir = glm::normalize(direction) * distance;
+
+        JPH::RVec3 joltOrigin(origin.x, origin.y, origin.z);
+        JPH::Vec3 joltDir(rayDir.x, rayDir.y, rayDir.z);
+        JPH::RRayCast ray{ joltOrigin, joltDir };
+
+        JPH::RayCastSettings settings;
+        JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
+        query.CastRay(ray, settings, collector);
+        for (const JPH::RayCastResult& hit : collector.mHits)
+        {
+            RaycastHit res;
+            res.Hit = true;
+            res.Distance = distance * hit.mFraction; 
+            res.Position = origin + (glm::normalize(direction) * res.Distance);
+            JPH::BodyID bodyID = hit.mBodyID;
+
+            JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), bodyID);
+            if (lock.Succeeded())
+            {
+                const JPH::Body& body = lock.GetBody();
+                res.HitEntityID = static_cast<UUID>(body.GetUserData()); 
+                JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
+                JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
+                res.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
+            }
+            results.push_back(res);
+        }
+
+        std::sort(results.begin(), results.end(), [](const RaycastHit& a, const RaycastHit& b) {return a.Distance < b.Distance;});
+
+        return results;
     }
     
     void Jolt_PhysicsAPI::SetActive(UUID bodyID, bool active)

@@ -40,6 +40,7 @@ layout(std140) uniform Bones
 uniform mat4 u_Model;
 uniform int u_HasAnimation;
 uniform int u_UseInstancing;
+uniform int u_LightIndex;
 
 out vec3 v_WorldPos;
 out vec3 v_WorldNormal;
@@ -79,8 +80,8 @@ void main()
     v_WorldNormal = N;
     v_TexCoord = a_TexCoord;
 
-    if (u_Lights.lightCount > 0 && u_Lights.lights[0].coneAngles.z > 0.5)
-        v_LightSpacePos = u_Lights.lights[0].lightSpaceMatrix * worldPos;
+    if (u_Lights.lightCount > 0 && u_LightIndex < u_Lights.lightCount && u_Lights.lights[u_LightIndex].coneAngles.z > 0.5)
+        v_LightSpacePos = u_Lights.lights[u_LightIndex].lightSpaceMatrix * worldPos;
     else
         v_LightSpacePos = vec4(0.0);
 

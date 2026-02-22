@@ -124,6 +124,8 @@ namespace Aether {
 		static void Flush(const RenderPass& pass);
 		static void RenderOnScreen(const RenderPass& pass);
 		static void RenderSkybox();
+		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
+
 		struct SceneData
 		{
 			CameraData camera;
