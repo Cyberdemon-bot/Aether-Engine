@@ -125,12 +125,7 @@ namespace Aether {
 					}
 					lightView = glm::lookAt(light.position, light.position + dir, up);
 				}
-				else if (light.type == LightType::Directional)
-				{
-					float orthoSize = 20.0f;
-					lightProjection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
-					lightView = glm::lookAt(-light.direction * 10.0f, glm::vec3(0), glm::vec3(0, 1, 0));
-				}
+				else if (light.type == LightType::Directional) CalculateDirectionalMat(camera, light, lightView, lightProjection);
 				s_SceneData->lights.lights[i].lightSpaceMatrix = lightProjection * lightView;
 			}
 			else s_SceneData->lights.lights[i].lightSpaceMatrix = glm::mat4(1.0f);
@@ -372,5 +367,59 @@ namespace Aether {
 		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
 		RenderCommand::DrawIndexedLines(s_VAO, 24);
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
+	}
+
+	void Renderer::CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier)
+	{
+		glm::mat4 invCam = glm::inverse(camera.GetProjection() * camera.GetView());
+		std::vector<glm::vec4> frustumCorners;
+		for (unsigned int x = 0; x < 2; ++x) 
+		{
+			for (unsigned int y = 0; y < 2; ++y) 
+			{
+				for (unsigned int z = 0; z < 2; ++z) 
+				{
+					glm::vec4 pt = invCam * glm::vec4(
+						2.0f * x - 1.0f,
+						2.0f * y - 1.0f,
+						2.0f * z - 1.0f,
+						1.0f);
+					frustumCorners.push_back(pt / pt.w); 
+				}
+			}
+		}
+
+		glm::vec3 center = glm::vec3(0.0f);
+		for (const auto& v : frustumCorners) center += glm::vec3(v);
+		center /= frustumCorners.size();
+
+		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+		if (std::abs(light.direction.y) > 0.999f) up = glm::vec3(0.0f, 0.0f, 1.0f);
+
+		float minX = std::numeric_limits<float>::max();
+		float maxX = std::numeric_limits<float>::lowest();
+		float minY = std::numeric_limits<float>::max();
+		float maxY = std::numeric_limits<float>::lowest();
+		float minZ = std::numeric_limits<float>::max();
+		float maxZ = std::numeric_limits<float>::lowest();
+
+		float radius = glm::distance(glm::vec3(maxX, maxY, maxZ), glm::vec3(minX, minY, minZ)) / 2.0f;
+		glm::vec3 lightPos = center - (glm::normalize(light.direction) * radius);
+		view = glm::lookAt(lightPos, center, up);
+
+		for (const auto& v : frustumCorners) {
+			glm::vec4 trf = view * v;
+			minX = std::min(minX, trf.x);
+			maxX = std::max(maxX, trf.x);
+			minY = std::min(minY, trf.y);
+			maxY = std::max(maxY, trf.y);
+			minZ = std::min(minZ, trf.z);
+			maxZ = std::max(maxZ, trf.z);
+		}
+
+		if (minZ < 0) minZ *= zMultiplier; else minZ /= zMultiplier;
+		if (maxZ < 0) maxZ /= zMultiplier; else maxZ *= zMultiplier;
+
+		proj = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 	}
 }

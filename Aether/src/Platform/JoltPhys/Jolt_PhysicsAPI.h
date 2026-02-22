@@ -35,6 +35,9 @@ namespace Aether {
         virtual MotionType GetMotionType(UUID bodyID) override;
         virtual ColliderShape GetColliderShape(UUID bodyID) override;
 
+        virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
+        virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
+
         virtual void SetActive(UUID bodyID, bool active) override;
         
         virtual void SetPhysTransform(UUID bodyID, const PhysTransform& transform) override;

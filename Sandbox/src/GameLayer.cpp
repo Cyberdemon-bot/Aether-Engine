@@ -77,7 +77,7 @@ void GameLayer::Attach()
     mainPass.ClearValue  = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
     mainPass.CullFace    = Aether::State::BACK_CULL;
     mainPass.OnScreen    = false;
-    mainPass.readList    = {{ Aether::TextureType::Depth, "u_DepthTex", 0 }};
+    mainPass.readList    = {{ Aether::TextureType::Depth, "u_DepthTex", 0 }, { Aether::TextureType::None, "u_LightIndex", 0 }};
 
     // ---- Volumetric pass ----------------------------------------------------
     Aether::FramebufferSpecification volFbSpec;
@@ -130,6 +130,23 @@ void GameLayer::Attach()
     auto& lightTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_LightEntity);
     lightTransform.Translation = spotLight.position;
     lightTransform.Dirty       = true;
+
+    // ---- Default directional light ------------------------------------------
+    Aether::LightParam dirLight;
+    dirLight.type        = Aether::LightType::Directional;
+    dirLight.direction   = glm::normalize(glm::vec3(
+        glm::sin(glm::radians(m_DirLightEuler.y)) * glm::cos(glm::radians(m_DirLightEuler.x)),
+       -glm::sin(glm::radians(m_DirLightEuler.x)),
+        glm::cos(glm::radians(m_DirLightEuler.y)) * glm::cos(glm::radians(m_DirLightEuler.x))));
+    dirLight.color       = glm::vec3(1.0f, 0.95f, 0.85f);
+    dirLight.intensity   = 1.0f;
+    dirLight.castShadows = false;
+
+    m_DirLightEntity = m_Scene.CreateEntity("Directional Light");
+    m_Scene.AddComponent<Aether::LightComponent>(m_DirLightEntity).Config = dirLight;
+    auto& dirLightTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_DirLightEntity);
+    dirLightTransform.Translation = glm::vec3(0.0f);
+    dirLightTransform.Dirty       = true;
 
     // ---- Console commands ---------------------------------------------------
     Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
@@ -236,7 +253,18 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
     config.friction    = 0.5f;
     config.restitution = 0.3f;
 
-    Aether::UUID bodyID;
+    std::string shapeName = [&]() {
+        switch (config.shape)
+        {
+            case Aether::ColliderShape::Box:     return "Box";
+            case Aether::ColliderShape::Sphere:  return "Sphere";
+            case Aether::ColliderShape::Capsule: return "Capsule";
+            default:                             return "None";
+        }
+    }();
+
+    std::string meshName  = Aether::AssetsRegister::Get(colliderMeshID);
+    Aether::UUID bodyID = Aether::AssetsRegister::Register(shapeName + "_" + meshName);
     Aether::PhysicsSystem::CreateBody(bodyID, config);
 
     if (!m_Scene.HasComponent<Aether::RigidBodyComponent>(transformEntity))
@@ -558,6 +586,77 @@ void GameLayer::DrawScenePanel()
         }
     }
 
+    // ---- Raycast test -------------------------------------------------------
+    if (ImGui::CollapsingHeader("Raycast Test"))
+    {
+        // -- "Cast from camera" fills origin + direction automatically --------
+        if (ImGui::Button("Fill from Camera"))
+        {
+            m_RayOrigin    = m_Camera.GetPosition();
+            m_RayDirection = m_Camera.GetForwardDirection();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(or set manually below)");
+
+        ImGui::DragFloat3("Origin##ray",    glm::value_ptr(m_RayOrigin),    0.1f);
+
+        // Keep direction normalised whenever the user edits it
+        if (ImGui::DragFloat3("Direction##ray", glm::value_ptr(m_RayDirection), 0.01f, -1.0f, 1.0f))
+        {
+            float len = glm::length(m_RayDirection);
+            if (len > 1e-5f)
+                m_RayDirection /= len;
+        }
+
+        ImGui::SliderFloat("Max Distance##ray", &m_RayDistance, 0.1f, 1000.0f, "%.1f");
+
+        ImGui::Spacing();
+        if (ImGui::Button("Cast Ray"))
+        {
+            m_LastRayHits = Aether::PhysicsSystem::CastRayAll(m_RayOrigin, m_RayDirection, m_RayDistance);
+            m_RayHasFired = true;
+        }
+
+        // -- Results ----------------------------------------------------------
+        if (m_RayHasFired)
+        {
+            ImGui::Separator();
+            ImGui::Text("Result: %d hit(s)", (int)m_LastRayHits.size());
+
+            if (m_LastRayHits.empty())
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "  MISS");
+                ImGui::TextDisabled("  (no collider hit within %.1f units)", m_RayDistance);
+            }
+            else
+            {
+                for (int i = 0; i < (int)m_LastRayHits.size(); i++)
+                {
+                    const auto& hit = m_LastRayHits[i];
+                    ImGui::PushID(i);
+
+                    std::string resolvedName = Aether::AssetsRegister::Get(hit.HitEntityID);
+                    std::string label = resolvedName.empty() ? "(unregistered)" : resolvedName;
+
+                    bool open = ImGui::TreeNodeEx(label.c_str(),
+                        ImGuiTreeNodeFlags_SpanAvailWidth,
+                        "[%d] %s  (%.2f)", i, label.c_str(), hit.Distance);
+
+                    if (open)
+                    {
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.3f, 1.0f), "HIT");
+                        ImGui::Text("Position : (%.3f, %.3f, %.3f)", hit.Position.x, hit.Position.y, hit.Position.z);
+                        ImGui::Text("Normal   : (%.3f, %.3f, %.3f)", hit.Normal.x,   hit.Normal.y,   hit.Normal.z);
+                        ImGui::Text("Distance : %.3f", hit.Distance);
+                        ImGui::TreePop();
+                    }
+
+                    ImGui::PopID();
+                }
+            }
+        }
+    }
+
     // ---- Camera -------------------------------------------------------------
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -818,6 +917,59 @@ void GameLayer::DrawLightingPanel()
             light.outerCone = glm::cos(glm::radians(outerDeg));
 
         ImGui::Checkbox("Cast Shadows", &light.castShadows);
+    }
+
+    if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        auto& dirLightComp = m_Scene.GetComponent<Aether::LightComponent>(m_DirLightEntity);
+        auto& dirLight     = dirLightComp.Config;
+
+        ImGui::ColorEdit3("Color##dir",      glm::value_ptr(dirLight.color));
+        ImGui::SliderFloat("Intensity##dir", &dirLight.intensity, 0.0f, 10.0f);
+
+        // Euler angles are much friendlier to edit than a raw direction vector.
+        // Pitch = rotation around X (tilts up/down), Yaw = rotation around Y (rotates around horizon).
+        bool eulerChanged = false;
+        eulerChanged |= ImGui::SliderFloat("Pitch##dir", &m_DirLightEuler.x, -90.0f,  90.0f, "%.1f deg");
+        eulerChanged |= ImGui::SliderFloat("Yaw##dir",   &m_DirLightEuler.y, -180.0f, 180.0f, "%.1f deg");
+
+        if (eulerChanged)
+        {
+            float pitchRad = glm::radians(m_DirLightEuler.x);
+            float yawRad   = glm::radians(m_DirLightEuler.y);
+            dirLight.direction = glm::normalize(glm::vec3(
+                glm::sin(yawRad) * glm::cos(pitchRad),
+               -glm::sin(pitchRad),
+                glm::cos(yawRad) * glm::cos(pitchRad)));
+
+            // The scene derives light direction from the entity's transform, not
+            // Config.direction — so we must keep the rotation in sync too.
+            auto& dirLightTrans = m_Scene.GetComponent<Aether::TransformComponent>(m_DirLightEntity);
+            dirLightTrans.Rotation = glm::quat(glm::vec3(pitchRad, yawRad, 0.0f));
+            dirLightTrans.Dirty    = true;
+        }
+
+        ImGui::Text("Direction: (%.2f, %.2f, %.2f)",
+            dirLight.direction.x, dirLight.direction.y, dirLight.direction.z);
+
+        ImGui::Checkbox("Cast Shadows##dir", &dirLight.castShadows);
+
+        if (ImGui::Button("Reset##dir"))
+        {
+            m_DirLightEuler    = glm::vec3(-45.0f, 0.0f, 0.0f);
+            dirLight.color     = glm::vec3(1.0f, 0.95f, 0.85f);
+            dirLight.intensity = 1.0f;
+            float pitchRad     = glm::radians(m_DirLightEuler.x);
+            float yawRad       = glm::radians(m_DirLightEuler.y);
+            dirLight.direction = glm::normalize(glm::vec3(
+                glm::sin(yawRad) * glm::cos(pitchRad),
+               -glm::sin(pitchRad),
+                glm::cos(yawRad) * glm::cos(pitchRad)));
+
+            auto& dirLightTrans = m_Scene.GetComponent<Aether::TransformComponent>(m_DirLightEntity);
+            dirLightTrans.Rotation = glm::quat(glm::vec3(pitchRad, yawRad, 0.0f));
+            dirLightTrans.Dirty    = true;
+        }
     }
 
     if (ImGui::CollapsingHeader("Volumetric Lighting", ImGuiTreeNodeFlags_DefaultOpen))

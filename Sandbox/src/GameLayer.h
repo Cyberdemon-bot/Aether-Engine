@@ -45,7 +45,11 @@ private:
     std::vector<Aether::UUID> m_Animators;
 
     Entity m_LightEntity    = Null_Entity;
+    Entity m_DirLightEntity = Null_Entity;
     Entity m_SelectedEntity = Null_Entity;
+
+    // Euler angles (degrees) for the directional light — friendlier than raw direction
+    glm::vec3 m_DirLightEuler = glm::vec3(-45.0f, 0.0f, 0.0f);
 
     std::queue<Aether::ParsedScene> m_CompletedParses;
     std::mutex                      m_ParseMutex;
@@ -78,4 +82,11 @@ private:
 
     glm::vec3   m_ForceInput    = glm::vec3(0.0f);
     glm::vec3   m_VelocityInput = glm::vec3(0.0f);
+
+    // ---- Raycast test -------------------------------------------------------
+    glm::vec3                        m_RayOrigin    = glm::vec3(0.0f);
+    glm::vec3                        m_RayDirection = glm::vec3(0.0f, -1.0f, 0.0f);
+    float                            m_RayDistance  = 100.0f;
+    std::vector<Aether::RaycastHit>  m_LastRayHits;
+    bool                             m_RayHasFired  = false;
 };

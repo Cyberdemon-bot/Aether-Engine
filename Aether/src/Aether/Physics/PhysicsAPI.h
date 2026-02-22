@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <memory>
+#include <vector>
 #include "Aether/Core/Timestep.h"
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
@@ -26,6 +27,15 @@ namespace Aether {
     {
         glm::vec3 translation;
         glm::quat rotation;
+    };
+
+    struct RaycastHit
+    {
+        bool Hit = false;
+        glm::vec3 Position{0.0f}; 
+        glm::vec3 Normal{0.0f};  
+        float Distance = 0.0f;    
+        UUID HitEntityID = 0;    
     };
 
     struct BodyConfig
@@ -60,6 +70,9 @@ namespace Aether {
 
         virtual MotionType GetMotionType(UUID bodyID) = 0;
         virtual ColliderShape GetColliderShape(UUID bodyID) = 0;
+
+        virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
+        virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
 
         virtual void SetActive(UUID bodyID, bool active) = 0;
         
