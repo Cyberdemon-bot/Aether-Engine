@@ -3,13 +3,16 @@
 #include "Aether/Core/AssetsRegister.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
+#include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Resources/Mesh.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-JPH_SUPPRESS_WARNINGS
+// =============================================================================
+//  Construction
+// =============================================================================
 
 GameLayer::GameLayer()
     : Layer("Game Layer")
@@ -18,11 +21,16 @@ GameLayer::GameLayer()
     m_Camera.SetDistance(5.0f);
 }
 
+// =============================================================================
+//  Layer lifecycle
+// =============================================================================
+
 void GameLayer::Attach()
 {
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
+    // ---- Shadow pass --------------------------------------------------------
     Aether::FramebufferSpecification shadowFbSpec;
     shadowFbSpec.Width       = 2048;
     shadowFbSpec.Height      = 2048;
@@ -43,6 +51,7 @@ void GameLayer::Attach()
     shadowPass.CullFace      = Aether::State::FRONT_CULL;
     shadowPass.readList      = {{ Aether::TextureType::None, "u_LightIndex", 0 }};
 
+    // ---- Main scene pass ----------------------------------------------------
     auto& window = Aether::Application::Get().GetWindow();
 
     Aether::FramebufferSpecification sceneFbSpec;
@@ -70,6 +79,7 @@ void GameLayer::Attach()
     mainPass.OnScreen    = false;
     mainPass.readList    = {{ Aether::TextureType::Depth, "u_DepthTex", 0 }};
 
+    // ---- Volumetric pass ----------------------------------------------------
     Aether::FramebufferSpecification volFbSpec;
     volFbSpec.Width       = sceneFbSpec.Width;
     volFbSpec.Height      = sceneFbSpec.Height;
@@ -103,6 +113,7 @@ void GameLayer::Attach()
     pipeline.push_back(volPass);
     Aether::Renderer::SetPipeline(pipeline);
 
+    // ---- Default spotlight --------------------------------------------------
     Aether::LightParam spotLight;
     spotLight.type        = Aether::LightType::Spot;
     spotLight.position    = glm::vec3(0.0f, 5.0f, 0.0f);
@@ -120,24 +131,9 @@ void GameLayer::Attach()
     lightTransform.Translation = spotLight.position;
     lightTransform.Dirty       = true;
 
+    // ---- Console commands ---------------------------------------------------
     Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
     Aether::ConsoleLayer::RegisterCommand("add",  AE_BIND_CONSOLE_FN(AddEntity));
-
-    // Jolt init
-    JPH::RegisterDefaultAllocator();
-    JPH::Factory::sInstance = new JPH::Factory();
-    JPH::RegisterTypes();  // available via Jolt/RegisterTypes.h
-
-    m_TempAllocator = new JPH::TempAllocatorImpl(10 * 1024 * 1024); // 10MB
-    m_JobSystem     = new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 2);
-
-    const JPH::uint maxBodies       = 1024;
-    const JPH::uint maxBodyPairs    = 1024;
-    const JPH::uint maxContactConstraints = 1024;
-
-    m_PhysicsSystem.Init(maxBodies, 0, maxBodyPairs, maxContactConstraints,
-                         m_BPLayerInterface, m_ObjVsBPFilter, m_ObjVsObjFilter);
-    m_PhysicsSystem.SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
     AE_CORE_INFO("GameLayer initialized!");
 }
@@ -150,25 +146,19 @@ void GameLayer::Detach()
     m_Meshes.clear();
     m_Animators.clear();
 
-    // Jolt shutdown
-    auto& bi = m_PhysicsSystem.GetBodyInterface();
     for (auto& [entity, entry] : m_PhysicsBodies)
-    {
-        bi.RemoveBody(entry.bodyID);
-        bi.DestroyBody(entry.bodyID);
-    }
+        Aether::PhysicsSystem::DestroyBody(entry.bodyID);
     m_PhysicsBodies.clear();
-
-    JPH::UnregisterTypes();
-    delete JPH::Factory::sInstance;
-    JPH::Factory::sInstance = nullptr;
-    delete m_TempAllocator; m_TempAllocator = nullptr;
-    delete m_JobSystem;     m_JobSystem     = nullptr;
 }
+
+// =============================================================================
+//  Console commands
+// =============================================================================
 
 void GameLayer::AddEntity(const std::vector<std::string>& args)
 {
-    for (auto& name : args) m_Scene.CreateEntity(name);
+    for (auto& name : args)
+        m_Scene.CreateEntity(name);
 }
 
 void GameLayer::LoadModelAsync(const std::vector<std::string>& args)
@@ -181,12 +171,18 @@ void GameLayer::LoadModelAsync(const std::vector<std::string>& args)
         AE_CORE_INFO("Worker: Parsing {0}", path);
         auto parsed = Aether::Importer::Import(path);
         {
+            // FIX: only hold the lock long enough to push into the queue.
+            // GPU upload happens on the main thread, outside the lock.
             std::lock_guard<std::mutex> lock(m_ParseMutex);
             m_CompletedParses.push(std::move(parsed));
         }
         AE_CORE_INFO("Worker: Parsing complete for {0}", path);
     });
 }
+
+// =============================================================================
+//  Physics helpers
+// =============================================================================
 
 void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic)
 {
@@ -195,92 +191,109 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
     auto mesh = Aether::MeshLibrary::Get(colliderMeshID);
     if (!mesh) return;
 
-    auto& t = m_Scene.GetComponent<Aether::TransformComponent>(transformEntity);
-    const auto& hie_trans = t.WorldTransform;
-    const auto& local_trans = t.GetLocalTransform();
-
-    glm::vec3 localScale(
-        glm::length(glm::vec3(local_trans[0])),
-        glm::length(glm::vec3(local_trans[1])),
-        glm::length(glm::vec3(local_trans[2]))
-    );
-
-    glm::mat3 rotMat(
-        glm::normalize(glm::vec3(hie_trans[0])),
-        glm::normalize(glm::vec3(hie_trans[1])),
-        glm::normalize(glm::vec3(hie_trans[2]))
-    );
-    glm::quat worldRot = glm::quat_cast(rotMat);
-
-    glm::vec3 meshExtents = mesh->GetBoundsExtents();
-    JPH::Vec3 halfExtent(
-        std::max(std::abs(meshExtents.x * localScale.x), 0.001f),
-        std::max(std::abs(meshExtents.y * localScale.y), 0.001f),
-        std::max(std::abs(meshExtents.z * localScale.z), 0.001f)
-    );
-
-    glm::vec3 worldPos = glm::vec3(hie_trans[3]);
-    glm::vec3 meshCenter = mesh->GetBoundsCenter();
-    glm::vec3 finalCenter = worldPos + (rotMat * (meshCenter * localScale));
-
-    JPH::RVec3 joltPos(finalCenter.x, finalCenter.y, finalCenter.z);
-    JPH::Quat  joltRot(worldRot.x, worldRot.y, worldRot.z, worldRot.w);
-    JPH::BoxShapeSettings shapeSettings(halfExtent);
-    float minExtent = std::min({halfExtent.GetX(), halfExtent.GetY(), halfExtent.GetZ()});
-    shapeSettings.mConvexRadius = std::min(0.01f, minExtent * 0.5f);
-    
-    auto shapeResult = shapeSettings.Create();
-    if (shapeResult.HasError())
+    // Walk up the parent chain to compute the world transform
+    std::vector<Entity> chain;
+    Entity cur = transformEntity;
+    while (cur != Null_Entity && m_Scene.IsValid(cur))
     {
-        AE_CORE_ERROR("Jolt shape error: {0}", shapeResult.GetError().c_str());
-        return;
+        chain.push_back(cur);
+        cur = m_Scene.GetComponent<Aether::HierarchyComponent>(cur).parent;
     }
 
-    auto layer = isDynamic ? Layers::DYNAMIC : Layers::STATIC;
-    auto motion = isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static;
+    glm::mat4 worldTransform(1.0f);
+    for (int i = (int)chain.size() - 1; i >= 0; i--)
+        worldTransform *= m_Scene.GetComponent<Aether::TransformComponent>(chain[i]).GetLocalTransform();
 
-    JPH::BodyCreationSettings bodySettings(
-        shapeResult.Get(), joltPos, joltRot,
-        motion, layer);
+    auto& t      = m_Scene.GetComponent<Aether::TransformComponent>(transformEntity);
+    t.WorldTransform = worldTransform;
+    t.Dirty          = false;
 
-    bodySettings.mRestitution = 0.3f;
-    bodySettings.mFriction    = 0.5f;
+    const glm::mat4& wt = worldTransform;
 
-    auto& bi = m_PhysicsSystem.GetBodyInterface();
-    JPH::Body* body = bi.CreateBody(bodySettings);
-    if (!body) return;
+    glm::vec3 worldScale(
+        glm::length(glm::vec3(wt[0])),
+        glm::length(glm::vec3(wt[1])),
+        glm::length(glm::vec3(wt[2])));
 
-    bi.AddBody(body->GetID(), JPH::EActivation::DontActivate);
+    glm::mat3 rotMat(
+        glm::normalize(glm::vec3(wt[0])),
+        glm::normalize(glm::vec3(wt[1])),
+        glm::normalize(glm::vec3(wt[2])));
+    glm::quat worldRot = glm::quat_cast(rotMat);
+
+    glm::vec3 extents     = mesh->GetBoundsExtents() * worldScale;
+    glm::vec3 center      = glm::vec3(wt[3]) + rotMat * (mesh->GetBoundsCenter() * worldScale);
+    glm::vec3 localOffset = mesh->GetBoundsCenter() * worldScale;
+
+    Aether::BodyConfig config;
+    config.motionType  = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Static;
+    config.shape       = Aether::ColliderShape::Box;
+    config.size        = glm::vec3(
+        std::max(std::abs(extents.x), 0.5f),
+        std::max(std::abs(extents.y), 0.5f),
+        std::max(std::abs(extents.z), 0.5f));
+    config.transform   = { center, worldRot };
+    config.friction    = 0.5f;
+    config.restitution = 0.3f;
+
+    Aether::UUID bodyID;
+    Aether::PhysicsSystem::CreateBody(bodyID, config);
+
+    if (!m_Scene.HasComponent<Aether::RigidBodyComponent>(transformEntity))
+        m_Scene.AddComponent<Aether::RigidBodyComponent>(transformEntity, bodyID, localOffset);
+    else
+    {
+        auto& rb           = m_Scene.GetComponent<Aether::RigidBodyComponent>(transformEntity);
+        rb.BodyID          = bodyID;
+        rb.ColliderOffset  = localOffset;
+    }
+
     PhysicsEntry entry;
-    entry.bodyID  = body->GetID();
-    entry.enabled = 0; 
+    entry.bodyID     = bodyID;
+    entry.enabled    = false;
+    entry.lastActive = false;
+    entry.isDynamic  = isDynamic;
     m_PhysicsBodies[transformEntity] = entry;
-    m_PhysicsRunning = true;
 
-    if (!isDynamic) m_PhysicsSystem.OptimizeBroadPhase();
+    if (isDynamic)
+        Aether::PhysicsSystem::SetActive(bodyID, false);
 }
+
+// =============================================================================
+//  Async parse drain  (main thread only)
+// =============================================================================
 
 void GameLayer::DrainParseQueue()
 {
-    std::lock_guard<std::mutex> lock(m_ParseMutex);
-    while (!m_CompletedParses.empty())
+    // FIX: Swap the queue out under the lock, then do all GPU work outside it.
+    // This way the worker thread is never blocked during potentially slow uploads.
+    std::queue<Aether::ParsedScene> localQueue;
     {
-        auto parsed = std::move(m_CompletedParses.front());
-        m_CompletedParses.pop();
+        std::lock_guard<std::mutex> lock(m_ParseMutex);
+        std::swap(localQueue, m_CompletedParses);
+    }
+
+    while (!localQueue.empty())
+    {
+        auto parsed = std::move(localQueue.front());
+        localQueue.pop();
 
         AE_CORE_INFO("Main thread: Uploading to GPU...");
         auto result = Aether::Importer::Upload(parsed);
 
-        for (auto& meshID : result.meshIDs) m_Meshes.push_back(meshID);
-        for (auto& animID : result.animatorIDS) m_Animators.push_back(animID);
+        for (auto& meshID : result.meshIDs)      m_Meshes.push_back(meshID);
+        for (auto& animID : result.animatorIDS)  m_Animators.push_back(animID);
 
         m_Scene.LoadHierarchy(result);
-        m_PhysicsSystem.OptimizeBroadPhase();
 
         AE_CORE_INFO("Loaded: {0} mesh(es), {1} animator(s)",
             result.meshIDs.size(), result.animatorIDS.size());
     }
 }
+
+// =============================================================================
+//  Update
+// =============================================================================
 
 void GameLayer::Update(Aether::Timestep ts)
 {
@@ -297,39 +310,24 @@ void GameLayer::Update(Aether::Timestep ts)
         auto meshView = m_Scene.View<Aether::MeshComponent, Aether::TransformComponent>();
         for (auto entity : meshView)
         {
-            auto& t = m_Scene.GetComponent<Aether::TransformComponent>(entity);
+            auto& t    = m_Scene.GetComponent<Aether::TransformComponent>(entity);
             t.Rotation.y += ts * m_RotationSpeed;
-            t.Dirty = true;
+            t.Dirty       = true;
         }
     }
 
-    if (m_PhysicsRunning)
+    // Sync active state with the physics engine every frame.
+    // This is necessary because physics engines auto-sleep bodies that come to
+    // rest, quietly marking them inactive. Without this loop, an enabled body
+    // would be deactivated by the sleep system and never simulate.
+    // We guard with lastActive so we only call into the API when the desired
+    // state actually differs from what was last pushed.
+    for (auto& [entity, entry] : m_PhysicsBodies)
     {
-        auto& bi = m_PhysicsSystem.GetBodyInterface();
-
-        // activate/deactivate based on enabled flag
-        for (auto& [entity, entry] : m_PhysicsBodies)
+        if (entry.enabled != entry.lastActive)
         {
-            if (entry.enabled) bi.ActivateBody(entry.bodyID);
-            else               bi.DeactivateBody(entry.bodyID);
-        }
-
-        const int collisionSteps = 1;
-        m_PhysicsSystem.Update(ts, collisionSteps, m_TempAllocator, m_JobSystem);
-
-        // sync active bodies back to transforms
-        for (auto& [entity, entry] : m_PhysicsBodies)
-        {
-            if (!entry.enabled || !bi.IsActive(entry.bodyID)) continue;
-            if (!m_Scene.IsValid(entity)) continue;
-
-            JPH::RVec3 pos = bi.GetPosition(entry.bodyID);
-            JPH::Quat  rot = bi.GetRotation(entry.bodyID);
-
-            auto& t       = m_Scene.GetComponent<Aether::TransformComponent>(entity);
-            t.Translation = glm::vec3(pos.GetX(), pos.GetY(), pos.GetZ());
-            t.Rotation    = glm::quat(rot.GetW(), rot.GetX(), rot.GetY(), rot.GetZ());
-            t.Dirty       = true;
+            Aether::PhysicsSystem::SetActive(entry.bodyID, entry.enabled);
+            entry.lastActive = entry.enabled;
         }
     }
 
@@ -354,10 +352,14 @@ void GameLayer::OnEvent(Aether::Event& event)
         m_Camera.OnEvent(event);
 }
 
+// =============================================================================
+//  ImGui
+// =============================================================================
+
 void GameLayer::OnImGuiRender()
 {
     ImGui::Begin("Performance");
-    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Text("FPS: %.1f",          ImGui::GetIO().Framerate);
     ImGui::Text("Frame time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
     ImGui::End();
 
@@ -367,17 +369,19 @@ void GameLayer::OnImGuiRender()
     DrawLightingPanel();
 }
 
+// =============================================================================
+//  Hierarchy panel
+// =============================================================================
+
 void GameLayer::DrawEntityNode(Entity entity)
 {
-    auto& tag      = m_Scene.GetComponent<Aether::TagComponent>(entity);
-    auto& hier     = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
+    auto& tag  = m_Scene.GetComponent<Aether::TagComponent>(entity);
+    auto& hier = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
                              | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (hier.firstChild == Null_Entity)
-        flags |= ImGuiTreeNodeFlags_Leaf;
-    if (m_SelectedEntity == entity)
-        flags |= ImGuiTreeNodeFlags_Selected;
+    if (hier.firstChild  == Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
+    if (m_SelectedEntity == entity)      flags |= ImGuiTreeNodeFlags_Selected;
 
     bool open = ImGui::TreeNodeEx((void*)(uint64_t)entity, flags, "%s", tag.Tag.c_str());
 
@@ -400,10 +404,10 @@ void GameLayer::DrawEntityNode(Entity entity)
 
     if (open)
     {
+        // Read nextSibling before recursing in case hierarchy mutates
         Entity child = hier.firstChild;
         while (child != Null_Entity)
         {
-            // read nextSibling before recursing in case hierarchy mutates
             Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
             DrawEntityNode(child);
             child = next;
@@ -414,11 +418,7 @@ void GameLayer::DrawEntityNode(Entity entity)
 
 void GameLayer::DrawHierarchyPanel()
 {
-    if (!ImGui::Begin("Hierarchy"))
-    {
-        ImGui::End();
-        return;
-    }
+    if (!ImGui::Begin("Hierarchy")) { ImGui::End(); return; }
 
     if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
         m_SelectedEntity = Null_Entity;
@@ -433,59 +433,48 @@ void GameLayer::DrawHierarchyPanel()
     ImGui::End();
 }
 
+// =============================================================================
+//  Scene panel
+// =============================================================================
+
 void GameLayer::DrawScenePanel()
 {
-    if (!ImGui::Begin("Scene"))
-    {
-        ImGui::End();
-        return;
-    }
+    if (!ImGui::Begin("Scene")) { ImGui::End(); return; }
 
     ImGui::Text("Meshes:    %d", (int)m_Meshes.size());
     ImGui::Text("Animators: %d", (int)m_Animators.size());
     ImGui::Separator();
 
+    // ---- Physics ------------------------------------------------------------
     if (ImGui::CollapsingHeader("Physics"))
     {
-        // --- Add Body ---
-        // Node selection (from hierarchy - any entity)
-        std::string nodePreview = "Select Node";
-        if (m_PhysNodeIdx >= 0)
-        {
-            // find entity by index in hierarchy view
-            auto view = m_Scene.View<Aether::HierarchyComponent, Aether::TagComponent>();
-            int idx = 0;
-            for (auto entity : view)
-            {
-                if (idx == m_PhysNodeIdx)
-                {
-                    nodePreview = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
-                    break;
-                }
-                idx++;
-            }
-        }
+        // --- Add body --------------------------------------------------------
+        // FIX: Store the selected entity directly instead of an index into
+        // View<TagComponent>, whose iteration order is not guaranteed stable.
+        std::string nodePreview = (m_PhysSelectedEntity != Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
+            ? m_Scene.GetComponent<Aether::TagComponent>(m_PhysSelectedEntity).Tag
+            : "Select Node";
 
         if (ImGui::BeginCombo("Node##phys", nodePreview.c_str()))
         {
-            auto view = m_Scene.View<Aether::HierarchyComponent, Aether::TagComponent>();
-            int idx = 0;
+            auto view = m_Scene.View<Aether::TagComponent>();
             for (auto entity : view)
             {
-                ImGui::PushID(idx);
-                bool selected = (m_PhysNodeIdx == idx);
+                bool selected = (m_PhysSelectedEntity == entity);
                 std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
-                if (ImGui::Selectable(tag.c_str(), selected)) m_PhysNodeIdx = idx;
+                ImGui::PushID((uint64_t)entity);
+                if (ImGui::Selectable(tag.c_str(), selected))
+                    m_PhysSelectedEntity = entity;
                 if (selected) ImGui::SetItemDefaultFocus();
                 ImGui::PopID();
-                idx++;
             }
             ImGui::EndCombo();
         }
 
-        // Mesh selection (for collider shape)
+        // Mesh selection (for collider AABB)
         std::string meshPreview = (m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_Meshes.size())
-            ? Aether::AssetsRegister::Get(m_Meshes[m_PhysMeshIdx]) : "Select Mesh";
+            ? Aether::AssetsRegister::Get(m_Meshes[m_PhysMeshIdx])
+            : "Select Mesh";
 
         if (ImGui::BeginCombo("Mesh##phys", meshPreview.c_str()))
         {
@@ -494,48 +483,82 @@ void GameLayer::DrawScenePanel()
                 ImGui::PushID(i);
                 bool selected = (m_PhysMeshIdx == i);
                 std::string name = Aether::AssetsRegister::Get(m_Meshes[i]);
-                if (ImGui::Selectable(name.c_str(), selected)) m_PhysMeshIdx = i;
+                if (ImGui::Selectable(name.c_str(), selected))
+                    m_PhysMeshIdx = i;
                 if (selected) ImGui::SetItemDefaultFocus();
                 ImGui::PopID();
             }
             ImGui::EndCombo();
         }
 
-        ImGui::Checkbox("Is Dynamic", &m_PhysIsDynamic);
+        ImGui::Checkbox("Is Dynamic", &m_PhysDynamic);
 
-        bool canAdd = (m_PhysNodeIdx >= 0 && m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_Meshes.size());
+        bool canAdd = (m_PhysSelectedEntity != Null_Entity &&
+                       m_Scene.IsValid(m_PhysSelectedEntity) &&
+                       m_PhysMeshIdx >= 0 &&
+                       m_PhysMeshIdx < (int)m_Meshes.size());
+
         if (!canAdd) ImGui::BeginDisabled();
         if (ImGui::Button("Add Physics Body"))
-        {
-            // resolve node entity from index
-            auto view = m_Scene.View<Aether::HierarchyComponent>();
-            int idx = 0;
-            Entity targetEntity = Null_Entity;
-            for (auto entity : view)
-            {
-                if (idx == m_PhysNodeIdx) { targetEntity = entity; break; }
-                idx++;
-            }
-            if (targetEntity != Null_Entity)
-                RegisterPhysicsBody(targetEntity, m_Meshes[m_PhysMeshIdx], m_PhysIsDynamic);
-        }
+            RegisterPhysicsBody(m_PhysSelectedEntity, m_Meshes[m_PhysMeshIdx], m_PhysDynamic);
         if (!canAdd) ImGui::EndDisabled();
 
         ImGui::Separator();
 
-        // --- Active bodies list with enable toggle ---
+        // --- Active bodies list ----------------------------------------------
+        ImGui::Text("Active Bodies:");
         for (auto& [entity, entry] : m_PhysicsBodies)
         {
             if (!m_Scene.IsValid(entity)) continue;
-            ImGui::PushID((int)(uint32_t)entity);
+
+            ImGui::PushID((uint64_t)entity);
             std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
-            bool enabled = (bool)entry.enabled;
-            if (ImGui::Checkbox(tag.c_str(), &enabled))
-                entry.enabled = (uint8_t)enabled;
+
+            // Flip the enabled flag — the per-frame loop in Update() will
+            // push the change to the physics API on the next tick.
+            ImGui::Checkbox(tag.c_str(), &entry.enabled);
+
             ImGui::PopID();
+        }
+
+        ImGui::Separator();
+
+        // --- Force / Velocity controls ---------------------------------------
+        // Only shown when the selected entity has a physics body registered.
+        auto physIt = (m_SelectedEntity != Null_Entity)
+            ? m_PhysicsBodies.find(m_SelectedEntity)
+            : m_PhysicsBodies.end();
+        bool hasPhysBody = (physIt != m_PhysicsBodies.end());
+
+        ImGui::Text("Apply to Selected Entity:");
+        if (!hasPhysBody)
+        {
+            ImGui::TextDisabled("(select an entity with a physics body)");
+        }
+        else if (!physIt->second.isDynamic)
+        {
+            ImGui::TextDisabled("(static body — forces not applicable)");
+        }
+        else
+        {
+            // Add Force
+            ImGui::DragFloat3("Force##input",    glm::value_ptr(m_ForceInput),    0.5f);
+            ImGui::SameLine();
+            if (ImGui::Button("Apply Force")) Aether::PhysicsSystem::AddForce(physIt->second.bodyID, m_ForceInput);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("X##force"))
+                m_ForceInput = glm::vec3(0.0f);
+
+            ImGui::DragFloat3("Velocity##input", glm::value_ptr(m_VelocityInput), 0.5f);
+            ImGui::SameLine();
+            if (ImGui::Button("Set Velocity")) Aether::PhysicsSystem::SetVelocity(physIt->second.bodyID, m_VelocityInput);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("X##vel"))
+                m_VelocityInput = glm::vec3(0.0f);
         }
     }
 
+    // ---- Camera -------------------------------------------------------------
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         glm::vec3 pos = m_Camera.GetPosition();
@@ -545,6 +568,7 @@ void GameLayer::DrawScenePanel()
             m_Camera.SetDistance(5.0f);
     }
 
+    // ---- Transform ----------------------------------------------------------
     if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
@@ -564,27 +588,28 @@ void GameLayer::DrawScenePanel()
             if (ImGui::Button("Reset Transform"))
             {
                 t.Translation = glm::vec3(0.0f);
-                t.Rotation    = glm::quat({0.0f, 0.0f, 0.0f});
+                // FIX: glm::quat({0,0,0}) is UB — a zero-length quaternion is invalid.
+                // Identity quaternion is (w=1, x=0, y=0, z=0).
+                t.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
                 t.Scale       = glm::vec3(1.0f);
                 t.Dirty       = true;
             }
 
+            // Sync physics transform when entity is moved via the UI
             if (t.Dirty)
             {
-                if (m_PhysicsBodies.find(m_SelectedEntity) != m_PhysicsBodies.end())
-                {
-                    auto& bi = m_PhysicsSystem.GetBodyInterface();
-                    JPH::BodyID bodyID = m_PhysicsBodies[m_SelectedEntity].bodyID;
-
-                    JPH::RVec3 newPos(t.Translation.x, t.Translation.y, t.Translation.z);
-                    JPH::Quat  newRot(t.Rotation.x, t.Rotation.y, t.Rotation.z, t.Rotation.w);
-                    bi.SetPositionAndRotation(bodyID, newPos, newRot, JPH::EActivation::Activate);
-                }
+                auto it = m_PhysicsBodies.find(m_SelectedEntity);
+                if (it != m_PhysicsBodies.end())
+                    Aether::PhysicsSystem::SetPhysTransform(it->second.bodyID, { t.Translation, t.Rotation });
             }
         }
-        else ImGui::TextDisabled("Select an entity in the Hierarchy panel.");
+        else
+        {
+            ImGui::TextDisabled("Select an entity in the Hierarchy panel.");
+        }
     }
 
+    // ---- Auto rotation ------------------------------------------------------
     if (ImGui::CollapsingHeader("Auto Rotation"))
     {
         ImGui::Checkbox("Auto Rotate", &m_AutoRotate);
@@ -595,13 +620,13 @@ void GameLayer::DrawScenePanel()
     ImGui::End();
 }
 
+// =============================================================================
+//  Animation panel
+// =============================================================================
+
 void GameLayer::DrawAnimationPanel()
 {
-    if (!ImGui::Begin("Animation"))
-    {
-        ImGui::End();
-        return;
-    }
+    if (!ImGui::Begin("Animation")) { ImGui::End(); return; }
 
     auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
     if (!rigSystem)
@@ -764,13 +789,13 @@ void GameLayer::DrawAnimationPanel()
     ImGui::End();
 }
 
+// =============================================================================
+//  Lighting panel
+// =============================================================================
+
 void GameLayer::DrawLightingPanel()
 {
-    if (!ImGui::Begin("Lighting"))
-    {
-        ImGui::End();
-        return;
-    }
+    if (!ImGui::Begin("Lighting")) { ImGui::End(); return; }
 
     if (ImGui::CollapsingHeader("Spotlight", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -781,9 +806,9 @@ void GameLayer::DrawLightingPanel()
         glm::vec3 dir = glm::normalize(glm::vec3(-lightTrans.WorldTransform[2]));
         ImGui::Text("Direction: (%.2f, %.2f, %.2f)", dir.x, dir.y, dir.z);
 
-        ImGui::ColorEdit3("Color",       glm::value_ptr(light.color));
-        ImGui::SliderFloat("Intensity",  &light.intensity,  0.0f, 10.0f);
-        ImGui::SliderFloat("Range",      &light.range,      1.0f, 200.0f);
+        ImGui::ColorEdit3("Color",      glm::value_ptr(light.color));
+        ImGui::SliderFloat("Intensity", &light.intensity, 0.0f, 10.0f);
+        ImGui::SliderFloat("Range",     &light.range,     1.0f, 200.0f);
 
         float innerDeg = glm::degrees(glm::acos(light.innerCone));
         float outerDeg = glm::degrees(glm::acos(light.outerCone));

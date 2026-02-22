@@ -7,7 +7,7 @@ namespace Aether {
 
     enum class State
     {
-        None = 0, EQUAL, LEQUAL, FRONT_CULL, BACK_CULL
+        None = 0, EQUAL, LEQUAL, FRONT_CULL, BACK_CULL, ALWAYS
     };
     class AETHER_API RendererAPI 
     {

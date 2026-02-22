@@ -3,6 +3,8 @@
 #include "Aether/Scene/Component.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
+#include "Aether/Physics/PhysicsSystem.h"
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace Aether {
     Scene::Scene() 
@@ -251,36 +253,77 @@ namespace Aether {
     {
         auto& transform = GetComponent<TransformComponent>(entity);
         auto& hierarchy = GetComponent<HierarchyComponent>(entity);
+    
+        bool isWorldTransformDirty = transform.Dirty || pDirty;
+        bool hasRecalculatedWorld = false; 
 
-        bool dirty = transform.Dirty || pDirty;
-
-        if (dirty)
+        if (HasComponent<RigidBodyComponent>(entity))
         {
-            transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
-            transform.Dirty = false;
+            auto& rbComp = GetComponent<RigidBodyComponent>(entity);
+            UUID id = rbComp.BodyID;  
+
+            if (isWorldTransformDirty) 
+            {
+                transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
+                hasRecalculatedWorld = true;
+
+                glm::vec3 scale, translation, skew;
+                glm::quat rotation;
+                glm::vec4 perspective;
+                glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
+                
+                PhysicsSystem::SetPhysTransform(id, {translation, rotation});
+            }
+            else if (PhysicsSystem::GetMotionType(id) != MotionType::Static) 
+            {
+                PhysTransform physTrans = PhysicsSystem::GetPhysTransform(id);
+                glm::vec3 localOffset = rbComp.ColliderOffset;
+                glm::vec3 translation = physTrans.translation - (physTrans.rotation * localOffset);
+
+                if (hierarchy.parent == Null_Entity)
+                {
+                    transform.Translation = translation;
+                    transform.Rotation = physTrans.rotation;
+                }
+                else
+                {
+                    glm::mat4 invParent = glm::inverse(pTransfrom);
+                    glm::quat parentRot = glm::quat_cast(pTransfrom);
+                    transform.Translation = glm::vec3(invParent * glm::vec4(translation, 1.0f));
+                    transform.Rotation = glm::inverse(parentRot) * physTrans.rotation; 
+                }
+                
+                isWorldTransformDirty = true; 
+            }
         }
 
+        if (isWorldTransformDirty)
+        {
+            if (!hasRecalculatedWorld) transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
+            transform.Dirty = false;
+        }
         Entity currentChild = hierarchy.firstChild;
         while (currentChild != Null_Entity)
         {
-            UpdateTransform(currentChild, transform.WorldTransform, dirty);
+            UpdateTransform(currentChild, transform.WorldTransform, isWorldTransformDirty); 
             currentChild = GetComponent<HierarchyComponent>(currentChild).nextSibling;
         }
     }
 
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
-        { // update hierarchy
+        { 
+            AnimationSystem::Update(ts);
+            PhysicsSystem::Update(ts);
+        }
+
+        { 
             auto view = View<HierarchyComponent>();
             for (auto entity : view)
             {
                 const auto& hierarchy = GetComponent<HierarchyComponent>(entity);
                 if (hierarchy.parent == Null_Entity) UpdateTransform(entity, glm::mat4(1.0f), false);
             }
-        }
-
-        { // system update
-            AnimationSystem::Update(ts);
         }
 
         { // render
@@ -313,21 +356,38 @@ namespace Aether {
             {
                 if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights); 
                 else Renderer::BeginScene(mainCamera->Camera, m_SceneLights); 
-                auto meshView = View<MeshComponent, TransformComponent>();
 
+                // draw meshes
+                auto meshView = View<MeshComponent, TransformComponent>();
                 for (auto entity : meshView)
                 {
                     auto transform = GetComponent<TransformComponent>(entity);
-                    const auto& hie_trans = transform.WorldTransform;
-
                     UUID meshID = GetComponent<MeshComponent>(entity).MeshID;
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
-
-                    Renderer::DrawMesh(meshID, animatorID, hie_trans);
+                    Renderer::DrawMesh(meshID, animatorID, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();
+
+                auto rbView = View<RigidBodyComponent>();
+                if (!rbView.empty())
+                {
+                    for (auto entity : rbView)
+                    {
+                        UUID bodyID = GetComponent<RigidBodyComponent>(entity).BodyID;
+                        PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
+                        glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
+                                                    * glm::toMat4(pt.rotation);
+                        glm::vec3 bMin(-0.5f), bMax(0.5f);
+                        if (HasComponent<MeshComponent>(entity))
+                        {
+                            auto mesh = MeshLibrary::Get(GetComponent<MeshComponent>(entity).MeshID);
+                            if (mesh) { bMin = -mesh->GetBoundsExtents(); bMax = mesh->GetBoundsExtents(); }
+                        }
+                        Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+                    }
+                }
             }
         }
     }
