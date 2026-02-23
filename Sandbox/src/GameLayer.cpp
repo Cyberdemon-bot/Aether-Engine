@@ -107,10 +107,7 @@ void GameLayer::Attach()
         { Aether::TextureType::Depth, "u_ShadowMap",  0 },
     };
 
-    std::vector<Aether::RenderPass> pipeline;
-    pipeline.push_back(shadowPass);
-    pipeline.push_back(mainPass);
-    pipeline.push_back(volPass);
+    std::vector<Aether::RenderPass> pipeline = {shadowPass, mainPass, volPass};
     Aether::Renderer::SetPipeline(pipeline);
 
     // ---- Default spotlight --------------------------------------------------

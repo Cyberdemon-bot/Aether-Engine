@@ -220,10 +220,15 @@ namespace Aether {
                 break;
             }
             case MotionType::Dynamic:
-            case MotionType::Kinematic:
             {
                 motionType = JPH::EMotionType::Dynamic;
                 objectLayer = JPH::Layers::DYNAMIC;
+                break;
+            }
+            case MotionType::Kinematic:
+            {
+                motionType = JPH::EMotionType::Kinematic;
+                objectLayer = JPH::Layers::DYNAMIC; 
                 break;
             }
             case MotionType::None:
