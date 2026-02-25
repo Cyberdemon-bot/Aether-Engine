@@ -12,11 +12,6 @@
 #include <glm/gtx/quaternion.hpp>
 
 namespace Aether {
-
-    enum class RigidBodyType
-    {
-        Static, Dynamic
-    };
     struct IDComponent
     {
         UUID ID;
@@ -106,12 +101,12 @@ namespace Aether {
 		CameraComponent(const CameraComponent&) = default;
 	};
 
-    struct RigidBodyComponent
+    struct ColliderComponent
     {
         UUID BodyID;
         glm::vec3 ColliderOffset;
-        RigidBodyComponent() = default;
-        RigidBodyComponent(const RigidBodyComponent&) = default;
-        RigidBodyComponent(const UUID& id, const glm::vec3& offset = {0.0f, 0.0f, 0.0f}) : BodyID(id), ColliderOffset(offset) {};
+        ColliderComponent() = default;
+        ColliderComponent(const ColliderComponent&) = default;
+        ColliderComponent(const UUID& id, const glm::vec3& offset = {0.0f, 0.0f, 0.0f}) : BodyID(id), ColliderOffset(offset) {};
     };
 }

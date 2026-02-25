@@ -1,7 +1,7 @@
 #pragma once
 #include "aepch.h"
-#include "Aether/Resources/Texture.h"
-#include "Aether/Resources/Shader.h"
+#include "Aether/Renderer/Texture.h"
+#include "Aether/Renderer/Shader.h"
 #include "Aether/Core/UUID.h"
 
 namespace Aether {

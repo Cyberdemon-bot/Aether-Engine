@@ -1,4 +1,4 @@
-#include "Aether/Resources/Texture.h"
+#include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLTexture.h"
 
@@ -16,12 +16,12 @@ namespace Aether {
 		return nullptr;
 	}
 
-	Ref<Texture2D> Texture2D::Create(const std::string& path, bool wrapMode, bool flip)
+	Ref<Texture2D> Texture2D::Create(const std::string& path, WrapMode mode, bool flip)
 	{
 		switch (Renderer::GetAPI())
 		{
 			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2D>(path, wrapMode, flip);
+			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2D>(path, mode, flip);
 		}
 
 		AE_CORE_ASSERT(false, "Unknown RendererAPI!");

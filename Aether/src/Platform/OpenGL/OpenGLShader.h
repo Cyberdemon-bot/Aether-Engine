@@ -1,4 +1,4 @@
-#include "Aether/Resources/Shader.h" 
+#include "Aether/Renderer/Shader.h" 
 #include "Platform/OpenGL/OpenGLBase.h"
 #include "glm/glm.hpp"
 

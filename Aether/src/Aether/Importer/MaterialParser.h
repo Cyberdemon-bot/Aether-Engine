@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
-#include "Aether/Resources/Texture.h"
+#include "Aether/Renderer/Texture.h"
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>

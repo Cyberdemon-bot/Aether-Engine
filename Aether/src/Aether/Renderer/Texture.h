@@ -11,7 +11,16 @@ namespace Aether {
 		RGB8,
 		RGBA8,
         RGBA16F,
-		RGBA32F
+		RGBA32F, 
+		RED_INTEGER,
+		DEPTH24STENCIL8,
+		Depth = DEPTH24STENCIL8
+	};
+
+	enum class WrapMode
+	{
+		None = 0, 
+		REPEAT, CLAMP_TO_EDGE
 	};
 
 	struct TextureSpec
@@ -19,9 +28,8 @@ namespace Aether {
 		uint32_t Width = 1;
 		uint32_t Height = 1;
 		ImageFormat Format = ImageFormat::RGBA8;
-		bool GenerateMips = true;
-
-        bool WrapMode = false;
+		bool GenerateMips = false;
+        WrapMode Mode = WrapMode::REPEAT;
 	};
 
 	class Texture
@@ -29,13 +37,9 @@ namespace Aether {
 	public:
 		virtual ~Texture() = default;
 
-		virtual const TextureSpec& GetSpec() const = 0;
-
 		virtual uint32_t GetWidth() const = 0;
 		virtual uint32_t GetHeight() const = 0;
 		virtual uint32_t GetRendererID() const = 0;
-
-		virtual const std::string& GetPath() const = 0;
 
 		virtual void SetData(const void* data, uint32_t size) = 0;
 
@@ -51,7 +55,7 @@ namespace Aether {
 	public:
 		static Ref<Texture2D> Create(const TextureSpec& spec);
 		static Ref<Texture2D> Create(void* data, size_t size);
-		static Ref<Texture2D> Create(const std::string& path, bool wrapMode = false, bool flip = true);
+		static Ref<Texture2D> Create(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
 	};
 
     class AETHER_API TextureCube : public Texture

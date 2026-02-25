@@ -4,8 +4,8 @@
 #include "Aether/Core/AssetsRegister.h"
 #include "Aether/Resources/Material.h"
 #include "Aether/Resources/Mesh.h"
-#include "Aether/Resources/Texture.h"
-#include "Aether/Resources/Shader.h"
+#include "Aether/Renderer/Texture.h"
+#include "Aether/Renderer/Shader.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 

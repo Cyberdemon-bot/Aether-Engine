@@ -53,7 +53,7 @@ namespace Aether {
 		
 		s_RenderData->s_ScreenShader = Shader::Create("assets/shaders/Screen.shader");
 		s_RenderData->s_SkyboxShader = Shader::Create("assets/shaders/Skybox.shader"); s_RenderData->s_SkyboxShader->SetUBOSlot("Camera", 0);
-		s_RenderData->s_LutMap = Texture2D::Create("assets/textures/LUT.png", true, false);
+		s_RenderData->s_LutMap = Texture2D::Create("assets/textures/LUT.png", WrapMode::CLAMP_TO_EDGE, false);
 		s_RenderData->s_Skybox = TextureCube::Create("assets/textures/skybox.png");
 
 		s_RenderData->s_Screen = Mesh::Create(

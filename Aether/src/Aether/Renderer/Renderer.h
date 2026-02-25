@@ -5,7 +5,7 @@
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/FrameBuffer.h"
-#include "Aether/Resources/Shader.h"
+#include "Aether/Renderer/Shader.h"
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Material.h"
 #include "Aether/Renderer/Camera.h"

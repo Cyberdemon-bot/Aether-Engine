@@ -257,9 +257,9 @@ namespace Aether {
         bool isWorldTransformDirty = transform.Dirty || pDirty;
         bool hasRecalculatedWorld = false; 
 
-        if (HasComponent<RigidBodyComponent>(entity))
+        if (HasComponent<ColliderComponent>(entity))
         {
-            auto& rbComp = GetComponent<RigidBodyComponent>(entity);
+            auto& rbComp = GetComponent<ColliderComponent>(entity);
             UUID id = rbComp.BodyID;  
 
             if (isWorldTransformDirty) 
@@ -370,12 +370,12 @@ namespace Aether {
 
                 Renderer::EndScene();
 
-                auto rbView = View<RigidBodyComponent>();
+                auto rbView = View<ColliderComponent>();
                 if (!rbView.empty())
                 {
                     for (auto entity : rbView)
                     {
-                        UUID bodyID = GetComponent<RigidBodyComponent>(entity).BodyID;
+                        UUID bodyID = GetComponent<ColliderComponent>(entity).BodyID;
                         PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);

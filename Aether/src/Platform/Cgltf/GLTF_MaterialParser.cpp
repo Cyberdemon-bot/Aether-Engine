@@ -34,8 +34,8 @@ namespace Aether {
                     texInfo.Spec.Width = width;
                     texInfo.Spec.Height = height;
                     texInfo.Spec.Format = ImageFormat::RGBA8;
-                    texInfo.Spec.GenerateMips = true;
-                    texInfo.Spec.WrapMode = true;
+                    texInfo.Spec.GenerateMips = false;
+                    texInfo.Spec.Mode = WrapMode::CLAMP_TO_EDGE;
                     
                     size_t dataSize = width * height * 4;
                     texInfo.RawData.resize(dataSize);

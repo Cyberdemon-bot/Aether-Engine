@@ -12,6 +12,8 @@ namespace Aether {
 				case ImageFormat::RGBA8: return GL_RGBA;
                 case ImageFormat::RGBA16F: return GL_RGBA;
                 case ImageFormat::RGBA32F: return GL_RGBA;
+                case ImageFormat::RED_INTEGER: return GL_RED_INTEGER;
+                case ImageFormat::DEPTH24STENCIL8: return GL_DEPTH_STENCIL;
 			}
 
 			AE_CORE_ASSERT(false, "Unknown ImageFormat GL type!");
@@ -27,33 +29,79 @@ namespace Aether {
                 case ImageFormat::RGBA8: return GL_RGBA8;
                 case ImageFormat::RGBA16F: return GL_RGBA16F;
                 case ImageFormat::RGBA32F: return GL_RGBA32F;
+                case ImageFormat::RED_INTEGER: return GL_R32I;
+                case ImageFormat::DEPTH24STENCIL8: return GL_DEPTH24_STENCIL8;
 			}
 
 			AE_CORE_ASSERT(false, "Unknown ImageFormat GL internal type!");
 			return 0;
 		}
+
+        static GLenum WrapModeToGLMode(WrapMode mode)
+        {
+            switch (mode)
+            {
+                case WrapMode::None: break;
+                case WrapMode::REPEAT: return GL_REPEAT;
+                case WrapMode::CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
+            }
+
+            AE_CORE_ASSERT(false, "Unknown WrapMode GL type!");
+            return 0;
+        }
+
+        static GLenum ImageFormatToDataType(ImageFormat format)
+        {
+            switch (format)
+			{
+                case ImageFormat::None:  break;
+                case ImageFormat::RGB8:  
+                case ImageFormat::RGBA8: return GL_UNSIGNED_BYTE;
+                case ImageFormat::RGBA16F: 
+                case ImageFormat::RGBA32F: return GL_FLOAT;
+                case ImageFormat::RED_INTEGER: return GL_INT;
+                case ImageFormat::DEPTH24STENCIL8: return GL_UNSIGNED_INT_24_8;
+			}
+
+			AE_CORE_ASSERT(false, "Unknown ImageFormat GL internal type!");
+			return 0;
+        }
+    }
+
+    static void CreateTexture(uint32_t& rendererID, uint32_t width, uint32_t height, int samples,
+        GLenum format, GLenum internal_format, GLenum datatype, GLenum wrapmode, bool gen_mipmap, void* data)
+    {
+        if (samples > 1)
+        {
+            glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, internal_format, width, height, GL_FALSE);
+            return;
+        }
+        GLCall(glGenTextures(1, &rendererID));
+        GLCall(glBindTexture(GL_TEXTURE_2D, rendererID));
+        GLCall(glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, format, datatype, data));
+
+        GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+        GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode));
+        GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapmode));
+
+        if (gen_mipmap)
+        {
+            GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+            GLCall(glGenerateMipmap(GL_TEXTURE_2D));
+        }
+        else GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
     }
 
     //texture
     OpenGLTexture2D::OpenGLTexture2D(const TextureSpec& spec)
-        : m_Spec(spec), m_Width(m_Spec.Width), m_Height(m_Spec.Height)
+        : m_Width(spec.Width), m_Height(spec.Height)
     {
-        m_InternalFormat = Utils::ImageFormatToGLInternalFormat(m_Spec.Format);
-        m_DataFormat = Utils::ImageFormatToGLDataFormat(m_Spec.Format);
+        m_InternalFormat = Utils::ImageFormatToGLInternalFormat(spec.Format);
+        m_DataFormat = Utils::ImageFormatToGLDataFormat(spec.Format);
 
-        GLenum dataType = GL_UNSIGNED_BYTE;
-        if (m_Spec.Format == ImageFormat::RGBA16F || m_Spec.Format == ImageFormat::RGBA32F) dataType = GL_FLOAT;
-        GLenum glWrapMode = m_Spec.WrapMode ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-
-        GLCall(glGenTextures(1, &m_RendererID));
-        GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
-        glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0, m_DataFormat, dataType, nullptr);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapMode);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapMode);
+        GLenum dataType = Utils::ImageFormatToDataType(spec.Format);
+        GLenum glWrapMode = Utils::WrapModeToGLMode(spec.Mode);
+        CreateTexture(m_RendererID, m_Width, m_Height, 1, m_DataFormat, m_InternalFormat, dataType, glWrapMode, spec.GenerateMips, nullptr);
     }
 
     OpenGLTexture2D::OpenGLTexture2D(void* data, size_t size)
@@ -64,29 +112,18 @@ namespace Aether {
         bool isHDR = stbi_is_hdr_from_memory((const stbi_uc*)data, (int)size);
 
         void* pixelData = nullptr;
-        GLenum type = GL_UNSIGNED_BYTE;
+        ImageFormat format;
         
         if (isHDR)
         {
            
             pixelData = stbi_loadf_from_memory((const stbi_uc*)data, (int)size, &width, &height, &channels, 4);
-            
-            m_InternalFormat = GL_RGBA16F; 
-            m_DataFormat = GL_RGBA;
-            type = GL_FLOAT; 
-            
-           
-            m_Spec.Format = ImageFormat::RGBA16F;
+            format = ImageFormat::RGBA16F;
         }
         else
         {
             pixelData = stbi_load_from_memory((const stbi_uc*)data, (int)size, &width, &height, &channels, 4);
-            
-            m_InternalFormat = GL_RGBA8;
-            m_DataFormat = GL_RGBA;
-            type = GL_UNSIGNED_BYTE;
-            
-            m_Spec.Format = ImageFormat::RGBA8;
+            format = ImageFormat::RGBA8;
         }
 
         if (pixelData)
@@ -94,63 +131,34 @@ namespace Aether {
             m_IsLoaded = true;
             m_Width = width;
             m_Height = height;
-            m_Spec.Width = m_Width;
-            m_Spec.Height = m_Height;
-
-            GLCall(glGenTextures(1, &m_RendererID));
-            GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
-
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-            
-            glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0, m_DataFormat, type, pixelData);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-            glGenerateMipmap(GL_TEXTURE_2D);
-
-           
+            m_InternalFormat = Utils::ImageFormatToGLInternalFormat(format);
+            m_DataFormat = Utils::ImageFormatToGLDataFormat(format);
+            GLenum dataType = Utils::ImageFormatToDataType(format);
+            CreateTexture(m_RendererID, m_Width, m_Height, 1, m_DataFormat, m_InternalFormat, dataType, GL_REPEAT, false, pixelData);
             stbi_image_free(pixelData);
         }
         else AE_CORE_ERROR("Fail to create texture from packed data");
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(const std::string& path, bool wrapMode, bool flip)
-    : m_Path(path)
+    OpenGLTexture2D::OpenGLTexture2D(const std::string& path, WrapMode mode, bool flip)
     {
         int width, height, channels;
         stbi_set_flip_vertically_on_load(flip);
-        
         bool isHDR = stbi_is_hdr(path.c_str());
         
         void* data = nullptr;
-        GLenum type = 0;
+        ImageFormat format;
 
         if (isHDR)
         {
             data = stbi_loadf(path.c_str(), &width, &height, &channels, 0);
-            type = GL_FLOAT;
-            m_InternalFormat = GL_RGBA16F; 
-            m_DataFormat = GL_RGB; 
+            format = ImageFormat::RGBA16F;
         }
         else
         {
             data = stbi_load(path.c_str(), &width, &height, &channels, 0); 
-            type = GL_UNSIGNED_BYTE;
-            
-            if (channels == 4)
-            {
-                m_InternalFormat = GL_RGBA8;
-                m_DataFormat = GL_RGBA;
-            }
-            else if (channels == 3)
-            {
-                m_InternalFormat = GL_RGB8;
-                m_DataFormat = GL_RGB;
-            }
+            if (channels == 4) format = ImageFormat::RGBA8;
+            else if (channels == 3) format = ImageFormat::RGB8;
         }
 
         if (data)
@@ -158,19 +166,12 @@ namespace Aether {
             m_IsLoaded = true;
             m_Width = width;
             m_Height = height;
+            m_InternalFormat = Utils::ImageFormatToGLInternalFormat(format);
+            m_DataFormat = Utils::ImageFormatToGLDataFormat(format);
 
-            GLCall(glGenTextures(1, &m_RendererID));
-            GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
-
-            glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0, m_DataFormat, type, data);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            GLenum glWrapMode = wrapMode ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapMode);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapMode);
-
+            GLenum dataType = Utils::ImageFormatToDataType(format);
+            GLenum glWrapMode = Utils::WrapModeToGLMode(mode);
+            CreateTexture(m_RendererID, m_Width, m_Height, 1, m_DataFormat, m_InternalFormat, dataType, glWrapMode, false, data);
             stbi_image_free(data);
         }
     }
@@ -208,7 +209,6 @@ namespace Aether {
 
     //cube
     OpenGLTextureCube::OpenGLTextureCube(const std::string& path)
-    : m_Path(path)
     {
         GLCall(glGenTextures(1, &m_RendererID));
         GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, m_RendererID));
