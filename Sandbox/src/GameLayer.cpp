@@ -264,11 +264,11 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
     Aether::UUID bodyID = Aether::AssetsRegister::Register(shapeName + "_" + meshName);
     Aether::PhysicsSystem::CreateBody(bodyID, config);
 
-    if (!m_Scene.HasComponent<Aether::RigidBodyComponent>(transformEntity))
-        m_Scene.AddComponent<Aether::RigidBodyComponent>(transformEntity, bodyID, localOffset);
+    if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
+        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, bodyID, localOffset);
     else
     {
-        auto& rb           = m_Scene.GetComponent<Aether::RigidBodyComponent>(transformEntity);
+        auto& rb           = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
         rb.BodyID          = bodyID;
         rb.ColliderOffset  = localOffset;
     }
