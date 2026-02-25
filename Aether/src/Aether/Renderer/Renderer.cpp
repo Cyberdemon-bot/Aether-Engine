@@ -76,12 +76,6 @@ namespace Aether {
 		s_RenderData->s_PassList = list;
 	}
 
-	void Renderer::SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val)
-	{
-		if (PassIdx < s_RenderData->s_PassList.size() && AttribIdx < s_RenderData->s_PassList[PassIdx].readList.size())
-			std::get<2>(s_RenderData->s_PassList[PassIdx].readList[AttribIdx]) = val;
-	}
-
 	void Renderer::ActivatePass(uint32_t PassIdx)
 	{
 		if (PassIdx < s_RenderData->s_PassList.size()) 
@@ -229,24 +223,13 @@ namespace Aether {
 		if (pass.CullFace == State::None) RenderCommand::SetCullingMode(State::None);
 		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
-		for (auto& [type, name, Idx] : pass.readList)
+		for (auto [name, texture] : pass.readList)
 		{
-			if (type == TextureType::Depth)
-			{
-				s_RenderData->s_PassList[Idx].TargetFBO->BindDepthTexture(startSlot);
-				shader->SetInt(name, startSlot);
-				startSlot++;
-			}
-
-			if (type == TextureType::Color)
-			{
-				s_RenderData->s_PassList[Idx].TargetFBO->BindColorTexture(startSlot);
-				shader->SetInt(name, startSlot);
-				startSlot++;
-			}
-
-			if (type == TextureType::None) shader->SetInt(name, Idx);
+			texture->Bind(startSlot);
+			shader->SetInt(name, startSlot);
+			startSlot++;
 		}
+		for (auto& [name, value] : pass.attribList) shader->SetInt(name, value);
 
 		if (pass.UsingGeometry)
 		{

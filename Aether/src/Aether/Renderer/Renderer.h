@@ -20,11 +20,6 @@ namespace Aether {
 	{
 		None = 0, Spot, Directional
 	};
-	
-	enum class TextureType
-	{
-		None = 0, Depth, Color
-	};
 
 	struct LightParam
 	{
@@ -93,7 +88,8 @@ namespace Aether {
 		bool UsingMaterial = true;
 		bool UsingGeometry = true;
 		State CullFace = State::None;
-		std::vector<std::tuple<TextureType, std::string, uint32_t>> readList;
+		std::vector<std::pair<std::string, Ref<Texture2D>>> readList;
+		std::vector<std::pair<std::string, uint32_t>> attribList;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float LutIntensity = 0.0f;
 	};
@@ -107,7 +103,6 @@ namespace Aether {
 		static void OnWindowResize(uint32_t width, uint32_t height);
 
 		static void SetPipeline(const std::vector<RenderPass>& list);
-		static void SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val);
 		static void ActivatePass(uint32_t PassIdx);
 		static void DeactivatePass(uint32_t PassIdx);
 

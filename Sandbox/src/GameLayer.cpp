@@ -10,10 +10,6 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-// =============================================================================
-//  Construction
-// =============================================================================
-
 GameLayer::GameLayer()
     : Layer("Game Layer")
     , m_Camera(45.0f, 1.778f, 0.1f, 1000.0f)
@@ -21,16 +17,11 @@ GameLayer::GameLayer()
     m_Camera.SetDistance(5.0f);
 }
 
-// =============================================================================
-//  Layer lifecycle
-// =============================================================================
-
 void GameLayer::Attach()
 {
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
-    // ---- Shadow pass --------------------------------------------------------
     Aether::FramebufferSpec shadowFbSpec;
     shadowFbSpec.Width       = 2048;
     shadowFbSpec.Height      = 2048;
@@ -49,9 +40,8 @@ void GameLayer::Attach()
     shadowPass.OnScreen      = false;
     shadowPass.UsingMaterial = false;
     shadowPass.CullFace      = Aether::State::FRONT_CULL;
-    shadowPass.readList      = {{ Aether::TextureType::None, "u_LightIndex", 0 }};
+    shadowPass.attribList    = {{"u_LightIndex", 0}};
 
-    // ---- Main scene pass ----------------------------------------------------
     auto& window = Aether::Application::Get().GetWindow();
 
     Aether::FramebufferSpec sceneFbSpec;
@@ -77,9 +67,9 @@ void GameLayer::Attach()
     mainPass.ClearValue  = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
     mainPass.CullFace    = Aether::State::BACK_CULL;
     mainPass.OnScreen    = false;
-    mainPass.readList    = {{ Aether::TextureType::Depth, "u_DepthTex", 0 }, { Aether::TextureType::None, "u_LightIndex", 0 }};
+    mainPass.readList    = {{"u_DepthTex", shadowPass.TargetFBO->GetDepthAttachment()}};
+    mainPass.attribList  = {{"u_LightIndex", 0}};
 
-    // ---- Volumetric pass ----------------------------------------------------
     Aether::FramebufferSpec volFbSpec;
     volFbSpec.Width       = sceneFbSpec.Width;
     volFbSpec.Height      = sceneFbSpec.Height;
@@ -102,15 +92,14 @@ void GameLayer::Attach()
     volPass.OnScreen      = true;
     volPass.UsingGeometry = false;
     volPass.readList      = {
-        { Aether::TextureType::Color, "u_SceneColor", 1 },
-        { Aether::TextureType::Depth, "u_SceneDepth", 1 },
-        { Aether::TextureType::Depth, "u_ShadowMap",  0 },
+        { "u_SceneColor", mainPass.TargetFBO->GetColorAttachment() },
+        { "u_SceneDepth", mainPass.TargetFBO->GetDepthAttachment() },
+        { "u_ShadowMap",  shadowPass.TargetFBO->GetDepthAttachment()}
     };
 
     std::vector<Aether::RenderPass> pipeline = {shadowPass, mainPass, volPass};
     Aether::Renderer::SetPipeline(pipeline);
 
-    // ---- Default spotlight --------------------------------------------------
     Aether::LightParam spotLight;
     spotLight.type        = Aether::LightType::Spot;
     spotLight.position    = glm::vec3(0.0f, 5.0f, 0.0f);
@@ -128,7 +117,6 @@ void GameLayer::Attach()
     lightTransform.Translation = spotLight.position;
     lightTransform.Dirty       = true;
 
-    // ---- Default directional light ------------------------------------------
     Aether::LightParam dirLight;
     dirLight.type        = Aether::LightType::Directional;
     dirLight.direction   = glm::normalize(glm::vec3(
@@ -145,7 +133,6 @@ void GameLayer::Attach()
     dirLightTransform.Translation = glm::vec3(0.0f);
     dirLightTransform.Dirty       = true;
 
-    // ---- Console commands ---------------------------------------------------
     Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
     Aether::ConsoleLayer::RegisterCommand("add",  AE_BIND_CONSOLE_FN(AddEntity));
 
@@ -165,10 +152,6 @@ void GameLayer::Detach()
     m_PhysicsBodies.clear();
 }
 
-// =============================================================================
-//  Console commands
-// =============================================================================
-
 void GameLayer::AddEntity(const std::vector<std::string>& args)
 {
     for (auto& name : args)
@@ -185,18 +168,12 @@ void GameLayer::LoadModelAsync(const std::vector<std::string>& args)
         AE_CORE_INFO("Worker: Parsing {0}", path);
         auto parsed = Aether::Importer::Import(path);
         {
-            // FIX: only hold the lock long enough to push into the queue.
-            // GPU upload happens on the main thread, outside the lock.
             std::lock_guard<std::mutex> lock(m_ParseMutex);
             m_CompletedParses.push(std::move(parsed));
         }
         AE_CORE_INFO("Worker: Parsing complete for {0}", path);
     });
 }
-
-// =============================================================================
-//  Physics helpers
-// =============================================================================
 
 void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic)
 {
@@ -205,7 +182,6 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
     auto mesh = Aether::MeshLibrary::Get(colliderMeshID);
     if (!mesh) return;
 
-    // Walk up the parent chain to compute the world transform
     std::vector<Entity> chain;
     Entity cur = transformEntity;
     while (cur != Null_Entity && m_Scene.IsValid(cur))
@@ -284,14 +260,8 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
         Aether::PhysicsSystem::SetActive(bodyID, false);
 }
 
-// =============================================================================
-//  Async parse drain  (main thread only)
-// =============================================================================
-
 void GameLayer::DrainParseQueue()
 {
-    // FIX: Swap the queue out under the lock, then do all GPU work outside it.
-    // This way the worker thread is never blocked during potentially slow uploads.
     std::queue<Aether::ParsedScene> localQueue;
     {
         std::lock_guard<std::mutex> lock(m_ParseMutex);
@@ -316,10 +286,6 @@ void GameLayer::DrainParseQueue()
     }
 }
 
-// =============================================================================
-//  Update
-// =============================================================================
-
 void GameLayer::Update(Aether::Timestep ts)
 {
     DrainParseQueue();
@@ -340,13 +306,6 @@ void GameLayer::Update(Aether::Timestep ts)
             t.Dirty       = true;
         }
     }
-
-    // Sync active state with the physics engine every frame.
-    // This is necessary because physics engines auto-sleep bodies that come to
-    // rest, quietly marking them inactive. Without this loop, an enabled body
-    // would be deactivated by the sleep system and never simulate.
-    // We guard with lastActive so we only call into the API when the desired
-    // state actually differs from what was last pushed.
     for (auto& [entity, entry] : m_PhysicsBodies)
     {
         if (entry.enabled != entry.lastActive)
@@ -365,8 +324,6 @@ void GameLayer::Update(Aether::Timestep ts)
 
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
-
-    Aether::Renderer::SetPassReadIndex(0, 0, m_LightIdx);
 
     m_Scene.Update(ts, &m_Camera);
 }
@@ -458,10 +415,6 @@ void GameLayer::DrawHierarchyPanel()
     ImGui::End();
 }
 
-// =============================================================================
-//  Scene panel
-// =============================================================================
-
 void GameLayer::DrawScenePanel()
 {
     if (!ImGui::Begin("Scene")) { ImGui::End(); return; }
@@ -470,12 +423,8 @@ void GameLayer::DrawScenePanel()
     ImGui::Text("Animators: %d", (int)m_Animators.size());
     ImGui::Separator();
 
-    // ---- Physics ------------------------------------------------------------
     if (ImGui::CollapsingHeader("Physics"))
     {
-        // --- Add body --------------------------------------------------------
-        // FIX: Store the selected entity directly instead of an index into
-        // View<TagComponent>, whose iteration order is not guaranteed stable.
         std::string nodePreview = (m_PhysSelectedEntity != Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
             ? m_Scene.GetComponent<Aether::TagComponent>(m_PhysSelectedEntity).Tag
             : "Select Node";
@@ -496,7 +445,6 @@ void GameLayer::DrawScenePanel()
             ImGui::EndCombo();
         }
 
-        // Mesh selection (for collider AABB)
         std::string meshPreview = (m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_Meshes.size())
             ? Aether::AssetsRegister::Get(m_Meshes[m_PhysMeshIdx])
             : "Select Mesh";
@@ -530,7 +478,6 @@ void GameLayer::DrawScenePanel()
 
         ImGui::Separator();
 
-        // --- Active bodies list ----------------------------------------------
         ImGui::Text("Active Bodies:");
         for (auto& [entity, entry] : m_PhysicsBodies)
         {
@@ -539,8 +486,6 @@ void GameLayer::DrawScenePanel()
             ImGui::PushID((uint64_t)entity);
             std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
 
-            // Flip the enabled flag — the per-frame loop in Update() will
-            // push the change to the physics API on the next tick.
             ImGui::Checkbox(tag.c_str(), &entry.enabled);
 
             ImGui::PopID();
@@ -548,22 +493,14 @@ void GameLayer::DrawScenePanel()
 
         ImGui::Separator();
 
-        // --- Force / Velocity controls ---------------------------------------
-        // Only shown when the selected entity has a physics body registered.
         auto physIt = (m_SelectedEntity != Null_Entity)
             ? m_PhysicsBodies.find(m_SelectedEntity)
             : m_PhysicsBodies.end();
         bool hasPhysBody = (physIt != m_PhysicsBodies.end());
 
         ImGui::Text("Apply to Selected Entity:");
-        if (!hasPhysBody)
-        {
-            ImGui::TextDisabled("(select an entity with a physics body)");
-        }
-        else if (!physIt->second.isDynamic)
-        {
-            ImGui::TextDisabled("(static body — forces not applicable)");
-        }
+        if (!hasPhysBody) ImGui::TextDisabled("(select an entity with a physics body)");
+        else if (!physIt->second.isDynamic) ImGui::TextDisabled("(static body — forces not applicable)");
         else
         {
             // Add Force
@@ -583,10 +520,8 @@ void GameLayer::DrawScenePanel()
         }
     }
 
-    // ---- Raycast test -------------------------------------------------------
     if (ImGui::CollapsingHeader("Raycast Test"))
     {
-        // -- "Cast from camera" fills origin + direction automatically --------
         if (ImGui::Button("Fill from Camera"))
         {
             m_RayOrigin    = m_Camera.GetPosition();
@@ -684,14 +619,11 @@ void GameLayer::DrawScenePanel()
             if (ImGui::Button("Reset Transform"))
             {
                 t.Translation = glm::vec3(0.0f);
-                // FIX: glm::quat({0,0,0}) is UB — a zero-length quaternion is invalid.
-                // Identity quaternion is (w=1, x=0, y=0, z=0).
                 t.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
                 t.Scale       = glm::vec3(1.0f);
                 t.Dirty       = true;
             }
 
-            // Sync physics transform when entity is moved via the UI
             if (t.Dirty)
             {
                 auto it = m_PhysicsBodies.find(m_SelectedEntity);

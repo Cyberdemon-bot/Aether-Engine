@@ -24,10 +24,10 @@ namespace Aether {
         virtual void BindDepthTexture(uint32_t slot = 0) const override { m_DepthAttachment->Bind(slot); }
 		virtual void BindColorTexture(uint32_t slot = 0, uint32_t index = 0) const override;
 
-		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override 
-		{ AE_CORE_ASSERT(index < m_ColorAttachments.size(), "Color attachment index out of range!"); return m_ColorAttachments[index]->GetRendererID(); }
+		virtual Ref<Texture2D> GetColorAttachment(uint32_t index = 0) const override 
+		{ AE_CORE_ASSERT(index < m_ColorAttachments.size(), "Color attachment index out of range!"); return m_ColorAttachments[index]; }
 
-        virtual uint32_t GetDepthAttachmentRendererID() const override { return m_DepthAttachment->GetRendererID(); }
+        virtual Ref<Texture2D> GetDepthAttachment() const override { return m_DepthAttachment; }
 
 		virtual const FramebufferSpec& GetSpecification() const override { return m_Spec; }
 	private:
