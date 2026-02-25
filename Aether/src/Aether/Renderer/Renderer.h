@@ -4,7 +4,7 @@
 #include "Aether/Renderer/RenderCommand.h"
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/UniformBuffer.h"
-#include "Aether/Renderer/Framebuffer.h"
+#include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Resources/Mesh.h"
 #include "Aether/Resources/Material.h"
@@ -83,7 +83,7 @@ namespace Aether {
 
 	struct RenderPass
 	{
-		Ref<Framebuffer> TargetFBO;        
+		Ref<FrameBuffer> TargetFBO;        
 		Ref<Shader> Shader;                
 		bool IsActive = true;
 		bool ClearColor = true;

@@ -21,7 +21,7 @@
 #include "Aether/Renderer/Buffer.h"
 #include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/UniformBuffer.h"
-#include "Aether/Renderer/Framebuffer.h"
+#include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Renderer/EditorCamera.h"
 
 #include "Aether/Renderer/Shader.h"
