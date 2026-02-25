@@ -27,6 +27,7 @@ namespace Aether {
 	{
 		uint32_t Width = 1;
 		uint32_t Height = 1;
+		int Samples = 1;
 		ImageFormat Format = ImageFormat::RGBA8;
 		bool GenerateMips = false;
         WrapMode Mode = WrapMode::REPEAT;
