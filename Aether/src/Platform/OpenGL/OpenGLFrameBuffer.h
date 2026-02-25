@@ -8,7 +8,7 @@ namespace Aether {
 	class OpenGLFrameBuffer : public FrameBuffer
 	{
 	public:
-		OpenGLFrameBuffer(const FramebufferSpecification& spec);
+		OpenGLFrameBuffer(const FramebufferSpec& spec);
 		virtual ~OpenGLFrameBuffer();
 
 		virtual void Invalidate() override;
@@ -21,22 +21,24 @@ namespace Aether {
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
 
-        virtual void BindDepthTexture(uint32_t slot = 0) const override;
+        virtual void BindDepthTexture(uint32_t slot = 0) const override { m_DepthAttachment->Bind(slot); }
 		virtual void BindColorTexture(uint32_t slot = 0, uint32_t index = 0) const override;
 
-		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override { AE_CORE_ASSERT(index < m_ColorAttachments.size(), "Color attachment index out of range!"); return m_ColorAttachments[index]; }
-        virtual uint32_t GetDepthAttachmentRendererID() const override { return m_DepthAttachment; }
+		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override 
+		{ AE_CORE_ASSERT(index < m_ColorAttachments.size(), "Color attachment index out of range!"); return m_ColorAttachments[index]->GetRendererID(); }
 
-		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
+        virtual uint32_t GetDepthAttachmentRendererID() const override { return m_DepthAttachment->GetRendererID(); }
+
+		virtual const FramebufferSpec& GetSpecification() const override { return m_Spec; }
 	private:
 		uint32_t m_RendererID = 0;
-		FramebufferSpecification m_Specification;
+		FramebufferSpec m_Spec;
 
-		std::vector<FramebufferTextureSpecification> m_ColorAttachmentSpecifications;
-		FramebufferTextureSpecification m_DepthAttachmentSpecification = FramebufferTextureFormat::None;
+		std::vector<TextureSpec> m_ColorAttachmentSpec;
+		TextureSpec m_DepthAttachmentSpec;
 
-		std::vector<uint32_t> m_ColorAttachments;
-		uint32_t m_DepthAttachment = 0;
+		std::vector<Ref<Texture2D>> m_ColorAttachments;
+		Ref<Texture2D> m_DepthAttachment = 0;
 	};
 
 }

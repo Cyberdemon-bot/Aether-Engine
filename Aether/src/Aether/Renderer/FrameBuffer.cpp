@@ -4,7 +4,7 @@
 
 namespace Aether {
 	
-	Ref<FrameBuffer> FrameBuffer::Create(const FramebufferSpecification& spec)
+	Ref<FrameBuffer> FrameBuffer::Create(const FramebufferSpec& spec)
 	{
 		switch (Renderer::GetAPI())
 		{

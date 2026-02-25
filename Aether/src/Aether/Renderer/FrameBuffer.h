@@ -1,44 +1,15 @@
 #pragma once
 
-#include "aepch.h"
+#include "Aether/Renderer/Texture.h"
+#include <vector>
 
 namespace Aether {
 
-
-    enum class FramebufferTextureFormat
-	{
-		None = 0,
-		RGBA8,
-		RGBA16F,
-		RED_INTEGER,
-		DEPTH24STENCIL8,
-		Depth = DEPTH24STENCIL8
-	};
-
-	struct FramebufferTextureSpecification
-	{
-		FramebufferTextureSpecification() = default;
-		FramebufferTextureSpecification(FramebufferTextureFormat format)
-			: TextureFormat(format) {}
-
-		FramebufferTextureFormat TextureFormat = FramebufferTextureFormat::None;
-	};
-
-	struct FramebufferAttachmentSpecification
-	{
-		FramebufferAttachmentSpecification() = default;
-		FramebufferAttachmentSpecification(std::initializer_list<FramebufferTextureSpecification> attachments)
-			: Attachments(attachments) {}
-
-		std::vector<FramebufferTextureSpecification> Attachments;
-	};
-
-	struct FramebufferSpecification
+	struct FramebufferSpec
 	{
 		uint32_t Width = 0, Height = 0;
-		FramebufferAttachmentSpecification Attachments;
 		uint32_t Samples = 1;
-
+		std::vector<TextureSpec> Attachments;
 		bool SwapChainTarget = false;
 	};
 
@@ -63,9 +34,9 @@ namespace Aether {
 		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
         virtual uint32_t GetDepthAttachmentRendererID() const = 0;
 
-		virtual const FramebufferSpecification& GetSpecification() const = 0;
+		virtual const FramebufferSpec& GetSpecification() const = 0;
 
-        static Ref<FrameBuffer> Create(const FramebufferSpecification& spec);
+        static Ref<FrameBuffer> Create(const FramebufferSpec& spec);
 	};
 
 }

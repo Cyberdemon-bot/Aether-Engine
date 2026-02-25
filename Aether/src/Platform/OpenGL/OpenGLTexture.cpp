@@ -101,7 +101,7 @@ namespace Aether {
 
         GLenum dataType = Utils::ImageFormatToDataType(spec.Format);
         GLenum glWrapMode = Utils::WrapModeToGLMode(spec.Mode);
-        CreateTexture(m_RendererID, m_Width, m_Height, 1, m_DataFormat, m_InternalFormat, dataType, glWrapMode, spec.GenerateMips, nullptr);
+        CreateTexture(m_RendererID, m_Width, m_Height, spec.Samples, m_DataFormat, m_InternalFormat, dataType, glWrapMode, spec.GenerateMips, nullptr);
     }
 
     OpenGLTexture2D::OpenGLTexture2D(void* data, size_t size)

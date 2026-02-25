@@ -31,10 +31,10 @@ void GameLayer::Attach()
     if (ctx) ImGui::SetCurrentContext(ctx);
 
     // ---- Shadow pass --------------------------------------------------------
-    Aether::FramebufferSpecification shadowFbSpec;
+    Aether::FramebufferSpec shadowFbSpec;
     shadowFbSpec.Width       = 2048;
     shadowFbSpec.Height      = 2048;
-    shadowFbSpec.Attachments = { Aether::FramebufferTextureFormat::DEPTH24STENCIL8 };
+    shadowFbSpec.Attachments = {  Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8} };
 
     m_ShadowShader = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
     m_ShadowShader->Bind();
@@ -54,12 +54,12 @@ void GameLayer::Attach()
     // ---- Main scene pass ----------------------------------------------------
     auto& window = Aether::Application::Get().GetWindow();
 
-    Aether::FramebufferSpecification sceneFbSpec;
+    Aether::FramebufferSpec sceneFbSpec;
     sceneFbSpec.Width       = window.GetWidth();
     sceneFbSpec.Height      = window.GetHeight();
     sceneFbSpec.Attachments = {
-        Aether::FramebufferTextureFormat::RGBA8,
-        Aether::FramebufferTextureFormat::DEPTH24STENCIL8
+        Aether::TextureSpec{.Format = Aether::ImageFormat::RGBA8},
+        Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8}
     };
 
     m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
@@ -80,12 +80,12 @@ void GameLayer::Attach()
     mainPass.readList    = {{ Aether::TextureType::Depth, "u_DepthTex", 0 }, { Aether::TextureType::None, "u_LightIndex", 0 }};
 
     // ---- Volumetric pass ----------------------------------------------------
-    Aether::FramebufferSpecification volFbSpec;
+    Aether::FramebufferSpec volFbSpec;
     volFbSpec.Width       = sceneFbSpec.Width;
     volFbSpec.Height      = sceneFbSpec.Height;
     volFbSpec.Attachments = {
-        Aether::FramebufferTextureFormat::RGBA8,
-        Aether::FramebufferTextureFormat::DEPTH24STENCIL8
+        Aether::TextureSpec{.Format = Aether::ImageFormat::RGBA8},
+        Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8}
     };
 
     m_VolShader = Aether::Shader::Create("assets/shaders/Volumetric.shader");
