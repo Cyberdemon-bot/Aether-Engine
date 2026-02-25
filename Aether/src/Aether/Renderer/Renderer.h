@@ -20,11 +20,6 @@ namespace Aether {
 	{
 		None = 0, Spot, Directional
 	};
-	
-	enum class TextureType
-	{
-		None = 0, Depth, Color
-	};
 
 	struct LightParam
 	{
@@ -93,7 +88,8 @@ namespace Aether {
 		bool UsingMaterial = true;
 		bool UsingGeometry = true;
 		State CullFace = State::None;
-		std::vector<std::tuple<TextureType, std::string, uint32_t>> readList;
+		std::vector<std::pair<std::string, Ref<Texture2D>>> readList;
+		std::vector<std::pair<std::string, int>> attribList;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float LutIntensity = 0.0f;
 	};
@@ -107,7 +103,6 @@ namespace Aether {
 		static void OnWindowResize(uint32_t width, uint32_t height);
 
 		static void SetPipeline(const std::vector<RenderPass>& list);
-		static void SetPassReadIndex(uint32_t PassIdx, uint32_t AttribIdx, uint32_t val);
 		static void ActivatePass(uint32_t PassIdx);
 		static void DeactivatePass(uint32_t PassIdx);
 
@@ -115,7 +110,8 @@ namespace Aether {
 		static void EndScene();
 
 		static void DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
-		static void DrawBox(UUID meshID, const glm::mat4& transform);
+
+		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 
@@ -131,7 +127,6 @@ namespace Aether {
 			CameraData camera;
 			LightsData lights; 
 			std::map<RenderKey, BatchData> s_RenderBatches;
-			std::vector<std::pair<UUID, glm::mat4>> s_RenderBounds;
 		};
 
 		struct RenderData

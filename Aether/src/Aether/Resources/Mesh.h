@@ -1,8 +1,12 @@
 #pragma once
-#include "aepch.h"
+
+#include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/Buffer.h"
+
+#include <vector>
+#include <unordered_map>
 
 namespace Aether {
     struct SubMesh
@@ -18,6 +22,7 @@ namespace Aether {
         std::string NodeName;
 
         UUID MaterialID = 0;
+        int MaterialIdx = -1;
     };
 
     class MeshLayout 
@@ -84,8 +89,6 @@ namespace Aether {
     {
     public:
         Mesh(const MeshSpec& spec);
-        template<typename... Args>
-        static Ref<Mesh> Create(Args&&... args) { return CreateRef<Mesh>(std::forward<Args>(args)...); }
         
         Ref<VertexArray> GetVertexArray() const { return m_VertexArray; }
         const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
@@ -99,6 +102,7 @@ namespace Aether {
         glm::vec3 GetBoundsCenter() const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
         glm::vec3 GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
 
+        static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
     private:
         Ref<VertexArray> m_VertexArray;
 

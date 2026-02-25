@@ -19,6 +19,7 @@ namespace Aether {
 
         virtual void Bind() const = 0;
         virtual void Unbind() const = 0;
+        virtual uint32_t GetRendererID() const = 0;
 
         virtual void SetInt(const std::string& name, int value) = 0;
         virtual void SetIntArray(const std::string& name,const int* values, uint32_t count) = 0; 
@@ -29,6 +30,8 @@ namespace Aether {
         virtual void SetUBOSlot(const std::string& name, int slot) = 0;
 
         static Ref<Shader> Create(const std::string& filepath);
+
+        virtual bool operator==(const Shader& other) const = 0;
     };
 
     class AETHER_API ShaderLibrary

@@ -19,7 +19,6 @@ namespace Aether {
     {
     public:
         Material() {};
-        static Ref<Material> Create() { return CreateRef<Material>(); }
 
         void UploadMaterial(Ref<Shader> shader, uint32_t startSlot = 0);
 
@@ -35,6 +34,8 @@ namespace Aether {
         void RemoveFlag(MaterialFlag flag) { m_Flags &= ~(uint32_t)flag; }
         void ToggleFlag(MaterialFlag flag) { m_Flags ^= (uint32_t)flag; }
         bool HasFlag(MaterialFlag flag) const { return m_Flags & (uint32_t)flag; }
+
+        static Ref<Material> Create() { return CreateRef<Material>(); }
     private:
         
         std::unordered_map<std::string, float> m_FloatUniforms;
