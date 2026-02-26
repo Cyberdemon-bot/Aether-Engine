@@ -5,7 +5,6 @@
 #include <string>
 #include <map>
 #include <utility>
-#include "Aether/Scene/Scene.h"
 
 class MainGameLayer : public Aether::Layer
 {
