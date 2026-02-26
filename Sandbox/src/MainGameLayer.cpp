@@ -1,15 +1,14 @@
 #include "MainGameLayer.h"
-#include "Aether/Core/AssetsRegister.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <cstdlib>
-#include <algorithm> // Để dùng std::clamp
+#include <algorithm> 
 #include <imgui.h>
 
 MainGameLayer::MainGameLayer()
     : Layer("Main Game"), m_Camera(45.0f, 1.778f, 0.1f, 1000.0f)
 {
-    m_Camera.SetDistance(4.0f); // Thiết lập khoảng cách khởi đầu ban đầu
+    m_Camera.SetDistance(4.0f); 
 }
 
 void MainGameLayer::Attach()
