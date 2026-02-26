@@ -13,7 +13,9 @@ namespace Aether {
 
     Ozz_AnimationSystem::Ozz_AnimationSystem()
     {
-        AE_CORE_INFO("Ozz_AnimationSystem initialized");
+        m_Animators.reserve(128);
+        m_Clips.reserve(128);
+        m_Skeletons.reserve(128);
     }
 
     Ozz_AnimationSystem::~Ozz_AnimationSystem()
