@@ -1,6 +1,3 @@
-#include "Aether/Resources/Mesh.h"
-
-
 #include "aepch.h"
 #include "Aether/Resources/Mesh.h"
 

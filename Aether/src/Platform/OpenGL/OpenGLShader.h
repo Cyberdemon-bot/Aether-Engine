@@ -11,6 +11,7 @@ namespace Aether {
 
         virtual void Bind() const override;
         virtual void Unbind() const override;
+        virtual uint32_t GetRendererID() const override { return m_RendererID; }
 
         virtual void SetInt(const std::string& name, int value) override;
         virtual void SetIntArray(const std::string& name,const int* values, uint32_t count) override; 
@@ -20,8 +21,11 @@ namespace Aether {
         virtual void SetMat4(const std::string& name, const glm::mat4& value) override;
         virtual void SetUBOSlot(const std::string& name, int slot) override;
 
+        virtual bool operator==(const Shader& other) const override
+		{
+			return m_RendererID == other.GetRendererID();
+		}
     private:
-        std::string m_FilePath;
         unsigned int m_RendererID;  
         std::unordered_map<std::string, int> m_UniformLocationCache;
         std::unordered_map<std::string, int> m_UniformBlockLocationCache;

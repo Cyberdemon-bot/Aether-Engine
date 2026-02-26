@@ -12,6 +12,7 @@ namespace Aether {
 
         virtual void Bind() const override;
         virtual void Unbind() const override;
+        virtual uint32_t GetRendererID() const override { return m_RendererID; }
 
         virtual void AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation) override;
         virtual void AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer) override;
@@ -24,6 +25,11 @@ namespace Aether {
         virtual const Ref<IndexBuffer>& GetIndexBuffer() const override { return m_IndexBuffer; };
 
         static Ref<VertexArray> Create();
+
+        virtual bool operator==(const VertexArray& other) const override
+		{
+			return m_RendererID == other.GetRendererID();
+		}
     private:
 		uint32_t m_RendererID;
 		uint32_t m_VertexBufferIndex = 0;

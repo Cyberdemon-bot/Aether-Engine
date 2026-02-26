@@ -97,8 +97,7 @@ namespace Aether {
                 sm.BoundsMax = subInfo.BoundsMax;
                 
                 // Assign material
-                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < matIDs.size())
-                    sm.MaterialID = matIDs[subInfo.MaterialIdx];
+                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < matIDs.size()) sm.MaterialID = matIDs[subInfo.MaterialIdx];
                 
                 submeshes.push_back(sm);
             }

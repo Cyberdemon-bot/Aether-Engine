@@ -10,6 +10,7 @@ namespace Aether {
 
         virtual void Bind() const = 0;
         virtual void Unbind() const = 0;
+        virtual uint32_t GetRendererID() const = 0;
 
         virtual void AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer) = 0;
         virtual void AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation) = 0;
@@ -21,5 +22,7 @@ namespace Aether {
         virtual const Ref<IndexBuffer>& GetIndexBuffer() const = 0;
 
         static Ref<VertexArray> Create();
+
+        virtual bool operator==(const VertexArray& other) const = 0;
     };
 }
