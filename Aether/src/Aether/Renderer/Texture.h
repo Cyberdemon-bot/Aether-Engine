@@ -31,6 +31,10 @@ namespace Aether {
 		ImageFormat Format = ImageFormat::RGBA8;
 		bool GenerateMips = false;
         WrapMode Mode = WrapMode::REPEAT;
+
+		TextureSpec() = default;
+		TextureSpec(ImageFormat format)
+        	: Format(format) {}
 	};
 
 	class Texture

@@ -25,7 +25,7 @@ void GameLayer::Attach()
     Aether::FramebufferSpec shadowFbSpec;
     shadowFbSpec.Width       = 2048;
     shadowFbSpec.Height      = 2048;
-    shadowFbSpec.Attachments = {  Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8} };
+    shadowFbSpec.Attachments = {  Aether::ImageFormat::DEPTH24STENCIL8 };
 
     m_ShadowShader = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
     m_ShadowShader->Bind();
@@ -48,8 +48,8 @@ void GameLayer::Attach()
     sceneFbSpec.Width       = window.GetWidth();
     sceneFbSpec.Height      = window.GetHeight();
     sceneFbSpec.Attachments = {
-        Aether::TextureSpec{.Format = Aether::ImageFormat::RGBA8},
-        Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8}
+        Aether::ImageFormat::RGBA8,
+        Aether::ImageFormat::DEPTH24STENCIL8
     };
 
     m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
@@ -74,8 +74,8 @@ void GameLayer::Attach()
     volFbSpec.Width       = sceneFbSpec.Width;
     volFbSpec.Height      = sceneFbSpec.Height;
     volFbSpec.Attachments = {
-        Aether::TextureSpec{.Format = Aether::ImageFormat::RGBA8},
-        Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8}
+        Aether::ImageFormat::RGBA8,
+        Aether::ImageFormat::DEPTH24STENCIL8,
     };
 
     m_VolShader = Aether::Shader::Create("assets/shaders/Volumetric.shader");

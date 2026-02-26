@@ -21,7 +21,7 @@ void MainGameLayer::Attach()
     Aether::FramebufferSpec shadowFbSpec;
     shadowFbSpec.Width       = 2048;
     shadowFbSpec.Height      = 2048;
-    shadowFbSpec.Attachments = { Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8} };
+    shadowFbSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
 
     m_ShadowShader = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
     m_ShadowShader->Bind();
@@ -44,8 +44,8 @@ void MainGameLayer::Attach()
     sceneFbSpec.Width       = window.GetWidth();
     sceneFbSpec.Height      = window.GetHeight();
     sceneFbSpec.Attachments = {
-        Aether::TextureSpec{.Format = Aether::ImageFormat::RGBA8},
-        Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8}
+        Aether::ImageFormat::RGBA8,
+        Aether::ImageFormat::DEPTH24STENCIL8
     };
 
     m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
@@ -71,8 +71,8 @@ void MainGameLayer::Attach()
     volFbSpec.Width       = sceneFbSpec.Width;
     volFbSpec.Height      = sceneFbSpec.Height;
     volFbSpec.Attachments = {
-        Aether::TextureSpec{.Format = Aether::ImageFormat::RGBA8},
-        Aether::TextureSpec{.Format = Aether::ImageFormat::DEPTH24STENCIL8}
+        Aether::ImageFormat::RGBA8,
+        Aether::ImageFormat::DEPTH24STENCIL8
     };
 
     m_VolShader = Aether::Shader::Create("assets/shaders/Volumetric.shader");
@@ -97,26 +97,23 @@ void MainGameLayer::Attach()
     std::vector<Aether::RenderPass> pipeline = {shadowPass, mainPass, volPass};
     Aether::Renderer::SetPipeline(pipeline);
 
-    // --- 4. ÁNH SÁNG MẶT TRỜI (DIRECTIONAL LIGHT) ---
+   
     m_SunLight = m_Scene.CreateEntity("Sun Light");
     auto& lightComp = m_Scene.AddComponent<Aether::LightComponent>(m_SunLight);
     
-    // Chuyển lại thành Directional để chiếu sáng toàn Map
+    
     lightComp.Config.type = Aether::LightType::Directional; 
     lightComp.Config.color = glm::vec3(0.9f, 0.95f, 1.0f); 
-    lightComp.Config.intensity = 1.5f; // Sáng vừa đủ nhìn
+    lightComp.Config.intensity = 1.5f; 
     lightComp.Config.castShadows = true;
-    
-    // Hướng ánh sáng xiên chéo chiếu xuống mặt đất
     lightComp.Config.direction = glm::vec3(-0.5f, -1.0f, -0.5f); 
 
-    // Đặt Transform nghiêng tương ứng để bóng đổ chuẩn xác
     auto& sunTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
     sunTransform.Rotation = glm::quat(glm::vec3(glm::radians(-45.0f), glm::radians(30.0f), 0.0f));
     sunTransform.Translation = glm::vec3(0.0f, 50.0f, 0.0f); // Treo thật cao lên
     sunTransform.Dirty = true;
 
-    // --- 5. ĐỌC MODEL MAP ---
+    
     auto parsedMap = Aether::Importer::Import("assets/models/map.glb"); 
     auto uploadResult = Aether::Importer::Upload(parsedMap);
     
@@ -125,7 +122,6 @@ void MainGameLayer::Attach()
         for (auto& meshID : uploadResult.meshIDs) m_LoadedMeshes.push_back(meshID);
     }
 
-    // --- KHỞI TẠO NHÂN VẬT ---
     m_Player = m_Scene.CreateEntity("Player");
     auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
     pTransform.Translation = {0.0f, -0.7f, 0.0f}; 
@@ -159,14 +155,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
     auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
 
-    // --- LOGIC MAP ĐỘNG THEO ZOOM CAMERA ---
-    // Lấy khoảng cách từ Camera tới tâm nhìn
     float camDistance = m_Camera.GetDistance();
     
-    // Tính bán kính: Càng xa (camDistance lớn) thì CurrentRenderDistance càng lớn
     m_CurrentRenderDistance = m_BaseRenderDistance + static_cast<int>(camDistance / m_ZoomInfluence);
-    
-    // Giới hạn bán kính sinh map (tối đa 12) để tránh nổ RAM/VRAM nếu zoom tít lên trời
     m_CurrentRenderDistance = std::clamp(m_CurrentRenderDistance, 1, 30);
 
     
@@ -190,7 +181,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
         if (ImGui::IsKeyDown(ImGuiKey_A)) moveDir -= camRight;
         if (ImGui::IsKeyDown(ImGuiKey_D)) moveDir += camRight;
 
-        // KIỂM TRA XEM CÓ ĐANG DI CHUYỂN KHÔNG
         bool isMoving = glm::length(moveDir) > 0.0f;
         static bool wasMoving = false;
         if (isMoving != wasMoving)
@@ -208,7 +198,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
             wasMoving = isMoving;
         }
 
-        // --- DI CHUYỂN & XOAY NHÂN VẬT ---
         if (isMoving)
         {
             moveDir = glm::normalize(moveDir); 
@@ -220,32 +209,22 @@ void MainGameLayer::Update(Aether::Timestep ts)
             pTransform.Dirty = true;
         }
 
-        // 1. Tính toán điểm để Camera nhìn vào (Nâng Y lên 1 mét để nhìn vào lưng/đầu, thay vì nhìn dưới gót chân)
         glm::vec3 targetPos = pTransform.Translation + glm::vec3(0.0f, 1.0f, 0.0f);
-        
-        // 2. Ép Camera lấy nhân vật làm tâm xoay (Focal Point)
-        // Lưu ý: Tùy vào Engine của bạn, hãy dùng thử 1 trong 2 hàm dưới đây:
-        
-        // Thử hàm này trước (Thường dùng cho Editor Camera kiểu Orbit):
         m_Camera.SetFocalPoint(targetPos);
 
-        // 2. Ép Mặt trời đi theo nhân vật để vùng đổ bóng (Shadow) luôn bao trùm quanh người
         if (m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight) && 
             m_Player != Null_Entity && m_Scene.IsValid(m_Player))
         {
             auto& lightTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
             auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
             
-            // Chỉ đi theo vị trí x, z. Treo cao 50m trên đầu nhân vật
             lightTransform.Translation = pTransform.Translation + glm::vec3(0.0f, 50.0f, 0.0f);
             lightTransform.Dirty = true;
         }
 
-        // Cập nhật map quanh người (Lưu ý vẫn giữ pTransform.Translation nhé)
         UpdateMapChunks(pTransform.Translation);
     }
 
-    // --- Xoay tự động UI ---
     if (m_AutoRotate)
     {
         auto meshView = m_Scene.View<Aether::MeshComponent, Aether::TransformComponent>();
