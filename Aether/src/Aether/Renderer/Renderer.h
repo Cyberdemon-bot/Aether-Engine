@@ -89,7 +89,7 @@ namespace Aether {
 		bool UsingGeometry = true;
 		State CullFace = State::None;
 		std::vector<std::pair<std::string, Ref<Texture2D>>> readList;
-		std::vector<std::pair<std::string, uint32_t>> attribList;
+		std::vector<std::pair<std::string, int>> attribList;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float LutIntensity = 0.0f;
 	};
@@ -110,7 +110,8 @@ namespace Aether {
 		static void EndScene();
 
 		static void DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
-		static void DrawBox(UUID meshID, const glm::mat4& transform);
+
+		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 
@@ -126,7 +127,6 @@ namespace Aether {
 			CameraData camera;
 			LightsData lights; 
 			std::map<RenderKey, BatchData> s_RenderBatches;
-			std::vector<std::pair<UUID, glm::mat4>> s_RenderBounds;
 		};
 
 		struct RenderData

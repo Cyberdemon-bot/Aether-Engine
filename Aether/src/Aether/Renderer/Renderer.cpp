@@ -141,7 +141,6 @@ namespace Aether {
 		}
 		if (mainPass) RenderOnScreen(*mainPass);
 		s_SceneData->s_RenderBatches.clear();
-		s_SceneData->s_RenderBounds.clear();
 		s_SceneData->lights.lightCount = 0;
 	}
 
@@ -193,9 +192,11 @@ namespace Aether {
 		}
 	}
 
-	void Renderer::DrawBox(UUID meshID, const glm::mat4& transform)
+	void Renderer::SetPassAtrib(uint32_t passIdx, const std::string& name, int value)
 	{
-		s_SceneData->s_RenderBounds.push_back({meshID, transform});
+		auto& pass = s_RenderData->s_PassList[passIdx];
+		for (auto& attrib : pass.attribList)
+			if (attrib.first == name) attrib.second = value;
 	}
 
 	void Renderer::Flush(const RenderPass& pass)
@@ -292,15 +293,6 @@ namespace Aether {
 					s_RenderData->s_InstanceVBO->SetData(transforms.static_obj.data(), dataSize, 0);
 					Aether::RenderCommand::DrawInstancedBaseVertex(mesh->GetVertexArray(), submesh.IndexCount, indexOffset, submesh.BaseVertex, transforms.static_obj.size());
 				}
-			}
-
-			for(auto& [id, transform] : s_SceneData->s_RenderBounds)
-			{
-				auto mesh = MeshLibrary::Get(id);
-				glm::vec3 e = mesh->GetBoundsExtents();
-				auto& boundMin = mesh->GetBoundsMin();
-				auto& boundMax = mesh->GetBoundsMax();
-				RenderBox(boundMin, boundMax, transform, {0.0f, 1.0f, 0.0f, 1.0f});
 			}
 			
 		}
