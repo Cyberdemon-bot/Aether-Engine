@@ -23,6 +23,8 @@ namespace Aether {
 
         inline void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
 
+        inline void SetFocalPoint(const glm::vec3& focalPoint) { m_FocalPoint = focalPoint; UpdateView(); }
+
         glm::vec3 GetUpDirection() const;
         glm::vec3 GetRightDirection() const;
         glm::vec3 GetForwardDirection() const;
