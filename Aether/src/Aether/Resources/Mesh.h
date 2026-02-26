@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Assets/Asset.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/Buffer.h"
@@ -85,7 +86,7 @@ namespace Aether {
         std::vector<SubMesh> Submeshes = {};
     };
 
-    class AETHER_API Mesh 
+    class AETHER_API Mesh : public Asset
     {
     public:
         Mesh(const MeshSpec& spec);
@@ -103,6 +104,9 @@ namespace Aether {
         glm::vec3 GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
 
         static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
+
+        static const AssetType GetType() { return AssetType::Mesh; }
+        virtual const AssetType GetAssetType() const override { return AssetType::Mesh; }
     private:
         Ref<VertexArray> m_VertexArray;
 
@@ -115,19 +119,5 @@ namespace Aether {
         glm::vec3 m_BoundsMax = glm::vec3(0.0f);
 
         void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
-    };
-
-    class AETHER_API MeshLibrary
-    {
-    public:
-        static void Init();
-        static void Shutdown();
-
-        static void Add(Ref<Mesh> obj, UUID id);
-        static Ref<Mesh> Get(UUID id);
-        static bool Exists(UUID id);
-
-    private:
-        static std::unordered_map<UUID, Ref<Mesh>>& GetMeshes();
     };
 }

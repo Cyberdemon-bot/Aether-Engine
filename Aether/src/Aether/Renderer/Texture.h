@@ -1,7 +1,9 @@
 #pragma once
 
-#include "aepch.h"
+#include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
+#include "Aether/Assets/Asset.h"
+#include <unordered_map>
 
 namespace Aether {
 
@@ -37,7 +39,7 @@ namespace Aether {
         	: Format(format) {}
 	};
 
-	class Texture
+	class Texture : public Asset
 	{
 	public:
 		virtual ~Texture() = default;
@@ -53,6 +55,9 @@ namespace Aether {
 		virtual bool IsLoaded() const = 0;
 
 		virtual bool operator==(const Texture& other) const = 0;
+
+		static const AssetType GetType() { return AssetType::Texture; }
+        virtual const AssetType GetAssetType() const override { return AssetType::Texture; }
 	};
 
 	class AETHER_API Texture2D : public Texture
@@ -68,18 +73,4 @@ namespace Aether {
 	public:
 		static Ref<TextureCube> Create(const std::string& path);
 	};
-
-	class AETHER_API Texture2DLibrary
-    {
-    public:
-        static void Init();
-        static void Shutdown();
-
-		static void Add(Ref<Texture2D> obj, UUID id);
-        static Ref<Texture2D> Get(UUID id);
-        
-        static bool Exists(UUID id);
-    private:
-        static std::unordered_map<UUID, Ref<Texture2D>>& GetTextures();
-    };
 }

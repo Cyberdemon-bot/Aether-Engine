@@ -8,6 +8,7 @@
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
+#include "Aether/Assets/AssetsManager.h"
 
 namespace Aether {
 
@@ -47,7 +48,7 @@ namespace Aether {
             UUID texID = AssetsRegister::Register(texInfo.DebugName);
             auto tex = Texture2D::Create(texInfo.Spec);
             tex->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
-            Texture2DLibrary::Add(tex, texID);
+            AssetsManager::RegisterResource(tex, texID);
             texIDs.push_back(texID);
         }
         // Upload materials
@@ -58,24 +59,23 @@ namespace Aether {
             
             // Set textures
             if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < texIDs.size())
-                material->AddTexture("u_AlbedoMap", Texture2DLibrary::Get(texIDs[matInfo.AlbedoMapIdx]));
+                material->AddTexture("u_AlbedoMap", AssetsManager::GetResource<Texture2D>(texIDs[matInfo.AlbedoMapIdx]));
             
             if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < texIDs.size())
             {
-                material->AddTexture("u_NormalMap", Texture2DLibrary::Get(texIDs[matInfo.NormalMapIdx]));
+                material->AddTexture("u_NormalMap", AssetsManager::GetResource<Texture2D>(texIDs[matInfo.NormalMapIdx]));
                 material->AddInt("u_HasNormalMap", 1);
             }
             else  material->AddInt("u_HasNormalMap", 0);
 
             if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < texIDs.size())
-                material->AddTexture("u_MetallicRoughnessMap", Texture2DLibrary::Get(texIDs[matInfo.MetallicRoughnessMapIdx]));
+                material->AddTexture("u_MetallicRoughnessMap", AssetsManager::GetResource<Texture2D>(texIDs[matInfo.MetallicRoughnessMapIdx]));
             
             // Set material properties
             material->AddVec4("u_AlbedoColor", matInfo.AlbedoColor);
             material->AddFloat("u_Metallic", matInfo.Metallic);
             material->AddFloat("u_Roughness", matInfo.Roughness);
-            
-            MaterialLibrary::Add(material, matID);
+            AssetsManager::RegisterResource(material, matID);
             matIDs.push_back(matID);
         }
         // Upload meshes
@@ -117,7 +117,7 @@ namespace Aether {
             spec.Submeshes = submeshes;
             
             auto mesh = Mesh::Create(spec);
-            MeshLibrary::Add(mesh, meshID);
+            AssetsManager::RegisterResource(mesh, meshID);
             res.meshIDs.push_back(meshID);
         }
         auto animSystem = AnimationSystem::GetModule<RigModule>();

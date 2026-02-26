@@ -9,6 +9,7 @@
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
+#include "Aether/Assets/AssetsManager.h"
 
 namespace Aether {
     Application* Application::s_Instance = nullptr;
@@ -23,10 +24,7 @@ namespace Aether {
         JobSystem::Init();
         AnimationSystem::Init();
         PhysicsSystem::Init();
-        MaterialLibrary::Init();
-        MeshLibrary::Init();
-        Texture2DLibrary::Init();
-        ShaderLibrary::Init();
+        AssetsManager::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -36,10 +34,7 @@ namespace Aether {
 
     Application::~Application()
     {
-        MaterialLibrary::Shutdown();
-        MeshLibrary::Shutdown();
-        Texture2DLibrary::Shutdown();
-        ShaderLibrary::Shutdown();
+        AssetsManager::Shutdown();
         Renderer::Shutdown();
         JobSystem::Shutdown();
         AnimationSystem::Shutdown();

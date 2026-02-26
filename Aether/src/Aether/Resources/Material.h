@@ -1,8 +1,12 @@
 #pragma once
-#include "aepch.h"
+
+#include "Aether/Assets/Asset.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Core/UUID.h"
+
+#include <string>
+#include <unordered_map>
 
 namespace Aether {
     enum class MaterialFlag
@@ -15,7 +19,7 @@ namespace Aether {
         DisableShadowReceiving = BIT(5)
     };
 
-    class AETHER_API Material 
+    class AETHER_API Material : public Asset
     {
     public:
         Material() {};
@@ -36,6 +40,9 @@ namespace Aether {
         bool HasFlag(MaterialFlag flag) const { return m_Flags & (uint32_t)flag; }
 
         static Ref<Material> Create() { return CreateRef<Material>(); }
+
+        static const AssetType GetType() { return AssetType::Material; }
+        virtual const AssetType GetAssetType() const override { return AssetType::Material; }
     private:
         
         std::unordered_map<std::string, float> m_FloatUniforms;
@@ -47,19 +54,5 @@ namespace Aether {
         std::unordered_map<std::string, glm::mat4> m_Mat4Uniforms;
 
         uint32_t m_Flags = (uint32_t)MaterialFlag::None;
-    };
-
-    class AETHER_API MaterialLibrary
-    {
-    public:
-        static void Init();
-        static void Shutdown();
-
-        static void Add(Ref<Material> obj, UUID id);
-        static Ref<Material> Get(UUID id);
-
-        static bool Exists(UUID id);
-    private:
-        static std::unordered_map<UUID, Ref<Material>>& GetMaterials();
     };
 }

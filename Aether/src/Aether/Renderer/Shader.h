@@ -33,18 +33,4 @@ namespace Aether {
 
         virtual bool operator==(const Shader& other) const = 0;
     };
-
-    class AETHER_API ShaderLibrary
-    {
-    public:
-        static void Init();
-        static void Shutdown();
-
-        static void Add(Ref<Shader> obj, UUID id);
-        static Ref<Shader> Get(UUID id);
-        static bool Exists(UUID id);
-
-    private:
-        static std::unordered_map<UUID, Ref<Shader>>& GetShaders();
-    };
 }

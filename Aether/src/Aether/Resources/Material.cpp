@@ -1,3 +1,4 @@
+#include "aepch.h"
 #include "Aether/Resources/Material.h"
 
 namespace Aether {
@@ -17,55 +18,5 @@ namespace Aether {
             shader->SetInt(name, startSlot);
             startSlot++;
         }
-    }
-
-    void MaterialLibrary::Init()
-    {
-        GetMaterials().reserve(128);
-        AE_CORE_INFO("MaterialLibrary initialized");
-    }
-
-    void MaterialLibrary::Shutdown()
-    {
-        GetMaterials().clear();
-    }
-
-    void MaterialLibrary::Add(Ref<Material> obj, UUID id)
-    {
-        auto& materials = GetMaterials();
-        if (materials.find(id) != materials.end())
-        {
-            AE_CORE_ERROR("Material Library: ID already exists");
-            return;
-        }
-
-        if (!obj)
-        {
-            AE_CORE_ERROR("Material Library: Cannot add null obj");
-            return;
-        }
-        materials[id] = obj;
-    }
-
-    Ref<Material> MaterialLibrary::Get(UUID id)
-    {
-        auto& materials = GetMaterials();
-        if (materials.find(id) != materials.end()) 
-            return materials[id];
-
-        AE_CORE_WARN("Material Library: ID not found!");
-        return nullptr;
-    }
-
-    bool MaterialLibrary::Exists(UUID id)
-    {
-        auto& materials = GetMaterials();
-        return materials.find(id) != materials.end();
-    }
-
-    std::unordered_map<UUID, Ref<Material>>& MaterialLibrary::GetMaterials()
-    {
-        static std::unordered_map<UUID, Ref<Material>> s_Materials;
-        return s_Materials;
     }
 }

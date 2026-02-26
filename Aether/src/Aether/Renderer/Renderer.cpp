@@ -3,6 +3,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Core/Application.h"
+#include "Aether/Assets/AssetsManager.h"
 
 float quadVertices[] = { 
 	-1.0f,  1.0f,  0.0f, 1.0f,  
@@ -171,7 +172,7 @@ namespace Aether {
 
 	void Renderer::DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform)
 	{
-		auto mesh = MeshLibrary::Get(meshID);
+		auto mesh = AssetsManager::GetResource<Mesh>(meshID);
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
 		if (!s_RenderData->s_MeshInstanceAssigned[meshID]) 
@@ -245,14 +246,14 @@ namespace Aether {
 
 			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 			{
-				auto material = MaterialLibrary::Get(key.materialID);
+				auto material = AssetsManager::GetResource<Material>(key.materialID);
 				if (currentMatID != key.materialID && pass.UsingMaterial)
 				{
 					material->UploadMaterial(shader, startSlot);
 					currentMatID = key.materialID;
 				}
 
-				auto mesh = MeshLibrary::Get(key.meshID);
+				auto mesh = AssetsManager::GetResource<Mesh>(key.meshID);
 				if (currentMeshID != key.meshID) 
 				{
 					mesh->GetVertexArray()->Bind();

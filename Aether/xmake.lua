@@ -34,6 +34,7 @@ target("Aether")
 
     if is_mode("debug") then
         add_defines("AETHER_DEBUG", {public = true})
+        add_defines("AE_ENABLE_ASSERTS", {public = true})
         set_symbols("debug")
     end
 
