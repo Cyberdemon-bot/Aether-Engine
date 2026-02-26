@@ -5,6 +5,7 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include <glm/gtx/matrix_decompose.hpp>
+#include "Aether/Assets/AssetsManager.h"
 
 namespace Aether {
     Scene::Scene() 
@@ -382,7 +383,7 @@ namespace Aether {
                         glm::vec3 bMin(-0.5f), bMax(0.5f);
                         if (HasComponent<MeshComponent>(entity))
                         {
-                            auto mesh = MeshLibrary::Get(GetComponent<MeshComponent>(entity).MeshID);
+                            auto mesh = AssetsManager::GetResource<Mesh>(GetComponent<MeshComponent>(entity).MeshID);
                             if (mesh) { bMin = -mesh->GetBoundsExtents(); bMax = mesh->GetBoundsExtents(); }
                         }
                         Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));

@@ -179,7 +179,7 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
 {
     if (!m_Scene.IsValid(transformEntity)) return;
 
-    auto mesh = Aether::MeshLibrary::Get(colliderMeshID);
+    auto mesh = Aether::AssetsManager::GetResource<Aether::Mesh>(colliderMeshID);
     if (!mesh) return;
 
     std::vector<Entity> chain;
