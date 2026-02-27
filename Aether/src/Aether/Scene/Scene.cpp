@@ -272,10 +272,10 @@ namespace Aether {
                 glm::quat rotation;
                 glm::vec4 perspective;
                 glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
-                
-                PhysicsSystem::SetPhysTransform(id, {translation, rotation});
+                glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
+                PhysicsSystem::SetPhysTransform(id, {translation + worldOffset, rotation});
             }
-            else if (PhysicsSystem::GetMotionType(id) != MotionType::Static) 
+            else if (PhysicsSystem::GetMotionType(id) == MotionType::Dynamic)
             {
                 PhysTransform physTrans = PhysicsSystem::GetPhysTransform(id);
                 glm::vec3 localOffset = rbComp.ColliderOffset;
