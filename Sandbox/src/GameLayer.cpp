@@ -175,16 +175,16 @@ void GameLayer::LoadModelAsync(const std::vector<std::string>& args)
     });
 }
 
-void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic)
+void GameLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic)
 {
     if (!m_Scene.IsValid(transformEntity)) return;
 
     auto mesh = Aether::AssetsManager::GetResource<Aether::Mesh>(colliderMeshID);
     if (!mesh) return;
 
-    std::vector<Entity> chain;
-    Entity cur = transformEntity;
-    while (cur != Null_Entity && m_Scene.IsValid(cur))
+    std::vector<Aether::Entity> chain;
+    Aether::Entity cur = transformEntity;
+    while (cur != Aether::Null_Entity && m_Scene.IsValid(cur))
     {
         chain.push_back(cur);
         cur = m_Scene.GetComponent<Aether::HierarchyComponent>(cur).parent;
@@ -355,14 +355,14 @@ void GameLayer::OnImGuiRender()
 //  Hierarchy panel
 // =============================================================================
 
-void GameLayer::DrawEntityNode(Entity entity)
+void GameLayer::DrawEntityNode(Aether::Entity entity)
 {
     auto& tag  = m_Scene.GetComponent<Aether::TagComponent>(entity);
     auto& hier = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
                              | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (hier.firstChild  == Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
+    if (hier.firstChild  == Aether::Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
     if (m_SelectedEntity == entity)      flags |= ImGuiTreeNodeFlags_Selected;
 
     bool open = ImGui::TreeNodeEx((void*)(uint64_t)entity, flags, "%s", tag.Tag.c_str());
@@ -373,12 +373,12 @@ void GameLayer::DrawEntityNode(Entity entity)
     if (ImGui::BeginPopupContextItem())
     {
         if (ImGui::MenuItem("Set as parent of selected") &&
-            m_SelectedEntity != Null_Entity &&
+            m_SelectedEntity != Aether::Null_Entity &&
             m_SelectedEntity != entity)
         {
             m_Scene.MakeParent(m_SelectedEntity, entity);
         }
-        if (ImGui::MenuItem("Unparent") && hier.parent != Null_Entity)
+        if (ImGui::MenuItem("Unparent") && hier.parent != Aether::Null_Entity)
             m_Scene.BreakParent(entity);
 
         ImGui::EndPopup();
@@ -387,10 +387,10 @@ void GameLayer::DrawEntityNode(Entity entity)
     if (open)
     {
         // Read nextSibling before recursing in case hierarchy mutates
-        Entity child = hier.firstChild;
-        while (child != Null_Entity)
+        Aether::Entity child = hier.firstChild;
+        while (child != Aether::Null_Entity)
         {
-            Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
+            Aether::Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
             DrawEntityNode(child);
             child = next;
         }
@@ -403,12 +403,12 @@ void GameLayer::DrawHierarchyPanel()
     if (!ImGui::Begin("Hierarchy")) { ImGui::End(); return; }
 
     if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
-        m_SelectedEntity = Null_Entity;
+        m_SelectedEntity = Aether::Null_Entity;
 
     auto view = m_Scene.View<Aether::HierarchyComponent>();
     for (auto entity : view)
     {
-        if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Null_Entity)
+        if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Aether::Null_Entity)
             DrawEntityNode(entity);
     }
 
@@ -425,7 +425,7 @@ void GameLayer::DrawScenePanel()
 
     if (ImGui::CollapsingHeader("Physics"))
     {
-        std::string nodePreview = (m_PhysSelectedEntity != Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
+        std::string nodePreview = (m_PhysSelectedEntity != Aether::Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
             ? m_Scene.GetComponent<Aether::TagComponent>(m_PhysSelectedEntity).Tag
             : "Select Node";
 
@@ -466,7 +466,7 @@ void GameLayer::DrawScenePanel()
 
         ImGui::Checkbox("Is Dynamic", &m_PhysDynamic);
 
-        bool canAdd = (m_PhysSelectedEntity != Null_Entity &&
+        bool canAdd = (m_PhysSelectedEntity != Aether::Null_Entity &&
                        m_Scene.IsValid(m_PhysSelectedEntity) &&
                        m_PhysMeshIdx >= 0 &&
                        m_PhysMeshIdx < (int)m_Meshes.size());
@@ -493,7 +493,7 @@ void GameLayer::DrawScenePanel()
 
         ImGui::Separator();
 
-        auto physIt = (m_SelectedEntity != Null_Entity)
+        auto physIt = (m_SelectedEntity != Aether::Null_Entity)
             ? m_PhysicsBodies.find(m_SelectedEntity)
             : m_PhysicsBodies.end();
         bool hasPhysBody = (physIt != m_PhysicsBodies.end());
@@ -602,7 +602,7 @@ void GameLayer::DrawScenePanel()
     // ---- Transform ----------------------------------------------------------
     if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
+        if (m_SelectedEntity != Aether::Null_Entity && m_Scene.IsValid(m_SelectedEntity))
         {
             auto& tag = m_Scene.GetComponent<Aether::TagComponent>(m_SelectedEntity);
             auto& t   = m_Scene.GetComponent<Aether::TransformComponent>(m_SelectedEntity);

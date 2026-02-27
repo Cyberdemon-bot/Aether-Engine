@@ -9,10 +9,10 @@
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Importer/ImporterAPI.h"
 
-using Entity = entt::entity;
-static constexpr Entity Null_Entity = entt::null;
-
 namespace Aether {
+
+    using Entity = entt::entity;
+    static constexpr Entity Null_Entity = entt::null;
     class AETHER_API Scene 
     {
     public:

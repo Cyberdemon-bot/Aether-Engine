@@ -23,7 +23,7 @@ private:
 
     // --- Các hàm vẽ giao diện ImGui ---
     void DrawHierarchyPanel();
-    void DrawEntityNode(Entity entity);
+    void DrawEntityNode(Aether::Entity entity);
     void DrawScenePanel();
     void DrawLightingPanel();
 
@@ -35,21 +35,21 @@ private:
     Aether::Ref<Aether::Shader> m_MainShader;
     Aether::Ref<Aether::Shader> m_VolShader; 
     
-    Entity m_SunLight = Null_Entity;
-    Entity m_SelectedEntity = Null_Entity; 
+    Aether::Entity m_SunLight = Aether::Null_Entity;
+    Aether::Entity m_SelectedEntity = Aether::Null_Entity; 
 
     // --- Nhân Vật (Player) ---
-    Entity m_Player = Null_Entity;
+    Aether::Entity m_Player = Aether::Null_Entity;
     Aether::UUID m_RunAnimation = 0;
     Aether::UUID m_IdleAnimation = 0;
     float m_PlayerSpeed = 10.0f; // Tốc độ chạy của nhân vật
 
-    Entity m_zombie = Null_Entity;
+    Aether::Entity m_zombie = Aether::Null_Entity;
     Aether::UUID m_ZombieRunAnimation = 0;
     Aether::UUID m_ZombieIdleAnimation = 0;
     float m_ZombieSpeed = 10.0f;
 
-    Entity m_Gun = Null_Entity;
+    Aether::Entity m_Gun = Aether::Null_Entity;
 
     // --- Thông số cấu hình Súng cho Góc nhìn thứ 1 ---
     glm::vec3 m_GunPosFP   = { 0.38f, -0.25f, 1.2f }; // X: Sang phải, Y: Lên xuống, Z: Tiến lùi
@@ -69,7 +69,7 @@ private:
 
     Aether::Ref<Aether::Mesh> m_BaseMapMesh; // Mesh gốc của Map
     Aether::Ref<Aether::Material> m_BaseMapMaterial;
-    std::map<std::pair<int, int>, Entity> m_ActiveChunks;
+    std::map<std::pair<int, int>, Aether::Entity> m_ActiveChunks;
     
     std::vector<Aether::UUID> m_LoadedMeshes; 
 

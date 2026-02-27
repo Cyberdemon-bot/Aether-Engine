@@ -25,10 +25,10 @@ private:
     void LoadModelAsync(const std::vector<std::string>& args);
     void AddEntity(const std::vector<std::string>& args);
     void DrainParseQueue();
-    void RegisterPhysicsBody(Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic = true);
+    void RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic = true);
 
     void DrawHierarchyPanel();
-    void DrawEntityNode(Entity entity);
+    void DrawEntityNode(Aether::Entity entity);
     void DrawScenePanel();
     void DrawAnimationPanel();
     void DrawLightingPanel();
@@ -44,9 +44,9 @@ private:
     std::vector<Aether::UUID> m_Meshes;
     std::vector<Aether::UUID> m_Animators;
 
-    Entity m_LightEntity    = Null_Entity;
-    Entity m_DirLightEntity = Null_Entity;
-    Entity m_SelectedEntity = Null_Entity;
+    Aether::Entity m_LightEntity    = Aether::Null_Entity;
+    Aether::Entity m_DirLightEntity = Aether::Null_Entity;
+    Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
     glm::vec3 m_DirLightEuler = glm::vec3(-45.0f, 0.0f, 0.0f);
 
@@ -73,9 +73,9 @@ private:
         bool         lastActive = false;   
         bool         isDynamic  = true;
     };
-    std::unordered_map<Entity, PhysicsEntry> m_PhysicsBodies;
+    std::unordered_map<Aether::Entity, PhysicsEntry> m_PhysicsBodies;
 
-    Entity      m_PhysSelectedEntity = Null_Entity;
+    Aether::Entity m_PhysSelectedEntity = Aether::Null_Entity;
     int         m_PhysMeshIdx        = -1;
     bool        m_PhysDynamic        = true;
 
