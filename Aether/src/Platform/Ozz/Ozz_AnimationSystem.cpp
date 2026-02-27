@@ -112,7 +112,6 @@ namespace Aether {
 
     void Ozz_AnimationSystem::CloneAnimator(UUID animatorID, UUID sample)
     {
-        
         auto samIt = m_Animators.find(sample);
         if (samIt == m_Animators.end()) return;
 
