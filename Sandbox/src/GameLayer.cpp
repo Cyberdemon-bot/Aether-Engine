@@ -216,7 +216,7 @@ void GameLayer::RegisterPhysicsBody(Entity transformEntity, Aether::UUID collide
     glm::vec3 localOffset = mesh->GetBoundsCenter() * worldScale;
 
     Aether::BodyConfig config;
-    config.motionType  = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Static;
+    config.motionType  = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
     config.shape       = Aether::ColliderShape::Box;
     config.size        = glm::vec3(
         std::max(std::abs(extents.x), 0.5f),
