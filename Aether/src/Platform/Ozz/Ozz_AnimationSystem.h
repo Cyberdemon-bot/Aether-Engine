@@ -21,38 +21,39 @@ namespace Aether {
         Ozz_AnimationSystem();
         virtual ~Ozz_AnimationSystem() override;
 
-        void RegisterSkeleton(const RigCreateInfo& data, UUID id) override;
-        void RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID) override;
+        virtual void RegisterSkeleton(const RigCreateInfo& data, UUID id) override;
+        virtual void RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID) override;
 
-        void CreateAnimator(UUID animatorID, UUID rigID, const std::vector<UUID>& clipIDs = {}) override;
-        void DestroyAnimator(UUID animatorID) override;
+        virtual void CreateAnimator(UUID animatorID, UUID rigID, const std::vector<UUID>& clipIDs = {}) override;
+        virtual void CloneAnimator(UUID animatorID, UUID sample) override;
+        virtual void DestroyAnimator(UUID animatorID) override;
         
-        void AddClip(UUID animatorID, UUID clipID) override;
-        void BindClip(UUID animatorID, uint32_t idx) override;
-        void BindClip(UUID animatorID, UUID clipID) override;
+        virtual void AddClip(UUID animatorID, UUID clipID) override;
+        virtual void BindClip(UUID animatorID, uint32_t idx) override;
+        virtual void BindClip(UUID animatorID, UUID clipID) override;
 
-        void SetSpeed(UUID animatorID, float speed) override;
-        void SetLoop(UUID animatorID, bool loop) override;
-        void SetTime(UUID animatorID, float time) override;
+        virtual void SetSpeed(UUID animatorID, float speed) override;
+        virtual void SetLoop(UUID animatorID, bool loop) override;
+        virtual void SetTime(UUID animatorID, float time) override;
 
-        void Play(UUID animatorID) override;
-        void Pause(UUID animatorID) override;
-        void Stop(UUID animatorID) override;
+        virtual void Play(UUID animatorID) override;
+        virtual void Pause(UUID animatorID) override;
+        virtual void Stop(UUID animatorID) override;
 
-        void Update(Timestep ts) override;
-        void RequestMatrices(UUID animatorID) override;
-        void ProcessRequests() override;
-        const std::vector<glm::mat4>& GetMatrices(UUID animatorID) override;
+        virtual void Update(Timestep ts) override;
+        virtual void RequestMatrices(UUID animatorID) override;
+        virtual void ProcessRequests() override;
+        virtual const std::vector<glm::mat4>& GetMatrices(UUID animatorID) override;
 
-        bool IsPlaying(UUID animatorID) const override;
-        float GetPlayBackTime(UUID animatorID) const override;
-        float GetDuration(UUID animatorID) const override;
-        float GetSpeed(UUID animatorID) const override;
+        virtual bool IsPlaying(UUID animatorID) const override;
+        virtual float GetPlayBackTime(UUID animatorID) const override;
+        virtual float GetDuration(UUID animatorID) const override;
+        virtual float GetSpeed(UUID animatorID) const override;
 
-        bool HasAnimator(UUID animatorID) const override;
-        uint32_t GetClipCount(UUID animatorID) const override;
-        int GetCurrentClipIndex(UUID animatorID) const override;
-        std::vector<UUID> GetClips(UUID animatorID) const override;
+        virtual bool HasAnimator(UUID animatorID) const override;
+        virtual uint32_t GetClipCount(UUID animatorID) const override;
+        virtual int GetCurrentClipIndex(UUID animatorID) const override;
+        virtual std::vector<UUID> GetClips(UUID animatorID) const override;
 
     private:
         struct OzzSkeleton
