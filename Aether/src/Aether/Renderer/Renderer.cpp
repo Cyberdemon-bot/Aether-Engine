@@ -170,22 +170,21 @@ namespace Aether {
 		RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
 	}	
 
-	void Renderer::DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform)
+	void Renderer::DrawMesh(Ref<Mesh> mesh, const std::vector<Ref<Material>> materials, UUID animatorID, const glm::mat4& transform)
 	{
-		auto mesh = AssetsManager::GetResource<Mesh>(meshID);
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
-		if (!s_RenderData->s_MeshInstanceAssigned[meshID]) 
+		if (!s_RenderData->s_MeshPtrInstanceAssigned[mesh])
 		{
 			mesh->GetVertexArray()->AddInstanceBuffer(s_RenderData->s_InstanceVBO, 6); 
-			s_RenderData->s_MeshInstanceAssigned[meshID] = true; 
+			s_RenderData->s_MeshPtrInstanceAssigned[mesh] = true;
 		}
 
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{
 			RenderKey key;
-			key.materialID = submeshes[i].MaterialID;
-			key.meshID = meshID;
+			key.mesh = mesh;
+			key.material = materials[submeshes[i].MaterialIdx];
 			key.subIdx = i;
 
 			if (animatorID == UUID(0)) s_SceneData->s_RenderBatches[key].static_obj.push_back(transform);
@@ -202,8 +201,8 @@ namespace Aether {
 
 	void Renderer::Flush(const RenderPass& pass)
 	{
-		UUID currentMatID = 0;
-    	UUID currentMeshID = 0;
+		Ref<Mesh> currentMesh;
+		Ref<Material> currentMaterial;
 		UUID currentAnimatorID = 0;
 		int startSlot = 0;
 		auto shader = pass.Shader; shader->Bind();
@@ -246,18 +245,18 @@ namespace Aether {
 
 			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
 			{
-				auto material = AssetsManager::GetResource<Material>(key.materialID);
-				if (currentMatID != key.materialID && pass.UsingMaterial)
+				auto material = key.material; 
+				if (currentMaterial != material && pass.UsingMaterial)
 				{
 					material->UploadMaterial(shader, startSlot);
-					currentMatID = key.materialID;
+					currentMaterial = material;
 				}
 
-				auto mesh = AssetsManager::GetResource<Mesh>(key.meshID);
-				if (currentMeshID != key.meshID) 
+				auto mesh = key.mesh;
+				if (currentMesh != key.mesh) 
 				{
 					mesh->GetVertexArray()->Bind();
-					currentMeshID = key.meshID;
+					currentMesh = key.mesh;
 				}
 				const auto& submesh = mesh->GetSubMeshes()[key.subIdx];
 				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));

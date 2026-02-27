@@ -58,15 +58,15 @@ namespace Aether {
 
 	struct RenderKey
 	{
-		UUID meshID;
-		UUID materialID;
+		Ref<Mesh> mesh;
+		Ref<Material> material;
 		uint32_t subIdx;
 
 		bool operator<(const RenderKey& other) const
 		{
-			if (materialID != other.materialID) return materialID < other.materialID;
-            if (meshID != other.meshID) return meshID < other.meshID;
-            return subIdx < other.subIdx;
+			if (material.get() != other.material.get()) return material.get() < other.material.get();
+			if (mesh.get() != other.mesh.get()) return mesh.get() < other.mesh.get();
+			return subIdx < other.subIdx;
 		}
 	};
 
@@ -109,7 +109,7 @@ namespace Aether {
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
-		static void DrawMesh(UUID meshID,  UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
+		static void DrawMesh(Ref<Mesh> mesh, const std::vector<Ref<Material>> materials, UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
 
 		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
@@ -145,6 +145,7 @@ namespace Aether {
 			
 			std::vector<RenderPass> s_PassList;
 			std::unordered_map<UUID, bool> s_MeshInstanceAssigned;
+			std::unordered_map<Ref<Mesh>, bool> s_MeshPtrInstanceAssigned;
 		};
 
 		static Scope<SceneData> s_SceneData;

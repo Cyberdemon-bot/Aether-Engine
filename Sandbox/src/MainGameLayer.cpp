@@ -117,7 +117,8 @@ void MainGameLayer::Attach()
     auto uploadResult = Aether::Importer::Upload(parsedMap);
     
     if (!uploadResult.meshIDs.empty()) {
-        m_BaseMapMesh = uploadResult.meshIDs[0]; 
+        m_BaseMapMesh = Aether::AssetsManager::GetResource<Aether::Mesh>(uploadResult.meshIDs[0]);
+        m_BaseMapMaterial = Aether::AssetsManager::GetResource<Aether::Material>(uploadResult.matIDs[0]);
         for (auto& meshID : uploadResult.meshIDs) m_LoadedMeshes.push_back(meshID);
     }
 
@@ -292,7 +293,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
         }
 
         // --- CẬP NHẬT ÁNH SÁNG (Sử dụng playerTopPos an toàn) ---
-        if (m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight))
+        if (m_SunLight != Aether::Null_Entity && m_Scene.IsValid(m_SunLight))
         {
             auto& lightTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
             lightTransform.Translation = playerTopPos + glm::vec3(0.0f, 50.0f, 0.0f);
@@ -395,7 +396,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             // Nếu ô đất này chưa tồn tại thì đẻ nó ra
             if (m_ActiveChunks.find(coord) == m_ActiveChunks.end())
             {
-                Entity chunk = m_Scene.CreateEntity("MapGrid_" + std::to_string(targetX) + "_" + std::to_string(targetZ));
+                Aether::Entity chunk = m_Scene.CreateEntity("MapGrid_" + std::to_string(targetX) + "_" + std::to_string(targetZ));
                 
                 auto& t = m_Scene.GetComponent<Aether::TransformComponent>(chunk);
                 
@@ -405,7 +406,9 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
                 t.Translation = glm::vec3(targetX * m_ChunkSize, yOffset, targetZ * m_ChunkSize);
                 t.Dirty = true;
 
-                m_Scene.AddComponent<Aether::MeshComponent>(chunk).MeshID = m_BaseMapMesh;
+                auto& chunkcmp = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
+                chunkcmp.MeshPtr = m_BaseMapMesh;
+                chunkcmp.Materials = {m_BaseMapMaterial};
                 m_ActiveChunks[coord] = chunk;
             }
         }
@@ -416,7 +419,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
     {
         if (std::find(chunksToKeep.begin(), chunksToKeep.end(), it->first) == chunksToKeep.end())
         {
-            if (it->second != Null_Entity && m_Scene.IsValid(it->second)) {
+            if (it->second != Aether::Null_Entity && m_Scene.IsValid(it->second)) {
                 m_Scene.DestroyEntity(it->second);
             }
             it = m_ActiveChunks.erase(it);
@@ -467,7 +470,7 @@ void MainGameLayer::OnImGuiRender()
     // BẢNG CĂN CHỈNH NHÂN VẬT (Debug Player)
     if (ImGui::Begin("Player Setup"))
     {
-        if (m_Player != Null_Entity && m_Scene.IsValid(m_Player))
+        if (m_Player != Aether::Null_Entity && m_Scene.IsValid(m_Player))
         {
             auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
             
@@ -514,14 +517,14 @@ void MainGameLayer::OnImGuiRender()
 }
 
 // --- HÀM 1: Vẽ từng node trong danh sách (Cần có HierarchyComponent) ---
-void MainGameLayer::DrawEntityNode(Entity entity)
+void MainGameLayer::DrawEntityNode(Aether::Entity entity)
 {
     auto& tag  = m_Scene.GetComponent<Aether::TagComponent>(entity);
     auto& hier = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
     // Nếu không có con thì hiển thị dạng lá (Leaf)
-    if (hier.firstChild == Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
+    if (hier.firstChild == Aether::Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
     // Đánh dấu nếu đang được chọn
     if (m_SelectedEntity == entity)     flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -532,10 +535,10 @@ void MainGameLayer::DrawEntityNode(Entity entity)
     // Nếu node đang mở, vẽ tiếp các con của nó (Đệ quy)
     if (open)
     {
-        Entity child = hier.firstChild;
-        while (child != Null_Entity)
+        Aether::Entity child = hier.firstChild;
+        while (child != Aether::Null_Entity)
         {
-            Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
+            Aether::Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
             DrawEntityNode(child); // Gọi đệ quy
             child = next;
         }
@@ -552,12 +555,12 @@ void MainGameLayer::DrawHierarchyPanel()
     for (auto entity : view)
     {
         // Chỉ vẽ những vật thể là "Gốc" (không có cha), các con sẽ được vẽ đệ quy ở trên
-        if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Null_Entity)
+        if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Aether::Null_Entity)
             DrawEntityNode(entity);
     }
 
     if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
-        m_SelectedEntity = Null_Entity;
+        m_SelectedEntity = Aether::Null_Entity;
 
     ImGui::End();
 }
@@ -567,7 +570,7 @@ void MainGameLayer::DrawScenePanel()
 {
     if (!ImGui::Begin("Inspector")) { ImGui::End(); return; }
 
-    if (m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
+    if (m_SelectedEntity != Aether::Null_Entity && m_Scene.IsValid(m_SelectedEntity))
     {
         ImGui::Text("Entity ID: %d", (uint32_t)m_SelectedEntity);
         ImGui::Separator();
@@ -592,7 +595,7 @@ void MainGameLayer::DrawLightingPanel()
     if (!ImGui::Begin("Lighting")) { ImGui::End(); return; }
 
     // Kiểm tra xem thực thể Mặt trời có tồn tại không
-    if (m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight))
+    if (m_SunLight != Aether::Null_Entity && m_Scene.IsValid(m_SunLight))
     {
         if (ImGui::CollapsingHeader("Sun Light", ImGuiTreeNodeFlags_DefaultOpen))
         {

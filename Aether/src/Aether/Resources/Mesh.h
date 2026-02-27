@@ -21,8 +21,6 @@ namespace Aether {
         glm::vec3 BoundsMax = glm::vec3(0.0f);
 
         std::string NodeName;
-
-        UUID MaterialID = 0;
         int MaterialIdx = -1;
     };
 
