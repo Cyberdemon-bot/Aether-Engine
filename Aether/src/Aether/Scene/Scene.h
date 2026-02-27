@@ -67,6 +67,14 @@ namespace Aether {
             return m_Registry.get<T>(entity);
         }
 
+        template<typename T>
+        void CloneComponent(Entity entity, Entity sample)
+        {
+            if (!HasComponent<T>(sample)) return;
+            if (!HasComponent<T>(entity)) AddComponent<T>(entity);
+            GetComponent<T>(entity) = GetComponent<T>(sample);
+        }
+
         template<typename... Components>
         auto View()
         {

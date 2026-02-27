@@ -126,7 +126,7 @@ namespace Aether {
         animator->modelMatrices.resize(numJoints);
         animator->finalMatrices.resize(numJoints, glm::mat4(1.0f));
         animator->samplingContext.Resize(numJoints);
-        animator->clipIDs = samIt->second->clipIDs;;
+        animator->clipIDs = samIt->second->clipIDs;
         m_Animators[animatorID] = std::move(animator);
     }
 
@@ -285,14 +285,13 @@ namespace Aether {
     void Ozz_AnimationSystem::Play(UUID animatorID)
     {
         auto it = m_Animators.find(animatorID);
+        if (it == m_Animators.end()) return;
+        if (it->second->currentClip == -1) return;
         auto clipIt = m_Clips.find(it->second->clipIDs[it->second->currentClip]);
         if (clipIt == m_Clips.end()) return;
         float duration = clipIt->second.animation->duration();
-        if (it != m_Animators.end())
-        {
-            if (!it->second->loop && it->second->currentTime >= duration) it->second->currentTime = 0.0f; 
-            it->second->isPlaying = true;
-        }
+        if (!it->second->loop && it->second->currentTime >= duration) it->second->currentTime = 0.0f; 
+        it->second->isPlaying = true;
     }
 
     void Ozz_AnimationSystem::Stop(UUID animatorID)
