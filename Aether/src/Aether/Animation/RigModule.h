@@ -17,6 +17,7 @@ namespace Aether {
         virtual void RegisterClip(const ClipCreateInfo& data, UUID id, UUID skeletonID) = 0;
 
         virtual void CreateAnimator(UUID animatorID, UUID skeletonID, const std::vector<UUID>& clipIDs = {}) = 0;
+        virtual void CloneAnimator(UUID animatorID, UUID sample) = 0;
         virtual void DestroyAnimator(UUID animatorID) = 0;
         
         virtual void AddClip(UUID animatorID, UUID clipID) = 0;

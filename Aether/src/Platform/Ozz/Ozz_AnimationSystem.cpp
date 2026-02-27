@@ -110,6 +110,27 @@ namespace Aether {
         m_Animators[animatorID] = std::move(animator);
     }
 
+    void Ozz_AnimationSystem::CloneAnimator(UUID animatorID, UUID sample)
+    {
+        
+        auto samIt = m_Animators.find(sample);
+        if (samIt == m_Animators.end()) return;
+
+        auto rigIt = m_Skeletons.find(samIt->second->rigID);
+
+        auto animator = CreateScope<OzzAnimator>(); 
+        animator->rigID = samIt->second->rigID;
+        
+        const ozz::animation::Skeleton& skeleton = *rigIt->second.skeleton; 
+        int numJoints = skeleton.num_joints();
+        animator->localTransforms.resize(skeleton.num_soa_joints());
+        animator->modelMatrices.resize(numJoints);
+        animator->finalMatrices.resize(numJoints, glm::mat4(1.0f));
+        animator->samplingContext.Resize(numJoints);
+        animator->clipIDs = samIt->second->clipIDs;;
+        m_Animators[animatorID] = std::move(animator);
+    }
+
     void Ozz_AnimationSystem::DestroyAnimator(UUID animatorID)
     {
         auto it = m_Animators.find(animatorID);
