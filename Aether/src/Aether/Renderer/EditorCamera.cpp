@@ -73,7 +73,7 @@ namespace Aether {
         bool isMiddleClick = Input::IsMouseButtonPressed(Mouse::ButtonMiddle);
         
         // Any mouse button interaction
-        if (isRightClick || isMiddleClick)
+        if (isRightClick || isMiddleClick) 
         {
             if (!m_IsActive)
             {
