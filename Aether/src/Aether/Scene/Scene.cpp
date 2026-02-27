@@ -380,7 +380,9 @@ namespace Aether {
                 {
                     for (auto entity : rbView)
                     {
-                        UUID bodyID = GetComponent<ColliderComponent>(entity).BodyID;
+                        auto& component = GetComponent<ColliderComponent>(entity);
+                        if (!component.Visible) continue;
+                        UUID bodyID = component.BodyID;
                         PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);

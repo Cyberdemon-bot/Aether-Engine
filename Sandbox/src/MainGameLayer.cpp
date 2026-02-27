@@ -118,6 +118,7 @@ void MainGameLayer::Attach()
         for (auto& id : uploadMap.meshIDs) m_LoadedMeshes.push_back(id);
     }
 
+    // --- TẢI PLAYER ---
     m_Player = m_Scene.CreateEntity("Player");
     auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
     pTransform.Translation = {0.0f, -1.75f, 0.0f};
@@ -136,10 +137,29 @@ void MainGameLayer::Attach()
         if (!clips.empty()) rigSystem->BindClip(m_RunAnimation, clips[0]);
     }
 
+    // --- PHYSICS: Player Kinematic Capsule ---
+    // Kinematic vì ta tự điều khiển vị trí, physics chỉ lo va chạm
+    m_PlayerBodyID = Aether::AssetsRegister::Register("Player_Body");
+    {
+        Aether::BodyConfig cfg;
+        cfg.motionType  = Aether::MotionType::Kinematic;
+        cfg.shape       = Aether::ColliderShape::Capsule;
+        cfg.size        = glm::vec3(0.35f, 0.9f, 0.0f); // radius=0.35, halfHeight=0.9
+        cfg.transform   = { pTransform.Translation, glm::quat(1,0,0,0) };
+        cfg.friction    = 0.5f;
+        cfg.restitution = 0.0f;
+        Aether::PhysicsSystem::CreateBody(m_PlayerBodyID, cfg);
+        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_PlayerBodyID, glm::vec3(0.0f));
+    }
+
+    // --- TẢI ZOMBIE (Lưu RegisteredScene để dùng lại khi spawn) ---
+    // GPU data chỉ upload 1 lần, LoadHierarchy sau đó chỉ tốn CPU
     m_ZombieSceneData = Aether::Importer::Upload(Aether::Importer::Import("assets/models/zombie.glb"));
 
-    if (!m_ZombieSceneData.animatorIDS.empty()) m_ZombieRunAnimation = m_ZombieSceneData.animatorIDS[0];
+    if (!m_ZombieSceneData.animatorIDS.empty())
+        m_ZombieRunAnimation = m_ZombieSceneData.animatorIDS[0];
 
+    // --- TẢI SÚNG ---
     m_Gun = m_Scene.CreateEntity("Weapon_Gun");
     auto& gTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
     gTransform.Translation = {0.0f, 0.0f, 0.0f};
@@ -158,11 +178,13 @@ void MainGameLayer::Attach()
     }
 
     AE_CORE_INFO("MainGameLayer Started! Infinite Cube Floor is ready.");
+
+    Aether::PhysicsSystem::SetGravity({0.0f, 0.0f, 0.0f});
 }
 
 void MainGameLayer::Detach()
 {
-    // Dọn sạch animator của từng zombie trước khi destroy entity
+    // Dọn sạch animator và physics body của từng zombie
     auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
     for (auto& [entity, animID] : m_ZombieAnimators)
     {
@@ -170,8 +192,15 @@ void MainGameLayer::Detach()
         if (m_Scene.IsValid(entity))
             m_Scene.DestroyEntity(entity);
     }
+    for (auto& [entity, bodyID] : m_ZombieBodyIDs)
+        Aether::PhysicsSystem::DestroyBody(bodyID);
     m_ZombieAnimators.clear();
+    m_ZombieBodyIDs.clear();
     m_ActiveZombies.clear();
+
+    // Dọn physics body của Player
+    if (m_PlayerBodyID != 0)
+        Aether::PhysicsSystem::DestroyBody(m_PlayerBodyID);
 
     m_ShadowShader.reset();
     m_MainShader.reset();
@@ -454,26 +483,52 @@ void MainGameLayer::SpawnZombie(const glm::vec3& position)
 {
     if (m_ActiveZombies.size() >= 50) return;
 
-    // 1. Tạo entity mới và đặt vị trí
+    // 1. Clone animator TRƯỚC khi LoadHierarchy để có UUID sẵn
+    Aether::UUID newAnimID = Aether::AssetsRegister::Register(
+        "ZombieAnim_" + std::to_string(m_ActiveZombies.size()));
+
+    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
+    if (rigSystem) {
+        rigSystem->CloneAnimator(newAnimID, m_ZombieRunAnimation);
+        rigSystem->BindClip(newAnimID, 4);
+        rigSystem->Play(newAnimID);
+    }
+
+    // 2. Tạm thời đổi animatorID trong scene data
+    // CreateNodeEntity đọc reg.animatorIDS[node.animatorIdx] -> tự stamp newAnimID vào AnimatorComponent
+    Aether::UUID originalAnimID = m_ZombieSceneData.animatorIDS[0];
+    m_ZombieSceneData.animatorIDS[0] = newAnimID;
+
+    // 3. Tạo entity và load hierarchy
     Aether::Entity newZombie = m_Scene.CreateEntity("Zombie_Minion");
     auto& zTransform = m_Scene.GetComponent<Aether::TransformComponent>(newZombie);
     zTransform.Translation = position;
     zTransform.Scale       = {1.0f, 1.0f, 1.0f};
     zTransform.Dirty       = true;
 
-    Aether::UUID newAnimID = Aether::AssetsRegister::Register(
-        "ZombieAnim_" + std::to_string((uint64_t)newZombie));
-
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-    if (rigSystem) {
-        rigSystem->CloneAnimator(newAnimID, m_ZombieRunAnimation);
-        auto clips = rigSystem->GetClips(newAnimID);
-        if (!clips.empty()) rigSystem->BindClip(newAnimID, 4);
-        rigSystem->Play(newAnimID);
-    }
-    m_ZombieSceneData.animatorIDS[0] = newAnimID;
     m_Scene.LoadHierarchy(m_ZombieSceneData, newZombie);
+
+    // 4. Khôi phục ID gốc
+    m_ZombieSceneData.animatorIDS[0] = originalAnimID;
+
+    // 5. Physics: Kinematic Capsule
+    Aether::UUID bodyID = Aether::AssetsRegister::Register(
+        "ZombieBody_" + std::to_string(m_ActiveZombies.size()));
+    {
+        Aether::BodyConfig cfg;
+        cfg.motionType  = Aether::MotionType::Dynamic;
+        cfg.shape       = Aether::ColliderShape::Capsule;
+        cfg.size        = glm::vec3(0.35f, 0.9f, 0.0f); // radius, halfHeight
+        cfg.transform   = { position, glm::quat(1,0,0,0) };
+        cfg.friction    = 0.5f;
+        cfg.restitution = 0.0f;
+        Aether::PhysicsSystem::CreateBody(bodyID, cfg);
+        m_Scene.AddComponent<Aether::ColliderComponent>(newZombie, bodyID, glm::vec3(0.0f));
+    }
+
+    // 6. Lưu lại để cleanup sau
     m_ZombieAnimators[newZombie] = newAnimID;
+    m_ZombieBodyIDs[newZombie]   = bodyID;
     m_ActiveZombies.push_back(newZombie);
 }
 

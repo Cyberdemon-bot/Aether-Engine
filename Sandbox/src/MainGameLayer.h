@@ -6,6 +6,7 @@
 #include <map>
 #include <utility>
 #include <queue>
+#include "Aether/Physics/PhysicsSystem.h"
 
 // --- HỆ THỐNG FLOW FIELD ---
 struct FlowCell {
@@ -52,12 +53,13 @@ private:
     Aether::UUID m_IdleAnimation = 0;
     float m_PlayerSpeed = 10.0f;
     glm::vec3 m_PlayerVelocity = glm::vec3(0.0f);
+    Aether::UUID m_PlayerBodyID = 0; // Physics body
 
     // --- HỆ THỐNG ZOMBIE ---
-    // Chỉ lưu RegisteredScene (UUID + SceneHierarchy), không có GPU data nặng
     Aether::RegisteredScene m_ZombieSceneData;
     std::vector<Aether::Entity> m_ActiveZombies;
-    std::map<Aether::Entity, Aether::UUID> m_ZombieAnimators; // Mỗi zombie có animator riêng
+    std::map<Aether::Entity, Aether::UUID> m_ZombieAnimators;
+    std::map<Aether::Entity, Aether::UUID> m_ZombieBodyIDs; // Physics body per zombie
     Aether::UUID m_ZombieRunAnimation  = 0;
     Aether::UUID m_ZombieIdleAnimation = 0;
     float m_ZombieSpeed = 3.5f;

@@ -45,6 +45,7 @@ namespace Aether {
 
         virtual void AddForce(UUID bodyID, const glm::vec3& force) override;
         virtual void SetVelocity(UUID bodyID, const glm::vec3& velocity) override;
+        virtual void SetGravity(const glm::vec3& gravity) override;
     private:
         std::unordered_map<UUID, BodyData> m_Bodies;
         JPH::PhysicsSystem* m_PhysicsSystem = nullptr;

@@ -463,4 +463,9 @@ namespace Aether {
         JPH::Vec3 joltVel(velocity.x, velocity.y, velocity.z);
         bodyInterface.SetLinearVelocity(id, joltVel);
     }
+
+    void Jolt_PhysicsAPI::SetGravity(const glm::vec3& gravity)
+    {
+        m_PhysicsSystem->SetGravity(JPH::Vec3(gravity.x, gravity.y, gravity.z));
+    }
 }
