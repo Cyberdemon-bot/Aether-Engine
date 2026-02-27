@@ -41,7 +41,6 @@ namespace Aether {
         std::vector<UUID> texIDs;
         std::vector<UUID> rigIDs;     
         std::vector<UUID> clipIDs; 
-        std::vector<UUID> matIDs;
         // Upload textures
         for (const auto& texInfo : sceneData.Textures)
         {
@@ -76,13 +75,13 @@ namespace Aether {
             material->AddFloat("u_Metallic", matInfo.Metallic);
             material->AddFloat("u_Roughness", matInfo.Roughness);
             AssetsManager::RegisterResource(material, matID);
-            matIDs.push_back(matID);
+            res.matIDs.push_back(matID);
         }
         // Upload meshes
         for (const auto& meshInfo : sceneData.Meshes)
         {
             UUID meshID = AssetsRegister::Register(meshInfo.DebugName);
-            
+            res.meshMap.emplace_back();
             // Convert SubMeshCreateInfo to SubMesh
             std::vector<SubMesh> submeshes;
             for (const auto& subInfo : meshInfo.SubMeshes)
@@ -97,8 +96,9 @@ namespace Aether {
                 sm.BoundsMax = subInfo.BoundsMax;
                 
                 // Assign material
-                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < matIDs.size()) sm.MaterialID = matIDs[subInfo.MaterialIdx];
-                
+                auto mat = AssetsManager::GetResource<Material>(res.matIDs[subInfo.MaterialIdx]);
+                res.meshMap.back().push_back(mat); 
+                sm.MaterialIdx = res.meshMap.back().size() - 1;
                 submeshes.push_back(sm);
             }
             
@@ -117,6 +117,7 @@ namespace Aether {
             spec.Submeshes = submeshes;
             
             auto mesh = Mesh::Create(spec);
+            mesh->id = meshID;
             AssetsManager::RegisterResource(mesh, meshID);
             res.meshIDs.push_back(meshID);
         }

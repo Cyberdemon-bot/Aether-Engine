@@ -67,7 +67,8 @@ private:
     float m_ZoomInfluence = 5.0f;       // Cứ xa ra thêm 15 đơn vị camera, đẻ thêm 1 vòng map
     int m_CurrentRenderDistance = 15;     // Biến nội bộ để lưu bán kính thực tế
 
-    Aether::UUID m_BaseMapMesh; // Mesh gốc của Map
+    Aether::Ref<Aether::Mesh> m_BaseMapMesh; // Mesh gốc của Map
+    Aether::Ref<Aether::Material> m_BaseMapMaterial;
     std::map<std::pair<int, int>, Entity> m_ActiveChunks;
     
     std::vector<Aether::UUID> m_LoadedMeshes; 

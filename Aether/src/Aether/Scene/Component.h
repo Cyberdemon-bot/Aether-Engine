@@ -64,11 +64,11 @@ namespace Aether {
 
     struct MeshComponent
     {
-        UUID MeshID;
+        Ref<Mesh> MeshPtr;
+        std::vector<Ref<Material>> Materials;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;
-        MeshComponent(const UUID& id) : MeshID(id) {};
     };
 
     struct AnimatorComponent

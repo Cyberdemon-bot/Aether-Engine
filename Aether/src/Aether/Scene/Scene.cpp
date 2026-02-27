@@ -235,7 +235,11 @@ namespace Aether {
         t.Dirty       = true;
 
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
-            scene.AddComponent<MeshComponent>(e).MeshID = reg.meshIDs[node.meshIdx];
+        {
+            auto& component = scene.AddComponent<MeshComponent>(e);
+            component.MeshPtr = AssetsManager::GetResource<Mesh>(reg.meshIDs[node.meshIdx]);
+            component.Materials = reg.meshMap[node.meshIdx];
+        }
 
         if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animatorIDS.size())
             scene.AddComponent<AnimatorComponent>(e).AnimatorID = reg.animatorIDS[node.animatorIdx];
@@ -362,11 +366,11 @@ namespace Aether {
                 auto meshView = View<MeshComponent, TransformComponent>();
                 for (auto entity : meshView)
                 {
-                    auto transform = GetComponent<TransformComponent>(entity);
-                    UUID meshID = GetComponent<MeshComponent>(entity).MeshID;
+                    auto& transform = GetComponent<TransformComponent>(entity);
+                    auto& meshcmp = GetComponent<MeshComponent>(entity);
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
-                    Renderer::DrawMesh(meshID, animatorID, transform.WorldTransform);
+                    Renderer::DrawMesh(meshcmp.MeshPtr, meshcmp.Materials, animatorID, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();
@@ -383,7 +387,7 @@ namespace Aether {
                         glm::vec3 bMin(-0.5f), bMax(0.5f);
                         if (HasComponent<MeshComponent>(entity))
                         {
-                            auto mesh = AssetsManager::GetResource<Mesh>(GetComponent<MeshComponent>(entity).MeshID);
+                            auto mesh = GetComponent<MeshComponent>(entity).MeshPtr;
                             if (mesh) { bMin = -mesh->GetBoundsExtents(); bMax = mesh->GetBoundsExtents(); }
                         }
                         Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));

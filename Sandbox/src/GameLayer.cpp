@@ -715,7 +715,7 @@ void GameLayer::DrawAnimationPanel()
             auto meshView = m_Scene.View<Aether::MeshComponent>();
             for (auto entity : meshView)
             {
-                if (m_Scene.GetComponent<Aether::MeshComponent>(entity).MeshID == meshID)
+                if (m_Scene.GetComponent<Aether::MeshComponent>(entity).MeshPtr == Aether::AssetsManager::GetResource<Aether::Mesh>(meshID))
                 {
                     if (!m_Scene.HasComponent<Aether::AnimatorComponent>(entity))
                         m_Scene.AddComponent<Aether::AnimatorComponent>(entity);
@@ -732,7 +732,7 @@ void GameLayer::DrawAnimationPanel()
         auto meshView = m_Scene.View<Aether::MeshComponent, Aether::AnimatorComponent>();
         for (auto entity : meshView)
         {
-            Aether::UUID meshID = m_Scene.GetComponent<Aether::MeshComponent>(entity).MeshID;
+            Aether::UUID meshID = m_Scene.GetComponent<Aether::MeshComponent>(entity).MeshPtr->id;
             Aether::UUID animID = m_Scene.GetComponent<Aether::AnimatorComponent>(entity).AnimatorID;
 
             std::string meshName = Aether::AssetsRegister::Get(meshID);

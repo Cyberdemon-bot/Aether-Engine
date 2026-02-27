@@ -117,7 +117,8 @@ void MainGameLayer::Attach()
     auto uploadResult = Aether::Importer::Upload(parsedMap);
     
     if (!uploadResult.meshIDs.empty()) {
-        m_BaseMapMesh = uploadResult.meshIDs[0]; 
+        m_BaseMapMesh = Aether::AssetsManager::GetResource<Aether::Mesh>(uploadResult.meshIDs[0]);
+        m_BaseMapMaterial = Aether::AssetsManager::GetResource<Aether::Material>(uploadResult.matIDs[0]);
         for (auto& meshID : uploadResult.meshIDs) m_LoadedMeshes.push_back(meshID);
     }
 
@@ -405,7 +406,9 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
                 t.Translation = glm::vec3(targetX * m_ChunkSize, yOffset, targetZ * m_ChunkSize);
                 t.Dirty = true;
 
-                m_Scene.AddComponent<Aether::MeshComponent>(chunk).MeshID = m_BaseMapMesh;
+                auto& chunkcmp = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
+                chunkcmp.MeshPtr = m_BaseMapMesh;
+                chunkcmp.Materials = {m_BaseMapMaterial};
                 m_ActiveChunks[coord] = chunk;
             }
         }
