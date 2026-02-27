@@ -65,6 +65,11 @@ namespace Aether {
             s_PhysicsAPI->SetVelocity(bodyID, velocity);
         }
 
+        static void SetGravity(const glm::vec3& gravity)
+        {
+            s_PhysicsAPI->SetGravity(gravity);
+        }
+
         static MotionType GetMotionType(UUID bodyID)
         {
             return s_PhysicsAPI->GetMotionType(bodyID);

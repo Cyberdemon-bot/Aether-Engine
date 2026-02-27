@@ -104,6 +104,7 @@ namespace Aether {
     struct ColliderComponent
     {
         UUID BodyID;
+        bool Visible = false;
         glm::vec3 ColliderOffset;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;

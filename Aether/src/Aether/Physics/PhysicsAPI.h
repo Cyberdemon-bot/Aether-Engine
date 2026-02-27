@@ -81,6 +81,7 @@ namespace Aether {
 
         virtual void AddForce(UUID bodyID, const glm::vec3& force) = 0;
         virtual void SetVelocity(UUID bodyID, const glm::vec3& velocity) = 0;
+        virtual void SetGravity(const glm::vec3& gravity) = 0;
 
         static Scope<PhysicsAPI> Create();
     private:
