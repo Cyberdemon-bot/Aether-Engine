@@ -44,6 +44,23 @@ private:
     Aether::UUID m_IdleAnimation = 0;
     float m_PlayerSpeed = 10.0f; // Tốc độ chạy của nhân vật
 
+    Entity m_zombie = Null_Entity;
+    Aether::UUID m_ZombieRunAnimation = 0;
+    Aether::UUID m_ZombieIdleAnimation = 0;
+    float m_ZombieSpeed = 10.0f;
+
+    Entity m_Gun = Null_Entity;
+
+    // --- Thông số cấu hình Súng cho Góc nhìn thứ 1 ---
+    glm::vec3 m_GunPosFP   = { 0.38f, -0.25f, 1.2f }; // X: Sang phải, Y: Lên xuống, Z: Tiến lùi
+    glm::vec3 m_GunRotFP   = { 0.0f, 90.0f, 0.0f }; // Tính bằng Độ (Degrees)
+    glm::vec3 m_GunScaleFP = { 0.2f, 0.2f, 0.2f };
+
+    // --- Thông số cấu hình Súng cho Góc nhìn thứ 3 ---
+    glm::vec3 m_GunPosTP   = { -0.27f, 1.51f, -0.53f };
+    glm::vec3 m_GunRotTP   = { 0.0f, -90.0f, 0.0f };
+    glm::vec3 m_GunScaleTP = { 0.2f, 0.2f, 0.2f };
+
     // --- Hệ thống Map Động theo Zoom ---
     float m_ChunkSize = 2.0f;           // Kích thước 1 ô đất
     int m_BaseRenderDistance = 15;        // Bán kính tối thiểu (khi zoom sát người)
@@ -64,4 +81,12 @@ private:
     float m_VolIntensity = 1.0f;
     int   m_VolSteps     = 64;
     float m_ShadowBias   = 0.00001f;
+    bool m_LockCamera = false;
+    bool m_FirstPerson = false; // Mặc định là góc nhìn thứ 3
+
+    // --- Quản lý Animation Súng ---
+    Aether::UUID m_ShootAnimation = 0; // Lưu ID của clip bắn súng
+    bool m_IsShooting = false;     // Trạng thái khóa (cooldown)
+    float m_ShootTimer = 0.0f;     // Bộ đếm thời gian
+    float m_FireRate = 0.5f;       // Thời gian của 1 nhịp bắn (Ví dụ 0.5 giây, hãy tự chỉnh cho khớp với độ dài file .glb)
 };

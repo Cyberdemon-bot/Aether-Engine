@@ -253,22 +253,25 @@ namespace Aether {
         }
     }
 
-
-    void Ozz_AnimationSystem::Play(UUID animatorID)
-    {
-        auto it = m_Animators.find(animatorID);
-        if (it != m_Animators.end())
-        {
-            it->second->isPlaying = true;
-        }
-    }
-
     void Ozz_AnimationSystem::Pause(UUID animatorID)
     {
         auto it = m_Animators.find(animatorID);
         if (it != m_Animators.end())
         {
             it->second->isPlaying = false;
+        }
+    }
+
+    void Ozz_AnimationSystem::Play(UUID animatorID)
+    {
+        auto it = m_Animators.find(animatorID);
+        auto clipIt = m_Clips.find(it->second->clipIDs[it->second->currentClip]);
+        if (clipIt == m_Clips.end()) return;
+        float duration = clipIt->second.animation->duration();
+        if (it != m_Animators.end())
+        {
+            if (!it->second->loop && it->second->currentTime >= duration) it->second->currentTime = 0.0f; 
+            it->second->isPlaying = true;
         }
     }
 

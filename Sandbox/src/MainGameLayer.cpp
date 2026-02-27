@@ -123,7 +123,7 @@ void MainGameLayer::Attach()
 
     m_Player = m_Scene.CreateEntity("Player");
     auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
-    pTransform.Translation = {0.0f, -0.7f, 0.0f}; 
+    pTransform.Translation = {0.0f, -0.73f, 0.0f}; 
     pTransform.Scale = {1.0f, 1.0f, 1.0f};
     pTransform.Dirty = true;
     
@@ -136,6 +136,44 @@ void MainGameLayer::Attach()
 
     auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
     rigSystem->BindClip(m_RunAnimation, 0);
+
+    m_zombie = m_Scene.CreateEntity("Zombie");
+    auto& zTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_zombie);
+    zTransform.Translation = { 0.0f, -0.6f, 0.0f };
+    zTransform.Scale = { 1.0f, 1.0f, 1.0f };
+    zTransform.Dirty = true;
+
+    auto parsedZombie = Aether::Importer::Import("assets/models/zombie.glb");
+    auto uploadZombie = Aether::Importer::Upload(parsedZombie);
+
+    m_Scene.LoadHierarchy(uploadZombie, m_zombie);
+
+    if (!uploadZombie.animatorIDS.empty()) m_ZombieRunAnimation = uploadZombie.animatorIDS[0];
+    rigSystem->BindClip(m_RunAnimation, 0);
+    rigSystem->BindClip(m_ZombieRunAnimation, 4);
+    rigSystem->Play(m_ZombieRunAnimation);
+
+    // --- TẢI MODEL SÚNG ---
+    m_Gun = m_Scene.CreateEntity("Weapon_Gun");
+    auto& gTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
+    gTransform.Translation = {0.0f, 0.0f, 0.0f};
+    gTransform.Scale = {1.0f, 1.0f, 1.0f};
+    gTransform.Dirty = true;
+    
+    auto parsedGun = Aether::Importer::Import("assets/models/gun.glb"); 
+    auto uploadGun = Aether::Importer::Upload(parsedGun);
+    m_Scene.LoadHierarchy(uploadGun, m_Gun);
+
+    // ==========================================
+    // THÊM ĐOẠN NÀY ĐỂ BIND ANIMATION SÚNG
+    if (!uploadGun.animatorIDS.empty()) {
+        m_ShootAnimation = uploadGun.animatorIDS[0]; 
+        auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
+        rigSystem->BindClip(m_ShootAnimation, 0); 
+        AE_INFO("animator id: {0}, clips num: {1}", uint64_t(m_ShootAnimation), rigSystem->GetClips(m_ShootAnimation).size());
+        rigSystem->SetLoop(m_ShootAnimation, false);
+    }
+    // ==========================================
 
     AE_CORE_INFO("MainGameLayer Started! Infinite Cube Floor is ready.");
 }
@@ -159,39 +197,39 @@ void MainGameLayer::Update(Aether::Timestep ts)
     m_CurrentRenderDistance = m_BaseRenderDistance + static_cast<int>(camDistance / m_ZoomInfluence);
     m_CurrentRenderDistance = std::clamp(m_CurrentRenderDistance, 1, 30);
 
-    
     if (m_Scene.IsValid(m_Player))
     {
+        // 1. Lấy Transform của Player (CHỈ KHAI BÁO 1 LẦN)
         auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
         
+        // 2. Khai báo các vị trí mốc ngay từ đầu để không bị lỗi "undeclared" ở dưới
+        glm::vec3 playerTopPos = pTransform.Translation + glm::vec3(0.0f, 1.0f, 0.0f); // Ngực/Đầu (3rd Person)
+        glm::vec3 playerEyePos = pTransform.Translation + glm::vec3(0.0f, 1.7f, 0.0f); // Mắt (1st Person)
+
+        // --- XỬ LÝ DI CHUYỂN ---
         glm::vec3 camForward = m_Camera.GetForwardDirection();
         glm::vec3 camRight   = m_Camera.GetRightDirection();
-
-        camForward.y = 0.0f;
-        camRight.y   = 0.0f;
-        
+        camForward.y = 0.0f; camRight.y = 0.0f;
         if (glm::length(camForward) > 0.0f) camForward = glm::normalize(camForward);
         if (glm::length(camRight) > 0.0f)   camRight   = glm::normalize(camRight);
 
         glm::vec3 moveDir(0.0f);
-
         if (ImGui::IsKeyDown(ImGuiKey_W)) moveDir += camForward;
         if (ImGui::IsKeyDown(ImGuiKey_S)) moveDir -= camForward;
         if (ImGui::IsKeyDown(ImGuiKey_A)) moveDir -= camRight;
         if (ImGui::IsKeyDown(ImGuiKey_D)) moveDir += camRight;
 
+        // --- GIỮ NGUYÊN HOẠT ẢNH CỦA BẠN ---
         bool isMoving = glm::length(moveDir) > 0.0f;
         static bool wasMoving = false;
         if (isMoving != wasMoving)
         {
-           
             auto meshView = m_Scene.View<Aether::MeshComponent>();
             for (auto entity : meshView)
             {
                 if (m_Scene.HasComponent<Aether::AnimatorComponent>(entity)) {
-                    auto& animator = m_Scene.GetComponent<Aether::AnimatorComponent>(entity);
-                    if (isMoving) rigSystem->Play(m_RunAnimation);
-                    else rigSystem->Pause(m_RunAnimation);
+                    if (isMoving) rigSystem->Play(m_RunAnimation); 
+                    else rigSystem->Pause(m_RunAnimation); 
                 }
             }
             wasMoving = isMoving;
@@ -202,28 +240,69 @@ void MainGameLayer::Update(Aether::Timestep ts)
             moveDir = glm::normalize(moveDir); 
             pTransform.Translation += moveDir * (m_PlayerSpeed * ts);
             
-            float targetAngle = glm::atan(moveDir.x, moveDir.z);
-            pTransform.Rotation = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
-            
+            // Chỉ tự xoay theo hướng chạy nếu là Góc nhìn thứ 3
+            if (!m_FirstPerson) {
+                // 1. Tính toán hướng quay mục tiêu
+                float targetAngle = glm::atan(moveDir.x, moveDir.z);
+                glm::quat targetRot = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
+                
+                // 2. KHẮC PHỤC LỖI "XOAY ĐƯỜNG VÒNG" (Shortest Path)
+                // Nếu phép tính Dot Product < 0, nghĩa là nó đang định xoay đường dài.
+                // Ta đảo ngược dấu của Quaternion mục tiêu để ép nó xoay góc hẹp nhất.
+                if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) {
+                    targetRot = -targetRot; // Đảo chiều quaternion
+                }
+                
+                // 3. NỘI SUY ĐỘC LẬP VỚI FPS
+                float turnSpeed = 15.0f; // Số càng lớn xoay càng lẹ
+                // Dùng hàm exp để tốc độ xoay luôn mượt dù máy bạn đang chạy 30fps hay 144fps
+                float blend = 1.0f - glm::exp(-turnSpeed * ts); 
+
+                pTransform.Rotation = glm::slerp(pTransform.Rotation, targetRot, blend);
+            }
             pTransform.Dirty = true;
         }
 
-        glm::vec3 targetPos = pTransform.Translation + glm::vec3(0.0f, 1.0f, 0.0f);
-        m_Camera.SetFocalPoint(targetPos);
+        // --- XỬ LÝ CAMERA ---
+        if (m_FirstPerson) 
+        {
+            pTransform.Scale = {0.0f, 0.0f, 0.0f};
+            pTransform.Rotation = glm::quat(glm::vec3(0.0f, 180.0f, 0.0f));
+            // Góc nhìn 1: Khóa cứng các thông số để không bị lệch
+            m_Camera.SetDistance(0.5f); // Sát mắt nhất có thể
+            m_Camera.SetFocalPoint(playerEyePos); 
+            
+            // Nhân vật luôn xoay mặt theo hướng Camera
+            float camYaw = m_Camera.GetYaw();
+            pTransform.Rotation = glm::quat(glm::vec3(0.0f, -camYaw, 0.0f)); 
+            pTransform.Dirty = true;
+        }
+        else 
+        {
+            pTransform.Scale = {1.0f, 1.0f, 1.0f};
+            // Góc nhìn 3:
+            m_Camera.SetFocalPoint(playerTopPos); 
+            
+            if (m_LockCamera) 
+            {
+                m_Camera.SetDistance(5.0f); // Chỉ khóa khoảng cách khi m_LockCamera = true
+                if (m_Camera.GetPitch() < 0.2f) m_Camera.SetPitch(0.2f); // Chống nhìn xuyên đất
+            }
+            // Nếu m_LockCamera = false, bạn có thể tự do Zoom bằng chuột như bình thường
+        }
 
-        if (m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight) && 
-            m_Player != Null_Entity && m_Scene.IsValid(m_Player))
+        // --- CẬP NHẬT ÁNH SÁNG (Sử dụng playerTopPos an toàn) ---
+        if (m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight))
         {
             auto& lightTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
-            auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
-            
-            lightTransform.Translation = pTransform.Translation + glm::vec3(0.0f, 50.0f, 0.0f);
+            lightTransform.Translation = playerTopPos + glm::vec3(0.0f, 50.0f, 0.0f);
             lightTransform.Dirty = true;
         }
 
         UpdateMapChunks(pTransform.Translation);
     }
 
+    // Phần AutoRotate và Shader Uniforms giữ nguyên
     if (m_AutoRotate)
     {
         auto meshView = m_Scene.View<Aether::MeshComponent, Aether::TransformComponent>();
@@ -247,7 +326,49 @@ void MainGameLayer::Update(Aether::Timestep ts)
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
 
-    m_Camera.Update(ts);
+    // 1. CHO CAMERA CẬP NHẬT TRƯỚC TIÊN ĐỂ LẤY VỊ TRÍ CHÍNH XÁC NHẤT
+    m_Camera.Update(ts); 
+
+    // 2. DÁN ĐOẠN XỬ LÝ SÚNG VÀO ĐÂY (NGAY SAU CAMERA UPDATE)
+    if (m_Scene.IsValid(m_Gun) && m_Scene.IsValid(m_Player))
+    {
+        // Phải gọi lại Transform của Player vì ta đã ra ngoài khối lệnh cũ
+        auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
+        auto& gTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
+        
+        if (m_FirstPerson)
+        {
+            // 1ST PERSON: Súng bám theo Camera
+            glm::vec3 camPos  = m_Camera.GetPosition();
+            glm::vec3 forward = m_Camera.GetForwardDirection();
+            glm::vec3 right   = m_Camera.GetRightDirection();
+            glm::vec3 up      = m_Camera.GetUpDirection();
+            
+            gTransform.Translation = camPos + (right * m_GunPosFP.x) + (up * m_GunPosFP.y) + (forward * m_GunPosFP.z);
+            
+            glm::quat camQuat = glm::quat(glm::vec3(-m_Camera.GetPitch(), -m_Camera.GetYaw(), 0.0f)); 
+            glm::quat offsetQuat = glm::quat(glm::radians(m_GunRotFP));
+            gTransform.Rotation = camQuat * offsetQuat;
+            gTransform.Scale = m_GunScaleFP;
+        }
+        else
+        {
+            // 3RD PERSON: Súng bám theo Nhân vật
+            glm::vec3 pPos = pTransform.Translation;
+            glm::quat pRot = pTransform.Rotation;
+            
+            glm::vec3 forward = pRot * glm::vec3(0.0f, 0.0f, -1.0f);
+            glm::vec3 right   = pRot * glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 up      = pRot * glm::vec3(0.0f, 1.0f, 0.0f);
+
+            gTransform.Translation = pPos + (right * m_GunPosTP.x) + (up * m_GunPosTP.y) + (forward * m_GunPosTP.z);
+            
+            glm::quat offsetQuat = glm::quat(glm::radians(m_GunRotTP));
+            gTransform.Rotation = pRot * offsetQuat;
+            gTransform.Scale = m_GunScaleTP;
+        }
+        gTransform.Dirty = true;
+    }
     m_Scene.Update(ts, &m_Camera);
 }
 
@@ -312,6 +433,19 @@ void MainGameLayer::OnImGuiRender()
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::Text("Dieu khien: W A S D (Chay theo huong nhin Camera)");
     ImGui::Separator();
+
+    if (ImGui::Checkbox("Lock Camera (Play Mode)", &m_LockCamera))
+    {
+        // Thông báo ra console để debug
+        if(m_LockCamera) AE_CORE_INFO("Camera Locked: Mode Play");
+        else AE_CORE_INFO("Camera Unlocked: Mode Editor");
+    }
+    
+    if (m_LockCamera) {
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Status: Locked (No Zoom, No Under-ground)");
+    } else {
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Status: Free (Editor Mode)");
+    }
     
     if (ImGui::CollapsingHeader("Dynamic Map Settings", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -320,7 +454,7 @@ void MainGameLayer::OnImGuiRender()
         
         ImGui::Separator();
         ImGui::Text("--- Camera Zoom Logic ---");
-        ImGui::SliderInt("Ban kinh toi thieu (Base)", &m_BaseRenderDistance, 1, 20);
+        ImGui::SliderInt("Ban kinh toi thieu (Base)", &m_BaseRenderDistance, 1, 30);
         ImGui::SliderFloat("Ti le Zoom -> Map", &m_ZoomInfluence, 5.0f, 50.0f, "%.1f");
         
         ImGui::Spacing();
@@ -347,78 +481,216 @@ void MainGameLayer::OnImGuiRender()
     }
     ImGui::End();
 
+    // BẢNG TÌM ĐIỂM VÀNG CHO SÚNG
+    if (ImGui::Begin("Weapon Setup (Gun)"))
+    {
+        ImGui::Text("Tim 'diem vang' cho tung goc nhin.");
+        ImGui::Separator();
+
+        if (m_FirstPerson)
+        {
+            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "--- DANG O: 1ST PERSON ---");
+            ImGui::DragFloat3("FP Position", glm::value_ptr(m_GunPosFP), 0.01f);
+            ImGui::DragFloat3("FP Rotation", glm::value_ptr(m_GunRotFP), 1.0f);
+            ImGui::DragFloat3("FP Scale",    glm::value_ptr(m_GunScaleFP), 0.01f);
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "--- DANG O: 3RD PERSON ---");
+            ImGui::DragFloat3("TP Position", glm::value_ptr(m_GunPosTP), 0.01f);
+            ImGui::DragFloat3("TP Rotation", glm::value_ptr(m_GunRotTP), 1.0f);
+            ImGui::DragFloat3("TP Scale",    glm::value_ptr(m_GunScaleTP), 0.01f);
+        }
+        
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Luu y: Ghi chep lai cac so nay sau khi tim xong!");
+        ImGui::Text("Bam 'V' hoac cuon chuot de doi goc nhin.");
+    }
+    ImGui::End();
+
     DrawHierarchyPanel();
     DrawScenePanel();
     DrawLightingPanel();
 }
 
+// --- HÀM 1: Vẽ từng node trong danh sách (Cần có HierarchyComponent) ---
 void MainGameLayer::DrawEntityNode(Entity entity)
 {
     auto& tag  = m_Scene.GetComponent<Aether::TagComponent>(entity);
     auto& hier = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+    // Nếu không có con thì hiển thị dạng lá (Leaf)
     if (hier.firstChild == Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
+    // Đánh dấu nếu đang được chọn
     if (m_SelectedEntity == entity)     flags |= ImGuiTreeNodeFlags_Selected;
 
     bool open = ImGui::TreeNodeEx((void*)(uint64_t)entity, flags, "%s", tag.Tag.c_str());
 
     if (ImGui::IsItemClicked()) m_SelectedEntity = entity;
 
+    // Nếu node đang mở, vẽ tiếp các con của nó (Đệ quy)
     if (open)
     {
         Entity child = hier.firstChild;
         while (child != Null_Entity)
         {
             Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
-            DrawEntityNode(child);
+            DrawEntityNode(child); // Gọi đệ quy
             child = next;
         }
         ImGui::TreePop();
     }
 }
 
+// --- HÀM 2: Bảng danh sách vật thể ---
 void MainGameLayer::DrawHierarchyPanel()
 {
     if (!ImGui::Begin("Hierarchy")) { ImGui::End(); return; }
+
     auto view = m_Scene.View<Aether::HierarchyComponent>();
     for (auto entity : view)
     {
+        // Chỉ vẽ những vật thể là "Gốc" (không có cha), các con sẽ được vẽ đệ quy ở trên
         if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Null_Entity)
             DrawEntityNode(entity);
     }
+
+    if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
+        m_SelectedEntity = Null_Entity;
+
     ImGui::End();
 }
 
+// --- HÀM 3: Bảng chỉnh thông số vật thể được chọn ---
 void MainGameLayer::DrawScenePanel()
 {
-    if (!ImGui::Begin("Scene")) { ImGui::End(); return; }
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen) && m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
+    if (!ImGui::Begin("Inspector")) { ImGui::End(); return; }
+
+    if (m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
     {
-        auto& t = m_Scene.GetComponent<Aether::TransformComponent>(m_SelectedEntity);
-        if (ImGui::DragFloat3("Position", glm::value_ptr(t.Translation), 0.1f)) t.Dirty = true;
-        if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation),    0.1f)) t.Dirty = true;
-        if (ImGui::DragFloat3("Scale",    glm::value_ptr(t.Scale),       0.05f)) t.Dirty = true;
+        ImGui::Text("Entity ID: %d", (uint32_t)m_SelectedEntity);
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            auto& t = m_Scene.GetComponent<Aether::TransformComponent>(m_SelectedEntity);
+            if (ImGui::DragFloat3("Position", glm::value_ptr(t.Translation), 0.1f)) t.Dirty = true;
+            if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation),    0.1f)) t.Dirty = true;
+            if (ImGui::DragFloat3("Scale",    glm::value_ptr(t.Scale),       0.05f)) t.Dirty = true;
+        }
     }
+    else {
+        ImGui::Text("Select an entity to see properties.");
+    }
+
     ImGui::End();
 }
 
 void MainGameLayer::DrawLightingPanel()
 {
     if (!ImGui::Begin("Lighting")) { ImGui::End(); return; }
-    if (ImGui::CollapsingHeader("Sun Light", ImGuiTreeNodeFlags_DefaultOpen) && m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight))
+
+    // Kiểm tra xem thực thể Mặt trời có tồn tại không
+    if (m_SunLight != Null_Entity && m_Scene.IsValid(m_SunLight))
     {
-        auto& light = m_Scene.GetComponent<Aether::LightComponent>(m_SunLight).Config;
-        ImGui::ColorEdit3("Color", glm::value_ptr(light.color));
-        ImGui::SliderFloat("Intensity", &light.intensity, 0.0f, 5.0f);
-        ImGui::DragFloat3("Direction", glm::value_ptr(light.direction), 0.01f, -1.0f, 1.0f);
+        if (ImGui::CollapsingHeader("Sun Light", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            // Lấy cấu hình ánh sáng từ LightComponent
+            auto& light = m_Scene.GetComponent<Aether::LightComponent>(m_SunLight).Config;
+            
+            // Cho phép chỉnh màu sắc, cường độ và hướng nắng
+            ImGui::ColorEdit3("Sun Color", glm::value_ptr(light.color));
+            ImGui::SliderFloat("Intensity", &light.intensity, 0.0f, 10.0f);
+            ImGui::DragFloat3("Direction", glm::value_ptr(light.direction), 0.01f, -1.0f, 1.0f);
+        }
     }
+
+    // Chỉnh các thông số đổ bóng chung (sử dụng biến m_ShadowBias có sẵn trong .h)
     if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
-        ImGui::SliderFloat("Bias", &m_ShadowBias, 0.00001f, 0.005f, "%.5f");
+    {
+        ImGui::SliderFloat("Shadow Bias", &m_ShadowBias, 0.00001f, 0.005f, "%.5f");
+    }
+
     ImGui::End();
 }
 
 void MainGameLayer::OnEvent(Aether::Event& event)
 {
-    if (!event.Handled) m_Camera.OnEvent(event);
+    auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
+    // --- 1. PHÍM V: CHUYỂN ĐỔI GÓC NHÌN ---
+    if (event.GetEventType() == Aether::EventType::KeyPressed)
+    {
+        if (Aether::Input::IsKeyPressed(Aether::Key::V)) 
+        {
+            m_FirstPerson = !m_FirstPerson; // Đảo trạng thái true <-> false
+
+            if (m_FirstPerson) {
+                pTransform.Scale = {0.0f, 0.0f, 0.0f};
+                m_Camera.SetDistance(0.5f); // Vào mắt
+            } else {
+                pTransform.Scale = {1.0f, 1.0f, 1.0f};
+                m_Camera.SetDistance(5.0f);  // Ra sau lưng
+            }
+            pTransform.Dirty = true;
+            event.Handled = true; // Đánh dấu đã xử lý xong
+            return;
+        }
+    }
+
+    // --- 2. CUỘN CHUỘT: TỰ ĐỘNG VÀO/THOÁT ---
+    if (event.GetEventType() == Aether::EventType::MouseScrolled)
+    {
+        auto& e = (Aether::MouseScrolledEvent&)event;
+        float currentDist = m_Camera.GetDistance();
+
+        if (!m_FirstPerson) // Đang ở góc nhìn 3
+        {
+            // Nếu cuộn tiến và đã ở rất gần -> Chuyển sang góc nhìn 1
+            if (e.GetYOffset() > 0 && currentDist < 1.3f) 
+            {
+                m_FirstPerson = true;
+                m_Camera.SetDistance(0.5f);
+                event.Handled = true;
+                return;
+            }
+            
+            // Nếu đang LOCK CAMERA, không cho zoom xa gần linh tinh
+            if (m_LockCamera) {
+                event.Handled = true;
+                return;
+            }
+        }
+        else // Đang ở góc nhìn 1
+        {
+            // Nếu cuộn lùi -> Thoát về góc nhìn 3
+            if (e.GetYOffset() < 0) 
+            {
+                m_FirstPerson = false;
+                m_Camera.SetDistance(5.0f);
+                event.Handled = true;
+                return;
+            }
+            // Đã ở góc nhìn 1 thì không cho cuộn thêm vào trong nữa
+            event.Handled = true;
+            return;
+        }
+    }
+
+    // --- BẮN SÚNG (CLICK CHUỘT TRÁI) ---
+    if (event.GetEventType() == Aether::EventType::MouseButtonPressed)
+    {
+        auto& e = (Aether::MouseButtonPressedEvent&)event;
+        if (Aether::Input::IsMouseButtonPressed(Aether::Mouse::Button0)) // Hoặc so sánh == 0 nếu Engine xài số
+        {
+            AE_INFO("shoot!");
+            auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
+            rigSystem->Play(m_ShootAnimation);
+            event.Handled = true; 
+        }
+    }
+
+    // --- 3. TRẢ VỀ CHO CAMERA ---
+    if (!event.Handled) 
+        m_Camera.OnEvent(event);
 }
