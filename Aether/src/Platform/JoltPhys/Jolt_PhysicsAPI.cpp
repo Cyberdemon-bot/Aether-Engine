@@ -205,8 +205,14 @@ namespace Aether {
         }
 
         auto& trans = config.transform.translation;
-        auto& rot = config.transform.rotation;
-        JPH::Vec3 translation(trans.x, trans.y, trans.z); 
+        auto& rot   = config.transform.rotation;
+        auto& offset = config.offset; 
+
+        glm::quat entityRot(rot.w, rot.x, rot.y, rot.z);
+        glm::vec3 worldOffset = entityRot * offset;
+        glm::vec3 finalPos = trans + worldOffset;
+
+        JPH::Vec3 translation(finalPos.x, finalPos.y, finalPos.z);
         JPH::Quat rotation(rot.x, rot.y, rot.z, rot.w);
 
         JPH::EMotionType motionType;

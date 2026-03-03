@@ -386,13 +386,24 @@ namespace Aether {
                         PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);
-                        glm::vec3 bMin(-0.5f), bMax(0.5f);
-                        if (HasComponent<MeshComponent>(entity))
+                        if (component.Shape == ColliderShape::Box)
                         {
-                            auto mesh = GetComponent<MeshComponent>(entity).MeshPtr;
-                            if (mesh) { bMin = -mesh->GetBoundsExtents(); bMax = mesh->GetBoundsExtents(); }
+                            glm::vec3 bMin(-0.5f), bMax(0.5f);
+                            if (HasComponent<MeshComponent>(entity))
+                            {
+                                auto mesh = GetComponent<MeshComponent>(entity).MeshPtr;
+                                if (mesh) 
+                                { 
+                                    glm::vec3 half = component.Size * 0.5f;
+                                    glm::vec3 meshCenter = mesh->GetBoundsCenter();
+                                    glm::vec3 bMin = meshCenter - half;
+                                    glm::vec3 bMax = meshCenter + half;
+                                }
+                            }
+                            Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
                         }
-                        Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+                        if (component.Shape == ColliderShape::Capsule) 
+                            Renderer::RenderCapsule(component.Size.x, component.Size.y, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
                     }
                 }
             }

@@ -314,7 +314,7 @@ namespace Aether {
 			{boundMin.x, boundMin.y, boundMax.z}, {boundMax.x, boundMin.y, boundMax.z},
 			{boundMax.x, boundMax.y, boundMax.z}, {boundMin.x, boundMax.y, boundMax.z}
 		};
-		glm::vec3 w[8];
+		glm::vec3 w[512];
 		for (int i = 0; i < 8; i++) w[i] = glm::vec3(transform * glm::vec4(l[i], 1.0f));
 		static Aether::Ref<Aether::VertexArray> s_VAO;
 		static Aether::Ref<Aether::VertexBuffer> s_VBO;
@@ -341,6 +341,140 @@ namespace Aether {
 		shader->SetFloat4("u_Color", color);
 		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
 		RenderCommand::DrawIndexedLines(s_VAO, 24);
+		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
+	}
+
+	void Renderer::RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color)
+	{
+		constexpr int segments      = 24;
+		constexpr int hemiSegments  = segments / 2;
+		constexpr int maxVertices   = 512;
+
+		static Aether::Ref<Aether::VertexArray> s_VAO;
+		static Aether::Ref<Aether::VertexBuffer> s_VBO;
+
+		static Aether::Ref<Aether::IndexBuffer> s_IBO_Cylinder;
+		static Aether::Ref<Aether::IndexBuffer> s_IBO_Hemisphere;
+
+		static glm::vec3 vertices[maxVertices];
+
+		int v = 0;
+
+		glm::vec3 topCenter(0,  halfHeight, 0);
+		glm::vec3 bottomCenter(0, -halfHeight, 0);
+
+		int cylinderStart = v;
+
+		for (int s = 0; s < segments; s++)
+		{
+			float theta = (float)s / segments * glm::two_pi<float>();
+			float x = cos(theta) * radius;
+			float z = sin(theta) * radius;
+
+			vertices[v++] = topCenter    + glm::vec3(x, 0, z);
+			vertices[v++] = bottomCenter + glm::vec3(x, 0, z);
+		}
+
+		
+
+		int hemiStart = v;
+
+		for (int axis = 0; axis < 2; axis++)
+		{
+			for (int s = 0; s <= hemiSegments; s++)
+			{
+				float phi = (float)s / hemiSegments * glm::pi<float>();
+				float y = sin(phi) * radius;
+				float r = cos(phi) * radius;
+
+				float x = axis == 0 ? r : 0.0f;
+				float z = axis == 1 ? r : 0.0f;
+
+				vertices[v++] = topCenter    + glm::vec3( x, y,  z);
+				vertices[v++] = bottomCenter - glm::vec3( x, y,  z);
+			}
+		}
+
+		
+
+		for (int k = 0; k < v; k++)
+			vertices[k] = glm::vec3(transform * glm::vec4(vertices[k], 1.0f));
+
+		
+
+		if (!s_VAO)
+		{
+			s_VAO = Aether::VertexArray::Create();
+			s_VBO = Aether::VertexBuffer::Create(sizeof(vertices));
+			s_VBO->SetLayout(MeshLayout::Vertex());
+			s_VAO->AddVertexBuffer(s_VBO);
+
+			
+			{
+				uint32_t cylIndices[segments * 4];
+				int idx = 0;
+
+				for (int s = 0; s < segments; s++)
+				{
+					int curr = cylinderStart + s * 2;
+					int next = cylinderStart + ((s + 1) % segments) * 2;
+
+					cylIndices[idx++] = curr;
+					cylIndices[idx++] = next;
+
+					cylIndices[idx++] = curr + 1;
+					cylIndices[idx++] = next + 1;
+
+					cylIndices[idx++] = curr;
+    				cylIndices[idx++] = curr + 1;
+				}
+
+				s_IBO_Cylinder = Aether::IndexBuffer::Create(cylIndices, idx);
+			}
+
+			
+			{
+				uint32_t hemiIndices[2048];
+				int idx = 0;
+
+				int base = hemiStart;
+
+				for (int axis = 0; axis < 2; axis++)
+				{
+					int offset = base + axis * (hemiSegments + 1) * 2;
+
+					for (int s = 1; s <= hemiSegments; s++)
+					{
+						int curr = offset + (s - 1) * 2;
+						int next = offset + s * 2;
+
+						hemiIndices[idx++] = curr;
+						hemiIndices[idx++] = next;
+
+						hemiIndices[idx++] = curr + 1;
+						hemiIndices[idx++] = next + 1;
+					}
+				}
+
+				s_IBO_Hemisphere = Aether::IndexBuffer::Create(hemiIndices, idx);
+			}
+		}
+
+		s_VBO->SetData(vertices, sizeof(glm::vec3) * v, 0);
+
+		auto shader = s_RenderData->lineShader;
+		shader->Bind();
+		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
+		shader->SetFloat4("u_Color", color);
+
+		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
+		s_VAO->SetIndexBuffer(s_IBO_Cylinder);
+		RenderCommand::DrawIndexedLines(s_VAO,
+			s_IBO_Cylinder->GetCount());
+		s_VAO->SetIndexBuffer(s_IBO_Hemisphere);
+		RenderCommand::DrawIndexedLines(s_VAO,
+			s_IBO_Hemisphere->GetCount());
+
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 	}
 
