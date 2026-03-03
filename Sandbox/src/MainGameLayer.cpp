@@ -558,7 +558,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
     m_VolShader->SetInt  ("u_Steps",      m_VolSteps);
     m_VolShader->SetFloat("u_VolBias",    m_ShadowBias);
     m_VolShader->SetFloat("u_MaxDistance", 100.0f);
-    m_VolShader->SetFloat3("u_FogColor", m_FogColor);
 
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
