@@ -5,6 +5,7 @@
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Renderer/Renderer.h"
+#include "Aether/Physics/PhysicsAPI.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -106,8 +107,12 @@ namespace Aether {
         UUID BodyID;
         bool Visible = false;
         glm::vec3 ColliderOffset;
+        ColliderShape Shape = ColliderShape::Box;
+        glm::vec3 Size = { 0.5f, 0.5f, 0.5f };
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
         ColliderComponent(const UUID& id, const glm::vec3& offset = {0.0f, 0.0f, 0.0f}) : BodyID(id), ColliderOffset(offset) {};
+        ColliderComponent(const UUID& id, ColliderShape shape, const glm::vec3& size,  const glm::vec3& offset = {0.0f, 0.0f, 0.0f}) 
+            : BodyID(id), Shape(shape), Size(size), ColliderOffset(offset) {};
     };
 }

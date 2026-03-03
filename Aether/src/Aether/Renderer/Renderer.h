@@ -114,6 +114,7 @@ namespace Aether {
 		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
+		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);
 
 		static RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
 	private:

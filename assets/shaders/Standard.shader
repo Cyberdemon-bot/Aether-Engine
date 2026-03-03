@@ -133,6 +133,33 @@ uniform float u_Roughness;
 uniform int u_HasNormalMap;
 uniform float u_Bias;
 
+uniform int   u_FogMode;   
+uniform vec3  u_FogColor;
+uniform float u_FogDensity;
+uniform float u_FogStart;
+uniform float u_FogEnd;
+
+float ComputeFogFactor(float dist)
+{
+    if (u_FogMode == 1)
+    {
+        // Linear fog
+        return 1.0 - clamp((dist - u_FogStart) / (u_FogEnd - u_FogStart), 0.0, 1.0);
+    }
+    else if (u_FogMode == 2)
+    {
+        // Exponential fog
+        return exp(-u_FogDensity * dist);
+    }
+    else if (u_FogMode == 3)
+    {
+        // Exponential squared fog (thicker/more realistic)
+        float f = u_FogDensity * dist;
+        return exp(-(f * f));
+    }
+    return 1.0; // Mode 0 = no fog, return 1 so mix() changes nothing
+}
+
 const float PI = 3.14159265359;
 const vec3 F0_DIELECTRIC = vec3(0.04);
 
@@ -250,5 +277,10 @@ void main()
     vec3 color   = ambient + Lo;
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
+    // fog
+    float fragDist   = length(u_Position - v_WorldPos);
+    float fogFactor  = ComputeFogFactor(fragDist);
+    color            = mix(u_FogColor, color, fogFactor);
+
     FragColor = vec4(color, 1.0);
 }
