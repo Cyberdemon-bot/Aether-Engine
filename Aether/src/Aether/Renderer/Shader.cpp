@@ -14,4 +14,16 @@ namespace Aether {
 		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
+
+	Ref<Shader> Shader::Create(const ShaderProgramSource& source)
+	{
+		switch (Renderer::GetAPI())
+		{
+			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(source);
+		}
+
+		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
+		return nullptr;
+	}
 }

@@ -93,12 +93,6 @@ namespace Aether {
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float LutIntensity = 0.0f;
 	};
-
-	struct FrustumPlane
-	{
-		glm::vec3 normal;
-		float d;
-	};
 	class AETHER_API Renderer
 	{
 	public:
@@ -108,6 +102,8 @@ namespace Aether {
 		static void OnWindowResize(uint32_t width, uint32_t height);
 
 		static void SetPipeline(const std::vector<RenderPass>& list);
+		static void SetLutMap(Ref<Texture2D> lut_map);
+		static void SetSkyBox(Ref<TextureCube> skybox);
 		static void ActivatePass(uint32_t PassIdx);
 		static void DeactivatePass(uint32_t PassIdx);
 
@@ -127,14 +123,11 @@ namespace Aether {
 		static void RenderOnScreen(const RenderPass& pass);
 		static void RenderSkybox();
 		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
-		static void GetPlanes(const glm::mat4& VP, FrustumPlane planes[6]);
-		static bool IsVisible(const Ref<Mesh>& mesh, const glm::mat4& transform);
 
 		struct SceneData
 		{
 			CameraData camera;
 			LightsData lights; 
-			FrustumPlane planes[6];
 			std::map<RenderKey, BatchData> s_RenderBatches;
 		};
 

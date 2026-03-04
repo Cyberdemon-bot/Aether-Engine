@@ -10,11 +10,16 @@ namespace Aether {
         m_RendererID = CreateShader(source.VertexSource, source.FragmentSource, source.GeometrySource);
     }
 
+    OpenGLShader::OpenGLShader(const ShaderProgramSource& source)
+        : m_RendererID(0)
+    {
+        m_RendererID = CreateShader(source.VertexSource, source.FragmentSource, source.GeometrySource);
+    }
+
     OpenGLShader::~OpenGLShader()
     {
         GLCall(glDeleteProgram(m_RendererID));
     }
-
 
     void OpenGLShader::Bind() const
     {
