@@ -45,7 +45,6 @@ private:
     Aether::EditorCamera m_Camera;
     Aether::Ref<Aether::Shader> m_ShadowShader;
     Aether::Ref<Aether::Shader> m_MainShader;
-    Aether::Ref<Aether::Shader> m_VolShader;
     std::vector<Aether::RenderPass> m_Pipeline;
 
     Aether::Entity m_SunLight      = Aether::Null_Entity;

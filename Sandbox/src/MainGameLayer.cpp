@@ -65,37 +65,9 @@ void MainGameLayer::Attach()
     mainPass.OnScreen    = true;
     mainPass.readList    = {{"u_DepthTex", shadowPass.TargetFBO->GetDepthAttachment()}};
     mainPass.attribList  = {{"u_LightIndex", 0}};
+    mainPass.LutIntensity = 1.0f;
 
-    // --- 3. VOLUMETRIC PASS ---
-    Aether::FramebufferSpec volFbSpec;
-    volFbSpec.Width       = sceneFbSpec.Width;
-    volFbSpec.Height      = sceneFbSpec.Height;
-    volFbSpec.Attachments = {
-        Aether::ImageFormat::RGBA8,
-        Aether::ImageFormat::DEPTH24STENCIL8
-    };
-
-    m_VolShader = Aether::Shader::Create("assets/shaders/Volumetric.shader");
-    m_VolShader->Bind();
-    m_VolShader->SetUBOSlot("Camera", 0);
-    m_VolShader->SetUBOSlot("Lights", 2);
-
-    Aether::RenderPass volPass;
-    volPass.TargetFBO     = Aether::FrameBuffer::Create(volFbSpec);
-    volPass.Shader        = m_VolShader;
-    volPass.ClearColor    = true;
-    volPass.ClearDepth    = true;
-    volPass.CullFace      = Aether::State::None;
-    volPass.OnScreen      = true;
-    volPass.UsingGeometry = false;
-    volPass.IsActive = false;
-    volPass.readList      = {
-        { "u_SceneColor", mainPass.TargetFBO->GetColorAttachment() },
-        { "u_SceneDepth", mainPass.TargetFBO->GetDepthAttachment() },
-        { "u_ShadowMap",  shadowPass.TargetFBO->GetDepthAttachment() }
-    };
-
-    m_Pipeline = { shadowPass, mainPass, volPass }; // Lưu vào biến member
+    m_Pipeline = { shadowPass, mainPass }; 
     Aether::Renderer::SetPipeline(m_Pipeline);
 
     // --- ÁNH SÁNG MẶT TRỜI ---
@@ -185,6 +157,10 @@ void MainGameLayer::Attach()
     AE_CORE_INFO("MainGameLayer Started! Infinite Cube Floor is ready.");
 
     Aether::PhysicsSystem::SetGravity({0.0f, 0.0f, 0.0f});
+
+    Aether::UUID id;
+    Aether::AudioSystem::CreateSource(id, Aether::AudioType::Audio2D, "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
+    Aether::AudioSystem::Play(id);
 }
 
 void MainGameLayer::Detach()
@@ -210,7 +186,6 @@ void MainGameLayer::Detach()
 
     m_ShadowShader.reset();
     m_MainShader.reset();
-    m_VolShader.reset();
     m_ActiveChunks.clear();
 }
 
@@ -267,8 +242,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 glm::quat targetRot = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
                 if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
                 float blend = 1.0f - glm::exp(-15.0f * (float)ts);
-                
-                // BỔ SUNG NORMALIZE CHO PLAYER TẠI ĐÂY:
                 pTransform.Rotation = glm::normalize(glm::slerp(pTransform.Rotation, targetRot, blend));
             }
             pTransform.Dirty = true;
@@ -550,14 +523,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
             }
         }
     }
-
-    // --- BƯỚC 5: SHADER UNIFORMS VÀ VŨ KHÍ ---
-    m_VolShader->Bind();
-    m_VolShader->SetFloat("u_Density",    m_VolDensity);
-    m_VolShader->SetFloat("u_Intensity",  m_VolIntensity);
-    m_VolShader->SetInt  ("u_Steps",      m_VolSteps);
-    m_VolShader->SetFloat("u_VolBias",    m_ShadowBias);
-    m_VolShader->SetFloat("u_MaxDistance", 100.0f);
 
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
@@ -1191,7 +1156,6 @@ void MainGameLayer::OnEvent(Aether::Event& event)
                     m_ActiveZombies.erase(std::remove(m_ActiveZombies.begin(),m_ActiveZombies.end(),entity),m_ActiveZombies.end());
                 }
             }
-
 
             event.Handled = true;
         }
