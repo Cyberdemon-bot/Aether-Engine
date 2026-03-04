@@ -94,6 +94,11 @@ namespace Aether {
 		float LutIntensity = 0.0f;
 	};
 
+	struct FrustumPlane
+	{
+		glm::vec3 normal;
+		float d;
+	};
 	class AETHER_API Renderer
 	{
 	public:
@@ -122,6 +127,8 @@ namespace Aether {
 		static void RenderOnScreen(const RenderPass& pass);
 		static void RenderSkybox();
 		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
+		static void GetPlanes(const glm::mat4& VP, FrustumPlane planes[6]);
+		static bool IsVisible(const Ref<Mesh>& mesh, const glm::mat4& transform);
 
 		struct SceneData
 		{
