@@ -18,6 +18,9 @@ void MainGameLayer::Attach()
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
+    Aether::Renderer::SetLutMap(Aether::Texture2D::Create("assets/textures/LUT.png", Aether::WrapMode::CLAMP_TO_EDGE, false));
+    Aether::Renderer::SetSkyBox(Aether::TextureCube::Create("assets/textures/skybox.png"));
+
     // --- SHADOW PASS ---
     Aether::FramebufferSpec shadowFbSpec;
     shadowFbSpec.Width       = 1024;

@@ -7,6 +7,7 @@ namespace Aether {
     {
     public:
         OpenGLShader(const std::string& filepath);
+        OpenGLShader(const ShaderProgramSource& source);
         virtual ~OpenGLShader();
 
         virtual void Bind() const override;

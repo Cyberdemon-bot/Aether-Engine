@@ -30,6 +30,7 @@ namespace Aether {
         virtual void SetUBOSlot(const std::string& name, int slot) = 0;
 
         static Ref<Shader> Create(const std::string& filepath);
+        static Ref<Shader> Create(const ShaderProgramSource& source);
 
         virtual bool operator==(const Shader& other) const = 0;
     };

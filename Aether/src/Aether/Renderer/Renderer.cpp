@@ -4,6 +4,7 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Core/Application.h"
 #include "Aether/Assets/AssetsManager.h"
+#include "Aether/Renderer/BuiltinShader.h"
 
 float quadVertices[] = { 
 	-1.0f,  1.0f,  0.0f, 1.0f,  
@@ -52,11 +53,9 @@ namespace Aether {
 		s_RenderData->BoneUB = UniformBuffer::Create(sizeof(glm::mat4) * 100); s_RenderData->BoneUB->Bind(1);
 		s_RenderData->LightUB = UniformBuffer::Create(sizeof(LightsData)); s_RenderData->LightUB->Bind(2);
 		
-		s_RenderData->s_ScreenShader = Shader::Create("assets/shaders/Screen.shader");
-		s_RenderData->lineShader = Shader::Create("assets/shaders/LineShader.shader");
-		s_RenderData->s_SkyboxShader = Shader::Create("assets/shaders/Skybox.shader"); s_RenderData->s_SkyboxShader->SetUBOSlot("Camera", 0);
-		s_RenderData->s_LutMap = Texture2D::Create("assets/textures/LUT.png", WrapMode::CLAMP_TO_EDGE, false);
-		s_RenderData->s_Skybox = TextureCube::Create("assets/textures/skybox.png");
+		s_RenderData->s_ScreenShader = Shader::Create(ShaderProgramSource{VScreenShader, FScreenShader});
+		s_RenderData->lineShader = Shader::Create(ShaderProgramSource{VLineShader, FLineShader});
+		s_RenderData->s_SkyboxShader = Shader::Create(ShaderProgramSource{VSkyboxShader, FSkyboxShader}); s_RenderData->s_SkyboxShader->SetUBOSlot("Camera", 0);
 
 		s_RenderData->s_Screen = Mesh::Create(
 			MeshSpec{{VertexStream{quadVertices, 4, MeshLayout::Quad()}}, quadIndices, 6});
@@ -76,6 +75,16 @@ namespace Aether {
 		s_RenderData->s_PassList = list;
 	}
 
+	void Renderer::SetLutMap(Ref<Texture2D> lut_map)
+	{
+		s_RenderData->s_LutMap = lut_map;
+	}
+	
+	void Renderer::SetSkyBox(Ref<TextureCube> skybox)
+	{
+		s_RenderData->s_Skybox = skybox;
+	}
+
 	void Renderer::ActivatePass(uint32_t PassIdx)
 	{
 		if (PassIdx < s_RenderData->s_PassList.size()) 
@@ -93,7 +102,6 @@ namespace Aether {
 		s_SceneData->camera.Position = camera.GetPosition();
 		s_SceneData->camera.View = camera.GetView();
 		s_SceneData->camera.ViewProjection = camera.GetViewProjection();
-		GetPlanes(s_SceneData->camera.ViewProjection, s_SceneData->planes);
 
 		s_SceneData->lights.lightCount = std::min(lights.size(), (size_t)16);
 		for (size_t i = 0; i < s_SceneData->lights.lightCount; i++)
@@ -147,6 +155,7 @@ namespace Aether {
 
 	void Renderer::RenderSkybox()
 	{
+		if (!s_RenderData->s_Skybox) return;
 		s_RenderData->s_Skybox->Bind(0);
 		s_RenderData->s_SkyboxShader->Bind();
 		s_RenderData->s_SkyboxShader->SetInt("u_Skybox", 0);
@@ -162,18 +171,22 @@ namespace Aether {
 		RenderCommand::Clear();
 		RenderCommand::SetViewport(0, 0, window.GetFramebufferWidth(), window.GetFramebufferHeight());
 		pass.TargetFBO->BindColorTexture(0);
-		s_RenderData->s_LutMap->Bind(1);
 		s_RenderData->s_ScreenShader->Bind();
 		s_RenderData->s_ScreenShader->SetInt("u_SceneTexture", 0); 
-		s_RenderData->s_ScreenShader->SetInt("u_LutTexture", 1);
-		s_RenderData->s_ScreenShader->SetFloat("u_LutIntensity", pass.LutIntensity);
+		if (s_RenderData->s_LutMap)
+		{
+			s_RenderData->s_LutMap->Bind(1);
+			s_RenderData->s_ScreenShader->SetInt("u_HasLut", 1);
+			s_RenderData->s_ScreenShader->SetInt("u_LutTexture", 1);
+			s_RenderData->s_ScreenShader->SetFloat("u_LutIntensity", pass.LutIntensity);
+		}
+		else s_RenderData->s_ScreenShader->SetInt("u_HasLut", 0);
 		RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
 	}	
 
 	void Renderer::DrawMesh(Ref<Mesh> mesh, const std::vector<Ref<Material>> materials, UUID animatorID, const glm::mat4& transform)
 	{
 		if (!mesh) return;
-		if (!IsVisible(mesh, transform)) return;
 		const auto& submeshes = mesh->GetSubMeshes();
 		if (!s_RenderData->s_MeshPtrInstanceAssigned[mesh])
 		{
@@ -531,89 +544,5 @@ namespace Aether {
 		if (maxZ < 0) maxZ /= zMultiplier; else maxZ *= zMultiplier;
 
 		proj = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-	}
-
-	void Renderer::GetPlanes(const glm::mat4& VP, FrustumPlane planes[6])
-	{
-		// Left
-		planes[0].normal.x = VP[0][3] + VP[0][0];
-		planes[0].normal.y = VP[1][3] + VP[1][0];
-		planes[0].normal.z = VP[2][3] + VP[2][0];
-		planes[0].d        = VP[3][3] + VP[3][0];
-
-		// Right
-		planes[1].normal.x = VP[0][3] - VP[0][0];
-		planes[1].normal.y = VP[1][3] - VP[1][0];
-		planes[1].normal.z = VP[2][3] - VP[2][0];
-		planes[1].d        = VP[3][3] - VP[3][0];
-
-		// Bottom
-		planes[2].normal.x = VP[0][3] + VP[0][1];
-		planes[2].normal.y = VP[1][3] + VP[1][1];
-		planes[2].normal.z = VP[2][3] + VP[2][1];
-		planes[2].d        = VP[3][3] + VP[3][1];
-
-		// Top
-		planes[3].normal.x = VP[0][3] - VP[0][1];
-		planes[3].normal.y = VP[1][3] - VP[1][1];
-		planes[3].normal.z = VP[2][3] - VP[2][1];
-		planes[3].d        = VP[3][3] - VP[3][1];
-
-		// Near
-		planes[4].normal.x = VP[0][3] + VP[0][2];
-		planes[4].normal.y = VP[1][3] + VP[1][2];
-		planes[4].normal.z = VP[2][3] + VP[2][2];
-		planes[4].d        = VP[3][3] + VP[3][2];
-
-		// Far
-		planes[5].normal.x = VP[0][3] - VP[0][2];
-		planes[5].normal.y = VP[1][3] - VP[1][2];
-		planes[5].normal.z = VP[2][3] - VP[2][2];
-		planes[5].d        = VP[3][3] - VP[3][2];
-
-		// Normalize planes
-		for (int i = 0; i < 6; i++)
-		{
-			float length = glm::length(planes[i].normal);
-			planes[i].normal /= length;
-			planes[i].d /= length;
-		}
-	}
-
-	bool Renderer::IsVisible(const Ref<Mesh>& mesh, const glm::mat4& transform)
-	{
-		FrustumPlane* planes = s_SceneData->planes;
-
-		glm::vec3 min = mesh->GetBoundsMin();
-		glm::vec3 max = mesh->GetBoundsMax();
-
-		glm::vec3 corners[8] =
-		{
-			{min.x, min.y, min.z},
-			{max.x, min.y, min.z},
-			{min.x, max.y, min.z},
-			{max.x, max.y, min.z},
-			{min.x, min.y, max.z},
-			{max.x, min.y, max.z},
-			{min.x, max.y, max.z},
-			{max.x, max.y, max.z}
-		};
-
-		for (int i = 0; i < 8; i++)
-			corners[i] = glm::vec3(transform * glm::vec4(corners[i], 1.0f));
-
-		for (int p = 0; p < 6; p++)
-		{
-			int outside = 0;
-			for (int i = 0; i < 8; i++)
-			{
-				float distance = glm::dot(planes[p].normal, corners[i]) + planes[p].d;
-				if (distance < 0) outside++;
-			}
-
-			if (outside == 8) return false; 
-		}
-
-		return true;
 	}
 }
