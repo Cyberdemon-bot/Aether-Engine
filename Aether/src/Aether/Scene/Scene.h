@@ -13,6 +13,76 @@ namespace Aether {
 
     using Entity = entt::entity;
     static constexpr Entity Null_Entity = entt::null;
+
+    
+
+    namespace Utils
+    {
+        struct Frustum
+        {
+            glm::vec4 Planes[6]; 
+        };
+
+        Frustum GetFrustum(const glm::mat4& vp)
+        {
+            Frustum f;
+            glm::mat4 m = glm::transpose(vp);
+            f.Planes[0] = m[3] + m[0]; // Left
+            f.Planes[1] = m[3] - m[0];  // Right
+            f.Planes[2] = m[3] + m[1]; // Bottom
+            f.Planes[3] = m[3] - m[1]; // Top
+            f.Planes[4] = m[3] + m[2]; // Near
+            f.Planes[5] = m[3] - m[2]; // Far
+
+            for (int i = 0; i < 6; i++)
+            {
+                float length = glm::length(glm::vec3(f.Planes[i]));
+                f.Planes[i] /= length;
+            }
+            return f;
+        }
+
+        void TransformBound(const glm::vec3& min, const glm::vec3& max, const glm::mat4& transform, glm::vec3& outMin, glm::vec3& outMax)
+        {
+            glm::vec3 corners[8] =
+            {
+                {min.x, min.y, min.z},
+                {max.x, min.y, min.z},
+                {min.x, max.y, min.z},
+                {max.x, max.y, min.z},
+                {min.x, min.y, max.z},
+                {max.x, min.y, max.z},
+                {min.x, max.y, max.z},
+                {max.x, max.y, max.z},
+            };
+
+            outMin = glm::vec3(FLT_MAX);
+            outMax = glm::vec3(-FLT_MAX);
+
+            for (int i = 0; i < 8; i++)
+            {
+                glm::vec3 world = glm::vec3(transform * glm::vec4(corners[i], 1.0));
+                outMin = glm::min(outMin, world);
+                outMax = glm::max(outMax, world);
+            }
+        }
+
+        bool CheckBoundVisible(const Frustum& frustum, const glm::vec3& min, const glm::vec3& max)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                glm::vec3 normal = glm::vec3(frustum.Planes[i]);
+                float d = frustum.Planes[i].w;
+                glm::vec3 p = min;
+                if (normal.x >= 0) p.x = max.x;
+                if (normal.y >= 0) p.y = max.y;
+                if (normal.z >= 0) p.z = max.z;
+                if (glm::dot(normal, p) + d < 0)
+                    return false;
+            }
+            return true;
+        }
+    }
     class AETHER_API Scene 
     {
     public:

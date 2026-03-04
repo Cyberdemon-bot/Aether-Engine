@@ -49,6 +49,7 @@ namespace Aether {
         virtual float GetPlayBackTime(UUID animatorID) const override;
         virtual float GetDuration(UUID animatorID) const override;
         virtual float GetSpeed(UUID animatorID) const override;
+        virtual glm::mat4 GetRootMat(UUID animatorID) const override;
 
         virtual bool HasAnimator(UUID animatorID) const override;
         virtual uint32_t GetClipCount(UUID animatorID) const override;
@@ -85,6 +86,7 @@ namespace Aether {
             ozz::vector<ozz::math::Float4x4> modelMatrices;
             
             std::vector<glm::mat4> finalMatrices;
+            glm::mat4 rootMat;
         };
 
     private:

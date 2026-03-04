@@ -581,11 +581,12 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
         Aether::BodyConfig cfg;
         cfg.motionType = Aether::MotionType::Kinematic;
         cfg.shape      = Aether::ColliderShape::Capsule;
-        cfg.size       = glm::vec3(0.35f, 0.9f, 0.0f);
+        cfg.size       = glm::vec3(0.35f, 2.0f, 0.0f);
         cfg.transform  = { position, glm::quat(1,0,0,0) };
         cfg.offset     = glm::vec3(0.0f, 1.0f, 0.0f);
         Aether::PhysicsSystem::CreateBody(bodyID, cfg);
-        m_Scene.AddComponent<Aether::ColliderComponent>(newZombie, bodyID, cfg.shape, cfg.size, glm::vec3(0.0f, 1.0f, 0.0f));
+        auto& cmp = m_Scene.AddComponent<Aether::ColliderComponent>(newZombie, bodyID, cfg.shape, cfg.size, cfg.offset);
+        cmp.Visible = true;
     }
 
     m_ZombieRegistry[newZombie] = { newAnimID, bodyID };
@@ -947,7 +948,10 @@ void MainGameLayer::OnEvent(Aether::Event& event)
 
         if (hit.Hit) {
             Aether::Entity target = m_Scene.FindEntity(hit.HitEntityID);
-            if (target != Aether::Null_Entity && target != m_Player) {
+            if (target != Aether::Null_Entity && target != m_Player) 
+            {
+                auto& rec = m_ZombieRegistry[target];
+                Aether::PhysicsSystem::DestroyBody(rec.bodyID);
                 DestroyHierarchy(target);
                 m_ActiveZombies.erase(std::remove(m_ActiveZombies.begin(), m_ActiveZombies.end(), target), m_ActiveZombies.end());
             }
