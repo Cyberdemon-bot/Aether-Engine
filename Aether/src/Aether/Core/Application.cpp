@@ -4,8 +4,9 @@
 
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Core/JobSystem.h"
-#include "Aether/Animation/AnimationSystem.h"
+#include "Aether/Animation/AnimationSystem.h" 
 #include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Audio/AudioSystem.h"
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
@@ -25,6 +26,7 @@ namespace Aether {
         AnimationSystem::Init();
         PhysicsSystem::Init();
         AssetsManager::Init();
+        AudioSystem::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -39,6 +41,7 @@ namespace Aether {
         JobSystem::Shutdown();
         AnimationSystem::Shutdown();
         PhysicsSystem::Shutdown();
+        AudioSystem::Shutdown();
     }
 
     void Application::Close()
