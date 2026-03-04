@@ -178,7 +178,7 @@ namespace Aether {
                 float height = config.size.y;
 
                 float half_height = (height/ 2.0f) - radius;
-                half_height = std::min(half_height, 0.0f);
+                half_height = std::max(half_height, 0.0f);
 
                 JPH::CapsuleShapeSettings capsule(half_height, radius);
                 result = capsule.Create();

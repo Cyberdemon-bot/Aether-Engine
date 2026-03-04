@@ -8,6 +8,74 @@
 #include "Aether/Assets/AssetsManager.h"
 
 namespace Aether {
+    namespace Utils
+    {
+        struct Frustum
+        {
+            glm::vec4 Planes[6]; 
+        };
+        
+        Frustum GetFrustum(const glm::mat4& vp)
+        {
+            Frustum f;
+            glm::mat4 m = glm::transpose(vp);
+            f.Planes[0] = m[3] + m[0]; // Left
+            f.Planes[1] = m[3] - m[0];  // Right
+            f.Planes[2] = m[3] + m[1]; // Bottom
+            f.Planes[3] = m[3] - m[1]; // Top
+            f.Planes[4] = m[3] + m[2]; // Near
+            f.Planes[5] = m[3] - m[2]; // Far
+
+            for (int i = 0; i < 6; i++)
+            {
+                float length = glm::length(glm::vec3(f.Planes[i]));
+                f.Planes[i] /= length;
+            }
+            return f;
+        }
+
+        void TransformBound(const glm::vec3& min, const glm::vec3& max, const glm::mat4& transform, glm::vec3& outMin, glm::vec3& outMax)
+        {
+            glm::vec3 corners[8] =
+            {
+                {min.x, min.y, min.z},
+                {max.x, min.y, min.z},
+                {min.x, max.y, min.z},
+                {max.x, max.y, min.z},
+                {min.x, min.y, max.z},
+                {max.x, min.y, max.z},
+                {min.x, max.y, max.z},
+                {max.x, max.y, max.z},
+            };
+
+            outMin = glm::vec3(FLT_MAX);
+            outMax = glm::vec3(-FLT_MAX);
+
+            for (int i = 0; i < 8; i++)
+            {
+                glm::vec3 world = glm::vec3(transform * glm::vec4(corners[i], 1.0));
+                outMin = glm::min(outMin, world);
+                outMax = glm::max(outMax, world);
+            }
+        }
+
+        bool CheckBoundVisible(const Frustum& frustum, const glm::vec3& min, const glm::vec3& max)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                glm::vec3 normal = glm::vec3(frustum.Planes[i]);
+                float d = frustum.Planes[i].w;
+                glm::vec3 p = min;
+                if (normal.x >= 0) p.x = max.x;
+                if (normal.y >= 0) p.y = max.y;
+                if (normal.z >= 0) p.z = max.z;
+                if (glm::dot(normal, p) + d < 0)
+                    return false;
+            }
+            return true;
+        }
+    }
+
     Scene::Scene() 
     {
         m_SceneLights.reserve(16); 
@@ -362,14 +430,30 @@ namespace Aether {
                 if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights); 
                 else Renderer::BeginScene(mainCamera->Camera, m_SceneLights); 
 
+                glm::mat4 vp = (camera ? camera->GetViewProjection() : mainCamera->Camera.GetViewProjection());
+                Utils::Frustum frustum = Utils::GetFrustum(vp);
+
                 // draw meshes
                 auto meshView = View<MeshComponent, TransformComponent>();
                 for (auto entity : meshView)
                 {
                     auto& transform = GetComponent<TransformComponent>(entity);
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
+                    auto mesh = meshcmp.MeshPtr; if (!mesh) continue;
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
+
+                    glm::mat4 world = transform.WorldTransform;
+                    glm::vec3 worldMin, worldMax;
+                    if (animatorID != UUID(0))
+                    {
+                        glm::mat4 rootMat = AnimationSystem::GetModule<RigModule>()->GetRootMat(animatorID);
+                        glm::vec3 scale(glm::length(glm::vec3(rootMat[0])), glm::length(glm::vec3(rootMat[1])), glm::length(glm::vec3(rootMat[2])));
+                        world *= glm::scale(glm::mat4(1.0f), scale);
+                    }
+                    Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                    if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
+
                     Renderer::DrawMesh(meshcmp.MeshPtr, meshcmp.Materials, animatorID, transform.WorldTransform);
                 }
 
@@ -396,14 +480,18 @@ namespace Aether {
                                 { 
                                     glm::vec3 half = component.Size * 0.5f;
                                     glm::vec3 meshCenter = mesh->GetBoundsCenter();
-                                    glm::vec3 bMin = meshCenter - half;
-                                    glm::vec3 bMax = meshCenter + half;
+                                    bMin = meshCenter - half;
+                                    bMax = meshCenter + half;
                                 }
                             }
                             Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
                         }
-                        if (component.Shape == ColliderShape::Capsule) 
-                            Renderer::RenderCapsule(component.Size.x, component.Size.y, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+                        if (component.Shape == ColliderShape::Capsule)
+                        {
+                            float radius  = component.Size.x;
+                            float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
+                            Renderer::RenderCapsule(radius, halfCyl, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+                        }
                     }
                 }
             }

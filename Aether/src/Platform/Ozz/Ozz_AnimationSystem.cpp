@@ -412,6 +412,14 @@ namespace Aether {
         return (clipIt != m_Clips.end()) ? clipIt->second.animation->duration() : 0.0f;
     }
 
+    glm::mat4 Ozz_AnimationSystem::GetRootMat(UUID animatorID) const
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end()) return glm::mat4(1.0f);
+
+        OzzAnimator& animator = *(animIt->second);
+        return animator.rootMat;
+    }
 
     void Ozz_AnimationSystem::CalculateMatrices(UUID animatorID)
     {
@@ -473,6 +481,7 @@ namespace Aether {
             animator.dirty = false;
             return;  
         }
+        animator.rootMat = animator.finalMatrices[0];
         for (int i = 0; i < numJoints; ++i)
         {
             int origIdx = rigIt->second.sourceData.ibmRemap[i];

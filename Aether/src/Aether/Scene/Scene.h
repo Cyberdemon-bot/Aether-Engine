@@ -13,6 +13,7 @@ namespace Aether {
 
     using Entity = entt::entity;
     static constexpr Entity Null_Entity = entt::null;
+
     class AETHER_API Scene 
     {
     public:
