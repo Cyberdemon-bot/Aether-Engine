@@ -53,6 +53,7 @@ namespace Aether {
 		s_RenderData->LightUB = UniformBuffer::Create(sizeof(LightsData)); s_RenderData->LightUB->Bind(2);
 		
 		s_RenderData->s_ScreenShader = Shader::Create("assets/shaders/Screen.shader");
+		s_RenderData->lineShader = Shader::Create("assets/shaders/LineShader.shader");
 		s_RenderData->s_SkyboxShader = Shader::Create("assets/shaders/Skybox.shader"); s_RenderData->s_SkyboxShader->SetUBOSlot("Camera", 0);
 		s_RenderData->s_LutMap = Texture2D::Create("assets/textures/LUT.png", WrapMode::CLAMP_TO_EDGE, false);
 		s_RenderData->s_Skybox = TextureCube::Create("assets/textures/skybox.png");
@@ -62,8 +63,6 @@ namespace Aether {
 
 		s_RenderData->s_SkyMesh = Mesh::Create(
 			MeshSpec{{VertexStream{skyboxVertices, 8, MeshLayout::Vertex()}}, skyboxIndices, 36});
-
-		s_RenderData->lineShader = Shader::Create("assets/shaders/LineShader.shader");
 	}
 
 	void Renderer::Shutdown()
@@ -94,6 +93,7 @@ namespace Aether {
 		s_SceneData->camera.Position = camera.GetPosition();
 		s_SceneData->camera.View = camera.GetView();
 		s_SceneData->camera.ViewProjection = camera.GetViewProjection();
+		GetPlanes(s_SceneData->camera.ViewProjection, s_SceneData->planes);
 
 		s_SceneData->lights.lightCount = std::min(lights.size(), (size_t)16);
 		for (size_t i = 0; i < s_SceneData->lights.lightCount; i++)
@@ -582,8 +582,7 @@ namespace Aether {
 
 	bool Renderer::IsVisible(const Ref<Mesh>& mesh, const glm::mat4& transform)
 	{
-		FrustumPlane planes[6];
-		GetPlanes(s_SceneData->camera.ViewProjection, planes);
+		FrustumPlane* planes = s_SceneData->planes;
 
 		glm::vec3 min = mesh->GetBoundsMin();
 		glm::vec3 max = mesh->GetBoundsMax();

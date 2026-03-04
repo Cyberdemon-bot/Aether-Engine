@@ -134,6 +134,7 @@ namespace Aether {
 		{
 			CameraData camera;
 			LightsData lights; 
+			FrustumPlane planes[6];
 			std::map<RenderKey, BatchData> s_RenderBatches;
 		};
 
