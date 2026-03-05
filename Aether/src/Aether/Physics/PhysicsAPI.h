@@ -73,6 +73,7 @@ namespace Aether {
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
+        virtual bool CanMove(UUID bodyID, const PhysTransform& target) = 0;
 
         virtual void SetActive(UUID bodyID, bool active) = 0;
         
