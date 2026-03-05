@@ -35,6 +35,7 @@ private:
     void DrawEntityNode(Aether::Entity entity);
     void DrawScenePanel();
     void DrawLightingPanel();
+    bool WorldToScreen(const glm::vec3& worldPos, const glm::mat4& viewProj, ImVec2 displaySize, ImVec2& outScreen);
 
 private:
     // --- Core ---
@@ -47,6 +48,9 @@ private:
     Aether::Entity m_SunLight       = Aether::Null_Entity;
     Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
+    bool m_ShowFlowFieldDebug = true;
+
+
     // --- Player ---
     Aether::Entity m_Player         = Aether::Null_Entity;
     Aether::UUID   m_RunAnimation   = 0;
@@ -54,9 +58,10 @@ private:
     bool           m_IsPlayerMoving = false;
     Aether::UUID   m_PlayerBodyID   = 0;
 
-    float m_bobSpeed    = 12.0f;
-    float m_bobStrength = 0.08f;
+    float m_bobSpeed    = 6.0f;
+    float m_bobStrength = 0.1f;
 
+    float yFloor = -7.6f;
     // --- Zombies ---
     struct ZombieRecord {
         Aether::UUID animatorID = 0;
@@ -67,14 +72,19 @@ private:
     std::vector<Aether::Entity>                m_ActiveZombies;
     std::map<Aether::Entity, ZombieRecord>     m_ZombieRegistry;
     Aether::UUID  m_ZombieRunAnimation = 0;
-    float         m_ZombieSpeed        = 3.5f;
+    float         m_ZombieSpeed        = 4.5f;
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
+    int maxZombies = 100;
     // --- Flow Field ---
     std::map<std::pair<int, int>, FlowCell> m_FlowField;
-    float m_PathGridSize   = 1.0f;
+    float m_PathGridSize = 1.0f;
+    int   m_FlowFieldSubdivisions = 16;
     float m_FlowFieldTimer = 0.0f;
     void UpdateFlowField(const glm::vec3& targetPos);
+
+    int GetObstacleCost(int coordX, int coordZ) const;
+
 
     // --- Gun ---
     Aether::Entity m_Gun = Aether::Null_Entity;
@@ -96,19 +106,20 @@ private:
     float m_ReloadRotation = 0.0f;
 
     // --- Dynamic Map ---
-    float m_ChunkSize             = 2.0f;
-    int   m_BaseRenderDistance    = 15;
+    float m_ChunkSize             = 16.0f;
+    int   m_BaseRenderDistance    = 5;
     float m_ZoomInfluence         = 5.0f;
-    int   m_CurrentRenderDistance = 15;
+    int   m_CurrentRenderDistance = 5;
 
     struct ChunkData {
         Aether::Entity              landEntity = Aether::Null_Entity;
         std::vector<Aether::Entity> zombies;
-    };
+        int                         rotation = 0; // 0-3 (multiples of 90)
+    };  
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
-    Aether::Ref<Aether::Mesh>     m_BaseMapMesh;
-    Aether::Ref<Aether::Material> m_BaseMapMaterial;
+    Aether::Ref<Aether::Mesh>                  m_BaseMapMesh;
+    std::vector<Aether::Ref<Aether::Material>> m_BaseMapMaterials;
 
     // --- Rendering ---
     float m_ShadowBias  = 0.00001f;
@@ -127,4 +138,27 @@ private:
     float     m_FogDensity = 0.03f;
     float     m_FogStart   = 10.0f;
     float     m_FogEnd     = 80.0f;
+
+
+
+    // hardcode matrix
+    static constexpr int k_ObstacleMapSize = 16;
+    int m_ObstacleMap[k_ObstacleMapSize][k_ObstacleMapSize] = {
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
+        {0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
+        {0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
+        {0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    };
 };
