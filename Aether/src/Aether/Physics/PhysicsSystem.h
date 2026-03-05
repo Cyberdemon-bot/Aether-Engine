@@ -70,19 +70,14 @@ namespace Aether {
             s_PhysicsAPI->SetGravity(gravity);
         }
 
-        static MotionType GetMotionType(UUID bodyID)
-        {
-            return s_PhysicsAPI->GetMotionType(bodyID);
-        }
-
-        static ColliderShape GetColliderShape(UUID bodyID)
-        {
-            return s_PhysicsAPI->GetColliderShape(bodyID);
-        }
-
         static bool CanMove(UUID bodyID, const PhysTransform& target)
         {
             return s_PhysicsAPI->CanMove(bodyID, target);
+        }
+
+        static const BodyConfig* GetBodyInfo(UUID bodyID)
+        {
+            return s_PhysicsAPI->GetBodyInfo(bodyID);
         }
     
     private:

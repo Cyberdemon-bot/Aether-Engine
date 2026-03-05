@@ -323,173 +323,223 @@ namespace Aether {
 
 	void Renderer::RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color)
 	{
+		// Vertices in local space — only rebuilt when bounds change, not every frame
+		// boundMin/boundMax are half-extents: e.g. (-1,-1,-1) to (1,1,1) for a 2x2x2 box
+		static Aether::Ref<Aether::VertexArray> s_VAO;
+		static Aether::Ref<Aether::VertexBuffer> s_VBO;
+		static glm::vec3 s_LastMin(FLT_MAX), s_LastMax(FLT_MAX);
+
 		glm::vec3 l[8] = {
 			{boundMin.x, boundMin.y, boundMin.z}, {boundMax.x, boundMin.y, boundMin.z},
 			{boundMax.x, boundMax.y, boundMin.z}, {boundMin.x, boundMax.y, boundMin.z},
 			{boundMin.x, boundMin.y, boundMax.z}, {boundMax.x, boundMin.y, boundMax.z},
 			{boundMax.x, boundMax.y, boundMax.z}, {boundMin.x, boundMax.y, boundMax.z}
 		};
-		glm::vec3 w[512];
-		for (int i = 0; i < 8; i++) w[i] = glm::vec3(transform * glm::vec4(l[i], 1.0f));
-		static Aether::Ref<Aether::VertexArray> s_VAO;
-		static Aether::Ref<Aether::VertexBuffer> s_VBO;
 
 		if (!s_VAO)
 		{
 			s_VAO = Aether::VertexArray::Create();
-			s_VBO = Aether::VertexBuffer::Create(sizeof(w)); 
+			s_VBO = Aether::VertexBuffer::Create(sizeof(l));
 			s_VBO->SetLayout(MeshLayout::Vertex());
 			s_VAO->AddVertexBuffer(s_VBO);
 			uint32_t indices[24] = {
 				0,1, 1,2, 2,3, 3,0,
-				4,5, 5,6, 6,7, 7,4, 
-				0,4, 1,5, 2,6, 3,7  
+				4,5, 5,6, 6,7, 7,4,
+				0,4, 1,5, 2,6, 3,7
 			};
-			Aether::Ref<Aether::IndexBuffer> ibo = Aether::IndexBuffer::Create(indices, 24);
-			s_VAO->SetIndexBuffer(ibo);
+			s_VAO->SetIndexBuffer(Aether::IndexBuffer::Create(indices, 24));
 		}
 
-		s_VBO->SetData(w, sizeof(w), 0); 
+		// Only re-upload local verts when bounds actually change
+		if (boundMin != s_LastMin || boundMax != s_LastMax)
+		{
+			s_VBO->SetData(l, sizeof(l), 0);
+			s_LastMin = boundMin;
+			s_LastMax = boundMax;
+		}
+
+		// World transform goes to GPU — no CPU vertex transform needed
 		auto shader = s_RenderData->lineShader;
 		shader->Bind();
 		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
+		shader->SetMat4("u_Model", transform);
 		shader->SetFloat4("u_Color", color);
 		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
 		RenderCommand::DrawIndexedLines(s_VAO, 24);
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 	}
 
-	void Renderer::RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color)
+	void Renderer::RenderCapsule(float radius, float halfCylinderHeight, const glm::mat4& transform, const glm::vec4& color)
 	{
-		constexpr int segments      = 24;
-		constexpr int hemiSegments  = segments / 2;
-		constexpr int maxVertices   = 512;
+		// halfCylinderHeight = (totalHeight / 2) - radius  (matches Jolt CapsuleShapeSettings)
+		// Vertices in local space — only rebuilt when radius or height change, not every frame
+		constexpr int segments     = 24;
+		constexpr int hemiSegments = segments / 2;
+		constexpr int maxVertices  = segments * 2
+		                           + (hemiSegments + 1) * 2 * 2;
 
 		static Aether::Ref<Aether::VertexArray> s_VAO;
 		static Aether::Ref<Aether::VertexBuffer> s_VBO;
-
 		static Aether::Ref<Aether::IndexBuffer> s_IBO_Cylinder;
 		static Aether::Ref<Aether::IndexBuffer> s_IBO_Hemisphere;
+		static glm::vec3 s_Vertices[maxVertices];
+		static float s_LastRadius = -1.f, s_LastHalfHeight = -1.f;
 
-		static glm::vec3 vertices[maxVertices];
-
-		int v = 0;
-
-		glm::vec3 topCenter(0,  halfHeight, 0);
-		glm::vec3 bottomCenter(0, -halfHeight, 0);
-
-		int cylinderStart = v;
-
-		for (int s = 0; s < segments; s++)
+		if (radius != s_LastRadius || halfCylinderHeight != s_LastHalfHeight)
 		{
-			float theta = (float)s / segments * glm::two_pi<float>();
-			float x = cos(theta) * radius;
-			float z = sin(theta) * radius;
+			int v = 0;
+			glm::vec3 topCenter(0,  halfCylinderHeight, 0);
+			glm::vec3 bottomCenter(0, -halfCylinderHeight, 0);
 
-			vertices[v++] = topCenter    + glm::vec3(x, 0, z);
-			vertices[v++] = bottomCenter + glm::vec3(x, 0, z);
-		}
-
-		
-
-		int hemiStart = v;
-
-		for (int axis = 0; axis < 2; axis++)
-		{
-			for (int s = 0; s <= hemiSegments; s++)
+			// Cylinder ring vertices (top and bottom interleaved)
+			int cylinderStart = v;
+			for (int s = 0; s < segments; s++)
 			{
-				float phi = (float)s / hemiSegments * glm::pi<float>();
-				float y = sin(phi) * radius;
-				float r = cos(phi) * radius;
-
-				float x = axis == 0 ? r : 0.0f;
-				float z = axis == 1 ? r : 0.0f;
-
-				vertices[v++] = topCenter    + glm::vec3( x, y,  z);
-				vertices[v++] = bottomCenter - glm::vec3( x, y,  z);
+				float theta = (float)s / segments * glm::two_pi<float>();
+				float x = cos(theta) * radius;
+				float z = sin(theta) * radius;
+				s_Vertices[v++] = topCenter    + glm::vec3(x, 0, z);
+				s_Vertices[v++] = bottomCenter + glm::vec3(x, 0, z);
 			}
+
+			// Hemisphere arc vertices (XZ and YZ planes, top and bottom caps)
+			int hemiStart = v;
+			for (int axis = 0; axis < 2; axis++)
+			{
+				for (int s = 0; s <= hemiSegments; s++)
+				{
+					float phi = (float)s / hemiSegments * glm::pi<float>();
+					float y   = sin(phi) * radius;
+					float r   = cos(phi) * radius;
+					float x   = axis == 0 ? r : 0.0f;
+					float z   = axis == 1 ? r : 0.0f;
+					s_Vertices[v++] = topCenter    + glm::vec3( x, y,  z);
+					s_Vertices[v++] = bottomCenter - glm::vec3( x, y,  z);
+				}
+			}
+
+			if (!s_VAO)
+			{
+				s_VAO = Aether::VertexArray::Create();
+				s_VBO = Aether::VertexBuffer::Create(sizeof(s_Vertices));
+				s_VBO->SetLayout(MeshLayout::Vertex());
+				s_VAO->AddVertexBuffer(s_VBO);
+
+				// Cylinder: top ring, bottom ring, and vertical edges
+				{
+					uint32_t cylIndices[segments * 6];
+					int idx = 0;
+					for (int s = 0; s < segments; s++)
+					{
+						int curr = cylinderStart + s * 2;
+						int next = cylinderStart + ((s + 1) % segments) * 2;
+						cylIndices[idx++] = curr;     cylIndices[idx++] = next;
+						cylIndices[idx++] = curr + 1; cylIndices[idx++] = next + 1;
+						cylIndices[idx++] = curr;     cylIndices[idx++] = curr + 1;
+					}
+					s_IBO_Cylinder = Aether::IndexBuffer::Create(cylIndices, idx);
+				}
+
+				// Hemispheres: arcs on XZ and YZ planes for top and bottom caps
+				{
+					uint32_t hemiIndices[2048];
+					int idx = 0;
+					for (int axis = 0; axis < 2; axis++)
+					{
+						int offset = hemiStart + axis * (hemiSegments + 1) * 2;
+						for (int s = 1; s <= hemiSegments; s++)
+						{
+							int curr = offset + (s - 1) * 2;
+							int next = offset + s * 2;
+							hemiIndices[idx++] = curr;     hemiIndices[idx++] = next;
+							hemiIndices[idx++] = curr + 1; hemiIndices[idx++] = next + 1;
+						}
+					}
+					s_IBO_Hemisphere = Aether::IndexBuffer::Create(hemiIndices, idx);
+				}
+			}
+
+			s_VBO->SetData(s_Vertices, sizeof(glm::vec3) * v, 0);
+			s_LastRadius     = radius;
+			s_LastHalfHeight = halfCylinderHeight;
 		}
 
-		
+		// World transform goes to GPU — no CPU vertex transform needed
+		auto shader = s_RenderData->lineShader;
+		shader->Bind();
+		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
+		shader->SetMat4("u_Model", transform);
+		shader->SetFloat4("u_Color", color);
+		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
+		s_VAO->SetIndexBuffer(s_IBO_Cylinder);
+		RenderCommand::DrawIndexedLines(s_VAO, s_IBO_Cylinder->GetCount());
+		s_VAO->SetIndexBuffer(s_IBO_Hemisphere);
+		RenderCommand::DrawIndexedLines(s_VAO, s_IBO_Hemisphere->GetCount());
+		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
+	}
 
-		for (int k = 0; k < v; k++)
-			vertices[k] = glm::vec3(transform * glm::vec4(vertices[k], 1.0f));
+	void Renderer::RenderSphere(float radius, const glm::mat4& transform, const glm::vec4& color)
+	{
+		// Unit sphere (radius = 1) built once — actual radius baked into u_Model scale
+		// 3 great circles: XY plane, XZ plane, YZ plane
+		constexpr int segments    = 32;
+		constexpr int maxVertices = segments * 3;
 
-		
+		static Aether::Ref<Aether::VertexArray> s_VAO;
+		static Aether::Ref<Aether::VertexBuffer> s_VBO;
+		static Aether::Ref<Aether::IndexBuffer>  s_IBO;
 
 		if (!s_VAO)
 		{
+			glm::vec3 vertices[maxVertices];
+			int v = 0;
+			for (int s = 0; s < segments; s++) // XY plane (Z = 0)
+			{
+				float t = (float)s / segments * glm::two_pi<float>();
+				vertices[v++] = glm::vec3(cos(t), sin(t), 0.0f);
+			}
+			for (int s = 0; s < segments; s++) // XZ plane (Y = 0)
+			{
+				float t = (float)s / segments * glm::two_pi<float>();
+				vertices[v++] = glm::vec3(cos(t), 0.0f, sin(t));
+			}
+			for (int s = 0; s < segments; s++) // YZ plane (X = 0)
+			{
+				float t = (float)s / segments * glm::two_pi<float>();
+				vertices[v++] = glm::vec3(0.0f, cos(t), sin(t));
+			}
+
 			s_VAO = Aether::VertexArray::Create();
 			s_VBO = Aether::VertexBuffer::Create(sizeof(vertices));
 			s_VBO->SetLayout(MeshLayout::Vertex());
 			s_VAO->AddVertexBuffer(s_VBO);
+			s_VBO->SetData(vertices, sizeof(vertices), 0);
 
-			
+			uint32_t indices[segments * 2 * 3];
+			int idx = 0;
+			for (int circle = 0; circle < 3; circle++)
 			{
-				uint32_t cylIndices[segments * 4];
-				int idx = 0;
-
+				int base = circle * segments;
 				for (int s = 0; s < segments; s++)
 				{
-					int curr = cylinderStart + s * 2;
-					int next = cylinderStart + ((s + 1) % segments) * 2;
-
-					cylIndices[idx++] = curr;
-					cylIndices[idx++] = next;
-
-					cylIndices[idx++] = curr + 1;
-					cylIndices[idx++] = next + 1;
-
-					cylIndices[idx++] = curr;
-    				cylIndices[idx++] = curr + 1;
+					indices[idx++] = base + s;
+					indices[idx++] = base + (s + 1) % segments;
 				}
-
-				s_IBO_Cylinder = Aether::IndexBuffer::Create(cylIndices, idx);
 			}
-
-			
-			{
-				uint32_t hemiIndices[2048];
-				int idx = 0;
-
-				int base = hemiStart;
-
-				for (int axis = 0; axis < 2; axis++)
-				{
-					int offset = base + axis * (hemiSegments + 1) * 2;
-
-					for (int s = 1; s <= hemiSegments; s++)
-					{
-						int curr = offset + (s - 1) * 2;
-						int next = offset + s * 2;
-
-						hemiIndices[idx++] = curr;
-						hemiIndices[idx++] = next;
-
-						hemiIndices[idx++] = curr + 1;
-						hemiIndices[idx++] = next + 1;
-					}
-				}
-
-				s_IBO_Hemisphere = Aether::IndexBuffer::Create(hemiIndices, idx);
-			}
+			s_IBO = Aether::IndexBuffer::Create(indices, idx);
+			s_VAO->SetIndexBuffer(s_IBO);
 		}
 
-		s_VBO->SetData(vertices, sizeof(glm::vec3) * v, 0);
+		// Bake radius into model matrix — no per-frame CPU work at all
+		glm::mat4 model = transform * glm::scale(glm::mat4(1.0f), glm::vec3(radius));
 
 		auto shader = s_RenderData->lineShader;
 		shader->Bind();
 		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
+		shader->SetMat4("u_Model", model);
 		shader->SetFloat4("u_Color", color);
-
 		RenderCommand::SetDepthFuncEqual(State::ALWAYS);
-		s_VAO->SetIndexBuffer(s_IBO_Cylinder);
-		RenderCommand::DrawIndexedLines(s_VAO,
-			s_IBO_Cylinder->GetCount());
-		s_VAO->SetIndexBuffer(s_IBO_Hemisphere);
-		RenderCommand::DrawIndexedLines(s_VAO,
-			s_IBO_Hemisphere->GetCount());
-
+		RenderCommand::DrawIndexedLines(s_VAO, s_IBO->GetCount());
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 	}
 

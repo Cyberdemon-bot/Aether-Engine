@@ -263,32 +263,21 @@ namespace Aether {
             AE_CORE_ERROR("Fail to create body {0}", (uint64_t)bodyID);
             return;
         }
-        m_Bodies[bodyID] = {body->GetID(), config.motionType, config.shape};
+        m_Bodies[bodyID] = {body->GetID(), config};
         bodyInterface.AddBody(body->GetID(), JPH::EActivation::Activate);
     }
 
-    MotionType Jolt_PhysicsAPI::GetMotionType(UUID bodyID)
+    const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(UUID bodyID) const
     {
-        if (!m_PhysicsSystem) return MotionType::None;
-        if (m_Bodies.find(bodyID) == m_Bodies.end())
+        if (!m_PhysicsSystem) return nullptr;
+        auto it = m_Bodies.find(bodyID);
+        if (it == m_Bodies.end())
         {
             AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return MotionType::None;
+            return nullptr;
         }
 
-        return m_Bodies[bodyID].motionType;
-    }
-    
-    ColliderShape Jolt_PhysicsAPI::GetColliderShape(UUID bodyID)
-    {
-        if (!m_PhysicsSystem) return ColliderShape::None;
-        if (m_Bodies.find(bodyID) == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return ColliderShape::None;
-        }
-
-        return m_Bodies[bodyID].Shape;
+        return &it->second.bodyInfo;
     }
 
     RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
@@ -427,7 +416,7 @@ namespace Aether {
             return;
         }
 
-        if (it->second.motionType == MotionType::Static) return;
+        if (it->second.bodyInfo.motionType == MotionType::Static) return;
 
         JPH::BodyID id = it->second.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();

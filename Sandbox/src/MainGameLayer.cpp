@@ -118,12 +118,13 @@ void MainGameLayer::Attach()
         Aether::BodyConfig cfg;
         cfg.motionType  = Aether::MotionType::Kinematic;
         cfg.shape       = Aether::ColliderShape::Capsule;
-        cfg.size        = glm::vec3(0.35f, 0.9f, 0.0f); // radius, halfHeight
+        cfg.size       = glm::vec3(0.35f, 2.5f, 0.0f);
         cfg.transform   = { pTransform.Translation, glm::quat(1,0,0,0) };
+        cfg.offset     = glm::vec3(0.0f, 1.0f, 0.0f);
         cfg.friction    = 0.5f;
         cfg.restitution = 0.0f;
         Aether::PhysicsSystem::CreateBody(m_PlayerBodyID, cfg);
-        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_PlayerBodyID, cfg.shape, cfg.size, glm::vec3(0.0f, 1.0f, 0.0f));
+        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_PlayerBodyID);
     }
 
     // --- ZOMBIE (Upload once; reuse GPU data for all spawns) ---
@@ -595,7 +596,7 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
         cfg.transform  = { position, glm::quat(1,0,0,0) };
         cfg.offset     = glm::vec3(0.0f, 1.0f, 0.0f);
         Aether::PhysicsSystem::CreateBody(bodyID, cfg);
-        auto& cmp = m_Scene.AddComponent<Aether::ColliderComponent>(newZombie, bodyID, cfg.shape, cfg.size, cfg.offset);
+        m_Scene.AddComponent<Aether::ColliderComponent>(newZombie, bodyID);
     }
 
     m_ZombieRegistry[newZombie] = { newAnimID, bodyID };
