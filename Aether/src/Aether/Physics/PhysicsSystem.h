@@ -79,6 +79,11 @@ namespace Aether {
         {
             return s_PhysicsAPI->GetColliderShape(bodyID);
         }
+
+        static bool CanMove(UUID bodyID, const PhysTransform& target)
+        {
+            return s_PhysicsAPI->CanMove(bodyID, target);
+        }
     
     private:
         static Scope<PhysicsAPI> s_PhysicsAPI;

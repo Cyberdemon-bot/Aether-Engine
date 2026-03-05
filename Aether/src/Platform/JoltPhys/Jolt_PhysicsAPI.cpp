@@ -17,6 +17,9 @@
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/Shape/Shape.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
+#include <Jolt/Physics/Collision/ShapeCast.h>
 
 namespace JPH {
     namespace Layers {
@@ -360,6 +363,58 @@ namespace Aether {
         std::sort(results.begin(), results.end(), [](const RaycastHit& a, const RaycastHit& b) {return a.Distance < b.Distance;});
 
         return results;
+    }
+
+    bool Jolt_PhysicsAPI::CanMove(UUID bodyID, const PhysTransform& target)
+    {
+        auto it = m_Bodies.find(bodyID);
+        if (it == m_Bodies.end()) return false;
+
+        JPH::BodyID joltID = it->second.joltID;
+
+        JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), joltID);
+        if (!lock.Succeeded()) return false;
+
+        const JPH::Body& body = lock.GetBody();
+        JPH::Vec3 currentPos  = body.GetPosition();
+        JPH::Quat currentRot  = body.GetRotation();
+        const JPH::Shape* shape = body.GetShape();
+
+        lock.ReleaseLock(); 
+
+        JPH::Vec3 targetPos(target.translation.x, target.translation.y, target.translation.z);
+        JPH::Quat targetRot(target.rotation.x, target.rotation.y, target.rotation.z, target.rotation.w);
+        JPH::Vec3 displacement = targetPos - currentPos;
+
+        JPH::RShapeCast shapeCast(
+            shape,
+            JPH::Vec3::sReplicate(1.0f),                                   
+            JPH::RMat44::sRotationTranslation(currentRot, currentPos),     
+            displacement                                                     
+        );
+
+        JPH::ShapeCastSettings settings;
+        settings.mReturnDeepestPoint = false;
+
+        // Exclude self from the cast
+        class IgnoreSelf : public JPH::BodyFilter {
+        public:
+            JPH::BodyID selfID;
+            bool ShouldCollide(const JPH::BodyID& id) const override { return id != selfID; }
+            bool ShouldCollideLocked(const JPH::Body&) const override { return true; }
+        } bodyFilter;
+        bodyFilter.selfID = joltID;
+
+        JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
+
+        m_PhysicsSystem->GetNarrowPhaseQuery().CastShape(
+            shapeCast, settings, targetPos, collector,
+            JPH::BroadPhaseLayerFilter{},
+            JPH::ObjectLayerFilter{},
+            bodyFilter
+        );
+
+        return !collector.HadHit();
     }
     
     void Jolt_PhysicsAPI::SetActive(UUID bodyID, bool active)

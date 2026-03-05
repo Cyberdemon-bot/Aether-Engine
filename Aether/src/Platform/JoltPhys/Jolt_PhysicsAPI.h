@@ -37,6 +37,7 @@ namespace Aether {
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
+        virtual bool CanMove(UUID bodyID, const PhysTransform& target) override;
 
         virtual void SetActive(UUID bodyID, bool active) override;
         
