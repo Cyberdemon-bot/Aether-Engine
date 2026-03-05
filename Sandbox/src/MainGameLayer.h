@@ -47,7 +47,8 @@ private:
     Aether::Entity m_SunLight       = Aether::Null_Entity;
     Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
-    bool m_ShowFlowFieldDebug = true;
+    bool m_ShowFlowFieldDebug = false;
+
 
     // --- Player ---
     Aether::Entity m_Player         = Aether::Null_Entity;
@@ -59,7 +60,7 @@ private:
     float m_bobSpeed    = 6.0f;
     float m_bobStrength = 0.1f;
 
-    float yFloor = -7.6f;
+    float yFloor = -7.0f;
 
     // --- Zombies ---
     struct ZombieRecord {
@@ -75,7 +76,6 @@ private:
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
     int maxZombies = 100;
-
     // --- Flow Field ---
     std::map<std::pair<int, int>, FlowCell> m_FlowField;
     float m_PathGridSize = 1.0f;
@@ -83,19 +83,23 @@ private:
     float m_FlowFieldTimer = 0.0f;
     void UpdateFlowField(const glm::vec3& targetPos);
 
-    int GetObstacleCost(int coordX, int coordZ) const;
+    float GetCellValue(int coordX, int coordZ) const;
+    int   GetObstacleCost(int coordX, int coordZ) const;
+    bool  IsObstacle(const glm::vec3& worldPos) const;
+    bool  IsObstacleWithRadius(const glm::vec3& worldPos) const; // uses k_CapsuleRadius + k_CollisionSkin
+    float GetSpeedMultiplier(const glm::vec3& worldPos) const;
+
 
     // --- Gun ---
     Aether::Entity m_Gun = Aether::Null_Entity;
-    Aether::UUID m_GunSound;
+
+    glm::vec3 m_GunPosFP   = {  0.38f, -0.25f,  1.2f };
+    glm::vec3 m_GunRotFP   = {  0.0f,   90.0f,  0.0f };
+    glm::vec3 m_GunScaleFP = {  0.2f,    0.2f,  0.2f };
 
     glm::vec3 m_GunPosTP   = { -0.25f,  1.37f, -0.45f };
     glm::vec3 m_GunRotTP   = {  0.0f,  -90.0f,  0.0f  };
     glm::vec3 m_GunScaleTP = {  0.2f,    0.2f,  0.2f  };
-
-    bool  m_IsShooting    = false;
-    float m_ShootTimer    = 0.0f;
-    float m_ShootDuration = 0.3f;
 
     // --- Ammo ---
     int   m_CurrentAmmo    = 30;
@@ -104,6 +108,7 @@ private:
     float m_ReloadTimer    = 0.0f;
     float m_ReloadDuration = 2.5f;
     float m_ReloadRotation = 0.0f;
+    float m_AmmoEmptyTimer = 0.0f;  // Bộ đếm thời gian (tính bằng giây) để chạy hiệu ứng nhảy
 
     // --- Dynamic Map ---
     float m_ChunkSize             = 16.0f;
@@ -115,15 +120,16 @@ private:
         Aether::Entity              landEntity = Aether::Null_Entity;
         std::vector<Aether::Entity> zombies;
         int                         rotation = 0; // 0-3 (multiples of 90)
-    };
+    };  
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
     Aether::Ref<Aether::Mesh>                  m_BaseMapMesh;
     std::vector<Aether::Ref<Aether::Material>> m_BaseMapMaterials;
 
     // --- Rendering ---
-    float m_ShadowBias = 0.00001f;
-    bool  m_LockCamera = false;
+    float m_ShadowBias  = 0.00001f;
+    bool  m_LockCamera  = false;
+    bool  m_FirstPerson = false;
 
     // --- Gun Animation ---
     Aether::UUID m_ShootAnimation = 0;
@@ -138,24 +144,32 @@ private:
     float     m_FogStart   = 10.0f;
     float     m_FogEnd     = 80.0f;
 
-    // hardcode matrix
-    static constexpr int k_ObstacleMapSize = 16;
-    int m_ObstacleMap[k_ObstacleMapSize][k_ObstacleMapSize] = {
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0},
-        {0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
-        {0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
-        {0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    Aether::UUID m_GunSound;
+    std::vector<Aether::UUID> sources;
+
+    float m_ShootTimer    = 0.0f;
+    float m_ShootDuration = 0.3f;
+
+    // hardcode matrix — 0: free, 0.5: slow zone (building edge), 1: solid wall
+    static constexpr int   k_ObstacleMapSize = 16;
+    static constexpr float k_CapsuleRadius   = 0.35f;
+    static constexpr float k_CollisionSkin   = 0.15f; // extra margin so block triggers before touching wall
+    float m_ObstacleMap[k_ObstacleMapSize][k_ObstacleMapSize] = {
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 0
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 1
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0},  // row 2
+        {0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 3
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 4
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 5
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 6
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 7
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0},  // row 8
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 9
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 10
+        {0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 11
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0},  // row 12
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 1,    1,    1,    0.5f, 0},  // row 13
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 1,    1,    1,    0.5f, 0},  // row 14
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0},  // row 15
     };
 };
