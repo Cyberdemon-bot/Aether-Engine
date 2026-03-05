@@ -125,6 +125,7 @@ void MainGameLayer::Attach()
         cfg.friction = 0.5f;
         cfg.restitution = 0.0f;
         Aether::PhysicsSystem::CreateBody(bodyID, cfg);
+        m_PlayerBodyID = bodyID;
         m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, bodyID, true);
     }
 
@@ -226,7 +227,10 @@ void MainGameLayer::Update(Aether::Timestep ts)
         if (isMoving)
         {
             moveDir = glm::normalize(moveDir);
-            pTransform.Translation += moveDir * (m_PlayerSpeed * (float)ts);
+            glm::vec3 newPlayerPos = pTransform.Translation + moveDir * (m_PlayerSpeed * (float)ts);
+            Aether::PhysTransform playerTarget{ newPlayerPos, pTransform.Rotation };
+            if (Aether::PhysicsSystem::CanMove(m_PlayerBodyID, playerTarget))
+                pTransform.Translation = newPlayerPos;
 
             if (!m_FirstPerson) {
                 float targetAngle = glm::atan(moveDir.x, moveDir.z);
@@ -430,8 +434,14 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 glm::vec3 facing = zT.Rotation * glm::vec3(0.0f, 0.0f, 1.0f);
                 facing.y = 0.0f;
                 if (glm::length(facing) > 0.001f) {
-                    zT.Translation += glm::normalize(facing) * (actualSpeed * (float)ts);
-                    zT.Translation.y = yFloor;
+                    glm::vec3 newZombiePos = zT.Translation + glm::normalize(facing) * (actualSpeed * (float)ts);
+                    newZombiePos.y = yFloor;
+                    Aether::PhysTransform zombieTarget{ newZombiePos, zT.Rotation };
+                    auto& zRec = m_ZombieRegistry[zombie];
+                    if (Aether::PhysicsSystem::CanMove(zRec.bodyID, zombieTarget))
+                        zT.Translation = newZombiePos;
+                    else
+                        zT.Translation.y = yFloor; // keep floor-locked even when blocked
                 }
                 zT.Dirty = true;
             }
