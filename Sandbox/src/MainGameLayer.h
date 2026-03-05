@@ -151,6 +151,8 @@ private:
     float     m_FogEnd     = 80.0f;
 
     Aether::UUID m_GunSound;
+    Aether::UUID m_GunReload;
+    Aether::UUID m_ZombieBite;
     std::vector<Aether::UUID> sources;
 
     float m_ShootTimer    = 0.0f;

@@ -155,7 +155,7 @@ void MainGameLayer::Attach()
 
     m_MuzzleFlashTexture = Aether::Texture2D::Create("assets/models/tiadan.png");
 
-    Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f });
+    Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f }); 
 
     Aether::UUID bgmID, sound;
     Aether::AudioSystem::AddSound(sound, "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
@@ -163,6 +163,8 @@ void MainGameLayer::Attach()
     Aether::AudioSystem::Play(bgmID);
 
     Aether::AudioSystem::AddSound(m_GunSound, "assets/audio/pistol.mp3");
+    Aether::AudioSystem::AddSound(m_GunReload, "assets/audio/pistol_reload.mp3");
+    Aether::AudioSystem::AddSound(m_ZombieBite, "assets/audio/zombie_bite.mp3");
 
     AE_CORE_INFO("MainGameLayer started.");
 }
@@ -323,9 +325,13 @@ void MainGameLayer::Update(Aether::Timestep ts)
         }
 
         // --- RELOAD LOGIC ---
-        if (Aether::Input::IsKeyPressed(Aether::Key::R) && !m_IsReloading && m_CurrentAmmo < m_MaxAmmo) {
+        if (Aether::Input::IsKeyPressed(Aether::Key::R) && !m_IsReloading && m_CurrentAmmo < m_MaxAmmo) 
+        {
             m_IsReloading = true;
             m_ReloadTimer = m_ReloadDuration;
+            Aether::UUID src; Aether::AudioSystem::CreateSource(src, m_GunReload, Aether::AudioType::Audio2D);
+            Aether::AudioSystem::Play(src);
+            sources.push_back(src);
             AE_INFO("Reloading...");
         }
 
@@ -568,6 +574,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
             {
                 m_PlayerHealth -= 10.0f; // Mỗi lần cắn mất 10 máu
                 m_DamageCooldown = 1.0f; // 1 giây sau mới cho cắn tiếp (cooldown)
+
+                Aether::UUID src; Aether::AudioSystem::CreateSource(src, m_ZombieBite, Aether::AudioType::Audio2D);
+                Aether::AudioSystem::Play(src); sources.push_back(src);
                 
                 AE_WARN("Player bi can! Mau con: {0}", m_PlayerHealth);
                 break; // Thoát vòng lặp để 1 frame chỉ bị 1 con cắn
@@ -1502,15 +1511,10 @@ void MainGameLayer::DrawRadar()
         // Player dot at centre
         drawList->AddCircleFilled(center, 5.0f, IM_COL32(255, 255, 255, 255));
         // Small forward-direction triangle
-        float triAngle = -m_Camera.GetYaw() + glm::radians(90.0f);
-        ImVec2 tip(center.x + cosf(triAngle) * 9.0f,
-                   center.y - sinf(triAngle) * 9.0f);
         drawList->AddTriangleFilled(
-            tip,
-            ImVec2(center.x + cosf(triAngle + 2.5f) * 5.0f,
-                   center.y - sinf(triAngle + 2.5f) * 5.0f),
-            ImVec2(center.x + cosf(triAngle - 2.5f) * 5.0f,
-                   center.y - sinf(triAngle - 2.5f) * 5.0f),
+            ImVec2(center.x,        center.y - 9.0f),
+            ImVec2(center.x - 4.0f, center.y + 4.0f),
+            ImVec2(center.x + 4.0f, center.y + 4.0f),
             IM_COL32(100, 220, 255, 220));
     }
 
