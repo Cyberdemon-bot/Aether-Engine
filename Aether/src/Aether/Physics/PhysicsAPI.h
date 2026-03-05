@@ -68,8 +68,7 @@ namespace Aether {
         virtual void CreateBody(UUID bodyID, const BodyConfig& config) = 0;
         virtual void DestroyBody(UUID bodyID) = 0;
 
-        virtual MotionType GetMotionType(UUID bodyID) = 0;
-        virtual ColliderShape GetColliderShape(UUID bodyID) = 0;
+        virtual const BodyConfig* GetBodyInfo(UUID bodyID) const = 0;
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;

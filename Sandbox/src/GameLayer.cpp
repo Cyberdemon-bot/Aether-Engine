@@ -241,7 +241,7 @@ void GameLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID
     Aether::PhysicsSystem::CreateBody(bodyID, config);
 
     if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
-        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, bodyID, localOffset);
+        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, bodyID, true);
     else
     {
         auto& rb           = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);

@@ -18,8 +18,7 @@ namespace Aether {
     struct BodyData
     {
         JPH::BodyID joltID;
-        MotionType motionType;
-        ColliderShape Shape;
+        BodyConfig bodyInfo;
     };
 
     class Jolt_PhysicsAPI : public PhysicsAPI
@@ -32,8 +31,7 @@ namespace Aether {
         virtual void CreateBody(UUID bodyID, const BodyConfig& config) override;
         virtual void DestroyBody(UUID bodyID) override;
 
-        virtual MotionType GetMotionType(UUID bodyID) override;
-        virtual ColliderShape GetColliderShape(UUID bodyID) override;
+        virtual const BodyConfig* GetBodyInfo(UUID bodyID) const override;
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) override;

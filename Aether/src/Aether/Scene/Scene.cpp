@@ -347,7 +347,7 @@ namespace Aether {
                 glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
                 PhysicsSystem::SetPhysTransform(id, {translation + worldOffset, rotation});
             }
-            else if (PhysicsSystem::GetMotionType(id) == MotionType::Dynamic)
+            else if (PhysicsSystem::GetBodyInfo(id)->motionType == MotionType::Dynamic)
             {
                 PhysTransform physTrans = PhysicsSystem::GetPhysTransform(id);
                 glm::vec3 localOffset = rbComp.ColliderOffset;
@@ -470,27 +470,23 @@ namespace Aether {
                         PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);
+                        auto color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f); // green
+                        if (component.Shape == ColliderShape::Sphere)
+                        {
+                            float radius = component.Size.x;
+                            Renderer::RenderSphere(radius, colliderTransform, color);
+                        }
                         if (component.Shape == ColliderShape::Box)
                         {
-                            glm::vec3 bMin(-0.5f), bMax(0.5f);
-                            if (HasComponent<MeshComponent>(entity))
-                            {
-                                auto mesh = GetComponent<MeshComponent>(entity).MeshPtr;
-                                if (mesh) 
-                                { 
-                                    glm::vec3 half = component.Size * 0.5f;
-                                    glm::vec3 meshCenter = mesh->GetBoundsCenter();
-                                    bMin = meshCenter - half;
-                                    bMax = meshCenter + half;
-                                }
-                            }
-                            Renderer::RenderBox(bMin, bMax, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+                            glm::vec3 bMin = -component.Size;
+                            glm::vec3 bMax =  component.Size;
+                            Renderer::RenderBox(bMin, bMax, colliderTransform, color);
                         }
                         if (component.Shape == ColliderShape::Capsule)
                         {
                             float radius  = component.Size.x;
                             float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
-                            Renderer::RenderCapsule(radius, halfCyl, colliderTransform, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+                            Renderer::RenderCapsule(radius, halfCyl, colliderTransform, color);
                         }
                     }
                 }
