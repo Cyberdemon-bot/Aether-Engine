@@ -61,14 +61,6 @@ namespace Aether {
         m_Sources.erase(sourceID);
     }
 
-    const AudioState* SoLoudAPI::GetState(UUID sourceID) const
-    {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return nullptr;
-
-        return &it->second.state;
-    }
-
     bool SoLoudAPI::IsActive(UUID sourceID)
     {
         auto it = m_Sources.find(sourceID);

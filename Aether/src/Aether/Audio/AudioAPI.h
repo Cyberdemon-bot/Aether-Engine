@@ -58,8 +58,6 @@ namespace Aether {
 
         virtual void CreateSource(UUID sourceID, UUID soundID, AudioType type) = 0;
         virtual void DestroySource(UUID sourceID) = 0;
-
-        virtual const AudioState* GetState(UUID sourceID) const = 0;
         virtual bool IsActive(UUID sourceID) = 0;
         
         virtual void Play(UUID sourceID) = 0;

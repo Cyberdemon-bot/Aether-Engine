@@ -60,7 +60,7 @@ private:
     float m_bobSpeed    = 6.0f;
     float m_bobStrength = 0.1f;
 
-    float yFloor = -7.0f;
+    float yFloor = -7.6f;
 
     // --- Zombies ---
     struct ZombieRecord {
