@@ -62,6 +62,10 @@ private:
 
     float yFloor = -7.6f;
 
+    float m_PlayerHealth = 100.0f;    // Máu hiện tại
+    float m_MaxHealth = 100.0f;       // Máu tối đa
+    float m_DamageCooldown = 1.0f;    // Thời gian chờ giữa các lần bị cắn (để không chết ngay lập tức)
+
     // --- Zombies ---
     struct ZombieRecord {
         Aether::UUID animatorID = 0;
@@ -125,6 +129,8 @@ private:
 
     Aether::Ref<Aether::Mesh>                  m_BaseMapMesh;
     std::vector<Aether::Ref<Aether::Material>> m_BaseMapMaterials;
+
+    void DrawRadar();
 
     // --- Rendering ---
     float m_ShadowBias  = 0.00001f;
