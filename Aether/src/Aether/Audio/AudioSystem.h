@@ -36,14 +36,9 @@ namespace Aether {
             s_AudioAPI->DestroySource(sourceID);
         }
 
-        static const AudioState* GetState(UUID sourceID) 
-        {
-            return s_AudioAPI->GetState(sourceID);
-        }
-
         static bool IsActive(UUID sourceID)
         {
-            return s_AudioAPI->GetState(sourceID);
+            return s_AudioAPI->IsActive(sourceID);
         }
 
         static void Play(UUID sourceID) 
