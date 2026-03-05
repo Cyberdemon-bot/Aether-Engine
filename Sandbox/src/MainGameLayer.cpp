@@ -223,7 +223,10 @@ void MainGameLayer::Update(Aether::Timestep ts)
         if (isMoving)
         {
             moveDir = glm::normalize(moveDir);
-            pTransform.Translation += moveDir * (m_PlayerSpeed * (float)ts);
+            glm::vec3 displacement = moveDir * (m_PlayerSpeed * (float)ts);
+            Aether::PhysTransform target = { pTransform.Translation + displacement, pTransform.Rotation };
+            if (Aether::PhysicsSystem::CanMove(m_PlayerBodyID, target))
+                pTransform.Translation += displacement;
 
             if (!m_FirstPerson) {
                 float targetAngle = glm::atan(moveDir.x, moveDir.z);
@@ -426,8 +429,15 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 glm::vec3 facing = zT.Rotation * glm::vec3(0.0f, 0.0f, 1.0f);
                 facing.y = 0.0f;
                 if (glm::length(facing) > 0.001f) {
-                    zT.Translation += glm::normalize(facing) * (actualSpeed * (float)ts);
-                    zT.Translation.y = -1.75f;
+                    Aether::UUID zBodyID = m_ZombieRegistry[zombie].bodyID;
+                    glm::vec3 displacement = glm::normalize(facing) * (actualSpeed * (float)ts);
+                    glm::vec3 nextPos = zT.Translation + displacement;
+                    nextPos.y = -1.75f;
+                    Aether::PhysTransform target = { nextPos, zT.Rotation };
+                    if (Aether::PhysicsSystem::CanMove(zBodyID, target))
+                    {
+                        zT.Translation = nextPos;
+                    }
                 }
                 zT.Dirty = true;
             }
@@ -586,7 +596,6 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
         cfg.offset     = glm::vec3(0.0f, 1.0f, 0.0f);
         Aether::PhysicsSystem::CreateBody(bodyID, cfg);
         auto& cmp = m_Scene.AddComponent<Aether::ColliderComponent>(newZombie, bodyID, cfg.shape, cfg.size, cfg.offset);
-        cmp.Visible = true;
     }
 
     m_ZombieRegistry[newZombie] = { newAnimID, bodyID };
