@@ -53,8 +53,15 @@ namespace Aether {
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
 
-        virtual void CreateSource(UUID sourceID, AudioType type, const std::string& path) = 0;
+        virtual void AddSound(UUID soundID, const std::string& path) = 0;
+        virtual void RemoveSound(UUID soundID) = 0;
+
+        virtual void CreateSource(UUID sourceID, UUID soundID, AudioType type) = 0;
         virtual void DestroySource(UUID sourceID) = 0;
+
+        virtual const AudioState* GetState(UUID sourceID) const = 0;
+        virtual bool IsActive(UUID sourceID) = 0;
+        
         virtual void Play(UUID sourceID) = 0;
         virtual void Pause(UUID sourceID) = 0;
         virtual void Stop(UUID sourceID) = 0;

@@ -29,7 +29,6 @@ public:
 
 private:
     void UpdateMapChunks(const glm::vec3& playerPos);
-    void DestroyHierarchy(Aether::Entity entity);
 
     void DrawHierarchyPanel();
     void DrawEntityNode(Aether::Entity entity);
@@ -50,7 +49,6 @@ private:
 
     bool m_ShowFlowFieldDebug = true;
 
-
     // --- Player ---
     Aether::Entity m_Player         = Aether::Null_Entity;
     Aether::UUID   m_RunAnimation   = 0;
@@ -62,6 +60,7 @@ private:
     float m_bobStrength = 0.1f;
 
     float yFloor = -7.6f;
+
     // --- Zombies ---
     struct ZombieRecord {
         Aether::UUID animatorID = 0;
@@ -76,6 +75,7 @@ private:
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
     int maxZombies = 100;
+
     // --- Flow Field ---
     std::map<std::pair<int, int>, FlowCell> m_FlowField;
     float m_PathGridSize = 1.0f;
@@ -85,17 +85,17 @@ private:
 
     int GetObstacleCost(int coordX, int coordZ) const;
 
-
     // --- Gun ---
     Aether::Entity m_Gun = Aether::Null_Entity;
-
-    glm::vec3 m_GunPosFP   = {  0.38f, -0.25f,  1.2f };
-    glm::vec3 m_GunRotFP   = {  0.0f,   90.0f,  0.0f };
-    glm::vec3 m_GunScaleFP = {  0.2f,    0.2f,  0.2f };
+    Aether::UUID m_GunSound;
 
     glm::vec3 m_GunPosTP   = { -0.25f,  1.37f, -0.45f };
     glm::vec3 m_GunRotTP   = {  0.0f,  -90.0f,  0.0f  };
     glm::vec3 m_GunScaleTP = {  0.2f,    0.2f,  0.2f  };
+
+    bool  m_IsShooting    = false;
+    float m_ShootTimer    = 0.0f;
+    float m_ShootDuration = 0.3f;
 
     // --- Ammo ---
     int   m_CurrentAmmo    = 30;
@@ -115,16 +115,15 @@ private:
         Aether::Entity              landEntity = Aether::Null_Entity;
         std::vector<Aether::Entity> zombies;
         int                         rotation = 0; // 0-3 (multiples of 90)
-    };  
+    };
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
     Aether::Ref<Aether::Mesh>                  m_BaseMapMesh;
     std::vector<Aether::Ref<Aether::Material>> m_BaseMapMaterials;
 
     // --- Rendering ---
-    float m_ShadowBias  = 0.00001f;
-    bool  m_LockCamera  = false;
-    bool  m_FirstPerson = false;
+    float m_ShadowBias = 0.00001f;
+    bool  m_LockCamera = false;
 
     // --- Gun Animation ---
     Aether::UUID m_ShootAnimation = 0;
@@ -138,8 +137,6 @@ private:
     float     m_FogDensity = 0.03f;
     float     m_FogStart   = 10.0f;
     float     m_FogEnd     = 80.0f;
-
-
 
     // hardcode matrix
     static constexpr int k_ObstacleMapSize = 16;

@@ -7,11 +7,11 @@
 namespace Aether {
     struct AudioSource
     {
-        SoLoud::Wav sound;
+        SoLoud::Wav* sound;
         AudioType type = AudioType::Audio2D;
         Audio3DConfig config;
         AudioState state;
-        int handle;
+        int handle = 0;
 
         AudioSource() = default;
         AudioSource(const AudioSource&) = delete;
@@ -26,8 +26,15 @@ namespace Aether {
         virtual void Init() override;
         virtual void Shutdown() override;
 
-        virtual void CreateSource(UUID sourceID, AudioType type, const std::string& path) override;
+        virtual void AddSound(UUID soundID, const std::string& path) override;
+        virtual void RemoveSound(UUID soundID) override;
+
+        virtual void CreateSource(UUID sourceID, UUID soundID, AudioType type) override;
         virtual void DestroySource(UUID sourceID) override;
+
+        virtual const AudioState* GetState(UUID sourceID) const override;
+        virtual bool IsActive(UUID sourceID) override;
+
         virtual void Play(UUID sourceID) override;
         virtual void Pause(UUID sourceID) override;
         virtual void Stop(UUID sourceID) override;
@@ -50,6 +57,7 @@ namespace Aether {
         virtual void UpdateListener(const AudioListener& listener) override;
     private:
         SoLoud::Soloud soloud;
+        std::unordered_map<UUID, SoLoud::Wav> m_Sounds;
         std::unordered_map<UUID, AudioSource> m_Sources;
     };
 }
