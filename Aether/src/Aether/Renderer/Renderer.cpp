@@ -197,9 +197,10 @@ namespace Aether {
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{
 			RenderKey key;
+			if (submeshes[i].MaterialIdx >= materials.size()) continue;
 			key.mesh = mesh;
-			key.material = materials[submeshes[i].MaterialIdx];
 			key.subIdx = i;
+			key.material = materials[submeshes[i].MaterialIdx];
 
 			if (animatorID == UUID(0)) s_SceneData->s_RenderBatches[key].static_obj.push_back(transform);
 			else s_SceneData->s_RenderBatches[key].dynamic_obj.push_back({transform, animatorID});
