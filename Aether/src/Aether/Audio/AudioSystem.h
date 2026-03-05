@@ -17,14 +17,33 @@ namespace Aether {
             s_AudioAPI->Shutdown();
         }
 
-        static void CreateSource(UUID sourceID, AudioType type, const std::string& path)
+        static void AddSound(UUID soundID, const std::string& path) 
         {
-            s_AudioAPI->CreateSource(sourceID, type, path);
+            s_AudioAPI->AddSound(soundID, path);
+        }
+        static void RemoveSound(UUID soundID)
+        {
+            s_AudioAPI->RemoveSound(soundID);
+        }
+
+        static void CreateSource(UUID sourceID, UUID soundID, AudioType type)
+        {
+            s_AudioAPI->CreateSource(sourceID, soundID, type);
         }
 
         static void DestroySource(UUID sourceID)
         {
             s_AudioAPI->DestroySource(sourceID);
+        }
+
+        static const AudioState* GetState(UUID sourceID) 
+        {
+            return s_AudioAPI->GetState(sourceID);
+        }
+
+        static bool IsActive(UUID sourceID)
+        {
+            return s_AudioAPI->GetState(sourceID);
         }
 
         static void Play(UUID sourceID) 

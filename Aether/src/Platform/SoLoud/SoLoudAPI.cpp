@@ -11,22 +11,43 @@ namespace Aether {
     void SoLoudAPI::Shutdown()
     {
         soloud.stopAll();
+        m_Sounds.clear();
         m_Sources.clear();
         soloud.deinit();
     }
 
-    void SoLoudAPI::CreateSource(UUID sourceID, AudioType type, const std::string& path)
+    void SoLoudAPI::AddSound(UUID soundID, const std::string& path) 
     {
-        if (m_Sources.find(sourceID) != m_Sources.end()) return;
+        if (m_Sounds.find(soundID) != m_Sounds.end()) return;
 
-        auto& source = m_Sources[sourceID];
-        SoLoud::result res = source.sound.load(path.c_str());
+        auto& sound = m_Sounds[soundID];
+        SoLoud::result res = sound.load(path.c_str());
         if (res != SoLoud::SO_NO_ERROR)
         {
-            m_Sources.erase(sourceID);
+            m_Sounds.erase(soundID);
             return;
         }
+    }
+    void SoLoudAPI::RemoveSound(UUID soundID) 
+    {
+        auto it = m_Sounds.find(soundID);
+        if (it == m_Sounds.end()) return;
 
+        for (auto& [id, src] : m_Sources)
+        {
+            if (src.sound == &it->second)
+                Stop(id);
+        }
+        m_Sounds.erase(soundID);
+    }
+
+    void SoLoudAPI::CreateSource(UUID sourceID, UUID soundID, AudioType type)
+    {
+        if (m_Sources.find(sourceID) != m_Sources.end()) return;
+        if (m_Sounds.find(soundID) == m_Sounds.end()) return;
+
+        auto& source = m_Sources[sourceID];
+        source.sound = &m_Sounds[soundID];
         source.type = type;
     }
 
@@ -40,6 +61,22 @@ namespace Aether {
         m_Sources.erase(sourceID);
     }
 
+    const AudioState* SoLoudAPI::GetState(UUID sourceID) const
+    {
+        auto it = m_Sources.find(sourceID);
+        if (it == m_Sources.end()) return nullptr;
+
+        return &it->second.state;
+    }
+
+    bool SoLoudAPI::IsActive(UUID sourceID)
+    {
+        auto it = m_Sources.find(sourceID);
+        if (it == m_Sources.end()) return false;
+
+        return soloud.isValidVoiceHandle(it->second.handle);
+    }
+
     void SoLoudAPI::Play(UUID sourceID)
     {
         auto it = m_Sources.find(sourceID);
@@ -47,8 +84,8 @@ namespace Aether {
 
         if (!soloud.isValidVoiceHandle(it->second.handle)) 
         {
-            if (it->second.type == AudioType::Audio2D) it->second.handle = soloud.play(it->second.sound);
-            else it->second.handle = soloud.play3d(it->second.sound, 0, 0, 0);
+            if (it->second.type == AudioType::Audio2D) it->second.handle = soloud.play(*it->second.sound);
+            else it->second.handle = soloud.play3d(*it->second.sound, 0, 0, 0);
         }
         
         it->second.state.pausing = false;

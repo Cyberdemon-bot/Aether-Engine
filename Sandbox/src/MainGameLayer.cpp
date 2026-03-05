@@ -97,7 +97,7 @@ void MainGameLayer::Attach()
     m_Player = m_Scene.CreateEntity("Player");
     auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
     pTransform.Translation = { 0.0f, yFloor, 0.0f };
-    pTransform.Scale = { 1.0f,  1.0f,  1.0f };
+    pTransform.Scale = { 1.0f, 1.0f, 1.0f };
     pTransform.Rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     pTransform.Dirty = true;
 
@@ -157,9 +157,14 @@ void MainGameLayer::Attach()
 
     Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f });
 
-    Aether::UUID bgmID;
-    Aether::AudioSystem::CreateSource(bgmID, Aether::AudioType::Audio2D, "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
+    Aether::UUID bgmID, sound;
+    Aether::AudioSystem::AddSound(sound, "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
+
+    Aether::AudioSystem::CreateSource(bgmID, sound, Aether::AudioType::Audio2D);
+    Aether::AudioSystem::SetLooping(bgmID, true);
     Aether::AudioSystem::Play(bgmID);
+    
+    Aether::AudioSystem::AddSound(m_GunSound, "assets/audio/pistol.mp3");
 
     AE_CORE_INFO("MainGameLayer started.");
 }
@@ -171,7 +176,7 @@ void MainGameLayer::Detach()
     for (auto& [entity, record] : m_ZombieRegistry) {
         if (rigSystem) rigSystem->DestroyAnimator(record.animatorID);
         Aether::PhysicsSystem::DestroyBody(record.bodyID);
-        if (m_Scene.IsValid(entity)) DestroyHierarchy(entity);
+        if (m_Scene.IsValid(entity)) m_Scene.DestroyHierarchy(entity);
     }
     m_ZombieRegistry.clear();
     m_ActiveZombies.clear();
@@ -201,15 +206,12 @@ void MainGameLayer::Update(Aether::Timestep ts)
     {
         auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
 
-        // STEP 2: Movement relative to camera orientation
-        glm::vec3 camForward = m_Camera.GetForwardDirection();
-        glm::vec3 camRight = m_Camera.GetRightDirection();
-        static float s_HeadBobTimer = 0.0f;
-        static float s_BobAmplitudeBlend = 0.0f;
+        float     yaw        = m_Camera.GetYaw();
+        glm::vec3 camForward = glm::normalize(glm::vec3( glm::sin(yaw), 0.0f, -glm::cos(yaw)));
+        glm::vec3 camRight   = glm::normalize(glm::vec3( glm::cos(yaw), 0.0f, -glm::sin(yaw)));
 
-        camForward.y = 0.0f; camRight.y = 0.0f;
-        if (glm::length(camForward) > 0.0f) camForward = glm::normalize(camForward);
-        if (glm::length(camRight) > 0.0f) camRight = glm::normalize(camRight);
+        static float s_HeadBobTimer      = 0.0f;
+        static float s_BobAmplitudeBlend = 0.0f;
 
         glm::vec3 moveDir(0.0f);
         if (Aether::Input::IsKeyPressed(Aether::Key::W)) moveDir += camForward;
@@ -232,13 +234,12 @@ void MainGameLayer::Update(Aether::Timestep ts)
             if (Aether::PhysicsSystem::CanMove(m_PlayerBodyID, playerTarget))
                 pTransform.Translation = newPlayerPos;
 
-            if (!m_FirstPerson) {
-                float targetAngle = glm::atan(moveDir.x, moveDir.z);
-                glm::quat targetRot = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
-                if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
-                float blend = 1.0f - glm::exp(-15.0f * (float)ts);
-                pTransform.Rotation = glm::normalize(glm::slerp(pTransform.Rotation, targetRot, blend));
-            }
+            // Rotate player body to face movement direction
+            float targetAngle = glm::atan(moveDir.x, moveDir.z);
+            glm::quat targetRot = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
+            if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
+            float blend = 1.0f - glm::exp(-15.0f * (float)ts);
+            pTransform.Rotation = glm::normalize(glm::slerp(pTransform.Rotation, targetRot, blend));
             pTransform.Dirty = true;
 
             s_HeadBobTimer += (float)ts * m_bobSpeed;
@@ -253,30 +254,25 @@ void MainGameLayer::Update(Aether::Timestep ts)
             }
         }
 
-        float targetAmplitude = m_FirstPerson ? m_bobStrength : m_bobStrength / 2.0f;
-        float bobOffsetY = glm::abs(glm::sin(s_HeadBobTimer)) * targetAmplitude * s_BobAmplitudeBlend;
+        float bobOffsetY = glm::abs(glm::sin(s_HeadBobTimer)) * (m_bobStrength / 2.0f) * s_BobAmplitudeBlend;
 
-        // STEP 3: Sync camera with updated player position
-        glm::vec3 playerTopPos = pTransform.Translation + glm::vec3(0.0f, 1.0f + bobOffsetY, 0.0f);
-        glm::vec3 playerEyePos = pTransform.Translation + glm::vec3(0.0f, 1.7f + bobOffsetY, 0.0f);
+        // STEP 3: Sync camera with player position (third-person)
+        pTransform.Scale = { 1.0f, 1.0f, 1.0f };
+        glm::vec3 playerTopPos   = pTransform.Translation + glm::vec3(0.0f, 1.0f + bobOffsetY, 0.0f);
+        glm::vec3 shoulderOffset = m_Camera.GetRightDirection() * 0.5f;
+        m_Camera.SetFocalPoint(playerTopPos + shoulderOffset);
 
-        if (m_FirstPerson)
-        {
-            pTransform.Scale = { 0.001f, 0.001f, 0.001f };
-            m_Camera.SetDistance(0.5f);
-            m_Camera.SetFocalPoint(playerEyePos);
-            pTransform.Rotation = glm::quat(glm::vec3(0.0f, -m_Camera.GetYaw(), 0.0f));
-            pTransform.Dirty = true;
+        if (m_LockCamera) {
+            m_Camera.SetDistance(5.0f);
+            if (m_Camera.GetPitch() < 0.2f) m_Camera.SetPitch(0.2f);
         }
-        else
-        {
-            pTransform.Scale = { 1.0f, 1.0f, 1.0f };
-            glm::vec3 shoulderOffset = m_Camera.GetRightDirection() * 0.5f;
-            m_Camera.SetFocalPoint(playerTopPos + shoulderOffset);
 
-            if (m_LockCamera) {
-                m_Camera.SetDistance(5.0f);
-                if (m_Camera.GetPitch() < 0.2f) m_Camera.SetPitch(0.2f);
+        // --- SHOOT TIMER ---
+        if (m_IsShooting) {
+            m_ShootTimer -= (float)ts;
+            if (m_ShootTimer <= 0.0f) {
+                m_IsShooting  = false;
+                m_ShootTimer  = 0.0f;
             }
         }
 
@@ -319,9 +315,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
         static float s_TimeAccumulator = 0.0f;
         s_TimeAccumulator += (float)ts;
 
-        const float actualChunkSize = m_ChunkSize * 1.0f;
-        const float despawnRadius = (m_CurrentRenderDistance * actualChunkSize) + (actualChunkSize * 1.5f);
-        const float despawnRadiusSq = despawnRadius * despawnRadius;
+        const float actualChunkSize  = m_ChunkSize * 1.0f;
+        const float despawnRadius    = (m_CurrentRenderDistance * actualChunkSize) + (actualChunkSize * 1.5f);
+        const float despawnRadiusSq  = despawnRadius * despawnRadius;
 
         // 1. Despawn out-of-range zombies
         for (auto it = m_ActiveZombies.begin(); it != m_ActiveZombies.end(); )
@@ -339,13 +335,13 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 rigSystem->DestroyAnimator(rec.animatorID);
                 Aether::PhysicsSystem::DestroyBody(rec.bodyID);
                 m_ZombieRegistry.erase(zombie);
-                DestroyHierarchy(zombie);
+                m_Scene.DestroyHierarchy(zombie);
                 it = m_ActiveZombies.erase(it);
             }
             else { ++it; }
         }
 
-        // 2. Ambient spawn at fog edge (once per second, cap at 50)
+        // 2. Ambient spawn at fog edge (once per second)
         static float s_SpawnTimer = 0.0f;
         s_SpawnTimer += (float)ts;
         if (s_SpawnTimer >= 1.0f) {
@@ -371,7 +367,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
             zombieIndex++;
             if (zombieIndex % 2 != s_ZombieUpdateCounter % 2) continue;
 
-            auto& zT = m_Scene.GetComponent<Aether::TransformComponent>(zombie);
+            auto& zT     = m_Scene.GetComponent<Aether::TransformComponent>(zombie);
             uint32_t zSeed = (uint32_t)zombie;
 
             int zX = static_cast<int>(std::floor(zT.Translation.x / m_PathGridSize));
@@ -392,7 +388,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
 
             // Wobble perpendicular to movement
             glm::vec3 rightDir = glm::vec3(-baseDir.z, 0.0f, baseDir.x);
-            float     wobble = glm::sin(s_TimeAccumulator * 2.5f + zSeed) * 0.35f;
+            float     wobble   = glm::sin(s_TimeAccumulator * 2.5f + zSeed) * 0.35f;
 
             // Separation force to avoid stacking
             glm::vec3 separationForce(0.0f);
@@ -413,11 +409,11 @@ void MainGameLayer::Update(Aether::Timestep ts)
             if (neighborCount > 0) separationForce /= (float)neighborCount;
 
             // Combine forces into final move direction
-            glm::vec3 totalForce = baseDir + rightDir * wobble + separationForce * 0.5f;
+            glm::vec3 totalForce   = baseDir + rightDir * wobble + separationForce * 0.5f;
             glm::vec3 finalMoveDir = (glm::length(totalForce) > 0.001f) ? glm::normalize(totalForce) : baseDir;
 
             // Per-zombie speed variation (80%–120%)
-            float speedMod = 0.8f + ((zSeed % 100) / 100.0f) * 0.4f;
+            float speedMod   = 0.8f + ((zSeed % 100) / 100.0f) * 0.4f;
             float actualSpeed = m_ZombieSpeed * speedMod;
 
             glm::vec3 diffToPlayer = pTransform.Translation - zT.Translation;
@@ -426,11 +422,10 @@ void MainGameLayer::Update(Aether::Timestep ts)
             if (glm::length(diffToPlayer) > 1.2f)
             {
                 float     targetAngle = glm::atan(finalMoveDir.x, finalMoveDir.z);
-                glm::quat targetRot = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
+                glm::quat targetRot   = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
                 if (glm::dot(zT.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
                 zT.Rotation = glm::normalize(glm::slerp(zT.Rotation, targetRot, 1.0f - glm::exp(-5.0f * (float)ts)));
 
-                // Lock facing to ground plane to prevent vertical drift
                 glm::vec3 facing = zT.Rotation * glm::vec3(0.0f, 0.0f, 1.0f);
                 facing.y = 0.0f;
                 if (glm::length(facing) > 0.001f) {
@@ -441,7 +436,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
                     if (Aether::PhysicsSystem::CanMove(zRec.bodyID, zombieTarget))
                         zT.Translation = newZombiePos;
                     else
-                        zT.Translation.y = yFloor; // keep floor-locked even when blocked
+                        zT.Translation.y = yFloor;
                 }
                 zT.Dirty = true;
             }
@@ -450,44 +445,29 @@ void MainGameLayer::Update(Aether::Timestep ts)
 
     // --- SHADER UNIFORMS ---
     m_MainShader->Bind();
-    m_MainShader->SetFloat("u_Bias", m_ShadowBias);
-    m_MainShader->SetInt("u_FogMode", m_FogMode);
-    m_MainShader->SetFloat3("u_FogColor", m_FogColor);
+    m_MainShader->SetFloat("u_Bias",       m_ShadowBias);
+    m_MainShader->SetInt("u_FogMode",      m_FogMode);
+    m_MainShader->SetFloat3("u_FogColor",  m_FogColor);
     m_MainShader->SetFloat("u_FogDensity", m_FogDensity);
-    m_MainShader->SetFloat("u_FogStart", m_FogStart);
-    m_MainShader->SetFloat("u_FogEnd", m_FogEnd);
+    m_MainShader->SetFloat("u_FogStart",   m_FogStart);
+    m_MainShader->SetFloat("u_FogEnd",     m_FogEnd);
 
-    // --- GUN POSITIONING ---
+    // --- GUN POSITIONING (third-person) ---
     if (m_Scene.IsValid(m_Gun) && m_Scene.IsValid(m_Player))
     {
         auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
         auto& gTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
 
-        if (m_FirstPerson)
-        {
-            glm::vec3 camPos = m_Camera.GetPosition();
-            glm::vec3 forward = m_Camera.GetForwardDirection();
-            glm::vec3 right = m_Camera.GetRightDirection();
-            glm::vec3 up = m_Camera.GetUpDirection();
+        glm::quat pRot    = pTransform.Rotation;
+        glm::vec3 forward = pRot * glm::vec3(0.0f, 0.0f, -1.0f);
+        glm::vec3 right   = pRot * glm::vec3(1.0f, 0.0f,  0.0f);
+        glm::vec3 up      = pRot * glm::vec3(0.0f, 1.0f,  0.0f);
 
-            gTransform.Translation = camPos + (right * m_GunPosFP.x) + (up * m_GunPosFP.y) + (forward * m_GunPosFP.z);
-            glm::quat camQuat = glm::quat(glm::vec3(-m_Camera.GetPitch(), -m_Camera.GetYaw(), 0.0f));
-            gTransform.Rotation = camQuat * glm::quat(glm::radians(m_GunRotFP));
-            gTransform.Scale = m_GunScaleFP;
-        }
-        else
-        {
-            glm::quat pRot = pTransform.Rotation;
-            glm::vec3 forward = pRot * glm::vec3(0.0f, 0.0f, -1.0f);
-            glm::vec3 right = pRot * glm::vec3(1.0f, 0.0f, 0.0f);
-            glm::vec3 up = pRot * glm::vec3(0.0f, 1.0f, 0.0f);
-
-            gTransform.Translation = pTransform.Translation
-                + (right * m_GunPosTP.x) + (up * m_GunPosTP.y) + (forward * m_GunPosTP.z);
-            gTransform.Rotation = pRot * glm::quat(glm::radians(m_GunRotTP));
-            gTransform.Scale = m_GunScaleTP;
-        }
-        gTransform.Dirty = true;
+        gTransform.Translation = pTransform.Translation
+            + (right * m_GunPosTP.x) + (up * m_GunPosTP.y) + (forward * m_GunPosTP.z);
+        gTransform.Rotation = pRot * glm::quat(glm::radians(m_GunRotTP));
+        gTransform.Scale    = m_GunScaleTP;
+        gTransform.Dirty    = true;
     }
 
     m_Scene.Update(ts, &m_Camera);
@@ -516,20 +496,18 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             auto& t = m_Scene.GetComponent<Aether::TransformComponent>(chunk);
             t.Translation = glm::vec3((coord.first + 0.5f) * actualChunkSize, -(actualChunkSize / 2.0f), (coord.second + 0.5f) * actualChunkSize);
 
-            // Random 90-degree snap rotation on Y axis
-            int randomRot = std::rand() % 4; // 0, 1, 2, 3
-            float rotAngle = glm::radians(randomRot * 90.0f);
+            int   randomRot = std::rand() % 4;
+            float rotAngle  = glm::radians(randomRot * 90.0f);
             t.Rotation = glm::quat(glm::vec3(0.0f, rotAngle, 0.0f));
-
             t.Dirty = true;
 
             auto& mesh = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
-            mesh.MeshPtr = m_BaseMapMesh;
+            mesh.MeshPtr   = m_BaseMapMesh;
             mesh.Materials = m_BaseMapMaterials;
 
             ChunkData newData;
             newData.landEntity = chunk;
-            newData.rotation = randomRot;
+            newData.rotation   = randomRot;
             if (std::rand() % 100 < 80 && (std::abs(x) > 2 || std::abs(z) > 2)) {
                 glm::vec3 spawnPos = t.Translation;
                 spawnPos.y = yFloor;
@@ -553,7 +531,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
                 m_ZombieRegistry.erase(regIt);
             }
             m_ActiveZombies.erase(std::remove(m_ActiveZombies.begin(), m_ActiveZombies.end(), zombie), m_ActiveZombies.end());
-            DestroyHierarchy(zombie);
+            m_Scene.DestroyHierarchy(zombie);
         }
 
         if (m_Scene.IsValid(it->second.landEntity))
@@ -572,7 +550,6 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
 
     auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
 
-    // Clone animator for this zombie instance
     Aether::UUID newAnimID = Aether::AssetsRegister::Register("ZombieAnim_" + std::to_string(s_ZombieCounter));
     if (rigSystem) {
         rigSystem->CloneAnimator(newAnimID, m_ZombieRunAnimation);
@@ -580,7 +557,6 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
         rigSystem->Play(newAnimID);
     }
 
-    // Temporarily swap animator ID so LoadHierarchy binds the new clone
     Aether::UUID originalAnimID = m_ZombieSceneData.animatorIDS[0];
     m_ZombieSceneData.animatorIDS[0] = newAnimID;
 
@@ -616,27 +592,23 @@ int MainGameLayer::GetObstacleCost(int coordX, int coordZ) const
 {
     int s = k_ObstacleMapSize;
 
-    // Which chunk does this cell belong to
     int chunkX = (int)std::floor((float)coordX / s);
     int chunkZ = (int)std::floor((float)coordZ / s);
 
-    // Local index within the chunk [0, s)
     int localX = ((coordX % s) + s) % s;
     int localZ = ((coordZ % s) + s) % s;
 
-    // Look up this chunk's rotation (0-3)
     int rot = 0;
     auto it = m_ActiveChunks.find({ chunkX, chunkZ });
     if (it != m_ActiveChunks.end())
         rot = it->second.rotation;
 
-    // Rotate local coords to match chunk mesh rotation
     int rx = localX, rz = localZ;
     switch (rot) {
-    case 1: rx = s - 1 - localZ; rz = localX;     break; // 90
-    case 2: rx = s - 1 - localX; rz = s - 1 - localZ; break; // 180
-    case 3: rx = localZ;     rz = s - 1 - localX; break; // 270
-    default: break;                                    // 0 
+    case 1: rx = s - 1 - localZ; rz = localX;           break; // 90
+    case 2: rx = s - 1 - localX; rz = s - 1 - localZ;   break; // 180
+    case 3: rx = localZ;         rz = s - 1 - localX;   break; // 270
+    default: break;                                              // 0
     }
 
     return (m_ObstacleMap[rz][rx] == 1) ? 255 : 1;
@@ -644,11 +616,10 @@ int MainGameLayer::GetObstacleCost(int coordX, int coordZ) const
 
 void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
 {
-    // Reset costs and directions
     for (auto& [coord, cell] : m_FlowField) {
-        cell.bestCost = 999999;
+        cell.bestCost  = 999999;
         cell.direction = glm::vec3(0.0f);
-        cell.cost = GetObstacleCost(coord.first, coord.second); // re-apply every update
+        cell.cost      = GetObstacleCost(coord.first, coord.second);
     }
 
     int targetX = static_cast<int>(std::floor(targetPos.x / m_PathGridSize));
@@ -656,7 +627,7 @@ void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
     auto targetCoord = std::make_pair(targetX, targetZ);
 
     m_FlowField[targetCoord].bestCost = 0;
-    m_FlowField[targetCoord].cost = 1;
+    m_FlowField[targetCoord].cost     = 1;
 
     static const std::vector<std::pair<int, int>> neighbors = {
         {0, 1}, {0,-1}, {1, 0}, {-1, 0},
@@ -667,11 +638,10 @@ void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
     std::queue<std::pair<int, int>> openList;
     openList.push(targetCoord);
 
-    // BFS Dijkstra flood fill
     while (!openList.empty())
     {
         auto current = openList.front(); openList.pop();
-        if (std::abs(current.first - targetX) > maxRadius ||
+        if (std::abs(current.first  - targetX) > maxRadius ||
             std::abs(current.second - targetZ) > maxRadius) continue;
 
         int currCost = m_FlowField[current].bestCost;
@@ -689,7 +659,7 @@ void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
             if (neighbor.cost >= 255) continue;
 
             int moveCost = (dx != 0 && dz != 0) ? 14 : 10;
-            int newCost = currCost + (moveCost * neighbor.cost);
+            int newCost  = currCost + (moveCost * neighbor.cost);
 
             if (newCost < neighbor.bestCost) {
                 neighbor.bestCost = newCost;
@@ -698,7 +668,6 @@ void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
         }
     }
 
-    // Build smooth gradient direction vectors
     for (auto& [coord, cell] : m_FlowField)
     {
         if (cell.cost >= 255 || cell.bestCost == 999999) continue;
@@ -725,7 +694,7 @@ void MainGameLayer::OnImGuiRender()
 {
     ImGui::Begin("Game Controls");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::Text("Controls: W A S D (Move relative to camera)");
+    ImGui::Text("Controls: WASD to move, LMB to shoot, R to reload.");
     ImGui::Separator();
 
     if (ImGui::Checkbox("Lock Camera (Play Mode)", &m_LockCamera)) {
@@ -760,30 +729,19 @@ void MainGameLayer::OnImGuiRender()
         if (m_Scene.IsValid(m_Player)) {
             auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
             if (ImGui::DragFloat3("Position", glm::value_ptr(pTransform.Translation), 0.01f)) pTransform.Dirty = true;
-            if (ImGui::DragFloat3("Scale", glm::value_ptr(pTransform.Scale), 0.01f)) pTransform.Dirty = true;
+            if (ImGui::DragFloat3("Scale",    glm::value_ptr(pTransform.Scale),       0.01f)) pTransform.Dirty = true;
         }
     }
     ImGui::End();
 
     // --- GUN ---
     if (ImGui::Begin("Weapon Setup (Gun)")) {
-        ImGui::Text("Tune gun placement per perspective.");
-        ImGui::Separator();
-        if (m_FirstPerson) {
-            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "--- 1ST PERSON ---");
-            ImGui::DragFloat3("FP Position", glm::value_ptr(m_GunPosFP), 0.01f);
-            ImGui::DragFloat3("FP Rotation", glm::value_ptr(m_GunRotFP), 1.0f);
-            ImGui::DragFloat3("FP Scale", glm::value_ptr(m_GunScaleFP), 0.01f);
-        }
-        else {
-            ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "--- 3RD PERSON ---");
-            ImGui::DragFloat3("TP Position", glm::value_ptr(m_GunPosTP), 0.01f);
-            ImGui::DragFloat3("TP Rotation", glm::value_ptr(m_GunRotTP), 1.0f);
-            ImGui::DragFloat3("TP Scale", glm::value_ptr(m_GunScaleTP), 0.01f);
-        }
+        ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "--- 3RD PERSON ---");
+        ImGui::DragFloat3("TP Position", glm::value_ptr(m_GunPosTP),   0.01f);
+        ImGui::DragFloat3("TP Rotation", glm::value_ptr(m_GunRotTP),   1.0f);
+        ImGui::DragFloat3("TP Scale",    glm::value_ptr(m_GunScaleTP), 0.01f);
         ImGui::Separator();
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Note: record these values when done tuning.");
-        ImGui::Text("Press V or scroll to switch perspective.");
     }
     ImGui::End();
 
@@ -798,7 +756,7 @@ void MainGameLayer::OnImGuiRender()
     // --- AMMO HUD (bottom-right) ---
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImVec2 hudPos = ImVec2(viewport->Pos.x + viewport->Size.x - 180,
-        viewport->Pos.y + viewport->Size.y - 100);
+                           viewport->Pos.y + viewport->Size.y - 100);
     ImGui::SetNextWindowPos(hudPos);
     ImGui::Begin("AmmoDisplay", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
@@ -813,24 +771,28 @@ void MainGameLayer::OnImGuiRender()
         ImGui::Text("%d / INF", m_CurrentAmmo);
         ImGui::SetWindowFontScale(1.0f);
     }
+    if (m_IsShooting)
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.0f, 1.0f), "FIRING  %.2fs", m_ShootTimer);
+    else
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "idle");
     ImGui::End();
 
     // --- CROSSHAIR ---
     ImVec2 center = ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f,
-        viewport->Pos.y + viewport->Size.y * 0.5f);
-    auto drawList = ImGui::GetForegroundDrawList();
+                           viewport->Pos.y + viewport->Size.y * 0.5f);
+    auto        drawList  = ImGui::GetForegroundDrawList();
     const float thickness = 2.0f;
-    const ImU32 green = IM_COL32(0, 255, 0, 255);
-    const ImU32 white = IM_COL32(255, 255, 255, 255);
+    const ImU32 green     = IM_COL32(0, 255, 0, 255);
+    const ImU32 white     = IM_COL32(255, 255, 255, 255);
 
     if (m_IsReloading)
     {
-        const float radius = 15.0f;
+        const float radius      = 15.0f;
         const int   numSegments = 8;
         for (int i = 0; i < numSegments; i++) {
-            float angle = m_ReloadRotation + (i * (2.0f * glm::pi<float>() / numSegments));
+            float  angle = m_ReloadRotation + (i * (2.0f * glm::pi<float>() / numSegments));
             ImVec2 p1 = { center.x + glm::cos(angle) * (radius - 5), center.y + glm::sin(angle) * (radius - 5) };
-            ImVec2 p2 = { center.x + glm::cos(angle) * radius,      center.y + glm::sin(angle) * radius };
+            ImVec2 p2 = { center.x + glm::cos(angle) * radius,       center.y + glm::sin(angle) * radius };
             drawList->AddLine(p1, p2, white, thickness);
         }
         drawList->AddCircleFilled(center, 1.5f, IM_COL32(255, 0, 0, 150));
@@ -842,45 +804,43 @@ void MainGameLayer::OnImGuiRender()
         crosshairSpread = glm::mix(crosshairSpread, target, 0.1f);
 
         const float baseLength = 10.0f;
-        const float offset = 5.0f + crosshairSpread;
+        const float offset     = 5.0f + crosshairSpread;
 
-        drawList->AddLine({ center.x - offset - baseLength, center.y }, { center.x - offset, center.y }, green, thickness);
-        drawList->AddLine({ center.x + offset, center.y }, { center.x + offset + baseLength, center.y }, green, thickness);
-        drawList->AddLine({ center.x, center.y - offset - baseLength }, { center.x, center.y - offset }, green, thickness);
-        drawList->AddLine({ center.x, center.y + offset }, { center.x, center.y + offset + baseLength }, green, thickness);
+        drawList->AddLine({ center.x - offset - baseLength, center.y }, { center.x - offset,              center.y }, green, thickness);
+        drawList->AddLine({ center.x + offset,              center.y }, { center.x + offset + baseLength, center.y }, green, thickness);
+        drawList->AddLine({ center.x, center.y - offset - baseLength }, { center.x, center.y - offset               }, green, thickness);
+        drawList->AddLine({ center.x, center.y + offset               }, { center.x, center.y + offset + baseLength  }, green, thickness);
         drawList->AddCircleFilled(center, 1.5f, white);
     }
 
     // --- FLOW FIELD DEBUG OVERLAY ---
     if (m_ShowFlowFieldDebug && !m_FlowField.empty())
     {
-        ImGuiViewport* vp = ImGui::GetMainViewport();
-        ImDrawList* fgDraw = ImGui::GetForegroundDrawList();
+        ImGuiViewport* vp     = ImGui::GetMainViewport();
+        ImDrawList*    fgDraw = ImGui::GetForegroundDrawList();
         ImVec2         dispSize = vp->Size;
-        ImVec2         dispPos = vp->Pos;
+        ImVec2         dispPos  = vp->Pos;
+        glm::mat4      viewProj = m_Camera.GetViewProjection();
 
-        glm::mat4 viewProj = m_Camera.GetViewProjection();
-
-        const ImU32 colGrid = IM_COL32(0, 255, 0, 80);   // faint green cell borders
-        const ImU32 colDir = IM_COL32(0, 255, 0, 200);   // bright green arrows
-        const ImU32 colTarget = IM_COL32(255, 255, 0, 255);   // yellow for cost-0 cell
-        const float half = m_PathGridSize * 0.5f;
+        const ImU32 colGrid   = IM_COL32(0,   255, 0,   80);
+        const ImU32 colDir    = IM_COL32(0,   255, 0,   200);
+        const ImU32 colTarget = IM_COL32(255, 255, 0,   255);
+        const float half      = m_PathGridSize * 0.5f;
 
         for (auto& [coord, cell] : m_FlowField)
         {
             if (cell.bestCost == 999999) continue;
 
             glm::vec3 worldCenter = glm::vec3(
-                (coord.first + 0.5f) * m_PathGridSize,
+                (coord.first  + 0.5f) * m_PathGridSize,
                 yFloor + 0.05f,
                 (coord.second + 0.5f) * m_PathGridSize
             );
 
-            // Project the four corners of this grid cell to screen space
             glm::vec3 corners[4] = {
                 worldCenter + glm::vec3(-half, 0, -half),
-                worldCenter + glm::vec3(half, 0, -half),
-                worldCenter + glm::vec3(half, 0,  half),
+                worldCenter + glm::vec3( half, 0, -half),
+                worldCenter + glm::vec3( half, 0,  half),
                 worldCenter + glm::vec3(-half, 0,  half),
             };
 
@@ -891,39 +851,31 @@ void MainGameLayer::OnImGuiRender()
                 if (!WorldToScreen(corners[i], viewProj, dispSize, s)) { allVisible = false; break; }
                 screenCorners[i] = ImVec2(dispPos.x + s.x, dispPos.y + s.y);
             }
-
             if (!allVisible) continue;
 
-            // Draw cell quad
             ImU32 borderCol = (cell.bestCost == 0) ? colTarget : colGrid;
             fgDraw->AddQuad(screenCorners[0], screenCorners[1],
-                screenCorners[2], screenCorners[3], borderCol, 1.0f);
+                            screenCorners[2], screenCorners[3], borderCol, 1.0f);
 
-            // Draw direction arrow (skip the target cell itself)
             if (cell.bestCost > 0 && glm::length(cell.direction) > 0.01f)
             {
                 glm::vec3 arrowEnd = worldCenter + cell.direction * (m_PathGridSize * 0.4f);
                 ImVec2    sCenter, sEnd;
-
                 if (WorldToScreen(worldCenter, viewProj, dispSize, sCenter) &&
-                    WorldToScreen(arrowEnd, viewProj, dispSize, sEnd))
+                    WorldToScreen(arrowEnd,    viewProj, dispSize, sEnd))
                 {
                     sCenter = ImVec2(dispPos.x + sCenter.x, dispPos.y + sCenter.y);
-                    sEnd = ImVec2(dispPos.x + sEnd.x, dispPos.y + sEnd.y);
-
+                    sEnd    = ImVec2(dispPos.x + sEnd.x,    dispPos.y + sEnd.y);
                     fgDraw->AddLine(sCenter, sEnd, colDir, 1.5f);
 
-                    // Arrowhead
                     glm::vec2 lineDir = glm::normalize(glm::vec2(sEnd.x - sCenter.x, sEnd.y - sCenter.y));
-                    glm::vec2 perp = glm::vec2(-lineDir.y, lineDir.x);
+                    glm::vec2 perp    = glm::vec2(-lineDir.y, lineDir.x);
                     const float headLen = 4.0f;
-
-                    ImVec2 tip = sEnd;
+                    ImVec2 tip   = sEnd;
                     ImVec2 lWing = ImVec2(sEnd.x - lineDir.x * headLen + perp.x * headLen * 0.5f,
-                        sEnd.y - lineDir.y * headLen + perp.y * headLen * 0.5f);
+                                         sEnd.y - lineDir.y * headLen + perp.y * headLen * 0.5f);
                     ImVec2 rWing = ImVec2(sEnd.x - lineDir.x * headLen - perp.x * headLen * 0.5f,
-                        sEnd.y - lineDir.y * headLen - perp.y * headLen * 0.5f);
-
+                                         sEnd.y - lineDir.y * headLen - perp.y * headLen * 0.5f);
                     fgDraw->AddTriangleFilled(tip, lWing, rWing, colDir);
                 }
             }
@@ -932,29 +884,27 @@ void MainGameLayer::OnImGuiRender()
 
     if (m_ShowFlowFieldDebug && !m_ActiveChunks.empty())
     {
-        ImGuiViewport* vp = ImGui::GetMainViewport();
-        ImDrawList* fgDraw = ImGui::GetForegroundDrawList();
-        ImVec2       dispSize = vp->Size;
-        ImVec2       dispPos = vp->Pos;
-
-        glm::mat4 viewProj = m_Camera.GetViewProjection();
-        const float actualChunkSize = m_ChunkSize * 1.0f;
-        const float half = actualChunkSize * 0.5f;
-
-        const ImU32 colChunk = IM_COL32(255, 0, 0, 160);  // red border
-        const ImU32 colLabel = IM_COL32(255, 80, 80, 255);  // red label
+        ImGuiViewport* vp     = ImGui::GetMainViewport();
+        ImDrawList*    fgDraw = ImGui::GetForegroundDrawList();
+        ImVec2         dispSize = vp->Size;
+        ImVec2         dispPos  = vp->Pos;
+        glm::mat4      viewProj       = m_Camera.GetViewProjection();
+        const float    actualChunkSize = m_ChunkSize * 1.0f;
+        const float    half            = actualChunkSize * 0.5f;
+        const ImU32    colChunk        = IM_COL32(255,  0,  0, 160);
+        const ImU32    colLabel        = IM_COL32(255, 80, 80, 255);
 
         for (auto& [coord, chunkData] : m_ActiveChunks)
         {
             glm::vec3 worldCenter = glm::vec3(
-                (coord.first + 0.5f) * actualChunkSize,
+                (coord.first  + 0.5f) * actualChunkSize,
                 yFloor + 0.05f,
                 (coord.second + 0.5f) * actualChunkSize);
 
             glm::vec3 corners[4] = {
                 worldCenter + glm::vec3(-half, 0.f, -half),
-                worldCenter + glm::vec3(half, 0.f, -half),
-                worldCenter + glm::vec3(half, 0.f,  half),
+                worldCenter + glm::vec3( half, 0.f, -half),
+                worldCenter + glm::vec3( half, 0.f,  half),
                 worldCenter + glm::vec3(-half, 0.f,  half),
             };
 
@@ -965,22 +915,16 @@ void MainGameLayer::OnImGuiRender()
                 if (!WorldToScreen(corners[i], viewProj, dispSize, s)) { allVisible = false; break; }
                 screenCorners[i] = ImVec2(dispPos.x + s.x, dispPos.y + s.y);
             }
-
             if (!allVisible) continue;
 
-            // Draw chunk border
             fgDraw->AddQuad(screenCorners[0], screenCorners[1],
-                screenCorners[2], screenCorners[3], colChunk, 2.0f);
+                            screenCorners[2], screenCorners[3], colChunk, 2.0f);
 
-            // Draw coord label at chunk center
             ImVec2 sCenter;
             if (WorldToScreen(worldCenter, viewProj, dispSize, sCenter)) {
                 char buf[32];
                 snprintf(buf, sizeof(buf), "%d,%d", coord.first, coord.second);
-                fgDraw->AddText(
-                    ImVec2(dispPos.x + sCenter.x, dispPos.y + sCenter.y),
-                    colLabel, buf
-                );
+                fgDraw->AddText(ImVec2(dispPos.x + sCenter.x, dispPos.y + sCenter.y), colLabel, buf);
             }
         }
     }
@@ -988,7 +932,7 @@ void MainGameLayer::OnImGuiRender()
 
 void MainGameLayer::DrawEntityNode(Aether::Entity entity)
 {
-    auto& tag = m_Scene.GetComponent<Aether::TagComponent>(entity);
+    auto& tag  = m_Scene.GetComponent<Aether::TagComponent>(entity);
     auto& hier = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -1038,8 +982,8 @@ void MainGameLayer::DrawScenePanel()
         {
             auto& t = m_Scene.GetComponent<Aether::TransformComponent>(m_SelectedEntity);
             if (ImGui::DragFloat3("Position", glm::value_ptr(t.Translation), 0.1f))  t.Dirty = true;
-            if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation), 0.1f))  t.Dirty = true;
-            if (ImGui::DragFloat3("Scale", glm::value_ptr(t.Scale), 0.05f)) t.Dirty = true;
+            if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation),    0.1f))  t.Dirty = true;
+            if (ImGui::DragFloat3("Scale",    glm::value_ptr(t.Scale),       0.05f)) t.Dirty = true;
         }
     }
     else {
@@ -1056,9 +1000,9 @@ void MainGameLayer::DrawLightingPanel()
     if (m_Scene.IsValid(m_SunLight)) {
         if (ImGui::CollapsingHeader("Sun Light", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto& light = m_Scene.GetComponent<Aether::LightComponent>(m_SunLight).Config;
-            ImGui::ColorEdit3("Sun Color", glm::value_ptr(light.color));
+            ImGui::ColorEdit3("Sun Color",  glm::value_ptr(light.color));
             ImGui::SliderFloat("Intensity", &light.intensity, 0.0f, 10.0f);
-            ImGui::DragFloat3("Direction", glm::value_ptr(light.direction), 0.01f, -1.0f, 1.0f);
+            ImGui::DragFloat3("Direction",  glm::value_ptr(light.direction), 0.01f, -1.0f, 1.0f);
         }
     }
 
@@ -1066,12 +1010,12 @@ void MainGameLayer::DrawLightingPanel()
         ImGui::SliderFloat("Shadow Bias", &m_ShadowBias, 0.00001f, 0.005f, "%.5f");
 
     if (ImGui::CollapsingHeader("Atmosphere & Fog", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::ColorEdit3("Fog Color", glm::value_ptr(m_FogColor));
-        ImGui::SliderFloat("Fog Density", &m_FogDensity, 0.0f, 0.1f);
+        ImGui::ColorEdit3("Fog Color",      glm::value_ptr(m_FogColor));
+        ImGui::SliderFloat("Fog Density",   &m_FogDensity, 0.0f, 0.1f);
     }
 
     if (ImGui::CollapsingHeader("Camera Movement")) {
-        ImGui::SliderFloat("Bob Speed", &m_bobSpeed, 5.0f, 20.0f);
+        ImGui::SliderFloat("Bob Speed",    &m_bobSpeed,    5.0f,  20.0f);
         ImGui::SliderFloat("Bob Strength", &m_bobStrength, 0.01f, 0.2f);
     }
 
@@ -1081,51 +1025,17 @@ void MainGameLayer::DrawLightingPanel()
 void MainGameLayer::OnEvent(Aether::Event& event)
 {
     m_Camera.OnEvent(event);
-    auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
 
-    // V: toggle perspective
-    if (event.GetEventType() == Aether::EventType::KeyPressed &&
-        Aether::Input::IsKeyPressed(Aether::Key::V))
-    {
-        m_FirstPerson = !m_FirstPerson;
-        pTransform.Scale = m_FirstPerson ? glm::vec3(0.001f) : glm::vec3(1.0f);
-        m_Camera.SetDistance(m_FirstPerson ? 0.5f : 6.0f);
-        pTransform.Dirty = true;
-        event.Handled = true;
-        return;
-    }
-
-    // Scroll: transition into/out of first person
-    if (event.GetEventType() == Aether::EventType::MouseScrolled)
-    {
-        auto& e = (Aether::MouseScrolledEvent&)event;
-        if (!m_FirstPerson) {
-            if (e.GetYOffset() > 0 && m_Camera.GetDistance() < 1.3f) {
-                m_FirstPerson = true;
-                m_Camera.SetDistance(0.5f);
-                event.Handled = true;
-                return;
-            }
-            if (m_LockCamera) { event.Handled = true; return; }
-        }
-        else {
-            if (e.GetYOffset() < 0) {
-                m_FirstPerson = false;
-                m_Camera.SetDistance(6.0f);
-            }
-            event.Handled = true;
-            return;
-        }
-    }
-
-    // LMB: shoot
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
         Aether::Input::IsMouseButtonPressed(Aether::Mouse::Button0))
     {
         if (m_IsReloading) { AE_WARN("Cannot shoot while reloading!"); return; }
         if (m_CurrentAmmo <= 0) { AE_WARN("Out of ammo! Press R to reload."); return; }
+        if (m_ShootTimer > 0.0f) return;
 
         m_CurrentAmmo--;
+        m_IsShooting = true;
+        m_ShootTimer = m_ShootDuration;
 
         if (m_Scene.IsValid(m_Gun)) {
             auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
@@ -1133,7 +1043,11 @@ void MainGameLayer::OnEvent(Aether::Event& event)
             rigSystem->Play(m_ShootAnimation);
         }
 
-        glm::vec3 origin = m_Camera.GetPosition();
+        Aether::UUID src;
+        Aether::AudioSystem::CreateSource(src, m_GunSound, Aether::AudioType::Audio2D);
+        Aether::AudioSystem::Play(src);
+
+        glm::vec3 origin    = m_Camera.GetPosition();
         glm::vec3 direction = glm::normalize(m_Camera.GetForwardDirection());
         Aether::RaycastHit hit = Aether::PhysicsSystem::CastRay(origin, direction, 100.0f);
 
@@ -1143,27 +1057,13 @@ void MainGameLayer::OnEvent(Aether::Event& event)
             {
                 auto& rec = m_ZombieRegistry[target];
                 Aether::PhysicsSystem::DestroyBody(rec.bodyID);
-                DestroyHierarchy(target);
+                m_Scene.DestroyHierarchy(target);
                 m_ActiveZombies.erase(std::remove(m_ActiveZombies.begin(), m_ActiveZombies.end(), target), m_ActiveZombies.end());
             }
         }
 
         event.Handled = true;
     }
-}
-
-void MainGameLayer::DestroyHierarchy(Aether::Entity entity)
-{
-    if (!m_Scene.IsValid(entity)) return;
-
-    auto& hierarchy = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
-    Aether::Entity child = hierarchy.firstChild;
-    while (child != Aether::Null_Entity) {
-        Aether::Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
-        DestroyHierarchy(child);
-        child = next;
-    }
-    m_Scene.DestroyEntity(entity);
 }
 
 bool MainGameLayer::WorldToScreen(const glm::vec3& worldPos, const glm::mat4& viewProj,
