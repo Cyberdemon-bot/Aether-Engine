@@ -559,7 +559,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
     if (m_DamageCooldown > 0.0f)
         m_DamageCooldown -= ts; // Giảm thời gian chờ theo thời gian thực
 
-    if (m_Scene.IsValid(m_Player) && m_DamageCooldown <= 0.0f)
+    if (m_Scene.IsValid(m_Player) && m_PlayerHealth > 0.0f && m_DamageCooldown <= 0.0f)
     {
         auto& pPos = m_Scene.GetComponent<Aether::TransformComponent>(m_Player).Translation;
 
@@ -1169,16 +1169,13 @@ void MainGameLayer::OnImGuiRender()
         ImDrawList* hudDraw = ImGui::GetForegroundDrawList();
         ImGuiViewport* vp   = ImGui::GetMainViewport();
 
-        const float barX      = vp->Pos.x + 20.0f;
-        const float barY      = vp->Pos.y + 20.0f;
+        const float barX      = vp->Pos.x + 30.0f;
+        const float barY      = vp->Pos.y + 40.0f;
         const float barW      = 200.0f;
         const float barH      = 18.0f;
         const float barRadius = 4.0f;
 
         float hpFraction = glm::clamp(m_PlayerHealth / m_MaxHealth, 0.0f, 1.0f);
-
-        // Label
-        hudDraw->AddText(ImVec2(barX, barY - 16.0f), IM_COL32(220, 220, 220, 230), "PLAYER HP");
 
         // Background track
         hudDraw->AddRectFilled(ImVec2(barX, barY),
@@ -1204,9 +1201,16 @@ void MainGameLayer::OnImGuiRender()
         char hpBuf[32];
         snprintf(hpBuf, sizeof(hpBuf), "%.0f / %.0f", m_PlayerHealth, m_MaxHealth);
         ImVec2 textSz = ImGui::CalcTextSize(hpBuf);
+        float hpFontSize = 20.0f; // Chỉnh kích thước bạn muốn ở đây (mặc định thường là 13-15)
+
+        // Vẽ chữ PLAYER HP với kích thước tùy chỉnh
         hudDraw->AddText(
-            ImVec2(barX + (barW - textSz.x) * 0.5f, barY + (barH - textSz.y) * 0.5f),
-            IM_COL32(255, 255, 255, 230), hpBuf);
+            ImGui::GetFont(), 
+            hpFontSize, 
+            ImVec2(barX, barY - hpFontSize - 2.0f), // Điều chỉnh tọa độ Y dựa trên cỡ chữ để nó luôn nằm sát phía trên thanh máu
+            IM_COL32(220, 220, 220, 230), 
+            "PLAYER HP"
+        );
     }
 
     // --- Game Over overlay ---
@@ -1375,7 +1379,7 @@ void MainGameLayer::OnEvent(Aether::Event& event)
 
     // LMB: shoot
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
-        Aether::Input::IsMouseButtonPressed(Aether::Mouse::Button0))
+        Aether::Input::IsMouseButtonPressed(Aether::Mouse::Button0) && m_PlayerHealth > 0.0f)
     {
         if (m_IsReloading) { 
             AE_WARN("Cant shoot while reloading!");
@@ -1521,8 +1525,16 @@ void MainGameLayer::DrawRadar()
 
     // Label
     const char* label = "RADAR";
-    ImVec2 labelSz = ImGui::CalcTextSize(label);
+    float fontSize = 24.0f; // <--- Chỉnh kích thước bạn muốn ở đây
+
+    // Quan trọng: CalcTextSize cũng cần biết fontSize để tính toán vị trí căn giữa chính xác
+    ImVec2 labelSz = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
+
     drawList->AddText(
-        ImVec2(center.x - labelSz.x * 0.5f, cy - radarRadius - 16.0f),
-        IM_COL32(0, 220, 0, 200), label);
+        ImGui::GetFont(), // Lấy font hiện tại
+        fontSize,         // Kích thước chữ
+        ImVec2(center.x - labelSz.x * 0.5f, cy - radarRadius - fontSize - 5.0f), 
+        IM_COL32(0, 220, 0, 200), 
+        label
+    );
 }
