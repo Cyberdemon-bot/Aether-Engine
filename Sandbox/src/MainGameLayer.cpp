@@ -161,7 +161,7 @@ void MainGameLayer::Attach()
     Aether::AudioSystem::AddSound(sound, "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
     Aether::AudioSystem::CreateSource(bgmID, sound, Aether::AudioType::Audio2D);
     Aether::AudioSystem::SetLooping(bgmID, true);
-    Aether::AudioSystem::Play(bgmID);
+    //Aether::AudioSystem::Play(bgmID);
 
     Aether::AudioSystem::AddSound(m_GunSound, "assets/audio/pistol.mp3");
     Aether::AudioSystem::AddSound(m_GunReload, "assets/audio/pistol_reload.mp3");
