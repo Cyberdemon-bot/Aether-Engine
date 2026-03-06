@@ -65,7 +65,7 @@ void MainGameLayer::Attach()
     mainPass.OnScreen = true;
     mainPass.readList = { {"u_DepthTex", shadowPass.TargetFBO->GetDepthAttachment()} };
     mainPass.attribList = { {"u_LightIndex", 0} };
-    mainPass.LutIntensity = 0.1f;
+    mainPass.LutIntensity = 0.2f;
 
     m_Pipeline = { shadowPass, mainPass };
     Aether::Renderer::SetPipeline(m_Pipeline);
