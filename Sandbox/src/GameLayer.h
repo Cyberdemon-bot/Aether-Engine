@@ -6,8 +6,6 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
-#include "Aether/Scene/Scene.h"
-#include "Aether/Physics/PhysicsSystem.h"
 
 class GameLayer : public Aether::Layer
 {

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Aether/Assets/Asset.h"
 #include "Aether/Core/UUID.h"
 #include <unordered_map>

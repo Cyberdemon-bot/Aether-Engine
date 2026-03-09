@@ -8,7 +8,7 @@
 #include "Aether/Importer/MeshParser.h"
 #include "Aether/Importer/AnimationParser.h"
 #include "Aether/Importer/SceneGraphParser.h"
-#include "Aether/Resources/Material.h"
+#include "Aether/Assets/Material.h"
 
 namespace Aether {
 

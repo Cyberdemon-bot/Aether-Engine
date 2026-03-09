@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Aether/Assets/Asset.h"
+#include "Aether/Assets/AssetManager.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Core/UUID.h"
@@ -41,8 +41,6 @@ namespace Aether {
 
         static Ref<Material> Create() { return CreateRef<Material>(); }
 
-        static const AssetType GetType() { return AssetType::Material; }
-        virtual const AssetType GetAssetType() const override { return AssetType::Material; }
     private:
         
         std::unordered_map<std::string, float> m_FloatUniforms;
@@ -54,5 +52,9 @@ namespace Aether {
         std::unordered_map<std::string, glm::mat4> m_Mat4Uniforms;
 
         uint32_t m_Flags = (uint32_t)MaterialFlag::None;
+
+        static const AssetType GetType() { return AssetType::Material; }
+        virtual const AssetType GetAssetType() const override { return AssetType::Material; }
+        friend class AssetManager;
     };
 }

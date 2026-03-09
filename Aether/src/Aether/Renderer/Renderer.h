@@ -6,8 +6,8 @@
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Renderer/Shader.h"
-#include "Aether/Resources/Mesh.h"
-#include "Aether/Resources/Material.h"
+#include "Aether/Assets/Mesh.h"
+#include "Aether/Assets/Material.h"
 #include "Aether/Renderer/Camera.h"
 #include "Aether/Core/UUID.h"
 #include <glm/glm.hpp>

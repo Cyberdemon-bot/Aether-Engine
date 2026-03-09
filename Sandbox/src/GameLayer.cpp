@@ -1,10 +1,4 @@
 #include "GameLayer.h"
-#include "Aether/Core/JobSystem.h"
-#include "Aether/Core/AssetsRegister.h"
-#include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigModule.h"
-#include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Resources/Mesh.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>

@@ -1,5 +1,5 @@
 #include "aepch.h"
-#include "Aether/Resources/Mesh.h"
+#include "Aether/Assets/Mesh.h"
 
 namespace Aether {
     

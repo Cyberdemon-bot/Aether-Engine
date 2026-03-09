@@ -6,7 +6,7 @@
 namespace Aether {
     enum class AssetType
     {
-        Mesh, Material, Texture
+        Mesh, Material, Image, Texture
     };
 
     class Asset
