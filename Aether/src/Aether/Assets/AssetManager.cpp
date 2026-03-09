@@ -1,30 +1,30 @@
 #include "aepch.h"
-#include "Aether/Assets/AssetsManager.h"
+#include "Aether/Assets/AssetManager.h"
 
 namespace Aether {
 
-    AssetsManager& AssetsManager::GetInstance()
+    AssetManager& AssetManager::GetInstance()
     {
-        static AssetsManager instance;
+        static AssetManager instance;
         return instance;
     }
 
-    void AssetsManager::Init()
+    void AssetManager::Init()
     {
         auto& instance = GetInstance();
         instance.m_Registry.reserve(128);
         instance.m_Resources.reserve(128);
-        AE_CORE_INFO("AssetsManager initialized");
+        AE_CORE_INFO("AssetManager initialized");
     }
 
-    void AssetsManager::Shutdown()
+    void AssetManager::Shutdown()
     {
         auto& instance = GetInstance();
         instance.m_Registry.clear();
         instance.m_Resources.clear();
     }
 
-    void AssetsManager::RegisterResource(Ref<Asset> asset, UUID id)
+    void AssetManager::RegisterResource(Ref<Asset> asset, UUID id)
     {
         auto& instance = GetInstance();
         instance.m_Resources[id] = asset;

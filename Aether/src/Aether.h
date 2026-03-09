@@ -39,4 +39,4 @@
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
 
-#include "Aether/Assets/AssetsManager.h"
+#include "Aether/Assets/AssetManager.h"

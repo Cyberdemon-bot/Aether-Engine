@@ -4,7 +4,7 @@
 
 namespace Aether {
 
-    class AETHER_API AssetsManager
+    class AETHER_API AssetManager
     {
     public:
         static void Init();
@@ -22,8 +22,8 @@ namespace Aether {
         }
         
     private:
-        AssetsManager() = default;
-        static AssetsManager& GetInstance();
+        AssetManager() = default;
+        static AssetManager& GetInstance();
         std::unordered_map<UUID, AssetType> m_Registry;
         std::unordered_map<UUID, Ref<Asset>> m_Resources;
     };

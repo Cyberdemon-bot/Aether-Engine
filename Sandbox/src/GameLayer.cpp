@@ -179,7 +179,7 @@ void GameLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID
 {
     if (!m_Scene.IsValid(transformEntity)) return;
 
-    auto mesh = Aether::AssetsManager::GetResource<Aether::Mesh>(colliderMeshID);
+    auto mesh = Aether::AssetManager::GetResource<Aether::Mesh>(colliderMeshID);
     if (!mesh) return;
 
     std::vector<Aether::Entity> chain;
@@ -715,7 +715,7 @@ void GameLayer::DrawAnimationPanel()
             auto meshView = m_Scene.View<Aether::MeshComponent>();
             for (auto entity : meshView)
             {
-                if (m_Scene.GetComponent<Aether::MeshComponent>(entity).MeshPtr == Aether::AssetsManager::GetResource<Aether::Mesh>(meshID))
+                if (m_Scene.GetComponent<Aether::MeshComponent>(entity).MeshPtr == Aether::AssetManager::GetResource<Aether::Mesh>(meshID))
                 {
                     if (!m_Scene.HasComponent<Aether::AnimatorComponent>(entity))
                         m_Scene.AddComponent<Aether::AnimatorComponent>(entity);

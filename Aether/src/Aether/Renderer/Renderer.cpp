@@ -3,7 +3,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Core/Application.h"
-#include "Aether/Assets/AssetsManager.h"
+#include "Aether/Assets/AssetManager.h"
 #include "Aether/Renderer/BuiltinShader.h"
 
 float quadVertices[] = { 

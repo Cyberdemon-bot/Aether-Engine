@@ -87,10 +87,10 @@ void MainGameLayer::Attach()
     // --- MAP ---
     auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
     if (!uploadMap.meshIDs.empty()) {
-        m_BaseMapMesh = Aether::AssetsManager::GetResource<Aether::Mesh>(uploadMap.meshIDs[0]);
+        m_BaseMapMesh = Aether::AssetManager::GetResource<Aether::Mesh>(uploadMap.meshIDs[0]);
         if (uploadMap.matIDs.empty()) AE_ERROR("no material!");
         for (auto& matID : uploadMap.matIDs)
-            m_BaseMapMaterials.push_back(Aether::AssetsManager::GetResource<Aether::Material>(matID));
+            m_BaseMapMaterials.push_back(Aether::AssetManager::GetResource<Aether::Material>(matID));
     }
 
     // --- PLAYER ---

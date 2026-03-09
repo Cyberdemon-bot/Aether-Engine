@@ -5,7 +5,7 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include <glm/gtx/matrix_decompose.hpp>
-#include "Aether/Assets/AssetsManager.h"
+#include "Aether/Assets/AssetManager.h"
 
 namespace Aether {
     namespace Utils
@@ -305,7 +305,7 @@ namespace Aether {
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
         {
             auto& component = scene.AddComponent<MeshComponent>(e);
-            component.MeshPtr = AssetsManager::GetResource<Mesh>(reg.meshIDs[node.meshIdx]);
+            component.MeshPtr = AssetManager::GetResource<Mesh>(reg.meshIDs[node.meshIdx]);
             component.Materials = reg.meshMap[node.meshIdx];
         }
 
