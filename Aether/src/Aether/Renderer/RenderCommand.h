@@ -27,32 +27,32 @@ namespace Aether {
             s_RendererAPI->ClearDepth();
         }
 
-        static void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0)
+        static void DrawIndexed(VertexArray* vertexArray, uint32_t indexCount = 0)
 		{
 			s_RendererAPI->DrawIndexed(vertexArray, indexCount);
 		}
 
-		static void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
+		static void DrawLines(VertexArray* vertexArray, uint32_t vertexCount)
 		{
 			s_RendererAPI->DrawLines(vertexArray, vertexCount);
 		}
 
-        static void DrawInstanced(const Ref<VertexArray>& vertexArray, uint32_t instanceCount)
+        static void DrawInstanced(VertexArray* vertexArray, uint32_t instanceCount)
         {
             s_RendererAPI->DrawInstanced(vertexArray, instanceCount);
         }
 
-        static void DrawIndexedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex)
+        static void DrawIndexedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex)
         {
             s_RendererAPI->DrawIndexedBaseVertex(vertexArray, indexCount, indices, baseVertex);
         }
 
-        static void DrawInstancedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
+        static void DrawInstancedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
         {
             s_RendererAPI->DrawInstancedBaseVertex(vertexArray, indexCount, indices, baseVertex, instanceCount);
         }
 
-        static void DrawIndexedLines(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
+        static void DrawIndexedLines(VertexArray* vertexArray, uint32_t indexCount)
         {
             s_RendererAPI->DrawIndexedLines(vertexArray, indexCount);
         }

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
-#include "Aether/Assets/AssetManager.h"
 #include "Aether/Core/UUID.h"
-#include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/Buffer.h"
+#include "Aether/Assets/AssetManager.h"
+#include "Aether/Renderer/ResourceManager.h"
 
 #include <vector>
 #include <unordered_map>
@@ -31,7 +31,7 @@ namespace Aether {
             return {
                 { "a_Position",  ShaderDataType::Float3 },
                 { "a_Normal",    ShaderDataType::Float3 },
-                { "a_Tangent",   ShaderDataType::Float4 },  
+                { "a_Tangent",   ShaderDataType::Float4 },
                 { "a_TexCoord",  ShaderDataType::Float2 },
             };
         }
@@ -48,23 +48,23 @@ namespace Aether {
             return {
                 { "a_Position",  ShaderDataType::Float3 },
                 { "a_Normal",    ShaderDataType::Float3 },
-                { "a_Tangent",   ShaderDataType::Float4 },  
+                { "a_Tangent",   ShaderDataType::Float4 },
                 { "a_TexCoord",  ShaderDataType::Float2 },
-                { "a_Joints",    ShaderDataType::Uint4 },   
-                { "a_Weights",   ShaderDataType::Float4 } 
+                { "a_Joints",    ShaderDataType::Uint4  },
+                { "a_Weights",   ShaderDataType::Float4 }
             };
         }
 
         static BufferLayout Quad() {
             return {
-                { "a_Position", Aether::ShaderDataType::Float2 },
-                { "a_TexCoord", Aether::ShaderDataType::Float2 }
+                { "a_Position", ShaderDataType::Float2 },
+                { "a_TexCoord", ShaderDataType::Float2 }
             };
         }
 
         static BufferLayout Vertex() {
             return {
-                { "a_Position", Aether::ShaderDataType::Float3 }
+                { "a_Position", ShaderDataType::Float3 }
             };
         }
     };
@@ -88,30 +88,34 @@ namespace Aether {
     {
     public:
         Mesh(const MeshSpec& spec);
-        
-        Ref<VertexArray> GetVertexArray() const { return m_VertexArray; }
+        ~Mesh();
+
+        ResourceHandle GetVertexArray() const { return m_VertexArray; }
         const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
         const BufferLayout& GetLayout() const { return m_Layout; }
-        
-        uint32_t GetVertexCount() const { return m_VertexCount; }
-        uint32_t GetIndexCount() const { return m_IndexCount; }
 
-        const glm::vec3& GetBoundsMin() const { return m_BoundsMin; }
-        const glm::vec3& GetBoundsMax() const { return m_BoundsMax; }
-        glm::vec3 GetBoundsCenter() const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
-        glm::vec3 GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
+        uint32_t GetVertexCount() const { return m_VertexCount; }
+        uint32_t GetIndexCount()  const { return m_IndexCount; }
+
+        const glm::vec3& GetBoundsMin()   const { return m_BoundsMin; }
+        const glm::vec3& GetBoundsMax()   const { return m_BoundsMax; }
+        glm::vec3        GetBoundsCenter()  const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
+        glm::vec3        GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
 
         static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
+
     private:
-        Ref<VertexArray> m_VertexArray;
+        ResourceHandle m_VertexArray;
+        ResourceHandle m_IndexBuffer;
+        std::vector<ResourceHandle> m_VertexBuffers;
 
         BufferLayout m_Layout;
         std::vector<SubMesh> m_SubMeshes;
-        
+
         uint32_t m_VertexCount = 0;
-        uint32_t m_IndexCount = 0;
-        glm::vec3 m_BoundsMin = glm::vec3(0.0f);
-        glm::vec3 m_BoundsMax = glm::vec3(0.0f);
+        uint32_t m_IndexCount  = 0;
+        glm::vec3 m_BoundsMin   = glm::vec3(0.0f);
+        glm::vec3 m_BoundsMax   = glm::vec3(0.0f);
 
         void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
 

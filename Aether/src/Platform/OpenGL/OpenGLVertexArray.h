@@ -14,15 +14,13 @@ namespace Aether {
         virtual void Unbind() const override;
         virtual uint32_t GetRendererID() const override { return m_RendererID; }
 
-        virtual void AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation) override;
-        virtual void AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer) override;
+        virtual void AddVertexBuffer(VertexBuffer* vertexBuffer, uint32_t startLocation) override;
+        virtual void AddVertexBuffer(VertexBuffer* vertexBuffer) override;
 
-        virtual void AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation) override;
-        virtual void AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer) override;
-        virtual void SetIndexBuffer(const Ref<IndexBuffer>& indexBuffer) override;
-
-        virtual const std::vector<Ref<VertexBuffer>>& GetVertexBuffers() const override { return m_VertexBuffers; };
-        virtual const Ref<IndexBuffer>& GetIndexBuffer() const override { return m_IndexBuffer; };
+        virtual void AddInstanceBuffer(VertexBuffer* vertexBuffer, uint32_t startLocation) override;
+        virtual void AddInstanceBuffer(VertexBuffer* vertexBuffer) override;
+        virtual void SetIndexBuffer(IndexBuffer* indexBuffer) override;
+        virtual uint32_t GetIndexCount() override;
 
         static Ref<VertexArray> Create();
 
@@ -31,9 +29,9 @@ namespace Aether {
 			return m_RendererID == other.GetRendererID();
 		}
     private:
-		uint32_t m_RendererID;
-		uint32_t m_VertexBufferIndex = 0;
-		std::vector<Ref<VertexBuffer>> m_VertexBuffers;
-		Ref<IndexBuffer> m_IndexBuffer;
+      uint32_t m_RendererID;
+      uint32_t m_VertexBufferIndex = 0;
+      std::vector<VertexBuffer*> m_VertexBuffers;
+      IndexBuffer* m_IndexBuffer;
     };
 }

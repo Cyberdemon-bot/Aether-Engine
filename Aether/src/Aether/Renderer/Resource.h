@@ -5,7 +5,7 @@
 namespace Aether {
     enum class ResourceType
     {
-       Texture2D, Shader, UniformBuffer,
+       Texture2D, TextureCube, Shader, UniformBuffer,
        VertexBuffer, IndexBuffer, VertexArray, FrameBuffer
     };
 
@@ -13,7 +13,7 @@ namespace Aether {
     {
         int index = -1, generation = -1;
 
-        bool IsValid() const { return index < 0; }
+        bool IsValid() const { return index >= 0 && generation >= 0; }
     };
 
     class Resource
