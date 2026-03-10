@@ -1,9 +1,6 @@
 #pragma once
 
-#include "Aether/Core/Base.h"
-#include "Aether/Core/UUID.h"
-#include "Aether/Assets/Asset.h"
-#include <unordered_map>
+#include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
 
@@ -39,7 +36,7 @@ namespace Aether {
         	: Format(format) {}
 	};
 
-	class Texture : public Asset
+	class Texture
 	{
 	public:
 		virtual ~Texture() = default;
@@ -55,17 +52,27 @@ namespace Aether {
 		virtual bool IsLoaded() const = 0;
 
 		virtual bool operator==(const Texture& other) const = 0;
-
-		static const AssetType GetType() { return AssetType::Texture; }
-        virtual const AssetType GetAssetType() const override { return AssetType::Texture; }
 	};
 
-	class AETHER_API Texture2D : public Texture
+	class AETHER_API Texture2D : public Texture, public Resource
 	{
 	public:
-		static Ref<Texture2D> Create(const TextureSpec& spec);
-		static Ref<Texture2D> Create(void* data, size_t size);
-		static Ref<Texture2D> Create(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
+		template<typename... Args>
+        static Ref<Texture2D> Create(Args&&... args)
+        {
+            Scope<Texture2D> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<Texture2D>(std::move(scope));
+        }
+
+	private:
+		static const ResourceType GetType() { return ResourceType::Texture2D; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::Texture2D; }
+
+		static Scope<Texture2D> CreateImpl(const TextureSpec& spec);
+		static Scope<Texture2D> CreateImpl(void* data, size_t size);
+		static Scope<Texture2D> CreateImpl(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
+
+		friend class ResourceManager;
 	};
 
     class AETHER_API TextureCube : public Texture

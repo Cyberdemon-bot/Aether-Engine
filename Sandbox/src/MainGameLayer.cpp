@@ -30,10 +30,11 @@ void MainGameLayer::Attach()
     m_ShadowShader->Bind();
     m_ShadowShader->SetUBOSlot("Bones", 1);
     m_ShadowShader->SetUBOSlot("Lights", 2);
+    m_ShadowFbo = Aether::FrameBuffer::Create(shadowFbSpec);
 
     Aether::RenderPass shadowPass;
-    shadowPass.TargetFBO = Aether::FrameBuffer::Create(shadowFbSpec);
-    shadowPass.Shader = m_ShadowShader;
+    shadowPass.TargetFBO = m_ShadowFbo.get();
+    shadowPass.Shader = m_ShadowShader.get();
     shadowPass.ClearDepth = true;
     shadowPass.ClearColor = false;
     shadowPass.OnScreen = false;
@@ -53,10 +54,11 @@ void MainGameLayer::Attach()
     m_MainShader->SetUBOSlot("Camera", 0);
     m_MainShader->SetUBOSlot("Bones", 1);
     m_MainShader->SetUBOSlot("Lights", 2);
+    m_MainFbo = Aether::FrameBuffer::Create(sceneFbSpec);
 
     Aether::RenderPass mainPass;
-    mainPass.TargetFBO = Aether::FrameBuffer::Create(sceneFbSpec);
-    mainPass.Shader = m_MainShader;
+    mainPass.TargetFBO = m_MainFbo.get();
+    mainPass.Shader = m_MainShader.get();
     mainPass.ClearColor = true;
     mainPass.ClearDepth = true;
     mainPass.UsingSkybox = true;
@@ -87,10 +89,10 @@ void MainGameLayer::Attach()
     // --- MAP ---
     auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
     if (!uploadMap.meshIDs.empty()) {
-        m_BaseMapMesh = Aether::AssetManager::GetResource<Aether::Mesh>(uploadMap.meshIDs[0]);
+        m_BaseMapMesh = Aether::AssetManager::GetHandle(uploadMap.meshIDs[0]);
         if (uploadMap.matIDs.empty()) AE_ERROR("no material!");
         for (auto& matID : uploadMap.matIDs)
-            m_BaseMapMaterials.push_back(Aether::AssetManager::GetResource<Aether::Material>(matID));
+            m_BaseMapMaterials.push_back(Aether::AssetManager::GetHandle(matID));
     }
 
     // --- PLAYER ---
@@ -610,8 +612,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
 
 void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
 {
-    if (!m_BaseMapMesh) return;
-
     const float actualChunkSize = m_ChunkSize;
     int centerX = static_cast<int>(std::floor(playerPos.x / actualChunkSize));
     int centerZ = static_cast<int>(std::floor(playerPos.z / actualChunkSize));
@@ -638,7 +638,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             t.Dirty = true;
 
             auto& mesh = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
-            mesh.MeshPtr = m_BaseMapMesh;
+            mesh.Mesh = m_BaseMapMesh;
             mesh.Materials = m_BaseMapMaterials;
 
             ChunkData newData;

@@ -1,16 +1,16 @@
+#include "aepch.h"
 #include "UniformBuffer.h"
-
 #include "Aether/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLUniformBuffer.h"
 
 namespace Aether {
 
-	Ref<UniformBuffer> UniformBuffer::Create(uint32_t size)
+	Scope<UniformBuffer> UniformBuffer::CreateImpl(uint32_t size)
 	{
 		switch (Renderer::GetAPI())
 		{
 			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLUniformBuffer>(size);
+			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLUniformBuffer>(size);
 		}
 
 		AE_CORE_ASSERT(false, "Unknown RendererAPI!");

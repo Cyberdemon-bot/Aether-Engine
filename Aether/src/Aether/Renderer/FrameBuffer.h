@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Aether/Renderer/Texture.h"
 #include <vector>
+#include "Aether/Renderer/Texture.h"
+#include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
 
@@ -13,7 +14,7 @@ namespace Aether {
 		bool SwapChainTarget = false;
 	};
 
-	class AETHER_API FrameBuffer
+	class AETHER_API FrameBuffer : public Resource
 	{
 	public:
 		virtual ~FrameBuffer() = default;
@@ -36,7 +37,19 @@ namespace Aether {
 
 		virtual const FramebufferSpec& GetSpecification() const = 0;
 
-        static Ref<FrameBuffer> Create(const FramebufferSpec& spec);
+		template<typename... Args>
+        static Ref<FrameBuffer> Create(Args&&... args)
+        {
+            Scope<FrameBuffer> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<FrameBuffer>(std::move(scope));
+        }
+
+	private:
+		static const ResourceType GetType() { return ResourceType::FrameBuffer; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::FrameBuffer; }
+
+		static Scope<FrameBuffer> CreateImpl(const FramebufferSpec& spec);
+		friend class ResourceManager;
 	};
 
 }

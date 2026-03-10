@@ -58,14 +58,14 @@ namespace Aether {
 
 	struct RenderKey
 	{
-		Ref<Mesh> mesh;
-		Ref<Material> material;
+		Mesh* mesh;
+		Material* material;
 		uint32_t subIdx;
 
 		bool operator<(const RenderKey& other) const
 		{
-			if (material.get() != other.material.get()) return material.get() < other.material.get();
-			if (mesh.get() != other.mesh.get()) return mesh.get() < other.mesh.get();
+			if (material != other.material) return material < other.material;
+			if (mesh != other.mesh) return mesh < other.mesh;
 			return subIdx < other.subIdx;
 		}
 	};
@@ -78,8 +78,8 @@ namespace Aether {
 
 	struct RenderPass
 	{
-		Ref<FrameBuffer> TargetFBO;        
-		Ref<Shader> Shader;                
+		FrameBuffer* TargetFBO;
+		Shader* Shader;   
 		bool IsActive = true;
 		bool ClearColor = true;
 		bool ClearDepth = true;
@@ -110,7 +110,7 @@ namespace Aether {
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
-		static void DrawMesh(Ref<Mesh> mesh, const std::vector<Ref<Material>> materials, UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
+		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, UUID animatorID, const glm::mat4& transform); //UUID(0) animator for static
 
 		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
@@ -148,7 +148,7 @@ namespace Aether {
 			
 			std::vector<RenderPass> s_PassList;
 			std::unordered_map<UUID, bool> s_MeshInstanceAssigned;
-			std::unordered_map<Ref<Mesh>, bool> s_MeshPtrInstanceAssigned;
+			std::unordered_map<Mesh*, bool> s_MeshPtrInstanceAssigned;
 		};
 
 		static Scope<SceneData> s_SceneData;

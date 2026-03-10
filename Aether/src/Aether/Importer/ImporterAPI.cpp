@@ -3,11 +3,13 @@
 #include "Platform/Cgltf/GLTF_ImporterAPI.h"
 #include "Aether/Core/AssetsRegister.h"
 #include "Aether/Assets/Mesh.h"
+#include "Aether/Assets/Material.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
 
@@ -37,43 +39,45 @@ namespace Aether {
     RegisteredScene ImporterAPI::Upload(const ParsedScene& sceneData)
     {
         RegisteredScene res;
-        std::vector<UUID> texIDs;
+        std::vector<ResourceHandle> texHandle;
         std::vector<UUID> rigIDs;     
         std::vector<UUID> clipIDs; 
         // Upload textures
         for (const auto& texInfo : sceneData.Textures)
         {
             UUID texID = AssetsRegister::Register(texInfo.DebugName);
-            auto tex = Texture2D::Create(texInfo.Spec);
-            tex->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
-            AssetManager::RegisterResource(tex, texID);
-            texIDs.push_back(texID);
+            auto handle = ResourceManager::CreateResource<Texture2D>(texInfo.Spec);
+            auto resource = ResourceManager::GetResource<Texture2D>(handle);
+            if (!resource) AE_CORE_ERROR("Fail to Create texture while uploading");
+            resource->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
+            texHandle.push_back(handle);
         }
         // Upload materials
         for (const auto& matInfo : sceneData.Materials)
         {
             UUID matID = AssetsRegister::Register(matInfo.DebugName);
-            auto material = Material::Create();
+            AssetManager::CreateAsset<Material>(matID);
+            auto material = AssetManager::GetAsset<Material>(AssetManager::GetHandle(matID));
+            if (!material) AE_CORE_ERROR("Fail to Create material while uploading");
             
             // Set textures
-            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < texIDs.size())
-                material->AddTexture("u_AlbedoMap", AssetManager::GetResource<Texture2D>(texIDs[matInfo.AlbedoMapIdx]));
+            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < texHandle.size())
+                material->AddTexture("u_AlbedoMap", texHandle[matInfo.AlbedoMapIdx]);
             
-            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < texIDs.size())
+            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < texHandle.size())
             {
-                material->AddTexture("u_NormalMap", AssetManager::GetResource<Texture2D>(texIDs[matInfo.NormalMapIdx]));
+                material->AddTexture("u_NormalMap", texHandle[matInfo.NormalMapIdx]);
                 material->AddInt("u_HasNormalMap", 1);
             }
             else  material->AddInt("u_HasNormalMap", 0);
 
-            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < texIDs.size())
-                material->AddTexture("u_MetallicRoughnessMap", AssetManager::GetResource<Texture2D>(texIDs[matInfo.MetallicRoughnessMapIdx]));
+            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < texHandle.size())
+                material->AddTexture("u_MetallicRoughnessMap", texHandle[matInfo.MetallicRoughnessMapIdx]);
             
             // Set material properties
             material->AddVec4("u_AlbedoColor", matInfo.AlbedoColor);
             material->AddFloat("u_Metallic", matInfo.Metallic);
             material->AddFloat("u_Roughness", matInfo.Roughness);
-            AssetManager::RegisterResource(material, matID);
             res.matIDs.push_back(matID);
         }
         // Upload meshes
@@ -95,7 +99,7 @@ namespace Aether {
                 sm.BoundsMax = subInfo.BoundsMax;
                 
                 // Assign material
-                auto mat = AssetManager::GetResource<Material>(res.matIDs[subInfo.MaterialIdx]);
+                auto mat = res.matIDs[subInfo.MaterialIdx];
                 res.meshMap.back().push_back(mat); 
                 sm.MaterialIdx = res.meshMap.back().size() - 1;
                 submeshes.push_back(sm);
@@ -114,10 +118,8 @@ namespace Aether {
             spec.IndexData = meshInfo.Indices.data();
             spec.IndexCount = meshInfo.totalIndices;
             spec.Submeshes = submeshes;
-            
-            auto mesh = Mesh::Create(spec);
-            mesh->id = meshID;
-            AssetManager::RegisterResource(mesh, meshID);
+
+            AssetManager::CreateAsset<Mesh>(meshID, spec);
             res.meshIDs.push_back(meshID);
         }
         auto animSystem = AnimationSystem::GetModule<RigModule>();

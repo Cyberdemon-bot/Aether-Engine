@@ -1,9 +1,10 @@
 #include "aepch.h"
+#include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Assets/Material.h"
 
 namespace Aether {
 
-    void Material::UploadMaterial(Ref<Shader> shader, uint32_t startSlot)
+    void Material::UploadMaterial(Shader* shader, uint32_t startSlot)
     {
         shader->Bind();
         for (const auto& [name, fval] : m_FloatUniforms) shader->SetFloat(name, fval);
@@ -14,7 +15,7 @@ namespace Aether {
         for (const auto& [name, mat4] : m_Mat4Uniforms) shader->SetMat4(name, mat4);
         for (const auto& [name, texture] : m_Textures)
         {
-            texture->Bind(startSlot);
+            ResourceManager::GetResource<Texture2D>(texture)->Bind(startSlot);
             shader->SetInt(name, startSlot);
             startSlot++;
         }

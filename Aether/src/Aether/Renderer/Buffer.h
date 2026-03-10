@@ -1,5 +1,9 @@
 #pragma once
-#include "aepch.h"
+
+
+#include <vector>
+#include <initializer_list>
+#include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
     enum class ShaderDataType
@@ -128,7 +132,7 @@ namespace Aether {
         }
     };
 
-    class AETHER_API VertexBuffer
+    class AETHER_API VertexBuffer : public Resource
     {
     public:
         virtual ~VertexBuffer() = default;
@@ -143,11 +147,23 @@ namespace Aether {
         virtual void Resize(uint32_t size) = 0;
         virtual void SetLayout(const BufferLayout& layout) = 0;
         
-        static Ref<VertexBuffer> Create(uint32_t size);
-        static Ref<VertexBuffer> Create(float* vertices, uint32_t size);
+        template<typename... Args>
+        static Ref<VertexBuffer> Create(Args&&... args)
+        {
+            Scope<VertexBuffer> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<VertexBuffer>(std::move(scope));
+        }
+    private:
+		static const ResourceType GetType() { return ResourceType::VertexBuffer; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::VertexBuffer; }
+
+        static Scope<VertexBuffer> CreateImpl(uint32_t size);
+        static Scope<VertexBuffer> CreateImpl(float* vertices, uint32_t size);
+
+		friend class ResourceManager;
     };
 
-    class AETHER_API IndexBuffer
+    class AETHER_API IndexBuffer : public Resource
     {
     public:
         virtual ~IndexBuffer() = default;
@@ -157,6 +173,18 @@ namespace Aether {
 
         virtual uint32_t GetCount() const = 0;
         
-        static Ref<IndexBuffer> Create(uint32_t* indices, uint32_t count);
+        template<typename... Args>
+        static Ref<IndexBuffer> Create(Args&&... args)
+        {
+            Scope<IndexBuffer> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<IndexBuffer>(std::move(scope));
+        }
+    private:
+		static const ResourceType GetType() { return ResourceType::IndexBuffer; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::IndexBuffer; }
+
+		static Scope<IndexBuffer> CreateImpl(uint32_t* indices, uint32_t count);
+
+		friend class ResourceManager;
     };
 }

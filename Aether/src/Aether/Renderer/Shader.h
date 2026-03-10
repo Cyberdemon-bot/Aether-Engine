@@ -1,7 +1,7 @@
 #pragma once
 
-#include "aepch.h"
-#include "Aether/Core/UUID.h"
+#include "Aether/Renderer/Resource.h"
+#include "glm/glm.hpp"
 
 namespace Aether {
 
@@ -12,7 +12,7 @@ namespace Aether {
         std::string GeometrySource;
     };
 
-    class AETHER_API Shader 
+    class AETHER_API Shader : public Resource
     {
     public:
         virtual ~Shader() = default;
@@ -29,9 +29,22 @@ namespace Aether {
         virtual void SetMat4(const std::string& name, const glm::mat4& value) = 0;
         virtual void SetUBOSlot(const std::string& name, int slot) = 0;
 
-        static Ref<Shader> Create(const std::string& filepath);
-        static Ref<Shader> Create(const ShaderProgramSource& source);
+        template<typename... Args>
+        static Ref<Shader> Create(Args&&... args)
+        {
+            Scope<Shader> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<Shader>(std::move(scope));
+        }
 
         virtual bool operator==(const Shader& other) const = 0;
+
+    private:
+		static const ResourceType GetType() { return ResourceType::Shader; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::Shader; }
+
+		static Scope<Shader> CreateImpl(const std::string& filepath);
+        static Scope<Shader> CreateImpl(const ShaderProgramSource& source);
+
+		friend class ResourceManager;
     };
 }

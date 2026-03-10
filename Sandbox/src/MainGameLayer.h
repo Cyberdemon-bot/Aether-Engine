@@ -42,6 +42,8 @@ private:
     Aether::EditorCamera        m_Camera;
     Aether::Ref<Aether::Shader> m_ShadowShader;
     Aether::Ref<Aether::Shader> m_MainShader;
+    Aether::Ref<Aether::FrameBuffer> m_ShadowFbo;
+    Aether::Ref<Aether::FrameBuffer> m_MainFbo;
     std::vector<Aether::RenderPass> m_Pipeline;
 
     Aether::Entity m_SunLight       = Aether::Null_Entity;
@@ -127,8 +129,8 @@ private:
     };  
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
-    Aether::Ref<Aether::Mesh>                  m_BaseMapMesh;
-    std::vector<Aether::Ref<Aether::Material>> m_BaseMapMaterials;
+    Aether::AssetHandle m_BaseMapMesh;
+    std::vector<Aether::AssetHandle> m_BaseMapMaterials;
 
     void DrawRadar();
 

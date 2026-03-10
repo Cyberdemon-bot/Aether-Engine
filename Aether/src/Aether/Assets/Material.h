@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Aether/Assets/AssetManager.h"
+#include "Aether/Assets/Asset.h"
+#include "Aether/Renderer/Resource.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Core/UUID.h"
@@ -24,9 +25,9 @@ namespace Aether {
     public:
         Material() {};
 
-        void UploadMaterial(Ref<Shader> shader, uint32_t startSlot = 0);
+        void UploadMaterial(Shader* shader, uint32_t startSlot = 0);
 
-        void AddTexture(const std::string& name, Ref<Texture2D> texture) { m_Textures[name] = texture; }
+        void AddTexture(const std::string& name, ResourceHandle handle) { m_Textures[name] = handle; }
         void AddFloat(const std::string& name, float value) { m_FloatUniforms[name] = value; }
         void AddInt(const std::string& name, int value) { m_IntUniforms[name] = value; }
         void AddIntArray(const std::string& name, int* values, uint32_t count) { m_IntArrayUniforms[name].assign(values, values + count); }
@@ -45,7 +46,7 @@ namespace Aether {
         
         std::unordered_map<std::string, float> m_FloatUniforms;
         std::unordered_map<std::string, int> m_IntUniforms;
-        std::unordered_map<std::string, Ref<Texture2D>> m_Textures;
+        std::unordered_map<std::string, ResourceHandle> m_Textures;
         std::unordered_map<std::string, std::vector<int> > m_IntArrayUniforms;
         std::unordered_map<std::string, glm::vec3> m_Vec3Uniforms;
         std::unordered_map<std::string, glm::vec4> m_Vec4Uniforms;

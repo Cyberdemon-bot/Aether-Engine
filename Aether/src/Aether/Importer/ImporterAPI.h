@@ -8,7 +8,6 @@
 #include "Aether/Importer/MeshParser.h"
 #include "Aether/Importer/AnimationParser.h"
 #include "Aether/Importer/SceneGraphParser.h"
-#include "Aether/Assets/Material.h"
 
 namespace Aether {
 
@@ -29,7 +28,7 @@ namespace Aether {
     {
         std::vector<UUID> meshIDs;
         std::vector<UUID> matIDs;
-        std::vector<std::vector<Ref<Material>>> meshMap;
+        std::vector<std::vector<UUID>> meshMap;
 
         std::vector<UUID> animatorIDS;
         Ref<SceneHierarchy> hierarchy;

@@ -305,8 +305,10 @@ namespace Aether {
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
         {
             auto& component = scene.AddComponent<MeshComponent>(e);
-            component.MeshPtr = AssetManager::GetResource<Mesh>(reg.meshIDs[node.meshIdx]);
-            component.Materials = reg.meshMap[node.meshIdx];
+            component.Mesh = AssetManager::GetHandle(reg.meshIDs[node.meshIdx]);
+            component.Materials.reserve(reg.meshMap[node.meshIdx].size());
+            for (auto& id : reg.meshMap[node.meshIdx])
+                component.Materials.emplace_back(AssetManager::GetHandle(id));
         }
 
         if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animatorIDS.size())
@@ -439,7 +441,7 @@ namespace Aether {
                 {
                     auto& transform = GetComponent<TransformComponent>(entity);
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
-                    auto mesh = meshcmp.MeshPtr; if (!mesh) continue;
+                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
 
@@ -454,7 +456,11 @@ namespace Aether {
                     Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
 
-                    Renderer::DrawMesh(meshcmp.MeshPtr, meshcmp.Materials, animatorID, transform.WorldTransform);
+                    std::vector<Material*> resolved_mats; resolved_mats.reserve(meshcmp.Materials.size());
+                    for (auto& handle : meshcmp.Materials)
+                        resolved_mats.emplace_back(AssetManager::GetAsset<Material>(handle));
+
+                    Renderer::DrawMesh(mesh, resolved_mats, animatorID, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();

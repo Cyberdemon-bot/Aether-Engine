@@ -184,7 +184,7 @@ namespace Aether {
 		RenderCommand::DrawIndexed(s_RenderData->s_Screen->GetVertexArray());
 	}	
 
-	void Renderer::DrawMesh(Ref<Mesh> mesh, const std::vector<Ref<Material>> materials, UUID animatorID, const glm::mat4& transform)
+	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, UUID animatorID, const glm::mat4& transform)
 	{
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
@@ -216,8 +216,8 @@ namespace Aether {
 
 	void Renderer::Flush(const RenderPass& pass)
 	{
-		Ref<Mesh> currentMesh;
-		Ref<Material> currentMaterial;
+		Mesh* currentMesh;
+		Material* currentMaterial;
 		UUID currentAnimatorID = 0;
 		int startSlot = 0;
 		auto shader = pass.Shader; shader->Bind();
