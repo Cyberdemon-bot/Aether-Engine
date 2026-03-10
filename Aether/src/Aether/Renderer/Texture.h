@@ -36,7 +36,7 @@ namespace Aether {
         	: Format(format) {}
 	};
 
-	class Texture
+	class Texture : public Resource
 	{
 	public:
 		virtual ~Texture() = default;
@@ -54,7 +54,7 @@ namespace Aether {
 		virtual bool operator==(const Texture& other) const = 0;
 	};
 
-	class AETHER_API Texture2D : public Texture, public Resource
+	class AETHER_API Texture2D : public Texture
 	{
 	public:
 		template<typename... Args>
@@ -78,6 +78,16 @@ namespace Aether {
     class AETHER_API TextureCube : public Texture
 	{
 	public:
-		static Ref<TextureCube> Create(const std::string& path);
+		template<typename... Args>
+        static Ref<Texture2D> Create(Args&&... args)
+        {
+            Scope<Texture2D> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<Texture2D>(std::move(scope));
+        }
+	private:
+		static const ResourceType GetType() { return ResourceType::TextureCube; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::TextureCube; }
+		static Scope<TextureCube> CreateImpl(const std::string& path);
+		friend class ResourceManager;
 	};
 }

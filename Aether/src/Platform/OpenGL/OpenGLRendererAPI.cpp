@@ -43,13 +43,13 @@ namespace Aether
         glClearColor(color.r, color.g, color.b, color.a);
     }
 
-	void OpenGLRendererAPI::DrawIndexedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex)
+	void OpenGLRendererAPI::DrawIndexedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex)
 	{
 		vertexArray->Bind();
 		glDrawElementsBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, baseVertex);
 	}
 
-	void OpenGLRendererAPI::DrawInstancedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
+	void OpenGLRendererAPI::DrawInstancedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
 	{
 		vertexArray->Bind();
     	glDrawElementsInstancedBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, instanceCount, baseVertex);
@@ -71,30 +71,30 @@ namespace Aether
 		glClear(GL_DEPTH_BUFFER_BIT);
 	}
 
-	void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
+	void OpenGLRendererAPI::DrawIndexed(VertexArray* vertexArray, uint32_t indexCount)
 	{
 		vertexArray->Bind();
-		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexBuffer()->GetCount();
+		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexCount();
 		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 	}
 
-	void OpenGLRendererAPI::DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
+	void OpenGLRendererAPI::DrawLines(VertexArray* vertexArray, uint32_t vertexCount)
 	{
 		vertexArray->Bind();
 		glDrawArrays(GL_LINES, 0, vertexCount);
 	}
 
-	void OpenGLRendererAPI::DrawIndexedLines(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
+	void OpenGLRendererAPI::DrawIndexedLines(VertexArray* vertexArray, uint32_t indexCount)
 	{
 		vertexArray->Bind();
-		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexBuffer()->GetCount();
+		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexCount();
 		glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, nullptr);
 	}
 
-	void OpenGLRendererAPI::DrawInstanced(const Ref<VertexArray>& vertexArray, uint32_t instanceCount)
+	void OpenGLRendererAPI::DrawInstanced(VertexArray* vertexArray, uint32_t instanceCount)
     {
         vertexArray->Bind();
-		uint32_t count = vertexArray->GetIndexBuffer()->GetCount();
+		uint32_t count = vertexArray->GetIndexCount();
         glDrawElementsInstanced(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr, instanceCount);
     }
 

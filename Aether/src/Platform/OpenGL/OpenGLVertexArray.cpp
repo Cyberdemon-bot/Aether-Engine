@@ -47,7 +47,7 @@ namespace Aether {
         GLCall(glBindVertexArray(0));
     }
 
-    void OpenGLVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer)
+    void OpenGLVertexArray::AddVertexBuffer(VertexBuffer* vertexBuffer)
     {
         uint32_t location = 0;
         for (const auto& vbo : m_VertexBuffers)
@@ -63,7 +63,7 @@ namespace Aether {
         AddVertexBuffer(vertexBuffer, location);
     }
 
-    void OpenGLVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
+    void OpenGLVertexArray::AddVertexBuffer(VertexBuffer* vertexBuffer, uint32_t startLocation)
     {
         AE_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout");
         AE_CORE_ASSERT(startLocation >= m_VertexBufferIndex, "Vertex buffer location {0} conflicts with existing location {1}", startLocation, m_VertexBufferIndex);
@@ -142,7 +142,7 @@ namespace Aether {
         m_VertexBuffers.push_back(vertexBuffer);
     }
 
-    void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer)
+    void OpenGLVertexArray::AddInstanceBuffer(VertexBuffer* vertexBuffer)
     {
         uint32_t location = 0;
         for (const auto& vbo : m_VertexBuffers)
@@ -158,7 +158,7 @@ namespace Aether {
         AddInstanceBuffer(vertexBuffer, location);
     }
 
-    void OpenGLVertexArray::AddInstanceBuffer(const Ref<VertexBuffer>& vertexBuffer, uint32_t startLocation)
+    void OpenGLVertexArray::AddInstanceBuffer(VertexBuffer* vertexBuffer, uint32_t startLocation)
     {
         AE_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout");
         AE_CORE_ASSERT(startLocation >= m_VertexBufferIndex, "Vertex buffer location {0} conflicts with existing location {1}", startLocation, m_VertexBufferIndex);
@@ -240,11 +240,17 @@ namespace Aether {
         m_VertexBuffers.push_back(vertexBuffer);
     }
 
-    void OpenGLVertexArray::SetIndexBuffer(const Ref<IndexBuffer>& indexBuffer)
+    void OpenGLVertexArray::SetIndexBuffer(IndexBuffer* indexBuffer)
     {
         GLCall(glBindVertexArray(m_RendererID));
         indexBuffer->Bind();
 
         m_IndexBuffer = indexBuffer;
+    }
+
+    uint32_t OpenGLVertexArray::GetIndexCount()
+    {
+        if (!m_IndexBuffer) return 0;
+        return m_IndexBuffer->GetCount();
     }
 }

@@ -27,12 +27,12 @@ namespace Aether {
         virtual void SetDepthFuncEqual(State state) = 0;
         virtual void SetCullingMode(State state) = 0;
 
-        virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) = 0;
-        virtual void DrawInstanced(const Ref<VertexArray>& vertexArray, uint32_t instanceCount) = 0;
-		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
-        virtual void DrawIndexedLines(const Ref<VertexArray>& vertexArray, uint32_t indexCount) = 0;
-        virtual void DrawIndexedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex) = 0;
-        virtual void DrawInstancedBaseVertex(const Ref<VertexArray>& vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount) = 0;
+        virtual void DrawIndexed(VertexArray* vertexArray, uint32_t indexCount = 0) = 0;
+        virtual void DrawInstanced(VertexArray* vertexArray, uint32_t instanceCount) = 0;
+		virtual void DrawLines(VertexArray* vertexArray, uint32_t vertexCount) = 0;
+        virtual void DrawIndexedLines(VertexArray* vertexArray, uint32_t indexCount) = 0;
+        virtual void DrawIndexedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex) = 0;
+        virtual void DrawInstancedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount) = 0;
 		
 		virtual void SetLineWidth(float width) = 0;
         
