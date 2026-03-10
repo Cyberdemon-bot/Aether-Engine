@@ -57,6 +57,11 @@ namespace Aether {
         
     private:
         ResourceManager() = default;
+        ResourceManager(const ResourceManager&) = delete;
+        ResourceManager& operator=(const ResourceManager&) = delete;
+        ResourceManager(ResourceManager&&) = delete;
+        ResourceManager& operator=(ResourceManager&&) = delete;
+
         static ResourceManager& GetInstance();
         std::vector<ResourceSlot> m_Resources;
         std::vector<uint32_t> FreeList;
