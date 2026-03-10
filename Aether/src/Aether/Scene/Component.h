@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Aether/Core/UUID.h"
-#include "Aether/Resources/Mesh.h"
+#include "Aether/Assets/Mesh.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Assets/AssetManager.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -65,8 +66,8 @@ namespace Aether {
 
     struct MeshComponent
     {
-        Ref<Mesh> MeshPtr;
-        std::vector<Ref<Material>> Materials;
+        AssetHandle Mesh;
+        std::vector<AssetHandle> Materials;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;

@@ -10,7 +10,7 @@
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
-#include "Aether/Assets/AssetsManager.h"
+#include "Aether/Assets/AssetManager.h"
 
 namespace Aether {
     Application* Application::s_Instance = nullptr;
@@ -25,7 +25,7 @@ namespace Aether {
         JobSystem::Init();
         AnimationSystem::Init();
         PhysicsSystem::Init();
-        AssetsManager::Init();
+        AssetManager::Init();
         AudioSystem::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
@@ -36,7 +36,7 @@ namespace Aether {
 
     Application::~Application()
     {
-        AssetsManager::Shutdown();
+        AssetManager::Shutdown();
         Renderer::Shutdown();
         JobSystem::Shutdown();
         AnimationSystem::Shutdown();

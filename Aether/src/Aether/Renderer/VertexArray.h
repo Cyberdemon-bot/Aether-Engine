@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Aether/Renderer/Buffer.h"
-#include "aepch.h"
+#include "Aether/Renderer/ResourceManager.h"
 namespace Aether {
-    class AETHER_API VertexArray
+    class AETHER_API VertexArray : public Resource
     {
     public:
         virtual ~VertexArray() = default;
@@ -21,8 +21,21 @@ namespace Aether {
         virtual const std::vector<Ref<VertexBuffer>>& GetVertexBuffers() const = 0;
         virtual const Ref<IndexBuffer>& GetIndexBuffer() const = 0;
 
-        static Ref<VertexArray> Create();
+        template<typename... Args>
+        static Ref<VertexArray> Create(Args&&... args)
+        {
+            Scope<VertexArray> scope = CreateImpl(std::forward<Args>(args)...);
+            return Ref<VertexArray>(std::move(scope));
+        }
 
         virtual bool operator==(const VertexArray& other) const = 0;
+
+    private:
+		static const ResourceType GetType() { return ResourceType::VertexArray; }
+        virtual const ResourceType GetResourceType() const override { return ResourceType::VertexArray; }
+
+		static Scope<VertexArray> CreateImpl();
+
+		friend class ResourceManager;
     };
 }
