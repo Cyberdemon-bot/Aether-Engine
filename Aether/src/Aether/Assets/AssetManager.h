@@ -72,6 +72,11 @@ namespace Aether {
         
     private:
         AssetManager() = default;
+        AssetManager(const AssetManager&) = delete;
+        AssetManager& operator=(const AssetManager&) = delete;
+        AssetManager(AssetManager&&) = delete;
+        AssetManager& operator=(AssetManager&&) = delete;
+        
         static AssetManager& GetInstance();
         std::unordered_map<UUID, AssetHandle> m_Handles;
         std::vector<AssetSlot> m_Assets;

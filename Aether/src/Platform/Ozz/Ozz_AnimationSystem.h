@@ -86,7 +86,6 @@ namespace Aether {
             ozz::vector<ozz::math::Float4x4> modelMatrices;
             
             std::vector<glm::mat4> finalMatrices;
-            glm::mat4 rootMat;
         };
 
     private:
@@ -96,8 +95,8 @@ namespace Aether {
         // Conversion helpers
         ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const RigCreateInfo& data);
         ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipCreateInfo& data, int numJoints);
-        void ConvertOzzMatricesToGlm(const ozz::vector<ozz::math::Float4x4>& ozzMats, 
-                                      std::vector<glm::mat4>& glmMats);
+        void ConvertOzzMatricesToGlm(const ozz::vector<ozz::math::Float4x4>& ozzMats, std::vector<glm::mat4>& glmMats);
+        void ConvertOzzMatrixToGlm(const ozz::math::Float4x4& ozzMat, glm::mat4& glmMat) const;
 
     private:
         std::unordered_map<UUID, OzzSkeleton> m_Skeletons;

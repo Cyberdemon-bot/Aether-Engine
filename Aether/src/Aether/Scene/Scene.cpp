@@ -4,6 +4,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Audio/AudioSystem.h"
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Aether/Assets/AssetManager.h"
 
@@ -332,6 +333,10 @@ namespace Aether {
         bool isWorldTransformDirty = transform.Dirty || pDirty;
         bool hasRecalculatedWorld = false; 
 
+        glm::vec3 scale, translation, skew;
+        glm::quat rotation;
+        glm::vec4 perspective;
+
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
@@ -342,9 +347,6 @@ namespace Aether {
                 transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
                 hasRecalculatedWorld = true;
 
-                glm::vec3 scale, translation, skew;
-                glm::quat rotation;
-                glm::vec4 perspective;
                 glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
                 glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
                 PhysicsSystem::SetPhysTransform(id, {translation + worldOffset, rotation});
@@ -374,9 +376,17 @@ namespace Aether {
 
         if (isWorldTransformDirty)
         {
-            if (!hasRecalculatedWorld) transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
+            if (!hasRecalculatedWorld)
+            {
+                transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
+                if (HasComponent<AudioSourceComponent>(entity)) 
+                    glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
+            }
+            if (HasComponent<AudioSourceComponent>(entity)) 
+                AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, translation);
             transform.Dirty = false;
         }
+
         Entity currentChild = hierarchy.firstChild;
         while (currentChild != Null_Entity)
         {

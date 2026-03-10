@@ -82,6 +82,15 @@ namespace Aether {
         AnimatorComponent(const UUID& id) : AnimatorID(id) {};
     };
 
+    struct AudioSourceComponent
+    {
+        UUID SourceID;
+
+        AudioSourceComponent() = default;
+        AudioSourceComponent(const AudioSourceComponent&) = default;
+        AudioSourceComponent(const UUID& id) : SourceID(id) {};
+    };
+
     struct HierarchyComponent 
     {
         Entity parent = Null_Entity;

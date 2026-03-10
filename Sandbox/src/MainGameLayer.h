@@ -29,11 +29,7 @@ public:
 
 private:
     void UpdateMapChunks(const glm::vec3& playerPos);
-
-    void DrawHierarchyPanel();
-    void DrawEntityNode(Aether::Entity entity);
-    void DrawScenePanel();
-    void DrawLightingPanel();
+    void DrawRadar();
     bool WorldToScreen(const glm::vec3& worldPos, const glm::mat4& viewProj, ImVec2 displaySize, ImVec2& outScreen);
 
 private:
@@ -47,7 +43,6 @@ private:
     std::vector<Aether::RenderPass> m_Pipeline;
 
     Aether::Entity m_SunLight       = Aether::Null_Entity;
-    Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
     bool m_ShowFlowFieldDebug = false;
 
@@ -131,8 +126,6 @@ private:
 
     Aether::AssetHandle m_BaseMapMesh;
     std::vector<Aether::AssetHandle> m_BaseMapMaterials;
-
-    void DrawRadar();
 
     // --- Rendering ---
     float m_ShadowBias  = 0.00001f;
