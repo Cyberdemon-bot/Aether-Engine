@@ -45,7 +45,7 @@ namespace Aether {
                 instance.m_Assets.emplace_back();
             }
             AssetSlot& res = instance.m_Assets[index];
-            res.asset = CreateScope<T>(std::forward<Args>(args)...);
+            res.asset = T::CreateImpl(std::forward<Args>(args)...);
             res.asset->id = id;
             AssetHandle handle;
             handle.index = index;

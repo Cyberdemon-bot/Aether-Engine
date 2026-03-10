@@ -159,15 +159,15 @@ void MainGameLayer::Attach()
 
     Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f }); 
 
-    Aether::UUID bgmID, sound;
-    Aether::AudioSystem::AddSound(sound, "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
-    Aether::AudioSystem::CreateSource(bgmID, sound, Aether::AudioType::Audio2D);
-    Aether::AudioSystem::SetLooping(bgmID, true);
-    //Aether::AudioSystem::Play(bgmID);
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_BgmSoundID,   "assets/audio/Hatsune Miku - Ievan Polkka.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunSoundID,   "assets/audio/pistol.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunReloadID,  "assets/audio/pistol_reload.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_ZombieBiteID, "assets/audio/zombie_bite.mp3");
 
-    Aether::AudioSystem::AddSound(m_GunSound, "assets/audio/pistol.mp3");
-    Aether::AudioSystem::AddSound(m_GunReload, "assets/audio/pistol_reload.mp3");
-    Aether::AudioSystem::AddSound(m_ZombieBite, "assets/audio/zombie_bite.mp3");
+    Aether::UUID bgmSrcID;
+    Aether::AudioSystem::CreateSource(bgmSrcID, m_BgmSoundID, Aether::AudioType::Audio2D);
+    Aether::AudioSystem::SetLooping(bgmSrcID, true);
+    Aether::AudioSystem::Play(bgmSrcID);
 
     AE_CORE_INFO("MainGameLayer started.");
 }
@@ -190,6 +190,11 @@ void MainGameLayer::Detach()
     m_ShadowShader.reset();
     m_MainShader.reset();
     m_ActiveChunks.clear();
+
+    Aether::AssetManager::Unload(m_BgmSoundID);
+    Aether::AssetManager::Unload(m_GunSoundID);
+    Aether::AssetManager::Unload(m_GunReloadID);
+    Aether::AssetManager::Unload(m_ZombieBiteID);
 }
 
 void MainGameLayer::Update(Aether::Timestep ts)
@@ -332,7 +337,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
         {
             m_IsReloading = true;
             m_ReloadTimer = m_ReloadDuration;
-            Aether::UUID src; Aether::AudioSystem::CreateSource(src, m_GunReload, Aether::AudioType::Audio2D);
+            Aether::UUID src; 
+            Aether::AudioSystem::CreateSource(src, m_GunReloadID, Aether::AudioType::Audio2D);
             Aether::AudioSystem::Play(src);
             sources.push_back(src);
             AE_INFO("Reloading...");
@@ -578,7 +584,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 m_PlayerHealth -= 10.0f; // Mỗi lần cắn mất 10 máu
                 m_DamageCooldown = 1.0f; // 1 giây sau mới cho cắn tiếp (cooldown)
 
-                Aether::UUID src; Aether::AudioSystem::CreateSource(src, m_ZombieBite, Aether::AudioType::Audio2D);
+                Aether::UUID src; 
+                Aether::AudioSystem::CreateSource(src, m_ZombieBiteID, Aether::AudioType::Audio2D);
                 Aether::AudioSystem::Play(src); sources.push_back(src);
                 
                 AE_WARN("Player bi can! Mau con: {0}", m_PlayerHealth);
@@ -1404,7 +1411,7 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         }
 
         Aether::UUID src;
-        Aether::AudioSystem::CreateSource(src, m_GunSound, Aether::AudioType::Audio2D);
+        Aether::AudioSystem::CreateSource(src, m_GunSoundID, Aether::AudioType::Audio2D);
         Aether::AudioSystem::SetVolume(src, 0.3f);
         sources.push_back(src);
         Aether::AudioSystem::Play(src);
