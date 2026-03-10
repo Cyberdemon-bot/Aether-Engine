@@ -6,14 +6,13 @@
 namespace Aether {
     enum class AssetType
     {
-        Mesh, Material
+        Mesh, Material, Sound
     };
 
     struct AssetHandle
     {
         int index = -1, generation = -1;
-
-        bool IsValid() const { return index < 0; }
+        bool IsValid() const { return index >= 0 && generation >= 0; }
     };
 
     class Asset

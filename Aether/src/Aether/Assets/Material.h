@@ -54,6 +54,7 @@ namespace Aether {
 
         uint32_t m_Flags = (uint32_t)MaterialFlag::None;
 
+        static Scope<Material> CreateImpl() { return CreateScope<Material>(); }
         static const AssetType GetType() { return AssetType::Material; }
         virtual const AssetType GetAssetType() const override { return AssetType::Material; }
         friend class AssetManager;

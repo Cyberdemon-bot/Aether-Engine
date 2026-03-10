@@ -119,6 +119,8 @@ namespace Aether {
 
         void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
 
+        static Scope<Mesh> CreateImpl(const MeshSpec& spec) { return CreateScope<Mesh>(spec); }
+
         static const AssetType GetType() { return AssetType::Mesh; }
         virtual const AssetType GetAssetType() const override { return AssetType::Mesh; }
         friend class AssetManager;

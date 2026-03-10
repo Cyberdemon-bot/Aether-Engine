@@ -9,12 +9,12 @@ namespace Aether {
     {
         Audio2D, Audio3D
     };
-    
+
     enum class AudioAttenuation
     {
-        NO_ATTENUATION, 
-        LINEAR_DISTANCE, 
-        INVERSE_DISTANCE, 
+        NO_ATTENUATION,
+        LINEAR_DISTANCE,
+        INVERSE_DISTANCE,
         EXPONENTIAL_DISTANCE
     };
 
@@ -44,22 +44,19 @@ namespace Aether {
 
     class AudioAPI
     {
-    public: public:
+    public:
         enum class API {
             None = 0, SoLoud = 1
         };
-    public:
+
         virtual ~AudioAPI() = default;
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
 
-        virtual void AddSound(UUID soundID, const std::string& path) = 0;
-        virtual void RemoveSound(UUID soundID) = 0;
-
         virtual void CreateSource(UUID sourceID, UUID soundID, AudioType type) = 0;
         virtual void DestroySource(UUID sourceID) = 0;
         virtual bool IsActive(UUID sourceID) = 0;
-        
+
         virtual void Play(UUID sourceID) = 0;
         virtual void Pause(UUID sourceID) = 0;
         virtual void Stop(UUID sourceID) = 0;
@@ -73,15 +70,18 @@ namespace Aether {
         virtual void SetPlaybackSpeed(UUID sourceID, float value) = 0;
         virtual void Seek(UUID sourceID, float value) = 0;
 
-        //3d only
+        // 3D only
         virtual void SetSpeedSound(float value) = 0;
         virtual void SetPosition(UUID sourceID, const glm::vec3& position) = 0;
         virtual void SetVelocity(UUID sourceID, const glm::vec3& velocity) = 0;
         virtual void SetDistance(UUID sourceID, float minDist, float maxDist) = 0;
+        virtual void SetAttenuation(UUID sourceID, AudioAttenuation attenuation) = 0;
 
         virtual void UpdateListener(const AudioListener& listener) = 0;
 
+        static API GetAPI() { return s_API; }
         static Scope<AudioAPI> Create();
+
     private:
         static API s_API;
     };
