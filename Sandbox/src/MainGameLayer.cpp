@@ -148,7 +148,6 @@ void MainGameLayer::Attach()
     if (!uploadGun.animatorIDS.empty()) {
         m_ShootAnimation = uploadGun.animatorIDS[0];
         auto clips = rigSystem->GetClips(m_ShootAnimation);
-        AE_INFO("animator id: {0}, clips num: {1}", uint64_t(m_ShootAnimation), clips.size());
         if (!clips.empty()) rigSystem->BindClip(m_ShootAnimation, clips[0]);
         rigSystem->SetLoop(m_ShootAnimation, false);
     }
@@ -169,7 +168,7 @@ void MainGameLayer::Attach()
     Aether::AudioSystem::SetLooping(bgmSrcID, true);
     Aether::AudioSystem::Play(bgmSrcID);
 
-    AE_CORE_INFO("MainGameLayer started.");
+    AE_INFO("MainGameLayer started.");
 }
 
 void MainGameLayer::Detach()
