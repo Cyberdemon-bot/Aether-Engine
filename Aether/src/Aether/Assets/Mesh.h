@@ -82,6 +82,7 @@ namespace Aether {
         const uint32_t* IndexData = nullptr;
         uint32_t IndexCount = 0;
         std::vector<SubMesh> Submeshes = {};
+        std::vector<glm::mat4> RigPoseMats = {};
     };
 
     class AETHER_API Mesh : public Asset
@@ -99,8 +100,11 @@ namespace Aether {
 
         const glm::vec3& GetBoundsMin()   const { return m_BoundsMin; }
         const glm::vec3& GetBoundsMax()   const { return m_BoundsMax; }
+        const glm::vec3& GetAnimatedBoundsMin()   const { return m_AnimatedBoundsMin; }
+        const glm::vec3& GetAnimatedBoundsMax()   const { return m_AnimatedBoundsMax; }
         glm::vec3        GetBoundsCenter()  const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
         glm::vec3        GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
+        bool HasAnimatedBounds() { return m_HasAnimatedBounds; }
 
         static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
 
@@ -116,8 +120,17 @@ namespace Aether {
         uint32_t m_IndexCount  = 0;
         glm::vec3 m_BoundsMin   = glm::vec3(0.0f);
         glm::vec3 m_BoundsMax   = glm::vec3(0.0f);
+        glm::vec3 m_AnimatedBoundsMin   = glm::vec3(0.0f);
+        glm::vec3 m_AnimatedBoundsMax   = glm::vec3(0.0f);
+        bool m_HasAnimatedBounds = false;
 
         void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
+        void CalculateAnimatedBounds(
+            const void* positions, const BufferLayout& posLayout,
+            const void* joints,    const BufferLayout& jointLayout,
+            const void* weights,   const BufferLayout& weightLayout,
+            uint32_t vertexCount,
+            const std::vector<glm::mat4>& poseMats);
 
         static Scope<Mesh> CreateImpl(const MeshSpec& spec) { return CreateScope<Mesh>(spec); }
 

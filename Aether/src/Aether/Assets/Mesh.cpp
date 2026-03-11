@@ -48,6 +48,14 @@ namespace Aether {
 
         // Calculate bounds from first vertex stream
         CalculateBounds(spec.Streams[0].Data, m_VertexCount, spec.Streams[0].Layout);
+        if (!spec.RigPoseMats.empty())
+        {
+            m_HasAnimatedBounds = true;
+            CalculateAnimatedBounds(spec.Streams[0].Data, spec.Streams[0].Layout, 
+                                    spec.Streams[4].Data, spec.Streams[4].Layout, 
+                                    spec.Streams[5].Data, spec.Streams[5].Layout, 
+                                    m_VertexCount, spec.RigPoseMats);
+        }
     }
 
     Mesh::~Mesh()
@@ -74,5 +82,45 @@ namespace Aether {
             m_BoundsMin = glm::min(m_BoundsMin, pos);
             m_BoundsMax = glm::max(m_BoundsMax, pos);
         }
+    }
+
+    void Mesh::CalculateAnimatedBounds(
+        const void* positions, const BufferLayout& posLayout,
+        const void* joints,    const BufferLayout& jointLayout,
+        const void* weights,   const BufferLayout& weightLayout,
+        uint32_t vertexCount,
+        const std::vector<glm::mat4>& poseMats)
+    {
+        if (!positions || !joints || !weights || vertexCount == 0 || poseMats.empty()) return;
+
+        uint32_t posStride    = posLayout.GetStride();
+        uint32_t jointStride  = jointLayout.GetStride();
+        uint32_t weightStride = weightLayout.GetStride();
+
+        const uint8_t* posBase    = static_cast<const uint8_t*>(positions);
+        const uint8_t* jointBase  = static_cast<const uint8_t*>(joints);
+        const uint8_t* weightBase = static_cast<const uint8_t*>(weights);
+
+        glm::vec3 boundsMin( FLT_MAX);
+        glm::vec3 boundsMax(-FLT_MAX);
+
+        for (uint32_t i = 0; i < vertexCount; i++)
+        {
+            glm::vec3  pos = *reinterpret_cast<const glm::vec3*> (posBase    + i * posStride);
+            glm::uvec4 b   = *reinterpret_cast<const glm::uvec4*>(jointBase  + i * jointStride);
+            glm::vec4  w   = *reinterpret_cast<const glm::vec4*> (weightBase + i * weightStride);
+
+            glm::vec4 skinnedPos =
+                poseMats[b.x] * glm::vec4(pos, 1.0f) * w.x +
+                poseMats[b.y] * glm::vec4(pos, 1.0f) * w.y +
+                poseMats[b.z] * glm::vec4(pos, 1.0f) * w.z +
+                poseMats[b.w] * glm::vec4(pos, 1.0f) * w.w;
+
+            boundsMin = glm::min(boundsMin, glm::vec3(skinnedPos));
+            boundsMax = glm::max(boundsMax, glm::vec3(skinnedPos));
+        }
+
+        m_AnimatedBoundsMin = boundsMin;
+        m_AnimatedBoundsMax = boundsMax;
     }
 }

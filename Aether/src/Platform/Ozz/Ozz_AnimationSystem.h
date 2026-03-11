@@ -49,7 +49,8 @@ namespace Aether {
         virtual float GetPlayBackTime(UUID animatorID) const override;
         virtual float GetDuration(UUID animatorID) const override;
         virtual float GetSpeed(UUID animatorID) const override;
-        virtual glm::mat4 GetRootMat(UUID animatorID) const override;
+        virtual glm::mat4 GetBoneMat(UUID animatorID, uint32_t index) const override;
+        virtual std::vector<glm::mat4> GetRestPoseMatrices(UUID rigID) const override;
 
         virtual bool HasAnimator(UUID animatorID) const override;
         virtual uint32_t GetClipCount(UUID animatorID) const override;

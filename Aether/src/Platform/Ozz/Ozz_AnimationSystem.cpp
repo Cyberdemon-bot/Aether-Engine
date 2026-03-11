@@ -245,6 +245,33 @@ namespace Aether {
         return animIt->second->currentClip;
     }
 
+    std::vector<glm::mat4> Ozz_AnimationSystem::GetRestPoseMatrices(UUID rigID) const
+    {
+        auto it = m_Skeletons.find(rigID);
+        if (it == m_Skeletons.end()) return {};
+
+        const auto& skeleton = *it->second.skeleton;
+
+        ozz::vector<ozz::math::Float4x4> modelMats(skeleton.num_joints());
+
+        ozz::animation::LocalToModelJob job;
+        job.skeleton = &skeleton;
+        job.input    = skeleton.joint_rest_poses();
+        job.output   = ozz::make_span(modelMats);
+        if (!job.Run()) return {};
+
+        std::vector<glm::mat4> result;
+        result.reserve(modelMats.size());
+        for (auto& m : modelMats)
+        {
+            glm::mat4 glmMat;
+            ConvertOzzMatrixToGlm(m, glmMat);
+            result.push_back(glmMat);
+        }
+
+        return result;
+    }
+
     void Ozz_AnimationSystem::SetSpeed(UUID animatorID, float speed)
     {
         auto it = m_Animators.find(animatorID);
@@ -412,14 +439,13 @@ namespace Aether {
         return (clipIt != m_Clips.end()) ? clipIt->second.animation->duration() : 0.0f;
     }
 
-    glm::mat4 Ozz_AnimationSystem::GetRootMat(UUID animatorID) const
+    glm::mat4 Ozz_AnimationSystem::GetBoneMat(UUID animatorID, uint32_t index) const 
     {
         auto animIt = m_Animators.find(animatorID);
         if (animIt == m_Animators.end()) return glm::mat4(1.0f);
 
-        OzzAnimator& animator = *(animIt->second);
-        glm::mat4 result;
-        ConvertOzzMatrixToGlm(animator.modelMatrices[0], result);
+        OzzAnimator& animator = *(animIt->second); glm::mat4 result;
+        ConvertOzzMatrixToGlm(animator.modelMatrices[index], result);
         return result;
     }
 

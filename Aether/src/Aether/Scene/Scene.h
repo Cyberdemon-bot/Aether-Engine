@@ -13,7 +13,7 @@ namespace Aether {
 
     using Entity = entt::entity;
     static constexpr Entity Null_Entity = entt::null;
-
+    static const glm::vec4 GREEN = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
     class AETHER_API Scene 
     {
     public:
