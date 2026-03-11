@@ -40,6 +40,7 @@ namespace Aether {
         virtual float GetPlayBackTime(UUID animatorID) const = 0;
         virtual float GetDuration(UUID animatorID) const = 0;
         virtual float GetSpeed(UUID animatorID) const = 0;
+        virtual bool GetLoop(UUID animatorID) const = 0;
 
         virtual bool HasAnimator(UUID animatorID) const = 0;
         virtual uint32_t GetClipCount(UUID animatorID) const = 0;
