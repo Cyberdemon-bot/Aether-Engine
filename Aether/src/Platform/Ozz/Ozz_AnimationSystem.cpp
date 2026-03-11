@@ -418,7 +418,9 @@ namespace Aether {
         if (animIt == m_Animators.end()) return glm::mat4(1.0f);
 
         OzzAnimator& animator = *(animIt->second);
-        return animator.rootMat;
+        glm::mat4 result;
+        ConvertOzzMatrixToGlm(animator.modelMatrices[0], result);
+        return result;
     }
 
     void Ozz_AnimationSystem::CalculateMatrices(UUID animatorID)
@@ -481,7 +483,6 @@ namespace Aether {
             animator.dirty = false;
             return;  
         }
-        animator.rootMat = animator.finalMatrices[0];
         for (int i = 0; i < numJoints; ++i)
         {
             int origIdx = rigIt->second.sourceData.ibmRemap[i];
@@ -613,6 +614,14 @@ namespace Aether {
         return builder(rawAnim);
     }
 
+    void Ozz_AnimationSystem::ConvertOzzMatrixToGlm(const ozz::math::Float4x4& ozzMat, glm::mat4& glmMat) const
+    {
+        ozz::math::StorePtrU(ozzMat.cols[0], glm::value_ptr(glmMat[0]));
+        ozz::math::StorePtrU(ozzMat.cols[1], glm::value_ptr(glmMat[1]));
+        ozz::math::StorePtrU(ozzMat.cols[2], glm::value_ptr(glmMat[2]));
+        ozz::math::StorePtrU(ozzMat.cols[3], glm::value_ptr(glmMat[3]));
+    }
+
     void Ozz_AnimationSystem::ConvertOzzMatricesToGlm(const ozz::vector<ozz::math::Float4x4>& ozzMats, std::vector<glm::mat4>& glmMats)
     {
         glmMats.resize(ozzMats.size());
@@ -621,12 +630,7 @@ namespace Aether {
         {
             const ozz::math::Float4x4& src = ozzMats[i];
             glm::mat4& dst = glmMats[i];
-            
-
-            ozz::math::StorePtrU(src.cols[0], glm::value_ptr(dst[0]));
-            ozz::math::StorePtrU(src.cols[1], glm::value_ptr(dst[1]));
-            ozz::math::StorePtrU(src.cols[2], glm::value_ptr(dst[2]));
-            ozz::math::StorePtrU(src.cols[3], glm::value_ptr(dst[3]));
+            ConvertOzzMatrixToGlm(src, dst);
         }
     }
 

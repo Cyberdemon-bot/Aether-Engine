@@ -924,6 +924,19 @@ void MainGameLayer::OnImGuiRender()
     }
     ImGui::End();
 
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 30.0f, viewport->Pos.y + 60.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.6f);
+    ImGui::Begin("##perf", nullptr,
+        ImGuiWindowFlags_NoDecoration   |
+        ImGuiWindowFlags_NoInputs       |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoMove);
+
+    ImGui::Text("FPS        %.1f",       ImGui::GetIO().Framerate);
+    ImGui::Text("Frame time %.2f ms",    1000.0f / ImGui::GetIO().Framerate);
+
+    ImGui::End();
+
     // --- CROSSHAIR ---
     ImVec2 center = ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f, 
                            viewport->Pos.y + viewport->Size.y * 0.5f);
