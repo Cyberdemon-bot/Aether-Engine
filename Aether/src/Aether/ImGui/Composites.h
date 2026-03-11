@@ -4,19 +4,6 @@
 #include <string>
 #include <functional>
 
-// =============================================================================
-//  UIComposites  —  Layer 2
-//
-//  Reusable patterns that are engine-agnostic.
-//  Depends only on UI.h (and thus Canvas.h + imgui + glm).
-//
-//  Usage:
-//      UI::Row("Speed", 120.f, [&]{ return UI::SliderFloat("##v", speed, 0, 10); });
-//      UI::ComboList("Mesh", names, selectedIndex);
-//      UI::Badge("PLAYING", UI::Color::Green());
-//      bool dirty = UI::DragXYZ("Position", translation);
-// =============================================================================
-
 namespace Aether::UI
 {
     // =========================================================================

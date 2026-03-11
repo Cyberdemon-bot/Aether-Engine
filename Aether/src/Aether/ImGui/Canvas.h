@@ -4,19 +4,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
-// =============================================================================
-//  UI::Canvas  —  Layer 0
-//
-//  Wraps ImDrawList into a glm-native draw API.
-//  Devs never touch ImDrawList*, ImVec2, or IM_COL32 directly.
-//
-//  Usage:
-//      auto c = UI::Foreground();
-//      c.CircleFill(center, radius, UI::Col32(10, 30, 10, 200));
-//      c.Line(p1, p2, UI::Col32(0, 255, 0, 255), 2.f);
-//      c.Text(pos, UI::Col32(255,255,255,255), "RADAR", 24.f);
-// =============================================================================
-
 namespace Aether::UI
 {
     // -------------------------------------------------------------------------
