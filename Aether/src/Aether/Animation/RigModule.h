@@ -45,6 +45,8 @@ namespace Aether {
         virtual uint32_t GetClipCount(UUID animatorID) const = 0;
         virtual int GetCurrentClipIndex(UUID animatorID) const = 0;
         virtual std::vector<UUID> GetClips(UUID animatorID) const = 0;
+
+        virtual int GetBoneIndex(UUID animatorID, const std::string& name) const = 0;
         virtual glm::mat4 GetBoneMat(UUID animatorID, uint32_t index) const = 0;
         virtual std::vector<glm::mat4> GetRestPoseMatrices(UUID rigID) const = 0;
 

@@ -68,6 +68,7 @@ namespace Aether {
     {
         AssetHandle Mesh;
         std::vector<AssetHandle> Materials;
+        bool ShowBounds = false;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;
@@ -80,6 +81,18 @@ namespace Aether {
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
         AnimatorComponent(const UUID& id) : AnimatorID(id) {};
+    };
+
+    struct BoneAttachmentComponent
+    {
+        UUID AnimatorID;
+        bool Active = false;
+        int BoneIdx = -1;
+        
+        BoneAttachmentComponent() = default;
+        BoneAttachmentComponent(const BoneAttachmentComponent&) = default;
+        BoneAttachmentComponent(const UUID& id) : AnimatorID(id) {};
+        BoneAttachmentComponent(const UUID& id, int idx, bool active = false) : AnimatorID(id), BoneIdx(idx), Active(active) {};
     };
 
     struct AudioSourceComponent
