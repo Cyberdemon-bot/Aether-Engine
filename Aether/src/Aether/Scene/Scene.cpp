@@ -457,13 +457,9 @@ namespace Aether {
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (animatorID != UUID(0))
-                    {
-                        glm::mat4 rootMat = AnimationSystem::GetModule<RigModule>()->GetRootMat(animatorID);
-                        glm::vec3 scale(glm::length(glm::vec3(rootMat[0])), glm::length(glm::vec3(rootMat[1])), glm::length(glm::vec3(rootMat[2])));
-                        world *= glm::scale(glm::mat4(1.0f), scale);
-                    }
-                    Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                    if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
+                        Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
+                    else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
 
                     std::vector<Material*> resolved_mats; resolved_mats.reserve(meshcmp.Materials.size());
@@ -486,23 +482,22 @@ namespace Aether {
                         PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);
-                        auto color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f); // green
                         if (component.Shape == ColliderShape::Sphere)
                         {
                             float radius = component.Size.x;
-                            Renderer::RenderSphere(radius, colliderTransform, color);
+                            Renderer::RenderSphere(radius, colliderTransform, GREEN);
                         }
                         if (component.Shape == ColliderShape::Box)
                         {
                             glm::vec3 bMin = -component.Size;
                             glm::vec3 bMax =  component.Size;
-                            Renderer::RenderBox(bMin, bMax, colliderTransform, color);
+                            Renderer::RenderBox(bMin, bMax, colliderTransform, GREEN);
                         }
                         if (component.Shape == ColliderShape::Capsule)
                         {
                             float radius  = component.Size.x;
                             float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
-                            Renderer::RenderCapsule(radius, halfCyl, colliderTransform, color);
+                            Renderer::RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
                         }
                     }
                 }

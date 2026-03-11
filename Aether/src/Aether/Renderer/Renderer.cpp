@@ -369,11 +369,17 @@ namespace Aether {
 		static ResourceHandle s_VAO, s_VBO, s_IBO;
 		static glm::vec3 s_LastMin(FLT_MAX), s_LastMax(FLT_MAX);
 
+		glm::vec3 center  = (boundMin + boundMax) * 0.5f;
+		glm::vec3 extents = (boundMax - boundMin) * 0.5f;
+		extents = glm::max(extents, glm::vec3(0.1f)); 
+		glm::vec3 clampedMin = center - extents;
+		glm::vec3 clampedMax = center + extents;
+
 		glm::vec3 l[8] = {
-			{boundMin.x, boundMin.y, boundMin.z}, {boundMax.x, boundMin.y, boundMin.z},
-			{boundMax.x, boundMax.y, boundMin.z}, {boundMin.x, boundMax.y, boundMin.z},
-			{boundMin.x, boundMin.y, boundMax.z}, {boundMax.x, boundMin.y, boundMax.z},
-			{boundMax.x, boundMax.y, boundMax.z}, {boundMin.x, boundMax.y, boundMax.z}
+			{clampedMin.x, clampedMin.y, clampedMin.z}, {clampedMax.x, clampedMin.y, clampedMin.z},
+			{clampedMax.x, clampedMax.y, clampedMin.z}, {clampedMin.x, clampedMax.y, clampedMin.z},
+			{clampedMin.x, clampedMin.y, clampedMax.z}, {clampedMax.x, clampedMin.y, clampedMax.z},
+			{clampedMax.x, clampedMax.y, clampedMax.z}, {clampedMin.x, clampedMax.y, clampedMax.z}
 		};
 
 		if (!s_VAO.IsValid())
@@ -392,11 +398,11 @@ namespace Aether {
 			vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(s_IBO));
 		}
 
-		if (boundMin != s_LastMin || boundMax != s_LastMax)
+		if (clampedMin != s_LastMin || clampedMax != s_LastMax)
 		{
 			ResourceManager::GetResource<VertexBuffer>(s_VBO)->SetData(l, sizeof(l), 0);
-			s_LastMin = boundMin;
-			s_LastMax = boundMax;
+			s_LastMin = clampedMin;
+			s_LastMax = clampedMax;
 		}
 
 		auto* shader = ResourceManager::GetResource<Shader>(s_RenderData->lineShader);

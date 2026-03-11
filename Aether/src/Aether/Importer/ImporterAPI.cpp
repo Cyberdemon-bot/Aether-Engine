@@ -80,9 +80,56 @@ namespace Aether {
             material->AddFloat("u_Roughness", matInfo.Roughness);
             res.matIDs.push_back(matID);
         }
-        // Upload meshes
-        for (const auto& meshInfo : sceneData.Meshes)
+        auto animSystem = AnimationSystem::GetModule<RigModule>();
+        for (const auto& rigInfo : sceneData.Rigs)
         {
+            UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
+            animSystem->RegisterSkeleton(rigInfo, rigID);
+            rigIDs.push_back(rigID);
+        }
+
+        for (const auto& clipInfo : sceneData.Clips)
+        {
+            UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
+            clipIDs.push_back(clipID);
+        }
+
+        for (size_t rigIdx = 0; rigIdx < rigIDs.size(); rigIdx++)
+        {
+            UUID rigID = rigIDs[rigIdx];
+            UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
+            animSystem->CreateAnimator(animatorID, rigID);
+            res.animatorIDS.push_back(animatorID); 
+            auto it = sceneData.RigMap.find((uint32_t)rigIdx);
+            if (it != sceneData.RigMap.end())
+            {
+                const std::vector<uint32_t>& clipIndices = it->second;
+                for (uint32_t clipIdx : clipIndices)
+                {
+                    const auto& clipInfo = sceneData.Clips[clipIdx];
+                    UUID clipID = clipIDs[clipIdx];
+                    
+                    animSystem->RegisterClip(clipInfo, clipID, rigID);
+                    animSystem->AddClip(animatorID, clipID);
+                }
+            }
+        }
+
+        // Upload meshes
+        for (size_t meshIdx = 0; meshIdx < sceneData.Meshes.size(); meshIdx++)
+        {
+            const auto& meshInfo = sceneData.Meshes[meshIdx];
+
+            int rigIdx = -1;
+            for (const auto& node : sceneData.Hierarchy->nodes)
+            {
+                if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
+                {
+                    rigIdx = node.animatorIdx;
+                    break;
+                }
+            }
+
             UUID meshID = AssetsRegister::Register(meshInfo.DebugName);
             res.meshMap.emplace_back();
             // Convert SubMeshCreateInfo to SubMesh
@@ -118,43 +165,11 @@ namespace Aether {
             spec.IndexData = meshInfo.Indices.data();
             spec.IndexCount = meshInfo.totalIndices;
             spec.Submeshes = submeshes;
+            if (rigIdx >= 0)
+                spec.RigPoseMats = animSystem->GetRestPoseMatrices(rigIDs[rigIdx]);
 
             AssetManager::CreateAsset<Mesh>(meshID, spec);
             res.meshIDs.push_back(meshID);
-        }
-        auto animSystem = AnimationSystem::GetModule<RigModule>();
-        for (const auto& rigInfo : sceneData.Rigs)
-        {
-            UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
-            animSystem->RegisterSkeleton(rigInfo, rigID);
-            rigIDs.push_back(rigID);
-        }
-
-        for (const auto& clipInfo : sceneData.Clips)
-        {
-            UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
-            clipIDs.push_back(clipID);
-        }
-
-        for (size_t rigIdx = 0; rigIdx < rigIDs.size(); rigIdx++)
-        {
-            UUID rigID = rigIDs[rigIdx];
-            UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
-            animSystem->CreateAnimator(animatorID, rigID);
-            res.animatorIDS.push_back(animatorID); 
-            auto it = sceneData.RigMap.find((uint32_t)rigIdx);
-            if (it != sceneData.RigMap.end())
-            {
-                const std::vector<uint32_t>& clipIndices = it->second;
-                for (uint32_t clipIdx : clipIndices)
-                {
-                    const auto& clipInfo = sceneData.Clips[clipIdx];
-                    UUID clipID = clipIDs[clipIdx];
-                    
-                    animSystem->RegisterClip(clipInfo, clipID, rigID);
-                    animSystem->AddClip(animatorID, clipID);
-                }
-            }
         }
 
         res.hierarchy = sceneData.Hierarchy;
