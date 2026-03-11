@@ -291,13 +291,11 @@ namespace Aether {
          return m_Registry.get<IDComponent>(entity).ID;
     }
 
-    static void CreateNodeEntity(Scene& scene, const RegisteredScene& reg, int nodeIdx, Entity parentEntity)
+    void Scene::CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity)
     {
         const Node& node = reg.hierarchy->nodes[nodeIdx];
-
-        Entity e = scene.CreateEntity(node.name, parentEntity);
-
-        auto& t       = scene.GetComponent<TransformComponent>(e);
+        Entity e = CreateEntity(node.name, parentEntity);
+        auto& t       = GetComponent<TransformComponent>(e);
         t.Translation = node.translation;
         t.Rotation    = glm::normalize(node.rotation);
         t.Scale       = node.scale;
@@ -305,7 +303,7 @@ namespace Aether {
 
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
         {
-            auto& component = scene.AddComponent<MeshComponent>(e);
+            auto& component = AddComponent<MeshComponent>(e);
             component.Mesh = AssetManager::GetHandle(reg.meshIDs[node.meshIdx]);
             component.Materials.reserve(reg.meshMap[node.meshIdx].size());
             for (auto& id : reg.meshMap[node.meshIdx])
@@ -313,16 +311,15 @@ namespace Aether {
         }
 
         if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animatorIDS.size())
-            scene.AddComponent<AnimatorComponent>(e).AnimatorID = reg.animatorIDS[node.animatorIdx];
-
+            AddComponent<AnimatorComponent>(e).AnimatorID = reg.animatorIDS[node.animatorIdx];
         for (int childIdx : node.children)
-            CreateNodeEntity(scene, reg, childIdx, e);
+            CreateNodeEntity(reg, childIdx, e);
     }
 
-     void Scene::LoadHierarchy(const RegisteredScene& registered, Entity parent)
+    void Scene::LoadHierarchy(const RegisteredScene& registered, Entity parent)
     {
         for (int rootIdx : registered.hierarchy->roots)
-            CreateNodeEntity(*this, registered, rootIdx, parent);
+            CreateNodeEntity(registered, rootIdx, parent);
     }
 
     void Scene::UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty)
@@ -482,23 +479,24 @@ namespace Aether {
 
                 Renderer::EndScene();
 
-                // for (auto entity : meshView)
-                // {
-                //     auto& transform = GetComponent<TransformComponent>(entity);
-                //     auto& meshcmp = GetComponent<MeshComponent>(entity);
-                //     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
-                //     UUID animatorID = UUID(0);
-                //     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
+                for (auto entity : meshView)
+                {
+                    auto& meshcmp = GetComponent<MeshComponent>(entity);
+                    if (!meshcmp.ShowBounds) continue;
 
-                //     glm::mat4 world = transform.WorldTransform;
-                //     glm::vec3 worldMin, worldMax;
-                //     if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
-                //         Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
-                //     else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
-                //     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
+                    auto& transform = GetComponent<TransformComponent>(entity);
+                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
+                    UUID animatorID = UUID(0);
+                    if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
 
-                //     Renderer::RenderBox(worldMin, worldMax, glm::mat4(1.0f), GREEN);
-                // }
+                    glm::mat4 world = transform.WorldTransform;
+                    glm::vec3 worldMin, worldMax;
+                    if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
+                        Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
+                    else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                    if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
+                    Renderer::RenderBox(worldMin, worldMax, glm::mat4(1.0f), RED);
+                }
 
                 auto rbView = View<ColliderComponent>();
                 if (!rbView.empty())

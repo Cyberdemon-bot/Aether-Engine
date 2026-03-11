@@ -68,6 +68,7 @@ namespace Aether {
     {
         AssetHandle Mesh;
         std::vector<AssetHandle> Materials;
+        bool ShowBounds = false;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;

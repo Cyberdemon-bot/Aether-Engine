@@ -14,6 +14,7 @@ namespace Aether {
     using Entity = entt::entity;
     static constexpr Entity Null_Entity = entt::null;
     static const glm::vec4 GREEN = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    static const glm::vec4 RED = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
     class AETHER_API Scene 
     {
     public:
@@ -93,5 +94,6 @@ namespace Aether {
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
         void UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty);
+        void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
     };
 }

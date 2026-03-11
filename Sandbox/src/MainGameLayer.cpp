@@ -713,6 +713,9 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
 
     m_Scene.LoadHierarchy(m_ZombieSceneData, newZombie);
     m_ZombieSceneData.animatorIDS[0] = originalAnimID;
+    // Aether::Entity child = m_Scene.GetComponent<Aether::HierarchyComponent>(newZombie).firstChild;
+    // child = m_Scene.GetComponent<Aether::HierarchyComponent>(child).firstChild;
+    // m_Scene.GetComponent<Aether::MeshComponent>(child).ShowBounds = true;
 
     // Physics body
     Aether::UUID bodyID = m_Scene.GetComponent<Aether::IDComponent>(newZombie).ID;
