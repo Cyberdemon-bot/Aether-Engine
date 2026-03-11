@@ -446,6 +446,12 @@ namespace Aether {
         return (it != m_Animators.end()) ? it->second->playbackSpeed : 0.0f;
     }
 
+    bool Ozz_AnimationSystem::GetLoop(UUID animatorID) const
+    {
+        auto it = m_Animators.find(animatorID);
+        return (it != m_Animators.end()) ? it->second->loop : false;
+    }
+
     float Ozz_AnimationSystem::GetDuration(UUID animatorID) const
     {
         auto it = m_Animators.find(animatorID);

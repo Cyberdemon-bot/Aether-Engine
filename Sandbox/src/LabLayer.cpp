@@ -186,8 +186,8 @@ void LabLayer::DrainParseQueue()
         AE_CORE_INFO("Main thread: Uploading to GPU...");
         auto result = Aether::Importer::Upload(parsed);
 
-        for (auto& meshID  : result.meshIDs)     m_MeshIDs.push_back(meshID);
-        for (auto& animID  : result.animatorIDS) m_AnimatorIDs.push_back(animID);
+        for (auto& meshID : result.meshIDs)     m_MeshIDs.push_back(meshID);
+        for (auto& animID : result.animatorIDS) m_AnimatorIDs.push_back(animID);
 
         m_Scene.LoadHierarchy(result);
 
@@ -258,8 +258,8 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID 
         m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, bodyID, true);
     else
     {
-        auto& col         = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
-        col.BodyID        = bodyID;
+        auto& col          = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
+        col.BodyID         = bodyID;
         col.ColliderOffset = localOffset;
     }
 
@@ -322,13 +322,7 @@ void LabLayer::OnEvent(Aether::Event& event)
 
 void LabLayer::OnImGuiRender()
 {
-    using namespace Aether;
-
-    if (auto w = UI::Window("Performance"))
-    {
-        UI::Text("FPS: %.1f",           ImGui::GetIO().Framerate);
-        UI::Text("Frame time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
-    }
+    Aether::UI::PerformanceOverlay(0);
 
     DrawHierarchyPanel();
     DrawScenePanel();
@@ -340,62 +334,14 @@ void LabLayer::OnImGuiRender()
 //  Hierarchy panel
 // =============================================================================
 
-void LabLayer::DrawEntityNode(Aether::Entity entity)
-{
-    auto& tag  = m_Scene.GetComponent<Aether::TagComponent>(entity);
-    auto& hier = m_Scene.GetComponent<Aether::HierarchyComponent>(entity);
-
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (hier.firstChild  == Aether::Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
-    if (m_SelectedEntity == entity)              flags |= ImGuiTreeNodeFlags_Selected;
-
-    // TreeNodeEx with void* id has no clean wrapper — keep raw call
-    bool open = ImGui::TreeNodeEx((void*)(uint64_t)entity, flags, "%s", tag.Tag.c_str());
-
-    if (ImGui::IsItemClicked())
-        m_SelectedEntity = entity;
-
-    if (ImGui::BeginPopupContextItem())
-    {
-        if (ImGui::MenuItem("Set as parent of selected") &&
-            m_SelectedEntity != Aether::Null_Entity &&
-            m_SelectedEntity != entity)
-        {
-            m_Scene.MakeParent(m_SelectedEntity, entity);
-        }
-        if (ImGui::MenuItem("Unparent") && hier.parent != Aether::Null_Entity)
-            m_Scene.BreakParent(entity);
-        ImGui::EndPopup();
-    }
-
-    if (open)
-    {
-        Aether::Entity child = hier.firstChild;
-        while (child != Aether::Null_Entity)
-        {
-            Aether::Entity next = m_Scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
-            DrawEntityNode(child);
-            child = next;
-        }
-        ImGui::TreePop();
-    }
-}
-
 void LabLayer::DrawHierarchyPanel()
 {
-    if (auto w = Aether::UI::Window("Hierarchy"))
-    {
-        if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
-            m_SelectedEntity = Aether::Null_Entity;
-
-        auto view = m_Scene.View<Aether::HierarchyComponent>();
-        for (auto entity : view)
-        {
-            if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Aether::Null_Entity)
-                DrawEntityNode(entity);
-        }
-    }
+    // UI::SceneHierarchy opens the window, iterates roots, and handles
+    // deselect-on-empty-click and per-node context menus internally.
+    Aether::UI::SceneHierarchy("Hierarchy", m_Scene, m_SelectedEntity);
 }
+
+// DrawEntityNode removed — UI::SceneHierarchy handles hierarchy traversal.
 
 // =============================================================================
 //  Scene panel
@@ -414,143 +360,84 @@ void LabLayer::DrawScenePanel()
         // ---- Physics --------------------------------------------------------
         if (auto h = UI::Header("Physics"))
         {
-            std::string nodePreview = (m_PhysSelectedEntity != Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
+            // Node picker — entities aren't strings, so manual combo loop
+            std::string nodePreview = (m_PhysSelectedEntity != Null_Entity &&
+                                       m_Scene.IsValid(m_PhysSelectedEntity))
                 ? m_Scene.GetComponent<TagComponent>(m_PhysSelectedEntity).Tag
                 : "Select Node";
 
             if (auto c = UI::Combo("Node##phys", nodePreview.c_str()))
             {
-                auto view = m_Scene.View<TagComponent>();
-                for (auto entity : view)
+                for (auto entity : m_Scene.View<TagComponent>())
                 {
-                    auto guard = UI::ID((int)(uint64_t)entity);
-                    bool selected = (m_PhysSelectedEntity == entity);
-                    std::string tag = m_Scene.GetComponent<TagComponent>(entity).Tag;
-                    if (ImGui::Selectable(tag.c_str(), selected)) m_PhysSelectedEntity = entity;
-                    if (selected) ImGui::SetItemDefaultFocus();
+                    auto  g   = UI::ID((int)(uint64_t)entity);
+                    bool  sel = (m_PhysSelectedEntity == entity);
+                    auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                    if (UI::Selectable(tag.Tag.c_str(), sel)) m_PhysSelectedEntity = entity;
+                    if (sel) ImGui::SetItemDefaultFocus();
                 }
             }
 
-            std::string meshPreview = (m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size())
-                ? AssetsRegister::Get(m_MeshIDs[m_PhysMeshIdx])
-                : "Select Mesh";
-
-            if (auto c = UI::Combo("Mesh##phys", meshPreview.c_str()))
-            {
-                for (int i = 0; i < (int)m_MeshIDs.size(); i++)
-                {
-                    auto guard = UI::ID(i);
-                    bool selected = (m_PhysMeshIdx == i);
-                    if (ImGui::Selectable(AssetsRegister::Get(m_MeshIDs[i]).c_str(), selected)) m_PhysMeshIdx = i;
-                    if (selected) ImGui::SetItemDefaultFocus();
-                }
-            }
+            // Mesh picker
+            std::vector<std::string> meshNames;
+            meshNames.reserve(m_MeshIDs.size());
+            for (auto& id : m_MeshIDs)
+                meshNames.push_back(AssetsRegister::Get(id));
+            UI::ComboList("Mesh##phys", meshNames, m_PhysMeshIdx);
 
             UI::Checkbox("Is Dynamic", m_PhysDynamic);
 
             bool canAdd = (m_PhysSelectedEntity != Null_Entity &&
                            m_Scene.IsValid(m_PhysSelectedEntity) &&
                            m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size());
+            {
+                auto d = UI::Disabled(!canAdd);
+                if (UI::Button("Add Physics Body"))
+                    RegisterPhysicsBody(m_PhysSelectedEntity, m_MeshIDs[m_PhysMeshIdx], m_PhysDynamic);
+            }
 
-            if (!canAdd) ImGui::BeginDisabled();
-            if (UI::Button("Add Physics Body"))
-                RegisterPhysicsBody(m_PhysSelectedEntity, m_MeshIDs[m_PhysMeshIdx], m_PhysDynamic);
-            if (!canAdd) ImGui::EndDisabled();
-
-            UI::Separator();
-            UI::Text("Active Bodies:");
+            UI::SectionHeader("Active Bodies");
             for (auto& [entity, entry] : m_PhysicsBodies)
             {
                 if (!m_Scene.IsValid(entity)) continue;
-                auto guard = UI::ID((int)(uint64_t)entity);
-                std::string tag = m_Scene.GetComponent<TagComponent>(entity).Tag;
-                UI::Checkbox(tag.c_str(), entry.enabled);
+                auto  g   = UI::ID((int)(uint64_t)entity);
+                auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                if (UI::Checkbox(tag.Tag.c_str(), entry.enabled))
+                    PhysicsSystem::SetActive(entry.bodyID, entry.enabled);
             }
 
             UI::Separator();
 
+            // Force / velocity applicator for the selected entity
             auto physIt = (m_SelectedEntity != Null_Entity)
                 ? m_PhysicsBodies.find(m_SelectedEntity)
                 : m_PhysicsBodies.end();
 
             UI::Text("Apply to Selected Entity:");
+
             if (physIt == m_PhysicsBodies.end())
+            {
                 UI::TextDisabled("(select an entity with a physics body)");
+            }
             else if (!physIt->second.isDynamic)
+            {
                 UI::TextDisabled("(static body — forces not applicable)");
+            }
             else
             {
-                UI::DragFloat3("Force##input",    m_ForceInput,    0.5f);
+                UI::DragXYZ("Force",    m_ForceInput,    0.5f);
                 UI::SameLine();
                 if (UI::Button("Apply Force"))
                     PhysicsSystem::AddForce(physIt->second.bodyID, m_ForceInput);
                 UI::SameLine();
                 if (UI::SmallButton("X##force")) m_ForceInput = glm::vec3(0.0f);
 
-                UI::DragFloat3("Velocity##input", m_VelocityInput, 0.5f);
+                UI::DragXYZ("Velocity", m_VelocityInput, 0.5f);
                 UI::SameLine();
                 if (UI::Button("Set Velocity"))
                     PhysicsSystem::SetVelocity(physIt->second.bodyID, m_VelocityInput);
                 UI::SameLine();
                 if (UI::SmallButton("X##vel")) m_VelocityInput = glm::vec3(0.0f);
-            }
-        }
-
-        // ---- Raycast --------------------------------------------------------
-        if (auto h = UI::Header("Raycast Test"))
-        {
-            if (UI::Button("Fill from Camera"))
-            {
-                m_RayOrigin    = m_Camera.GetPosition();
-                m_RayDirection = m_Camera.GetForwardDirection();
-            }
-            UI::SameLine();
-            UI::TextDisabled("(or set manually below)");
-
-            UI::DragFloat3("Origin##ray",    m_RayOrigin,    0.1f);
-            if (UI::DragFloat3("Direction##ray", m_RayDirection, 0.01f))
-            {
-                float len = glm::length(m_RayDirection);
-                if (len > 1e-5f) m_RayDirection /= len;
-            }
-            UI::SliderFloat("Max Distance##ray", m_RayDistance, 0.1f, 1000.0f);
-
-            UI::Spacing();
-            if (UI::Button("Cast Ray"))
-            {
-                m_LastRayHits = PhysicsSystem::CastRayAll(m_RayOrigin, m_RayDirection, m_RayDistance);
-                m_RayHasFired = true;
-            }
-
-            if (m_RayHasFired)
-            {
-                UI::Separator();
-                UI::Text("Result: %d hit(s)", (int)m_LastRayHits.size());
-
-                if (m_LastRayHits.empty())
-                {
-                    UI::TextColored(UI::Color::Red(), "  MISS");
-                    UI::TextDisabled("  (no collider hit within %.1f units)", m_RayDistance);
-                }
-                else
-                {
-                    for (int i = 0; i < (int)m_LastRayHits.size(); i++)
-                    {
-                        const auto& hit   = m_LastRayHits[i];
-                        auto        guard = UI::ID(i);
-                        std::string name  = AssetsRegister::Get(hit.HitEntityID);
-                        std::string label = name.empty() ? "(unregistered)" : name;
-
-                        if (auto t = UI::TreeNode(label.c_str(),
-                            ImGuiTreeNodeFlags_SpanAvailWidth))
-                        {
-                            UI::TextColored(UI::Color::Green(), "HIT");
-                            UI::Text("Position : (%.3f, %.3f, %.3f)", hit.Position.x, hit.Position.y, hit.Position.z);
-                            UI::Text("Normal   : (%.3f, %.3f, %.3f)", hit.Normal.x,   hit.Normal.y,   hit.Normal.z);
-                            UI::Text("Distance : %.3f", hit.Distance);
-                        }
-                    }
-                }
             }
         }
 
@@ -567,34 +454,13 @@ void LabLayer::DrawScenePanel()
         // ---- Transform ------------------------------------------------------
         if (auto h = UI::Header("Transform"))
         {
-            if (m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
-            {
-                auto& tag = m_Scene.GetComponent<TagComponent>(m_SelectedEntity);
-                auto& t   = m_Scene.GetComponent<TransformComponent>(m_SelectedEntity);
+            // Resolve optional physics body pointer for physics sync
+            UUID* physBodyPtr = nullptr;
+            auto it = m_PhysicsBodies.find(m_SelectedEntity);
+            if (it != m_PhysicsBodies.end())
+                physBodyPtr = &it->second.bodyID;
 
-                UI::TextColored(UI::Color::Green(), "Editing: %s", tag.Tag.c_str());
-
-                if (UI::DragFloat3("Position", t.Translation, 0.1f))  t.Dirty = true;
-                if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation), 0.01f)) t.Dirty = true;
-                if (UI::DragFloat3("Scale", t.Scale, 0.05f))           t.Dirty = true;
-
-                if (UI::Button("Reset Transform"))
-                {
-                    t.Translation = glm::vec3(0.0f);
-                    t.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-                    t.Scale       = glm::vec3(1.0f);
-                    t.Dirty       = true;
-                }
-
-                if (t.Dirty)
-                {
-                    auto it = m_PhysicsBodies.find(m_SelectedEntity);
-                    if (it != m_PhysicsBodies.end())
-                        PhysicsSystem::SetPhysTransform(it->second.bodyID, { t.Translation, t.Rotation });
-                }
-            }
-            else
-                UI::TextDisabled("Select an entity in the Hierarchy panel.");
+            UI::TransformInspector(m_Scene, m_SelectedEntity, physBodyPtr);
         }
     }
 }
@@ -615,79 +481,55 @@ void LabLayer::DrawAnimationPanel()
         // ---- Bind mesh to animator ------------------------------------------
         if (auto h = UI::Header("Bind Mesh to Animator"))
         {
-            std::string meshPreview = (m_BindMeshIndex >= 0 && m_BindMeshIndex < (int)m_MeshIDs.size())
-                ? AssetsRegister::Get(m_MeshIDs[m_BindMeshIndex])
-                : "Select Mesh";
+            std::vector<std::string> meshNames;
+            meshNames.reserve(m_MeshIDs.size());
+            for (int i = 0; i < (int)m_MeshIDs.size(); i++)
+                meshNames.push_back(std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]));
+            UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
 
-            if (auto c = UI::Combo("Mesh##bind", meshPreview.c_str()))
-            {
-                for (int i = 0; i < (int)m_MeshIDs.size(); i++)
-                {
-                    auto  guard    = UI::ID(i);
-                    bool  selected = (m_BindMeshIndex == i);
-                    std::string name = std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]);
-                    if (ImGui::Selectable(name.c_str(), selected)) m_BindMeshIndex = i;
-                    if (selected) ImGui::SetItemDefaultFocus();
-                }
-            }
-
-            std::string animPreview = (m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size())
-                ? ("Animator " + std::to_string(m_BindAnimatorIndex))
-                : "Select Animator";
-
-            if (auto c = UI::Combo("Animator##bind", animPreview.c_str()))
-            {
-                for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
-                {
-                    auto guard    = UI::ID(i);
-                    bool selected = (m_BindAnimatorIndex == i);
-                    if (ImGui::Selectable(("Animator " + std::to_string(i)).c_str(), selected))
-                        m_BindAnimatorIndex = i;
-                    if (selected) ImGui::SetItemDefaultFocus();
-                }
-            }
+            std::vector<std::string> animNames;
+            animNames.reserve(m_AnimatorIDs.size());
+            for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
+                animNames.push_back("Animator " + std::to_string(i));
+            UI::ComboList("Animator##bind", animNames, m_BindAnimatorIndex);
 
             bool canBind = (m_BindMeshIndex    >= 0 && m_BindMeshIndex    < (int)m_MeshIDs.size() &&
                             m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size());
-
-            if (!canBind) ImGui::BeginDisabled();
-            if (UI::Button("Bind"))
             {
-                UUID meshID = m_MeshIDs[m_BindMeshIndex];
-                UUID animID = m_AnimatorIDs[m_BindAnimatorIndex];
-
-                auto meshView = m_Scene.View<MeshComponent>();
-                for (auto entity : meshView)
+                auto d = UI::Disabled(!canBind);
+                if (UI::Button("Bind"))
                 {
-                    auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
-                    auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
-                    if (mesh && mesh->id == meshID)
+                    UUID meshID = m_MeshIDs[m_BindMeshIndex];
+                    UUID animID = m_AnimatorIDs[m_BindAnimatorIndex];
+
+                    for (auto entity : m_Scene.View<MeshComponent>())
                     {
-                        if (!m_Scene.HasComponent<AnimatorComponent>(entity))
-                            m_Scene.AddComponent<AnimatorComponent>(entity);
-                        m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID = animID;
-                        break;
+                        auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
+                        auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                        if (mesh && mesh->id == meshID)
+                        {
+                            if (!m_Scene.HasComponent<AnimatorComponent>(entity))
+                                m_Scene.AddComponent<AnimatorComponent>(entity);
+                            m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID = animID;
+                            break;
+                        }
                     }
                 }
             }
-            if (!canBind) ImGui::EndDisabled();
 
-            UI::Separator();
-            UI::Text("Active Bindings:");
-
-            auto meshView = m_Scene.View<MeshComponent, AnimatorComponent>();
-            for (auto entity : meshView)
+            UI::SectionHeader("Active Bindings");
+            for (auto entity : m_Scene.View<MeshComponent, AnimatorComponent>())
             {
                 auto& mc    = m_Scene.GetComponent<MeshComponent>(entity);
                 auto* mesh  = AssetManager::GetAsset<Mesh>(mc.Mesh);
-                UUID animID = m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID;
+                UUID  animID = m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID;
 
                 std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
                 int animIdx = -1;
                 for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
                     if (m_AnimatorIDs[i] == animID) { animIdx = i; break; }
 
-                auto guard = UI::ID(mesh ? (int)(uint64_t)mesh->id : 0);
+                auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : 0);
                 UI::Text("%s  ->  Animator %d", meshName.c_str(), animIdx);
                 UI::SameLine();
                 if (UI::SmallButton("Unbind"))
@@ -706,53 +548,9 @@ void LabLayer::DrawAnimationPanel()
         // ---- Per-animator controls ------------------------------------------
         for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
         {
-            UUID animatorID = m_AnimatorIDs[i];
-            auto guard      = UI::ID(i);
-
+            auto g = UI::ID(i);
             if (auto h = UI::Header(("Animator " + std::to_string(i)).c_str()))
-            {
-                auto  clips      = rigSystem->GetClips(animatorID);
-                int   currentIdx = rigSystem->GetCurrentClipIndex(animatorID);
-
-                std::string clipPreview = (currentIdx >= 0 && currentIdx < (int)clips.size())
-                    ? AssetsRegister::Get(clips[currentIdx])
-                    : "Select Clip";
-
-                if (auto c = UI::Combo("Clip", clipPreview.c_str()))
-                {
-                    for (int ci = 0; ci < (int)clips.size(); ci++)
-                    {
-                        auto cg  = UI::ID(ci);
-                        bool sel = (ci == currentIdx);
-                        if (ImGui::Selectable(AssetsRegister::Get(clips[ci]).c_str(), sel))
-                            rigSystem->BindClip(animatorID, clips[ci]);
-                        if (sel) ImGui::SetItemDefaultFocus();
-                    }
-                }
-
-                UI::Separator();
-
-                bool isPlaying = rigSystem->IsPlaying(animatorID);
-                if (UI::Button("Play"))  rigSystem->Play(animatorID);
-                UI::SameLine();
-                if (UI::Button("Pause")) rigSystem->Pause(animatorID);
-                UI::SameLine();
-                if (UI::Button("Stop"))  rigSystem->Stop(animatorID);
-                UI::SameLine();
-                UI::TextColored(isPlaying ? UI::Color::Green() : UI::Color::Red(),
-                                isPlaying ? " PLAYING" : " STOPPED");
-
-                float speed = rigSystem->GetSpeed(animatorID);
-                if (UI::SliderFloat("Speed", speed, 0.0f, 3.0f))
-                    rigSystem->SetSpeed(animatorID, speed);
-
-                float currentTime = rigSystem->GetPlayBackTime(animatorID);
-                float duration    = rigSystem->GetDuration(animatorID);
-                UI::Text("Time: %.2f / %.2f", currentTime, duration);
-                if (duration > 0.0f)
-                    UI::ProgressBar(currentTime / duration);
-            }
-
+                UI::AnimatorControls(m_AnimatorIDs[i], rigSystem);
             UI::Spacing();
         }
     }
@@ -772,22 +570,7 @@ void LabLayer::DrawLightingPanel()
         {
             auto& lightComp  = m_Scene.GetComponent<LightComponent>(m_LightEntity);
             auto& lightTrans = m_Scene.GetComponent<TransformComponent>(m_LightEntity);
-            auto& light      = lightComp.Config;
-
-            glm::vec3 dir = glm::normalize(glm::vec3(-lightTrans.WorldTransform[2]));
-            UI::Text("Direction: (%.2f, %.2f, %.2f)", dir.x, dir.y, dir.z);
-            UI::ColorEdit3("Color",      light.color);
-            UI::SliderFloat("Intensity", light.intensity, 0.0f, 10.0f);
-            UI::SliderFloat("Range",     light.range,     1.0f, 200.0f);
-
-            float innerDeg = glm::degrees(glm::acos(light.innerCone));
-            float outerDeg = glm::degrees(glm::acos(light.outerCone));
-            if (UI::SliderFloat("Inner Cone", innerDeg, 1.0f, 89.0f))
-                light.innerCone = glm::cos(glm::radians(innerDeg));
-            if (UI::SliderFloat("Outer Cone", outerDeg, innerDeg, 90.0f))
-                light.outerCone = glm::cos(glm::radians(outerDeg));
-
-            UI::Checkbox("Cast Shadows", light.castShadows);
+            UI::LightInspector(lightComp.Config, &lightTrans.WorldTransform);
         }
 
         if (auto h = UI::Header("Volumetric Lighting"))

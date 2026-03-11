@@ -49,6 +49,7 @@ namespace Aether {
         virtual float GetPlayBackTime(UUID animatorID) const override;
         virtual float GetDuration(UUID animatorID) const override;
         virtual float GetSpeed(UUID animatorID) const override;
+        virtual bool GetLoop(UUID animatorID) const override;
 
         virtual int GetBoneIndex(UUID animatorID, const std::string& name) const override;
         virtual glm::mat4 GetBoneMat(UUID animatorID, uint32_t index) const override;
