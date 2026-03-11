@@ -411,6 +411,23 @@ namespace Aether {
         return empty;
     }
 
+    int Ozz_AnimationSystem::GetBoneIndex(UUID animatorID, const std::string& name) const
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end()) return -1;
+
+        auto skelIt = m_Skeletons.find(animIt->second->rigID);
+        if (skelIt == m_Skeletons.end()) return -1;
+
+        const auto& skeleton = *skelIt->second.skeleton;
+        const auto names = skeleton.joint_names();
+
+        for (int i = 0; i < (int)names.size(); i++)
+            if (names[i] == name) return i;
+
+        return -1;
+    }
+
     bool Ozz_AnimationSystem::IsPlaying(UUID animatorID) const
     {
         auto it = m_Animators.find(animatorID);

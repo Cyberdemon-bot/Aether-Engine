@@ -336,6 +336,17 @@ namespace Aether {
         glm::vec3 scale, translation, skew;
         glm::quat rotation;
         glm::vec4 perspective;
+        glm::mat4 boneMat = glm::mat4(1.0f);
+        if (HasComponent<BoneAttachmentComponent>(entity))
+        {
+            auto& attachment = GetComponent<BoneAttachmentComponent>(entity);
+            if (attachment.Active && attachment.BoneIdx >= 0)
+            {
+                auto rigModule = AnimationSystem::GetModule<RigModule>();
+                boneMat = rigModule->GetBoneMat(attachment.AnimatorID, attachment.BoneIdx);
+                isWorldTransformDirty = true;
+            }
+        }
 
         if (HasComponent<ColliderComponent>(entity))
         {
@@ -344,7 +355,7 @@ namespace Aether {
 
             if (isWorldTransformDirty) 
             {
-                transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
+                transform.WorldTransform = pTransfrom * boneMat * transform.GetLocalTransform();
                 hasRecalculatedWorld = true;
 
                 glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
@@ -378,7 +389,7 @@ namespace Aether {
         {
             if (!hasRecalculatedWorld)
             {
-                transform.WorldTransform = pTransfrom * transform.GetLocalTransform();
+                transform.WorldTransform = pTransfrom * boneMat * transform.GetLocalTransform();
                 if (HasComponent<AudioSourceComponent>(entity)) 
                     glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
             }
@@ -470,6 +481,24 @@ namespace Aether {
                 }
 
                 Renderer::EndScene();
+
+                // for (auto entity : meshView)
+                // {
+                //     auto& transform = GetComponent<TransformComponent>(entity);
+                //     auto& meshcmp = GetComponent<MeshComponent>(entity);
+                //     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
+                //     UUID animatorID = UUID(0);
+                //     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
+
+                //     glm::mat4 world = transform.WorldTransform;
+                //     glm::vec3 worldMin, worldMax;
+                //     if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
+                //         Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
+                //     else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                //     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
+
+                //     Renderer::RenderBox(worldMin, worldMax, glm::mat4(1.0f), GREEN);
+                // }
 
                 auto rbView = View<ColliderComponent>();
                 if (!rbView.empty())

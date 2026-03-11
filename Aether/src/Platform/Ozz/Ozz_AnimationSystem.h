@@ -49,6 +49,8 @@ namespace Aether {
         virtual float GetPlayBackTime(UUID animatorID) const override;
         virtual float GetDuration(UUID animatorID) const override;
         virtual float GetSpeed(UUID animatorID) const override;
+
+        virtual int GetBoneIndex(UUID animatorID, const std::string& name) const override;
         virtual glm::mat4 GetBoneMat(UUID animatorID, uint32_t index) const override;
         virtual std::vector<glm::mat4> GetRestPoseMatrices(UUID rigID) const override;
 
@@ -85,7 +87,6 @@ namespace Aether {
             ozz::animation::SamplingJob::Context samplingContext;
             ozz::vector<ozz::math::SoaTransform> localTransforms;
             ozz::vector<ozz::math::Float4x4> modelMatrices;
-            
             std::vector<glm::mat4> finalMatrices;
         };
 
