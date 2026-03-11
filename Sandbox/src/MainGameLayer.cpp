@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <algorithm>
 #include <set>
-#include <imgui.h>
 
 MainGameLayer::MainGameLayer()
     : Layer("Main Game"), m_Camera(45.0f, 1.778f, 0.1f, 1000.0f)
@@ -889,171 +888,150 @@ void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
 
 void MainGameLayer::OnImGuiRender()
 {
+    using namespace Aether;
+
     // --- AMMO HUD (bottom-right) ---
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 window_pos = ImVec2(viewport->Pos.x + viewport->Size.x - 180, viewport->Pos.y + viewport->Size.y - 100);
-    ImGui::SetNextWindowPos(window_pos);
-    
-    ImGui::Begin("AmmoDisplay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs);
-    ImGui::SetWindowFontScale(1.5f);
+    {
+        ImVec2 pos = { UI::ViewportPos().x + UI::ViewportSize().x - 180.f,
+                       UI::ViewportPos().y + UI::ViewportSize().y - 100.f };
 
-    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "WEAPON: PISTOL");
-    
-    if (m_IsReloading) {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "RELOADING...");
-    } else {
-        std::string ammoText = std::to_string(m_CurrentAmmo) + " / INF";
-        
-        ImVec4 color   = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        float  offsetY = 0.0f;
+        if (auto w = UI::Overlay("AmmoDisplay", pos))
+        {
+            auto fs = UI::FontScale(1.5f);
+            UI::TextColored(UI::Color::Green(), "WEAPON: PISTOL");
 
-        if (m_CurrentAmmo == 0) {
-            color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-            if (m_AmmoEmptyTimer > 0.0f)
-                offsetY = -glm::abs(glm::sin(m_AmmoEmptyTimer * 20.0f)) * 15.0f * m_AmmoEmptyTimer;
-        }
+            if (m_IsReloading)
+            {
+                UI::TextColored(UI::Color::Red(), "RELOADING...");
+            }
+            else
+            {
+                ImVec4 color   = UI::Color::White();
+                float  offsetY = 0.0f;
 
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offsetY);
-        ImGui::TextColored(color, "%s", ammoText.c_str());
+                if (m_CurrentAmmo == 0) {
+                    color = UI::Color::Red();
+                    if (m_AmmoEmptyTimer > 0.0f)
+                        offsetY = -glm::abs(glm::sin(m_AmmoEmptyTimer * 20.0f)) * 15.0f * m_AmmoEmptyTimer;
+                }
 
-        // Shoot cooldown bar — shows how long until the gun can fire again
-        if (m_ShootTimer > 0.0f) {
-            float progress = 1.0f - (m_ShootTimer / m_ShootDuration);
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(1.0f, 0.6f, 0.0f, 0.9f));
-            ImGui::ProgressBar(progress, ImVec2(120.0f, 5.0f), "");
-            ImGui::PopStyleColor();
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offsetY);
+                UI::TextColored(color, "%d / INF", m_CurrentAmmo);
+
+                // Shoot cooldown bar
+                if (m_ShootTimer > 0.0f)
+                    UI::ProgressBar(1.0f - (m_ShootTimer / m_ShootDuration),
+                                    {120.0f, 5.0f}, "", UI::Color::Orange());
+            }
         }
     }
-    ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 30.0f, viewport->Pos.y + 60.0f), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.6f);
-    ImGui::Begin("##perf", nullptr,
-        ImGuiWindowFlags_NoDecoration   |
-        ImGuiWindowFlags_NoInputs       |
-        ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoMove);
-
-    ImGui::Text("FPS        %.1f",       ImGui::GetIO().Framerate);
-    ImGui::Text("Frame time %.2f ms",    1000.0f / ImGui::GetIO().Framerate);
-
-    ImGui::End();
+    // --- PERF OVERLAY ---
+    {
+        ImVec2 pos = { UI::ViewportPos().x + 30.0f, UI::ViewportPos().y + 60.0f };
+        if (auto w = UI::Overlay("##perf", pos, 0.6f, ImGuiWindowFlags_NoMove))
+        {
+            UI::Text("FPS        %.1f",    ImGui::GetIO().Framerate);
+            UI::Text("Frame time %.2f ms", 1000.0f / ImGui::GetIO().Framerate);
+        }
+    }
 
     // --- CROSSHAIR ---
-    ImVec2 center = ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f, 
-                           viewport->Pos.y + viewport->Size.y * 0.5f);
-    
-    auto drawList = ImGui::GetForegroundDrawList();
-    float thickness = 2.0f;
-    ImU32 green = IM_COL32(0, 255, 0, 255);
-    ImU32 white = IM_COL32(255, 255, 255, 255);
-
-    if (m_IsReloading)
     {
-        // Spinning circle segments
-        float radius = 15.0f;
-        int numSegments = 8;
-        for (int i = 0; i < numSegments; i++)
+        ImVec2 c   = UI::ScreenCenter();
+        auto*  dl  = UI::FgDraw();
+
+        if (m_IsReloading)
         {
-            float angle = m_ReloadRotation + (i * ((2.0f * 3.14159f) / numSegments));
-            ImVec2 p1 = ImVec2(center.x + cos(angle) * (radius - 5), center.y + sin(angle) * (radius - 5));
-            ImVec2 p2 = ImVec2(center.x + cos(angle) * radius,       center.y + sin(angle) * radius);
-            drawList->AddLine(p1, p2, white, thickness);
+            const float radius = 15.0f;
+            const int   segs   = 8;
+            for (int i = 0; i < segs; i++) {
+                float  angle = m_ReloadRotation + i * (2.0f * 3.14159f / segs);
+                ImVec2 p1 = { c.x + cosf(angle) * (radius - 5), c.y + sinf(angle) * (radius - 5) };
+                ImVec2 p2 = { c.x + cosf(angle) *  radius,      c.y + sinf(angle) *  radius };
+                dl->AddLine(p1, p2, IM_COL32(255, 255, 255, 255), 2.0f);
+            }
+            dl->AddCircleFilled(c, 1.5f, IM_COL32(255, 0, 0, 150));
         }
-        drawList->AddCircleFilled(center, 1.5f, IM_COL32(255, 0, 0, 150));
-    }
-    else
-    {
-        // Standard 4-line crosshair, spreads while moving
-        static float crosshairSpread = 0.0f;
-        if (m_IsPlayerMoving) crosshairSpread = glm::mix(crosshairSpread, 12.0f, 0.1f);
-        else                  crosshairSpread = glm::mix(crosshairSpread, 0.0f,  0.1f);
+        else
+        {
+            static float crosshairSpread = 0.0f;
+            crosshairSpread = m_IsPlayerMoving
+                ? glm::mix(crosshairSpread, 12.0f, 0.1f)
+                : glm::mix(crosshairSpread,  0.0f, 0.1f);
 
-        float baseLength = 10.0f;
-        float offset = 5.0f + crosshairSpread;
+            float base   = 10.0f;
+            float offset = 5.0f + crosshairSpread;
+            ImU32 green  = IM_COL32(0, 255, 0, 255);
 
-        drawList->AddLine(ImVec2(center.x - offset - baseLength, center.y), ImVec2(center.x - offset, center.y), green, thickness);
-        drawList->AddLine(ImVec2(center.x + offset, center.y), ImVec2(center.x + offset + baseLength, center.y), green, thickness);
-        drawList->AddLine(ImVec2(center.x, center.y - offset - baseLength), ImVec2(center.x, center.y - offset), green, thickness);
-        drawList->AddLine(ImVec2(center.x, center.y + offset), ImVec2(center.x, center.y + offset + baseLength), green, thickness);
-        
-        drawList->AddCircleFilled(center, 1.5f, white);
+            dl->AddLine({c.x - offset - base, c.y}, {c.x - offset,        c.y}, green, 2.0f);
+            dl->AddLine({c.x + offset,        c.y}, {c.x + offset + base, c.y}, green, 2.0f);
+            dl->AddLine({c.x, c.y - offset - base}, {c.x, c.y - offset       }, green, 2.0f);
+            dl->AddLine({c.x, c.y + offset       }, {c.x, c.y + offset + base}, green, 2.0f);
+            dl->AddCircleFilled(c, 1.5f, IM_COL32(255, 255, 255, 255));
+        }
     }
 
     // --- FLOW FIELD DEBUG OVERLAY ---
     if (m_ShowFlowFieldDebug && !m_FlowField.empty())
     {
-        ImGuiViewport* vp = ImGui::GetMainViewport();
-        ImDrawList* fgDraw = ImGui::GetForegroundDrawList();
-        ImVec2         dispSize = vp->Size;
-        ImVec2         dispPos = vp->Pos;
+        auto*       dl        = UI::FgDraw();
+        ImVec2      dispPos   = UI::ViewportPos();
+        ImVec2      dispSize  = UI::ViewportSize();
+        glm::mat4   viewProj  = m_Camera.GetViewProjection();
 
-        glm::mat4 viewProj = m_Camera.GetViewProjection();
-
-        const ImU32 colGrid = IM_COL32(0, 255, 0, 80);   // faint green cell borders
-        const ImU32 colDir = IM_COL32(0, 255, 0, 200);   // bright green arrows
-        const ImU32 colTarget = IM_COL32(255, 255, 0, 255);   // yellow for cost-0 cell
-        const float half = m_PathGridSize * 0.5f;
+        const ImU32 colGrid   = IM_COL32(  0, 255,   0,  80);
+        const ImU32 colDir    = IM_COL32(  0, 255,   0, 200);
+        const ImU32 colTarget = IM_COL32(255, 255,   0, 255);
+        const float half      = m_PathGridSize * 0.5f;
 
         for (auto& [coord, cell] : m_FlowField)
         {
             if (cell.bestCost == 999999) continue;
 
-            glm::vec3 worldCenter = glm::vec3(
-                (coord.first + 0.5f) * m_PathGridSize,
+            glm::vec3 worldCenter = {
+                (coord.first  + 0.5f) * m_PathGridSize,
                 yFloor + 0.05f,
                 (coord.second + 0.5f) * m_PathGridSize
-            );
+            };
 
-            // Project the four corners of this grid cell to screen space
             glm::vec3 corners[4] = {
                 worldCenter + glm::vec3(-half, 0, -half),
-                worldCenter + glm::vec3(half, 0, -half),
-                worldCenter + glm::vec3(half, 0,  half),
+                worldCenter + glm::vec3( half, 0, -half),
+                worldCenter + glm::vec3( half, 0,  half),
                 worldCenter + glm::vec3(-half, 0,  half),
             };
 
-            ImVec2 screenCorners[4];
-            bool   allVisible = true;
+            ImVec2 sc[4]; bool allVisible = true;
             for (int i = 0; i < 4; i++) {
                 ImVec2 s;
                 if (!WorldToScreen(corners[i], viewProj, dispSize, s)) { allVisible = false; break; }
-                screenCorners[i] = ImVec2(dispPos.x + s.x, dispPos.y + s.y);
+                sc[i] = { dispPos.x + s.x, dispPos.y + s.y };
             }
-
             if (!allVisible) continue;
 
-            // Draw cell quad
-            ImU32 borderCol = (cell.bestCost == 0) ? colTarget : colGrid;
-            fgDraw->AddQuad(screenCorners[0], screenCorners[1],
-                screenCorners[2], screenCorners[3], borderCol, 1.0f);
+            dl->AddQuad(sc[0], sc[1], sc[2], sc[3],
+                        (cell.bestCost == 0) ? colTarget : colGrid, 1.0f);
 
-            // Draw direction arrow (skip the target cell itself)
             if (cell.bestCost > 0 && glm::length(cell.direction) > 0.01f)
             {
                 glm::vec3 arrowEnd = worldCenter + cell.direction * (m_PathGridSize * 0.4f);
                 ImVec2    sCenter, sEnd;
-
                 if (WorldToScreen(worldCenter, viewProj, dispSize, sCenter) &&
-                    WorldToScreen(arrowEnd, viewProj, dispSize, sEnd))
+                    WorldToScreen(arrowEnd,    viewProj, dispSize, sEnd))
                 {
-                    sCenter = ImVec2(dispPos.x + sCenter.x, dispPos.y + sCenter.y);
-                    sEnd = ImVec2(dispPos.x + sEnd.x, dispPos.y + sEnd.y);
+                    sCenter = { dispPos.x + sCenter.x, dispPos.y + sCenter.y };
+                    sEnd    = { dispPos.x + sEnd.x,    dispPos.y + sEnd.y    };
+                    dl->AddLine(sCenter, sEnd, colDir, 1.5f);
 
-                    fgDraw->AddLine(sCenter, sEnd, colDir, 1.5f);
-
-                    // Arrowhead
-                    glm::vec2 lineDir = glm::normalize(glm::vec2(sEnd.x - sCenter.x, sEnd.y - sCenter.y));
-                    glm::vec2 perp = glm::vec2(-lineDir.y, lineDir.x);
-                    const float headLen = 4.0f;
-
-                    ImVec2 tip = sEnd;
-                    ImVec2 lWing = ImVec2(sEnd.x - lineDir.x * headLen + perp.x * headLen * 0.5f,
-                        sEnd.y - lineDir.y * headLen + perp.y * headLen * 0.5f);
-                    ImVec2 rWing = ImVec2(sEnd.x - lineDir.x * headLen - perp.x * headLen * 0.5f,
-                        sEnd.y - lineDir.y * headLen - perp.y * headLen * 0.5f);
-
-                    fgDraw->AddTriangleFilled(tip, lWing, rWing, colDir);
+                    glm::vec2 dir  = glm::normalize(glm::vec2(sEnd.x - sCenter.x, sEnd.y - sCenter.y));
+                    glm::vec2 perp = { -dir.y, dir.x };
+                    const float h  = 4.0f;
+                    dl->AddTriangleFilled(
+                        sEnd,
+                        { sEnd.x - dir.x*h + perp.x*h*0.5f, sEnd.y - dir.y*h + perp.y*h*0.5f },
+                        { sEnd.x - dir.x*h - perp.x*h*0.5f, sEnd.y - dir.y*h - perp.y*h*0.5f },
+                        colDir);
                 }
             }
         }
@@ -1061,135 +1039,93 @@ void MainGameLayer::OnImGuiRender()
 
     if (m_ShowFlowFieldDebug && !m_ActiveChunks.empty())
     {
-        ImGuiViewport* vp = ImGui::GetMainViewport();
-        ImDrawList* fgDraw = ImGui::GetForegroundDrawList();
-        ImVec2       dispSize = vp->Size;
-        ImVec2       dispPos = vp->Pos;
-
+        auto*     dl       = UI::FgDraw();
+        ImVec2    dispPos  = UI::ViewportPos();
+        ImVec2    dispSize = UI::ViewportSize();
         glm::mat4 viewProj = m_Camera.GetViewProjection();
-        const float actualChunkSize = m_ChunkSize;
-        const float half = actualChunkSize * 0.5f;
 
-        const ImU32 colChunk = IM_COL32(255, 0, 0, 160);  // red border
-        const ImU32 colLabel = IM_COL32(255, 80, 80, 255);  // red label
+        const float half     = m_ChunkSize * 0.5f;
+        const ImU32 colChunk = IM_COL32(255,  0,  0, 160);
+        const ImU32 colLabel = IM_COL32(255, 80, 80, 255);
 
         for (auto& [coord, chunkData] : m_ActiveChunks)
         {
-            glm::vec3 worldCenter = glm::vec3(
-                (coord.first + 0.5f) * actualChunkSize,
+            glm::vec3 worldCenter = {
+                (coord.first  + 0.5f) * m_ChunkSize,
                 yFloor + 0.05f,
-                (coord.second + 0.5f) * actualChunkSize);
+                (coord.second + 0.5f) * m_ChunkSize
+            };
 
             glm::vec3 corners[4] = {
                 worldCenter + glm::vec3(-half, 0.f, -half),
-                worldCenter + glm::vec3(half, 0.f, -half),
-                worldCenter + glm::vec3(half, 0.f,  half),
+                worldCenter + glm::vec3( half, 0.f, -half),
+                worldCenter + glm::vec3( half, 0.f,  half),
                 worldCenter + glm::vec3(-half, 0.f,  half),
             };
 
-            ImVec2 screenCorners[4];
-            bool   allVisible = true;
+            ImVec2 sc[4]; bool allVisible = true;
             for (int i = 0; i < 4; i++) {
                 ImVec2 s;
                 if (!WorldToScreen(corners[i], viewProj, dispSize, s)) { allVisible = false; break; }
-                screenCorners[i] = ImVec2(dispPos.x + s.x, dispPos.y + s.y);
+                sc[i] = { dispPos.x + s.x, dispPos.y + s.y };
             }
-
             if (!allVisible) continue;
 
-            // Draw chunk border
-            fgDraw->AddQuad(screenCorners[0], screenCorners[1],
-                screenCorners[2], screenCorners[3], colChunk, 2.0f);
+            dl->AddQuad(sc[0], sc[1], sc[2], sc[3], colChunk, 2.0f);
 
-            // Draw coord label at chunk center
             ImVec2 sCenter;
             if (WorldToScreen(worldCenter, viewProj, dispSize, sCenter)) {
                 char buf[32];
                 snprintf(buf, sizeof(buf), "%d,%d", coord.first, coord.second);
-                fgDraw->AddText(
-                    ImVec2(dispPos.x + sCenter.x, dispPos.y + sCenter.y),
-                    colLabel, buf
-                );
+                dl->AddText({ dispPos.x + sCenter.x, dispPos.y + sCenter.y }, colLabel, buf);
             }
         }
     }
 
-    // --- UI Thanh Máu (drawn directly on screen, no ImGui window) ---
+    // --- HEALTH BAR ---
     {
-        ImDrawList* hudDraw = ImGui::GetForegroundDrawList();
-        ImGuiViewport* vp   = ImGui::GetMainViewport();
+        auto*  dl      = UI::FgDraw();
+        ImVec2 vp      = UI::ViewportPos();
+        float  barX    = vp.x + 30.0f;
+        float  barY    = vp.y + 40.0f;
+        float  barW    = 200.0f;
+        float  barH    = 18.0f;
+        float  radius  = 4.0f;
+        float  frac    = glm::clamp(m_PlayerHealth / m_MaxHealth, 0.0f, 1.0f);
 
-        const float barX      = vp->Pos.x + 30.0f;
-        const float barY      = vp->Pos.y + 40.0f;
-        const float barW      = 200.0f;
-        const float barH      = 18.0f;
-        const float barRadius = 4.0f;
+        dl->AddRectFilled({barX, barY}, {barX + barW, barY + barH},
+                          IM_COL32(30, 30, 30, 180), radius);
 
-        float hpFraction = glm::clamp(m_PlayerHealth / m_MaxHealth, 0.0f, 1.0f);
+        if (frac > 0.0f) {
+            ImU32 fill = IM_COL32((ImU8)((1.f - frac) * 255), (ImU8)(frac * 220), 0, 220);
+            dl->AddRectFilled({barX, barY}, {barX + barW * frac, barY + barH}, fill, radius);
+        }
 
-        // Background track
-        hudDraw->AddRectFilled(ImVec2(barX, barY),
-                               ImVec2(barX + barW, barY + barH),
-                               IM_COL32(30, 30, 30, 180), barRadius);
+        dl->AddRect({barX, barY}, {barX + barW, barY + barH},
+                    IM_COL32(180, 180, 180, 200), radius, 0, 1.5f);
 
-        // Filled portion — green → red based on HP
-        ImU32 fillColor = IM_COL32(
-            (ImU8)((1.0f - hpFraction) * 255),
-            (ImU8)(hpFraction           * 220),
-            0, 220);
-        if (hpFraction > 0.0f)
-            hudDraw->AddRectFilled(ImVec2(barX, barY),
-                                   ImVec2(barX + barW * hpFraction, barY + barH),
-                                   fillColor, barRadius);
-
-        // Border
-        hudDraw->AddRect(ImVec2(barX, barY),
-                         ImVec2(barX + barW, barY + barH),
-                         IM_COL32(180, 180, 180, 200), barRadius, 0, 1.5f);
-
-        // Numeric HP text centred inside bar
-        char hpBuf[32];
-        snprintf(hpBuf, sizeof(hpBuf), "%.0f / %.0f", m_PlayerHealth, m_MaxHealth);
-        ImVec2 textSz = ImGui::CalcTextSize(hpBuf);
-        float hpFontSize = 20.0f; // Chỉnh kích thước bạn muốn ở đây (mặc định thường là 13-15)
-
-        // Vẽ chữ PLAYER HP với kích thước tùy chỉnh
-        hudDraw->AddText(
-            ImGui::GetFont(), 
-            hpFontSize, 
-            ImVec2(barX, barY - hpFontSize - 2.0f), // Điều chỉnh tọa độ Y dựa trên cỡ chữ để nó luôn nằm sát phía trên thanh máu
-            IM_COL32(220, 220, 220, 230), 
-            "PLAYER HP"
-        );
+        dl->AddText(ImGui::GetFont(), 20.0f,
+                    {barX, barY - 22.0f}, IM_COL32(220, 220, 220, 230), "PLAYER HP");
     }
 
-    // --- Game Over overlay ---
+    // --- GAME OVER OVERLAY ---
     if (m_PlayerHealth <= 0.0f)
     {
-        ImDrawList* hudDraw = ImGui::GetForegroundDrawList();
-        ImGuiViewport* vp   = ImGui::GetMainViewport();
-        ImVec2 scrCenter    = ImVec2(vp->Pos.x + vp->Size.x * 0.5f,
-                                     vp->Pos.y + vp->Size.y * 0.5f);
+        auto*  dl = UI::FgDraw();
+        ImVec2 c  = UI::ScreenCenter();
 
-        // Dark vignette panel
-        hudDraw->AddRectFilled(ImVec2(scrCenter.x - 200, scrCenter.y - 70),
-                               ImVec2(scrCenter.x + 200, scrCenter.y + 70),
-                               IM_COL32(0, 0, 0, 180), 10.0f);
-        hudDraw->AddRect(ImVec2(scrCenter.x - 200, scrCenter.y - 70),
-                         ImVec2(scrCenter.x + 200, scrCenter.y + 70),
-                         IM_COL32(200, 0, 0, 200), 10.0f, 0, 2.0f);
+        dl->AddRectFilled({c.x - 200, c.y - 70}, {c.x + 200, c.y + 70}, IM_COL32(0, 0, 0, 180), 10.0f);
+        dl->AddRect      ({c.x - 200, c.y - 70}, {c.x + 200, c.y + 70}, IM_COL32(200, 0, 0, 200), 10.0f, 0, 2.0f);
 
         const char* diedText    = "YOU DIED!";
         const char* respawnText = "Press 'R' to Respawn";
         ImVec2 sz1 = ImGui::CalcTextSize(diedText);
         ImVec2 sz2 = ImGui::CalcTextSize(respawnText);
 
-        hudDraw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 2.0f,
-            ImVec2(scrCenter.x - sz1.x, scrCenter.y - 40.0f),
-            IM_COL32(220, 0, 0, 255), diedText);
-        hudDraw->AddText(
-            ImVec2(scrCenter.x - sz2.x * 0.5f, scrCenter.y + 20.0f),
-            IM_COL32(200, 200, 200, 220), respawnText);
+        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 2.0f,
+                    {c.x - sz1.x, c.y - 40.0f}, IM_COL32(220, 0, 0, 255), diedText);
+        dl->AddText({c.x - sz2.x * 0.5f, c.y + 20.0f},
+                    IM_COL32(200, 200, 200, 220), respawnText);
     }
 
     DrawRadar();
@@ -1302,41 +1238,31 @@ bool MainGameLayer::WorldToScreen(const glm::vec3& worldPos, const glm::mat4& vi
 
 void MainGameLayer::DrawRadar()
 {
-    const float radarSize        = 200.0f;
-    const float radarRadius      = radarSize / 2.0f;
+    using namespace Aether;
+
+    const float radarRadius      = 100.0f;
     const float maxTrackDistance = 50.0f;
 
-    ImDrawList*    drawList = ImGui::GetForegroundDrawList();
-    ImGuiViewport* vp       = ImGui::GetMainViewport();
+    auto*  dl = UI::FgDraw();
+    ImVec2 vp = UI::ViewportPos();
 
-    // Anchor: bottom-left corner of the viewport
-    float cx = vp->Pos.x + 20.0f + radarRadius;
-    float cy = vp->Pos.y + vp->Size.y - 20.0f - radarRadius;
+    float  cx = vp.x + 20.0f + radarRadius;
+    float  cy = vp.y + UI::ViewportSize().y - 20.0f - radarRadius;
     ImVec2 center(cx, cy);
 
-    // Background circle
-    drawList->AddCircleFilled(center, radarRadius, IM_COL32(10, 30, 10, 200));
-    drawList->AddCircle(center, radarRadius, IM_COL32(0, 255, 0, 255), 64, 2.0f);
-
-    // Inner ring guides
-    drawList->AddCircle(center, radarRadius * 0.5f, IM_COL32(0, 180, 0, 80), 64, 1.0f);
-
-    // Cross-hair lines inside radar
-    drawList->AddLine(ImVec2(center.x - radarRadius, center.y),
-                      ImVec2(center.x + radarRadius, center.y),
-                      IM_COL32(0, 180, 0, 60), 1.0f);
-    drawList->AddLine(ImVec2(center.x, center.y - radarRadius),
-                      ImVec2(center.x, center.y + radarRadius),
-                      IM_COL32(0, 180, 0, 60), 1.0f);
+    dl->AddCircleFilled(center, radarRadius, IM_COL32(10, 30, 10, 200));
+    dl->AddCircle      (center, radarRadius, IM_COL32( 0, 255, 0, 255), 64, 2.0f);
+    dl->AddCircle      (center, radarRadius * 0.5f, IM_COL32(0, 180, 0, 80), 64, 1.0f);
+    dl->AddLine({center.x - radarRadius, center.y}, {center.x + radarRadius, center.y}, IM_COL32(0, 180, 0, 60), 1.0f);
+    dl->AddLine({center.x, center.y - radarRadius}, {center.x, center.y + radarRadius}, IM_COL32(0, 180, 0, 60), 1.0f);
 
     if (m_Scene.IsValid(m_Player))
     {
         auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
         glm::vec3 pPos   = pTransform.Translation;
 
-        float angle = -m_Camera.GetYaw();
-        float cosA  = cosf(angle);
-        float sinA  = sinf(angle);
+        float cosA = cosf(-m_Camera.GetYaw());
+        float sinA = sinf(-m_Camera.GetYaw());
 
         for (auto zombie : m_ActiveZombies)
         {
@@ -1351,48 +1277,30 @@ void MainGameLayer::DrawRadar()
 
             if (dist <= maxTrackDistance)
             {
-                float rotatedX = relX * cosA - relZ * sinA;
-                float rotatedZ = relX * sinA + relZ * cosA;
+                float rx = relX * cosA - relZ * sinA;
+                float ry = relX * sinA + relZ * cosA;
+                float ox = (rx / maxTrackDistance) * radarRadius;
+                float oy = (ry / maxTrackDistance) * radarRadius;
 
-                float radarX = (rotatedX / maxTrackDistance) * radarRadius;
-                float radarY = (rotatedZ / maxTrackDistance) * radarRadius;
+                float d = sqrtf(ox * ox + oy * oy);
+                if (d > radarRadius - 3.0f) { float s = (radarRadius - 3.0f) / d; ox *= s; oy *= s; }
 
-                // Clamp dots to the circle boundary
-                float dotDist = sqrtf(radarX * radarX + radarY * radarY);
-                if (dotDist > radarRadius - 3.0f) {
-                    float scale = (radarRadius - 3.0f) / dotDist;
-                    radarX *= scale;
-                    radarY *= scale;
-                }
-
-                drawList->AddCircleFilled(
-                    ImVec2(center.x + radarX, center.y + radarY),
-                    3.5f, IM_COL32(255, 50, 50, 255));
+                dl->AddCircleFilled({center.x + ox, center.y + oy}, 3.5f, IM_COL32(255, 50, 50, 255));
             }
         }
 
-        // Player dot at centre
-        drawList->AddCircleFilled(center, 5.0f, IM_COL32(255, 255, 255, 255));
-        // Small forward-direction triangle
-        drawList->AddTriangleFilled(
-            ImVec2(center.x,        center.y - 9.0f),
-            ImVec2(center.x - 4.0f, center.y + 4.0f),
-            ImVec2(center.x + 4.0f, center.y + 4.0f),
+        dl->AddCircleFilled(center, 5.0f, IM_COL32(255, 255, 255, 255));
+        dl->AddTriangleFilled(
+            {center.x,        center.y - 9.0f},
+            {center.x - 4.0f, center.y + 4.0f},
+            {center.x + 4.0f, center.y + 4.0f},
             IM_COL32(100, 220, 255, 220));
     }
 
-    // Label
-    const char* label = "RADAR";
-    float fontSize = 24.0f; // <--- Chỉnh kích thước bạn muốn ở đây
-
-    // Quan trọng: CalcTextSize cũng cần biết fontSize để tính toán vị trí căn giữa chính xác
-    ImVec2 labelSz = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
-
-    drawList->AddText(
-        ImGui::GetFont(), // Lấy font hiện tại
-        fontSize,         // Kích thước chữ
-        ImVec2(center.x - labelSz.x * 0.5f, cy - radarRadius - fontSize - 5.0f), 
-        IM_COL32(0, 220, 0, 200), 
-        label
-    );
+    const char* label   = "RADAR";
+    const float fontSize = 24.0f;
+    ImVec2      labelSz  = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.f, label);
+    dl->AddText(ImGui::GetFont(), fontSize,
+                {center.x - labelSz.x * 0.5f, cy - radarRadius - fontSize - 5.0f},
+                IM_COL32(0, 220, 0, 200), label);
 }

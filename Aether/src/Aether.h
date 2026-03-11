@@ -12,21 +12,14 @@
 #include "Aether/Core/MouseCodes.h"
 #include "Aether/Core/JobSystem.h"
 
+#include "Aether/ImGui/UI.h"
 #include "Aether/ImGui/ImGuiLayer.h"
 #include "Aether/Console/ConsoleLayer.h"
 
-#include "Aether/Renderer/RenderCommand.h"
 #include "Aether/Renderer/Renderer.h"
-
-#include "Aether/Renderer/Buffer.h"
-#include "Aether/Renderer/VertexArray.h"
-#include "Aether/Renderer/UniformBuffer.h"
-#include "Aether/Renderer/FrameBuffer.h"
 #include "Aether/Renderer/EditorCamera.h"
 
-#include "Aether/Renderer/Shader.h"
-#include "Aether/Renderer/Texture.h"
-
+#include "Aether/Assets/AssetManager.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Assets/Sound.h"
@@ -39,5 +32,3 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
-
-#include "Aether/Assets/AssetManager.h"

@@ -322,10 +322,13 @@ void LabLayer::OnEvent(Aether::Event& event)
 
 void LabLayer::OnImGuiRender()
 {
-    ImGui::Begin("Performance");
-    ImGui::Text("FPS: %.1f",           ImGui::GetIO().Framerate);
-    ImGui::Text("Frame time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
-    ImGui::End();
+    using namespace Aether;
+
+    if (auto w = UI::Window("Performance"))
+    {
+        UI::Text("FPS: %.1f",           ImGui::GetIO().Framerate);
+        UI::Text("Frame time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+    }
 
     DrawHierarchyPanel();
     DrawScenePanel();
@@ -346,6 +349,7 @@ void LabLayer::DrawEntityNode(Aether::Entity entity)
     if (hier.firstChild  == Aether::Null_Entity) flags |= ImGuiTreeNodeFlags_Leaf;
     if (m_SelectedEntity == entity)              flags |= ImGuiTreeNodeFlags_Selected;
 
+    // TreeNodeEx with void* id has no clean wrapper — keep raw call
     bool open = ImGui::TreeNodeEx((void*)(uint64_t)entity, flags, "%s", tag.Tag.c_str());
 
     if (ImGui::IsItemClicked())
@@ -379,19 +383,18 @@ void LabLayer::DrawEntityNode(Aether::Entity entity)
 
 void LabLayer::DrawHierarchyPanel()
 {
-    if (!ImGui::Begin("Hierarchy")) { ImGui::End(); return; }
-
-    if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
-        m_SelectedEntity = Aether::Null_Entity;
-
-    auto view = m_Scene.View<Aether::HierarchyComponent>();
-    for (auto entity : view)
+    if (auto w = Aether::UI::Window("Hierarchy"))
     {
-        if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Aether::Null_Entity)
-            DrawEntityNode(entity);
-    }
+        if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
+            m_SelectedEntity = Aether::Null_Entity;
 
-    ImGui::End();
+        auto view = m_Scene.View<Aether::HierarchyComponent>();
+        for (auto entity : view)
+        {
+            if (m_Scene.GetComponent<Aether::HierarchyComponent>(entity).parent == Aether::Null_Entity)
+                DrawEntityNode(entity);
+        }
+    }
 }
 
 // =============================================================================
@@ -400,207 +403,200 @@ void LabLayer::DrawHierarchyPanel()
 
 void LabLayer::DrawScenePanel()
 {
-    if (!ImGui::Begin("Scene")) { ImGui::End(); return; }
+    using namespace Aether;
 
-    ImGui::Text("Meshes:    %d", (int)m_MeshIDs.size());
-    ImGui::Text("Animators: %d", (int)m_AnimatorIDs.size());
-    ImGui::Separator();
-
-    // ---- Physics ------------------------------------------------------------
-    if (ImGui::CollapsingHeader("Physics"))
+    if (auto w = UI::Window("Scene"))
     {
-        std::string nodePreview = (m_PhysSelectedEntity != Aether::Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
-            ? m_Scene.GetComponent<Aether::TagComponent>(m_PhysSelectedEntity).Tag
-            : "Select Node";
+        UI::Text("Meshes:    %d", (int)m_MeshIDs.size());
+        UI::Text("Animators: %d", (int)m_AnimatorIDs.size());
+        UI::Separator();
 
-        if (ImGui::BeginCombo("Node##phys", nodePreview.c_str()))
+        // ---- Physics --------------------------------------------------------
+        if (auto h = UI::Header("Physics"))
         {
-            auto view = m_Scene.View<Aether::TagComponent>();
-            for (auto entity : view)
+            std::string nodePreview = (m_PhysSelectedEntity != Null_Entity && m_Scene.IsValid(m_PhysSelectedEntity))
+                ? m_Scene.GetComponent<TagComponent>(m_PhysSelectedEntity).Tag
+                : "Select Node";
+
+            if (auto c = UI::Combo("Node##phys", nodePreview.c_str()))
             {
-                bool selected = (m_PhysSelectedEntity == entity);
-                std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
-                ImGui::PushID((uint64_t)entity);
-                if (ImGui::Selectable(tag.c_str(), selected))
-                    m_PhysSelectedEntity = entity;
-                if (selected) ImGui::SetItemDefaultFocus();
-                ImGui::PopID();
+                auto view = m_Scene.View<TagComponent>();
+                for (auto entity : view)
+                {
+                    auto guard = UI::ID((int)(uint64_t)entity);
+                    bool selected = (m_PhysSelectedEntity == entity);
+                    std::string tag = m_Scene.GetComponent<TagComponent>(entity).Tag;
+                    if (ImGui::Selectable(tag.c_str(), selected)) m_PhysSelectedEntity = entity;
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
             }
-            ImGui::EndCombo();
-        }
 
-        std::string meshPreview = (m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size())
-            ? Aether::AssetsRegister::Get(m_MeshIDs[m_PhysMeshIdx])
-            : "Select Mesh";
+            std::string meshPreview = (m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size())
+                ? AssetsRegister::Get(m_MeshIDs[m_PhysMeshIdx])
+                : "Select Mesh";
 
-        if (ImGui::BeginCombo("Mesh##phys", meshPreview.c_str()))
-        {
-            for (int i = 0; i < (int)m_MeshIDs.size(); i++)
+            if (auto c = UI::Combo("Mesh##phys", meshPreview.c_str()))
             {
-                ImGui::PushID(i);
-                bool selected = (m_PhysMeshIdx == i);
-                if (ImGui::Selectable(Aether::AssetsRegister::Get(m_MeshIDs[i]).c_str(), selected))
-                    m_PhysMeshIdx = i;
-                if (selected) ImGui::SetItemDefaultFocus();
-                ImGui::PopID();
+                for (int i = 0; i < (int)m_MeshIDs.size(); i++)
+                {
+                    auto guard = UI::ID(i);
+                    bool selected = (m_PhysMeshIdx == i);
+                    if (ImGui::Selectable(AssetsRegister::Get(m_MeshIDs[i]).c_str(), selected)) m_PhysMeshIdx = i;
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
             }
-            ImGui::EndCombo();
-        }
 
-        ImGui::Checkbox("Is Dynamic", &m_PhysDynamic);
+            UI::Checkbox("Is Dynamic", m_PhysDynamic);
 
-        bool canAdd = (m_PhysSelectedEntity != Aether::Null_Entity &&
-                       m_Scene.IsValid(m_PhysSelectedEntity)        &&
-                       m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size());
+            bool canAdd = (m_PhysSelectedEntity != Null_Entity &&
+                           m_Scene.IsValid(m_PhysSelectedEntity) &&
+                           m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size());
 
-        if (!canAdd) ImGui::BeginDisabled();
-        if (ImGui::Button("Add Physics Body"))
-            RegisterPhysicsBody(m_PhysSelectedEntity, m_MeshIDs[m_PhysMeshIdx], m_PhysDynamic);
-        if (!canAdd) ImGui::EndDisabled();
+            if (!canAdd) ImGui::BeginDisabled();
+            if (UI::Button("Add Physics Body"))
+                RegisterPhysicsBody(m_PhysSelectedEntity, m_MeshIDs[m_PhysMeshIdx], m_PhysDynamic);
+            if (!canAdd) ImGui::EndDisabled();
 
-        ImGui::Separator();
-        ImGui::Text("Active Bodies:");
-        for (auto& [entity, entry] : m_PhysicsBodies)
-        {
-            if (!m_Scene.IsValid(entity)) continue;
-            ImGui::PushID((uint64_t)entity);
-            std::string tag = m_Scene.GetComponent<Aether::TagComponent>(entity).Tag;
-            ImGui::Checkbox(tag.c_str(), &entry.enabled);
-            ImGui::PopID();
-        }
-
-        ImGui::Separator();
-
-        auto physIt = (m_SelectedEntity != Aether::Null_Entity)
-            ? m_PhysicsBodies.find(m_SelectedEntity)
-            : m_PhysicsBodies.end();
-
-        ImGui::Text("Apply to Selected Entity:");
-        if (physIt == m_PhysicsBodies.end())
-            ImGui::TextDisabled("(select an entity with a physics body)");
-        else if (!physIt->second.isDynamic)
-            ImGui::TextDisabled("(static body — forces not applicable)");
-        else
-        {
-            ImGui::DragFloat3("Force##input", glm::value_ptr(m_ForceInput), 0.5f);
-            ImGui::SameLine();
-            if (ImGui::Button("Apply Force"))
-                Aether::PhysicsSystem::AddForce(physIt->second.bodyID, m_ForceInput);
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X##force")) m_ForceInput = glm::vec3(0.0f);
-
-            ImGui::DragFloat3("Velocity##input", glm::value_ptr(m_VelocityInput), 0.5f);
-            ImGui::SameLine();
-            if (ImGui::Button("Set Velocity"))
-                Aether::PhysicsSystem::SetVelocity(physIt->second.bodyID, m_VelocityInput);
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X##vel")) m_VelocityInput = glm::vec3(0.0f);
-        }
-    }
-
-    // ---- Raycast ------------------------------------------------------------
-    if (ImGui::CollapsingHeader("Raycast Test"))
-    {
-        if (ImGui::Button("Fill from Camera"))
-        {
-            m_RayOrigin    = m_Camera.GetPosition();
-            m_RayDirection = m_Camera.GetForwardDirection();
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(or set manually below)");
-
-        ImGui::DragFloat3("Origin##ray", glm::value_ptr(m_RayOrigin), 0.1f);
-        if (ImGui::DragFloat3("Direction##ray", glm::value_ptr(m_RayDirection), 0.01f, -1.0f, 1.0f))
-        {
-            float len = glm::length(m_RayDirection);
-            if (len > 1e-5f) m_RayDirection /= len;
-        }
-        ImGui::SliderFloat("Max Distance##ray", &m_RayDistance, 0.1f, 1000.0f, "%.1f");
-
-        ImGui::Spacing();
-        if (ImGui::Button("Cast Ray"))
-        {
-            m_LastRayHits = Aether::PhysicsSystem::CastRayAll(m_RayOrigin, m_RayDirection, m_RayDistance);
-            m_RayHasFired = true;
-        }
-
-        if (m_RayHasFired)
-        {
-            ImGui::Separator();
-            ImGui::Text("Result: %d hit(s)", (int)m_LastRayHits.size());
-
-            if (m_LastRayHits.empty())
+            UI::Separator();
+            UI::Text("Active Bodies:");
+            for (auto& [entity, entry] : m_PhysicsBodies)
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "  MISS");
-                ImGui::TextDisabled("  (no collider hit within %.1f units)", m_RayDistance);
+                if (!m_Scene.IsValid(entity)) continue;
+                auto guard = UI::ID((int)(uint64_t)entity);
+                std::string tag = m_Scene.GetComponent<TagComponent>(entity).Tag;
+                UI::Checkbox(tag.c_str(), entry.enabled);
             }
+
+            UI::Separator();
+
+            auto physIt = (m_SelectedEntity != Null_Entity)
+                ? m_PhysicsBodies.find(m_SelectedEntity)
+                : m_PhysicsBodies.end();
+
+            UI::Text("Apply to Selected Entity:");
+            if (physIt == m_PhysicsBodies.end())
+                UI::TextDisabled("(select an entity with a physics body)");
+            else if (!physIt->second.isDynamic)
+                UI::TextDisabled("(static body — forces not applicable)");
             else
             {
-                for (int i = 0; i < (int)m_LastRayHits.size(); i++)
+                UI::DragFloat3("Force##input",    m_ForceInput,    0.5f);
+                UI::SameLine();
+                if (UI::Button("Apply Force"))
+                    PhysicsSystem::AddForce(physIt->second.bodyID, m_ForceInput);
+                UI::SameLine();
+                if (UI::SmallButton("X##force")) m_ForceInput = glm::vec3(0.0f);
+
+                UI::DragFloat3("Velocity##input", m_VelocityInput, 0.5f);
+                UI::SameLine();
+                if (UI::Button("Set Velocity"))
+                    PhysicsSystem::SetVelocity(physIt->second.bodyID, m_VelocityInput);
+                UI::SameLine();
+                if (UI::SmallButton("X##vel")) m_VelocityInput = glm::vec3(0.0f);
+            }
+        }
+
+        // ---- Raycast --------------------------------------------------------
+        if (auto h = UI::Header("Raycast Test"))
+        {
+            if (UI::Button("Fill from Camera"))
+            {
+                m_RayOrigin    = m_Camera.GetPosition();
+                m_RayDirection = m_Camera.GetForwardDirection();
+            }
+            UI::SameLine();
+            UI::TextDisabled("(or set manually below)");
+
+            UI::DragFloat3("Origin##ray",    m_RayOrigin,    0.1f);
+            if (UI::DragFloat3("Direction##ray", m_RayDirection, 0.01f))
+            {
+                float len = glm::length(m_RayDirection);
+                if (len > 1e-5f) m_RayDirection /= len;
+            }
+            UI::SliderFloat("Max Distance##ray", m_RayDistance, 0.1f, 1000.0f);
+
+            UI::Spacing();
+            if (UI::Button("Cast Ray"))
+            {
+                m_LastRayHits = PhysicsSystem::CastRayAll(m_RayOrigin, m_RayDirection, m_RayDistance);
+                m_RayHasFired = true;
+            }
+
+            if (m_RayHasFired)
+            {
+                UI::Separator();
+                UI::Text("Result: %d hit(s)", (int)m_LastRayHits.size());
+
+                if (m_LastRayHits.empty())
                 {
-                    const auto& hit = m_LastRayHits[i];
-                    ImGui::PushID(i);
-                    std::string name  = Aether::AssetsRegister::Get(hit.HitEntityID);
-                    std::string label = name.empty() ? "(unregistered)" : name;
-                    bool open = ImGui::TreeNodeEx(label.c_str(),
-                        ImGuiTreeNodeFlags_SpanAvailWidth,
-                        "[%d] %s  (%.2f)", i, label.c_str(), hit.Distance);
-                    if (open)
+                    UI::TextColored(UI::Color::Red(), "  MISS");
+                    UI::TextDisabled("  (no collider hit within %.1f units)", m_RayDistance);
+                }
+                else
+                {
+                    for (int i = 0; i < (int)m_LastRayHits.size(); i++)
                     {
-                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.3f, 1.0f), "HIT");
-                        ImGui::Text("Position : (%.3f, %.3f, %.3f)", hit.Position.x, hit.Position.y, hit.Position.z);
-                        ImGui::Text("Normal   : (%.3f, %.3f, %.3f)", hit.Normal.x,   hit.Normal.y,   hit.Normal.z);
-                        ImGui::Text("Distance : %.3f", hit.Distance);
-                        ImGui::TreePop();
+                        const auto& hit   = m_LastRayHits[i];
+                        auto        guard = UI::ID(i);
+                        std::string name  = AssetsRegister::Get(hit.HitEntityID);
+                        std::string label = name.empty() ? "(unregistered)" : name;
+
+                        if (auto t = UI::TreeNode(label.c_str(),
+                            ImGuiTreeNodeFlags_SpanAvailWidth))
+                        {
+                            UI::TextColored(UI::Color::Green(), "HIT");
+                            UI::Text("Position : (%.3f, %.3f, %.3f)", hit.Position.x, hit.Position.y, hit.Position.z);
+                            UI::Text("Normal   : (%.3f, %.3f, %.3f)", hit.Normal.x,   hit.Normal.y,   hit.Normal.z);
+                            UI::Text("Distance : %.3f", hit.Distance);
+                        }
                     }
-                    ImGui::PopID();
                 }
             }
         }
-    }
 
-    // ---- Camera -------------------------------------------------------------
-    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        glm::vec3 pos = m_Camera.GetPosition();
-        ImGui::Text("Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
-        ImGui::Text("Distance: %.1f", m_Camera.GetDistance());
-        if (ImGui::Button("Reset Camera"))
-            m_Camera.SetDistance(5.0f);
-    }
-
-    // ---- Transform ----------------------------------------------------------
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (m_SelectedEntity != Aether::Null_Entity && m_Scene.IsValid(m_SelectedEntity))
+        // ---- Camera ---------------------------------------------------------
+        if (auto h = UI::Header("Camera"))
         {
-            auto& tag = m_Scene.GetComponent<Aether::TagComponent>(m_SelectedEntity);
-            auto& t   = m_Scene.GetComponent<Aether::TransformComponent>(m_SelectedEntity);
-
-            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Editing: %s", tag.Tag.c_str());
-            if (ImGui::DragFloat3("Position", glm::value_ptr(t.Translation), 0.1f))   t.Dirty = true;
-            if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation),    0.01f))  t.Dirty = true;
-            if (ImGui::DragFloat3("Scale",    glm::value_ptr(t.Scale),       0.05f, 0.01f, 100.0f)) t.Dirty = true;
-
-            if (ImGui::Button("Reset Transform"))
-            {
-                t.Translation = glm::vec3(0.0f);
-                t.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-                t.Scale       = glm::vec3(1.0f);
-                t.Dirty       = true;
-            }
-
-            if (t.Dirty)
-            {
-                auto it = m_PhysicsBodies.find(m_SelectedEntity);
-                if (it != m_PhysicsBodies.end())
-                    Aether::PhysicsSystem::SetPhysTransform(it->second.bodyID, { t.Translation, t.Rotation });
-            }
+            glm::vec3 pos = m_Camera.GetPosition();
+            UI::Text("Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
+            UI::Text("Distance: %.1f", m_Camera.GetDistance());
+            if (UI::Button("Reset Camera"))
+                m_Camera.SetDistance(5.0f);
         }
-        else ImGui::TextDisabled("Select an entity in the Hierarchy panel.");
-    }
 
-    ImGui::End();
+        // ---- Transform ------------------------------------------------------
+        if (auto h = UI::Header("Transform"))
+        {
+            if (m_SelectedEntity != Null_Entity && m_Scene.IsValid(m_SelectedEntity))
+            {
+                auto& tag = m_Scene.GetComponent<TagComponent>(m_SelectedEntity);
+                auto& t   = m_Scene.GetComponent<TransformComponent>(m_SelectedEntity);
+
+                UI::TextColored(UI::Color::Green(), "Editing: %s", tag.Tag.c_str());
+
+                if (UI::DragFloat3("Position", t.Translation, 0.1f))  t.Dirty = true;
+                if (ImGui::DragFloat4("Rotation", glm::value_ptr(t.Rotation), 0.01f)) t.Dirty = true;
+                if (UI::DragFloat3("Scale", t.Scale, 0.05f))           t.Dirty = true;
+
+                if (UI::Button("Reset Transform"))
+                {
+                    t.Translation = glm::vec3(0.0f);
+                    t.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+                    t.Scale       = glm::vec3(1.0f);
+                    t.Dirty       = true;
+                }
+
+                if (t.Dirty)
+                {
+                    auto it = m_PhysicsBodies.find(m_SelectedEntity);
+                    if (it != m_PhysicsBodies.end())
+                        PhysicsSystem::SetPhysTransform(it->second.bodyID, { t.Translation, t.Rotation });
+                }
+            }
+            else
+                UI::TextDisabled("Select an entity in the Hierarchy panel.");
+        }
+    }
 }
 
 // =============================================================================
@@ -609,166 +605,157 @@ void LabLayer::DrawScenePanel()
 
 void LabLayer::DrawAnimationPanel()
 {
-    if (!ImGui::Begin("Animation")) { ImGui::End(); return; }
+    using namespace Aether;
 
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-    if (!rigSystem) { ImGui::TextDisabled("RigSystem not initialized."); ImGui::End(); return; }
-
-    // ---- Bind mesh to animator ----------------------------------------------
-    if (ImGui::CollapsingHeader("Bind Mesh to Animator", ImGuiTreeNodeFlags_DefaultOpen))
+    if (auto w = UI::Window("Animation"))
     {
-        std::string meshPreview = (m_BindMeshIndex >= 0 && m_BindMeshIndex < (int)m_MeshIDs.size())
-            ? Aether::AssetsRegister::Get(m_MeshIDs[m_BindMeshIndex])
-            : "Select Mesh";
+        auto rigSystem = AnimationSystem::GetModule<RigModule>();
+        if (!rigSystem) { UI::TextDisabled("RigSystem not initialized."); return; }
 
-        if (ImGui::BeginCombo("Mesh##bind", meshPreview.c_str()))
+        // ---- Bind mesh to animator ------------------------------------------
+        if (auto h = UI::Header("Bind Mesh to Animator"))
         {
-            for (int i = 0; i < (int)m_MeshIDs.size(); i++)
+            std::string meshPreview = (m_BindMeshIndex >= 0 && m_BindMeshIndex < (int)m_MeshIDs.size())
+                ? AssetsRegister::Get(m_MeshIDs[m_BindMeshIndex])
+                : "Select Mesh";
+
+            if (auto c = UI::Combo("Mesh##bind", meshPreview.c_str()))
             {
-                ImGui::PushID(i);
-                bool selected = (m_BindMeshIndex == i);
-                std::string name = std::to_string(i) + ": " + Aether::AssetsRegister::Get(m_MeshIDs[i]);
-                if (ImGui::Selectable(name.c_str(), selected)) m_BindMeshIndex = i;
-                if (selected) ImGui::SetItemDefaultFocus();
-                ImGui::PopID();
+                for (int i = 0; i < (int)m_MeshIDs.size(); i++)
+                {
+                    auto  guard    = UI::ID(i);
+                    bool  selected = (m_BindMeshIndex == i);
+                    std::string name = std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]);
+                    if (ImGui::Selectable(name.c_str(), selected)) m_BindMeshIndex = i;
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
             }
-            ImGui::EndCombo();
-        }
 
-        std::string animPreview = (m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size())
-            ? ("Animator " + std::to_string(m_BindAnimatorIndex))
-            : "Select Animator";
+            std::string animPreview = (m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size())
+                ? ("Animator " + std::to_string(m_BindAnimatorIndex))
+                : "Select Animator";
 
-        if (ImGui::BeginCombo("Animator##bind", animPreview.c_str()))
-        {
-            for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
+            if (auto c = UI::Combo("Animator##bind", animPreview.c_str()))
             {
-                ImGui::PushID(i);
-                bool selected = (m_BindAnimatorIndex == i);
-                if (ImGui::Selectable(("Animator " + std::to_string(i)).c_str(), selected))
-                    m_BindAnimatorIndex = i;
-                if (selected) ImGui::SetItemDefaultFocus();
-                ImGui::PopID();
+                for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
+                {
+                    auto guard    = UI::ID(i);
+                    bool selected = (m_BindAnimatorIndex == i);
+                    if (ImGui::Selectable(("Animator " + std::to_string(i)).c_str(), selected))
+                        m_BindAnimatorIndex = i;
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
             }
-            ImGui::EndCombo();
-        }
 
-        bool canBind = (m_BindMeshIndex    >= 0 && m_BindMeshIndex    < (int)m_MeshIDs.size() &&
-                        m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size());
+            bool canBind = (m_BindMeshIndex    >= 0 && m_BindMeshIndex    < (int)m_MeshIDs.size() &&
+                            m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size());
 
-        if (!canBind) ImGui::BeginDisabled();
-        if (ImGui::Button("Bind"))
-        {
-            Aether::UUID meshID = m_MeshIDs[m_BindMeshIndex];
-            Aether::UUID animID = m_AnimatorIDs[m_BindAnimatorIndex];
+            if (!canBind) ImGui::BeginDisabled();
+            if (UI::Button("Bind"))
+            {
+                UUID meshID = m_MeshIDs[m_BindMeshIndex];
+                UUID animID = m_AnimatorIDs[m_BindAnimatorIndex];
 
-            auto meshView = m_Scene.View<Aether::MeshComponent>();
+                auto meshView = m_Scene.View<MeshComponent>();
+                for (auto entity : meshView)
+                {
+                    auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
+                    auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                    if (mesh && mesh->id == meshID)
+                    {
+                        if (!m_Scene.HasComponent<AnimatorComponent>(entity))
+                            m_Scene.AddComponent<AnimatorComponent>(entity);
+                        m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID = animID;
+                        break;
+                    }
+                }
+            }
+            if (!canBind) ImGui::EndDisabled();
+
+            UI::Separator();
+            UI::Text("Active Bindings:");
+
+            auto meshView = m_Scene.View<MeshComponent, AnimatorComponent>();
             for (auto entity : meshView)
             {
-                auto& mc = m_Scene.GetComponent<Aether::MeshComponent>(entity);
-                auto* mesh = Aether::AssetManager::GetAsset<Aether::Mesh>(mc.Mesh);
-                if (mesh && mesh->id == meshID)
-                {
-                    if (!m_Scene.HasComponent<Aether::AnimatorComponent>(entity))
-                        m_Scene.AddComponent<Aether::AnimatorComponent>(entity);
-                    m_Scene.GetComponent<Aether::AnimatorComponent>(entity).AnimatorID = animID;
-                    break;
-                }
+                auto& mc    = m_Scene.GetComponent<MeshComponent>(entity);
+                auto* mesh  = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                UUID animID = m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID;
+
+                std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
+                int animIdx = -1;
+                for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
+                    if (m_AnimatorIDs[i] == animID) { animIdx = i; break; }
+
+                auto guard = UI::ID(mesh ? (int)(uint64_t)mesh->id : 0);
+                UI::Text("%s  ->  Animator %d", meshName.c_str(), animIdx);
+                UI::SameLine();
+                if (UI::SmallButton("Unbind"))
+                    m_Scene.RemoveComponent<AnimatorComponent>(entity);
             }
         }
-        if (!canBind) ImGui::EndDisabled();
 
-        ImGui::Separator();
-        ImGui::Text("Active Bindings:");
+        UI::Separator();
 
-        auto meshView = m_Scene.View<Aether::MeshComponent, Aether::AnimatorComponent>();
-        for (auto entity : meshView)
+        if (m_AnimatorIDs.empty())
         {
-            auto& mc    = m_Scene.GetComponent<Aether::MeshComponent>(entity);
-            auto* mesh  = Aether::AssetManager::GetAsset<Aether::Mesh>(mc.Mesh);
-            Aether::UUID animID = m_Scene.GetComponent<Aether::AnimatorComponent>(entity).AnimatorID;
-
-            std::string meshName = mesh ? Aether::AssetsRegister::Get(mesh->id) : "(invalid)";
-            int animIdx = -1;
-            for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
-                if (m_AnimatorIDs[i] == animID) { animIdx = i; break; }
-
-            ImGui::PushID(mesh ? (uint64_t)mesh->id : 0);
-            ImGui::Text("%s  ->  Animator %d", meshName.c_str(), animIdx);
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Unbind"))
-                m_Scene.RemoveComponent<Aether::AnimatorComponent>(entity);
-            ImGui::PopID();
+            UI::TextDisabled("No animators loaded. Use 'load <path>' in the console.");
+            return;
         }
-    }
 
-    ImGui::Separator();
-
-    if (m_AnimatorIDs.empty())
-    {
-        ImGui::TextDisabled("No animators loaded. Use 'load <path>' in the console.");
-        ImGui::End();
-        return;
-    }
-
-    // ---- Per-animator controls ----------------------------------------------
-    for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
-    {
-        Aether::UUID animatorID = m_AnimatorIDs[i];
-        ImGui::PushID(i);
-
-        if (ImGui::CollapsingHeader(("Animator " + std::to_string(i)).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        // ---- Per-animator controls ------------------------------------------
+        for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
         {
-            auto clips      = rigSystem->GetClips(animatorID);
-            int  currentIdx = rigSystem->GetCurrentClipIndex(animatorID);
+            UUID animatorID = m_AnimatorIDs[i];
+            auto guard      = UI::ID(i);
 
-            std::string clipPreview = (currentIdx >= 0 && currentIdx < (int)clips.size())
-                ? Aether::AssetsRegister::Get(clips[currentIdx])
-                : "Select Clip";
-
-            if (ImGui::BeginCombo("Clip", clipPreview.c_str()))
+            if (auto h = UI::Header(("Animator " + std::to_string(i)).c_str()))
             {
-                for (int c = 0; c < (int)clips.size(); c++)
+                auto  clips      = rigSystem->GetClips(animatorID);
+                int   currentIdx = rigSystem->GetCurrentClipIndex(animatorID);
+
+                std::string clipPreview = (currentIdx >= 0 && currentIdx < (int)clips.size())
+                    ? AssetsRegister::Get(clips[currentIdx])
+                    : "Select Clip";
+
+                if (auto c = UI::Combo("Clip", clipPreview.c_str()))
                 {
-                    ImGui::PushID(c);
-                    bool sel = (c == currentIdx);
-                    if (ImGui::Selectable(Aether::AssetsRegister::Get(clips[c]).c_str(), sel))
-                        rigSystem->BindClip(animatorID, clips[c]);
-                    if (sel) ImGui::SetItemDefaultFocus();
-                    ImGui::PopID();
+                    for (int ci = 0; ci < (int)clips.size(); ci++)
+                    {
+                        auto cg  = UI::ID(ci);
+                        bool sel = (ci == currentIdx);
+                        if (ImGui::Selectable(AssetsRegister::Get(clips[ci]).c_str(), sel))
+                            rigSystem->BindClip(animatorID, clips[ci]);
+                        if (sel) ImGui::SetItemDefaultFocus();
+                    }
                 }
-                ImGui::EndCombo();
+
+                UI::Separator();
+
+                bool isPlaying = rigSystem->IsPlaying(animatorID);
+                if (UI::Button("Play"))  rigSystem->Play(animatorID);
+                UI::SameLine();
+                if (UI::Button("Pause")) rigSystem->Pause(animatorID);
+                UI::SameLine();
+                if (UI::Button("Stop"))  rigSystem->Stop(animatorID);
+                UI::SameLine();
+                UI::TextColored(isPlaying ? UI::Color::Green() : UI::Color::Red(),
+                                isPlaying ? " PLAYING" : " STOPPED");
+
+                float speed = rigSystem->GetSpeed(animatorID);
+                if (UI::SliderFloat("Speed", speed, 0.0f, 3.0f))
+                    rigSystem->SetSpeed(animatorID, speed);
+
+                float currentTime = rigSystem->GetPlayBackTime(animatorID);
+                float duration    = rigSystem->GetDuration(animatorID);
+                UI::Text("Time: %.2f / %.2f", currentTime, duration);
+                if (duration > 0.0f)
+                    UI::ProgressBar(currentTime / duration);
             }
 
-            ImGui::Separator();
-
-            bool isPlaying = rigSystem->IsPlaying(animatorID);
-            if (ImGui::Button("Play"))  rigSystem->Play(animatorID);
-            ImGui::SameLine();
-            if (ImGui::Button("Pause")) rigSystem->Pause(animatorID);
-            ImGui::SameLine();
-            if (ImGui::Button("Stop"))  rigSystem->Stop(animatorID);
-            ImGui::SameLine();
-            ImGui::TextColored(
-                isPlaying ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                isPlaying ? " PLAYING" : " STOPPED");
-
-            float speed = rigSystem->GetSpeed(animatorID);
-            if (ImGui::SliderFloat("Speed", &speed, 0.0f, 3.0f))
-                rigSystem->SetSpeed(animatorID, speed);
-
-            float currentTime = rigSystem->GetPlayBackTime(animatorID);
-            float duration    = rigSystem->GetDuration(animatorID);
-            ImGui::Text("Time: %.2f / %.2f", currentTime, duration);
-            if (duration > 0.0f)
-                ImGui::ProgressBar(currentTime / duration);
+            UI::Spacing();
         }
-
-        ImGui::PopID();
-        ImGui::Spacing();
     }
-
-    ImGui::End();
 }
 
 // =============================================================================
@@ -777,41 +764,42 @@ void LabLayer::DrawAnimationPanel()
 
 void LabLayer::DrawLightingPanel()
 {
-    if (!ImGui::Begin("Lighting")) { ImGui::End(); return; }
+    using namespace Aether;
 
-    if (ImGui::CollapsingHeader("Spotlight", ImGuiTreeNodeFlags_DefaultOpen))
+    if (auto w = UI::Window("Lighting"))
     {
-        auto& lightComp  = m_Scene.GetComponent<Aether::LightComponent>(m_LightEntity);
-        auto& lightTrans = m_Scene.GetComponent<Aether::TransformComponent>(m_LightEntity);
-        auto& light      = lightComp.Config;
+        if (auto h = UI::Header("Spotlight"))
+        {
+            auto& lightComp  = m_Scene.GetComponent<LightComponent>(m_LightEntity);
+            auto& lightTrans = m_Scene.GetComponent<TransformComponent>(m_LightEntity);
+            auto& light      = lightComp.Config;
 
-        glm::vec3 dir = glm::normalize(glm::vec3(-lightTrans.WorldTransform[2]));
-        ImGui::Text("Direction: (%.2f, %.2f, %.2f)", dir.x, dir.y, dir.z);
-        ImGui::ColorEdit3("Color",      glm::value_ptr(light.color));
-        ImGui::SliderFloat("Intensity", &light.intensity, 0.0f, 10.0f);
-        ImGui::SliderFloat("Range",     &light.range,     1.0f, 200.0f);
+            glm::vec3 dir = glm::normalize(glm::vec3(-lightTrans.WorldTransform[2]));
+            UI::Text("Direction: (%.2f, %.2f, %.2f)", dir.x, dir.y, dir.z);
+            UI::ColorEdit3("Color",      light.color);
+            UI::SliderFloat("Intensity", light.intensity, 0.0f, 10.0f);
+            UI::SliderFloat("Range",     light.range,     1.0f, 200.0f);
 
-        float innerDeg = glm::degrees(glm::acos(light.innerCone));
-        float outerDeg = glm::degrees(glm::acos(light.outerCone));
-        if (ImGui::SliderFloat("Inner Cone", &innerDeg, 1.0f, 89.0f))
-            light.innerCone = glm::cos(glm::radians(innerDeg));
-        if (ImGui::SliderFloat("Outer Cone", &outerDeg, innerDeg, 90.0f))
-            light.outerCone = glm::cos(glm::radians(outerDeg));
+            float innerDeg = glm::degrees(glm::acos(light.innerCone));
+            float outerDeg = glm::degrees(glm::acos(light.outerCone));
+            if (UI::SliderFloat("Inner Cone", innerDeg, 1.0f, 89.0f))
+                light.innerCone = glm::cos(glm::radians(innerDeg));
+            if (UI::SliderFloat("Outer Cone", outerDeg, innerDeg, 90.0f))
+                light.outerCone = glm::cos(glm::radians(outerDeg));
 
-        ImGui::Checkbox("Cast Shadows", &light.castShadows);
+            UI::Checkbox("Cast Shadows", light.castShadows);
+        }
+
+        if (auto h = UI::Header("Volumetric Lighting"))
+        {
+            UI::SliderFloat("Density",   m_VolDensity,   0.0f, 0.2f);
+            UI::SliderFloat("Intensity", m_VolIntensity, 0.0f, 5.0f);
+            UI::SliderInt  ("Steps",     m_VolSteps,     8,    128);
+        }
+
+        if (auto h = UI::Header("Shadow"))
+        {
+            UI::SliderFloat("Bias", m_ShadowBias, 0.00001f, 0.005f);
+        }
     }
-
-    if (ImGui::CollapsingHeader("Volumetric Lighting", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::SliderFloat("Density",   &m_VolDensity,   0.0f, 0.2f);
-        ImGui::SliderFloat("Intensity", &m_VolIntensity, 0.0f, 5.0f);
-        ImGui::SliderInt  ("Steps",     &m_VolSteps,     8,    128);
-    }
-
-    if (ImGui::CollapsingHeader("Shadow", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::SliderFloat("Bias", &m_ShadowBias, 0.00001f, 0.005f, "%.5f");
-    }
-
-    ImGui::End();
 }
