@@ -55,7 +55,7 @@ private:
     Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
     // Async model loading
-    std::queue<Aether::ParsedScene> m_CompletedParses;
+    std::queue<Aether::Ref<Aether::ParsedScene>> m_CompletedParses;
     std::mutex                      m_ParseMutex;
 
     // Volumetric / shadow settings

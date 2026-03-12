@@ -36,14 +36,14 @@ namespace Aether {
 		return nullptr;
 	}
 
-    RegisteredScene ImporterAPI::Upload(const ParsedScene& sceneData)
+    RegisteredScene ImporterAPI::Upload(const Ref<ParsedScene>& sceneData)
     {
         RegisteredScene res;
         std::vector<ResourceHandle> texHandle;
         std::vector<UUID> rigIDs;     
         std::vector<UUID> clipIDs; 
         // Upload textures
-        for (const auto& texInfo : sceneData.Textures)
+        for (const auto& texInfo : sceneData->Textures)
         {
             UUID texID = AssetsRegister::Register(texInfo.DebugName);
             auto handle = ResourceManager::CreateResource<Texture2D>(texInfo.Spec);
@@ -53,7 +53,7 @@ namespace Aether {
             texHandle.push_back(handle);
         }
         // Upload materials
-        for (const auto& matInfo : sceneData.Materials)
+        for (const auto& matInfo : sceneData->Materials)
         {
             UUID matID = AssetsRegister::Register(matInfo.DebugName);
             AssetManager::CreateAsset<Material>(matID);
@@ -81,14 +81,14 @@ namespace Aether {
             res.matIDs.push_back(matID);
         }
         auto animSystem = AnimationSystem::GetModule<RigModule>();
-        for (const auto& rigInfo : sceneData.Rigs)
+        for (const auto& rigInfo : sceneData->Rigs)
         {
             UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
             animSystem->RegisterSkeleton(rigInfo, rigID);
             rigIDs.push_back(rigID);
         }
 
-        for (const auto& clipInfo : sceneData.Clips)
+        for (const auto& clipInfo : sceneData->Clips)
         {
             UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
             clipIDs.push_back(clipID);
@@ -100,13 +100,13 @@ namespace Aether {
             UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
             animSystem->CreateAnimator(animatorID, rigID);
             res.animatorIDS.push_back(animatorID); 
-            auto it = sceneData.RigMap.find((uint32_t)rigIdx);
-            if (it != sceneData.RigMap.end())
+            auto it = sceneData->RigMap.find((uint32_t)rigIdx);
+            if (it != sceneData->RigMap.end())
             {
                 const std::vector<uint32_t>& clipIndices = it->second;
                 for (uint32_t clipIdx : clipIndices)
                 {
-                    const auto& clipInfo = sceneData.Clips[clipIdx];
+                    const auto& clipInfo = sceneData->Clips[clipIdx];
                     UUID clipID = clipIDs[clipIdx];
                     
                     animSystem->RegisterClip(clipInfo, clipID, rigID);
@@ -116,12 +116,12 @@ namespace Aether {
         }
 
         // Upload meshes
-        for (size_t meshIdx = 0; meshIdx < sceneData.Meshes.size(); meshIdx++)
+        for (size_t meshIdx = 0; meshIdx < sceneData->Meshes.size(); meshIdx++)
         {
-            const auto& meshInfo = sceneData.Meshes[meshIdx];
+            const auto& meshInfo = sceneData->Meshes[meshIdx];
 
             int rigIdx = -1;
-            for (const auto& node : sceneData.Hierarchy->nodes)
+            for (const auto& node : sceneData->Hierarchy->nodes)
             {
                 if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
                 {
@@ -172,7 +172,7 @@ namespace Aether {
             res.meshIDs.push_back(meshID);
         }
 
-        res.hierarchy = sceneData.Hierarchy;
+        res.hierarchy = sceneData->Hierarchy;
         return res;
     }
 }

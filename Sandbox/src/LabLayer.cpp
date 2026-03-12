@@ -164,7 +164,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
         auto parsed = Aether::Importer::Import(path);
         {
             std::lock_guard<std::mutex> lock(m_ParseMutex);
-            m_CompletedParses.push(std::move(parsed));
+            m_CompletedParses.push(parsed);
         }
         AE_CORE_INFO("Worker: Parsing complete for {0}", path);
     });
@@ -172,7 +172,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
 
 void LabLayer::DrainParseQueue()
 {
-    std::queue<Aether::ParsedScene> localQueue;
+    std::queue<Aether::Ref<Aether::ParsedScene>> localQueue;
     {
         std::lock_guard<std::mutex> lock(m_ParseMutex);
         std::swap(localQueue, m_CompletedParses);
@@ -180,7 +180,7 @@ void LabLayer::DrainParseQueue()
 
     while (!localQueue.empty())
     {
-        auto parsed = std::move(localQueue.front());
+        auto parsed = localQueue.front();
         localQueue.pop();
 
         AE_CORE_INFO("Main thread: Uploading to GPU...");

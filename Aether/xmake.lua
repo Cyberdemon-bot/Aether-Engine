@@ -6,6 +6,7 @@ add_requires("imguizmo", {configs = {imgui = "imgui"}})
 add_requires("stb", "cgltf", "filewatch", "glad", "ozz-animation")
 add_requires("joltphysics 5.1.0")
 add_requires("soloud")
+add_requires("sol2")
 
 add_requireconfs("freetype", {
     override = true,
@@ -47,7 +48,7 @@ target("Aether")
     set_pcheader("src/aepch.h")
 
     add_packages("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw", "imgui", "stb", "imguizmo", "freetype", "cgltf", {public = true})
-    add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", "ozz-animation", "soloud", {public = true})
+    add_packages("filewatch", "msdf-atlas-gen", "glad", "joltphysics", "ozz-animation", "soloud", "sol2", {public = true})
 
     if is_plat("mingw") then
         add_syslinks("pthread", {public = true})

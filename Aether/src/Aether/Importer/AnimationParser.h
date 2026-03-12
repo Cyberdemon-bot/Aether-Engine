@@ -26,7 +26,6 @@ namespace Aether {
         
         std::vector<Joint> Joints;
         std::vector<glm::mat4> IBM;
-        std::vector<int> ibmRemap;
         glm::mat4 nodeTransform;
     };
 
