@@ -5,11 +5,11 @@ namespace Aether {
     class AETHER_API Importer
     {
     public: 
-        static ParsedScene Import(const std::string& path) {
+        static Ref<ParsedScene> Import(const std::string& path) {
             return s_ImporterAPI->Import(path);
         }
 
-        static RegisteredScene Upload(const ParsedScene& sceneData) {
+        static RegisteredScene Upload(const Ref<ParsedScene>& sceneData) {
             return s_ImporterAPI->Upload(sceneData);
         }
 

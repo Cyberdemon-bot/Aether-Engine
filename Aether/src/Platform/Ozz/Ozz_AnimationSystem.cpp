@@ -28,7 +28,6 @@ namespace Aether {
     void Ozz_AnimationSystem::RegisterSkeleton(const RigCreateInfo& data, UUID id)
     {
         OzzSkeleton ozzSkeleton;
-        ozzSkeleton.sourceData = data;
         ozzSkeleton.skeleton = ConvertToOzzSkeleton(data);
 
         if (!ozzSkeleton.skeleton) 
@@ -47,18 +46,19 @@ namespace Aether {
             data.DebugName, ozzSkeleton.skeleton->num_joints());
 
         const auto& jointNames = ozzSkeleton.skeleton->joint_names();
-        ozzSkeleton.sourceData.ibmRemap.resize(jointNames.size());
+        ozzSkeleton.ibmRemap.resize(jointNames.size());
         for (int ozzIdx = 0; ozzIdx < (int)jointNames.size(); ozzIdx++)
         {
             for (int origIdx = 0; origIdx < (int)data.Joints.size(); origIdx++)
             {
                 if (data.Joints[origIdx].Name == jointNames[ozzIdx])
                 {
-                    ozzSkeleton.sourceData.ibmRemap[ozzIdx] = origIdx;
+                    ozzSkeleton.ibmRemap[ozzIdx] = origIdx;
                     break;
                 }
             }
         }
+        ozzSkeleton.IBM = std::move(data.IBM);
         
         m_Skeletons[id] = std::move(ozzSkeleton);
     }
@@ -71,7 +71,6 @@ namespace Aether {
         int numJoints = rigIt->second.skeleton->num_joints();
 
         OzzClip ozzClip;
-        ozzClip.sourceData = data;
         ozzClip.animation = ConvertToOzzAnimation(data, numJoints);
 
         if (!ozzClip.animation) 
@@ -523,7 +522,7 @@ namespace Aether {
         }
 
         ConvertOzzMatricesToGlm(animator.modelMatrices, animator.finalMatrices);
-        const auto& ibms = rigIt->second.sourceData.IBM;
+        const auto& ibms = rigIt->second.IBM;
         int numJoints = (int)animator.modelMatrices.size();
         if (ibms.size() != numJoints)
         {
@@ -534,7 +533,7 @@ namespace Aether {
         }
         for (int i = 0; i < numJoints; ++i)
         {
-            int origIdx = rigIt->second.sourceData.ibmRemap[i];
+            int origIdx = rigIt->second.ibmRemap[i];
             animator.finalMatrices[i] = animator.finalMatrices[i] * ibms[origIdx];
         }
         

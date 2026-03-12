@@ -64,13 +64,13 @@ namespace Aether {
         struct OzzSkeleton
         {
             ozz::unique_ptr<ozz::animation::Skeleton> skeleton;
-            RigCreateInfo sourceData; 
+            std::vector<int> ibmRemap;
+            std::vector<glm::mat4> IBM;
         };
 
         struct OzzClip
         {
             ozz::unique_ptr<ozz::animation::Animation> animation;
-            ClipCreateInfo sourceData;  
         };
 
         struct OzzAnimator

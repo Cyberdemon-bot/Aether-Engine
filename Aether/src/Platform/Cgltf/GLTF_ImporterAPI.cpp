@@ -3,10 +3,10 @@
 #include <cgltf.h>
 
 namespace Aether {
-    ParsedScene GLTF_ImporterAPI::Import(const std::string& path)
+    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path)
     {
-        ParsedScene SceneData;
-        SceneData.FilePath = path;
+        Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
+        SceneData->FilePath = path;
 
         cgltf_options options = {};
         cgltf_data* gltf = nullptr;
@@ -28,13 +28,13 @@ namespace Aether {
 
         void* data = static_cast<void*>(gltf);
         auto anim = m_AnimationParser->ParseRigAnim(data);
-        SceneData.Meshes = m_MeshParser->Parsing(data)->meshesInfo;
-        SceneData.Materials = m_MaterialParser->Parsing(data)->matsInfo;
-        SceneData.Textures = m_MaterialParser->Parsing(data)->texsInfo;
-        SceneData.Rigs = anim->rigs;
-        SceneData.Clips = anim->clips;
-        SceneData.RigMap = anim->rig_map;
-        SceneData.Hierarchy = m_SceneParser->Parsing(data);
+        SceneData->Meshes = m_MeshParser->Parsing(data)->meshesInfo;
+        SceneData->Materials = m_MaterialParser->Parsing(data)->matsInfo;
+        SceneData->Textures = m_MaterialParser->Parsing(data)->texsInfo;
+        SceneData->Rigs = anim->rigs;
+        SceneData->Clips = anim->clips;
+        SceneData->RigMap = anim->rig_map;
+        SceneData->Hierarchy = m_SceneParser->Parsing(data);
 
         AE_CORE_INFO("Parsed " + path);
         return SceneData;
