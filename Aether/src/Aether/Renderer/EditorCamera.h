@@ -18,14 +18,13 @@ namespace Aether {
         void Update(Timestep ts);
         void OnEvent(Event& e);
 
-        inline float GetDistance() const { return m_Distance; }
         inline void SetDistance(float distance) { m_Distance = distance; }
-
         inline void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
-
         inline void SetFocalPoint(const glm::vec3& focalPoint) { m_FocalPoint = focalPoint; UpdateView(); }
         inline void SetPitch(float pitch) { m_Pitch = pitch; UpdateView();}  
+        inline void SetYaw(float yaw) { m_Yaw = yaw; UpdateView(); }
 
+        inline float GetDistance() const { return m_Distance; }
         glm::vec3 GetUpDirection() const;
         glm::vec3 GetRightDirection() const;
         glm::vec3 GetForwardDirection() const;
