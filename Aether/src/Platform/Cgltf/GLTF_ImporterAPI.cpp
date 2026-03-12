@@ -28,12 +28,12 @@ namespace Aether {
 
         void* data = static_cast<void*>(gltf);
         auto anim = m_AnimationParser->ParseRigAnim(data);
-        SceneData->Meshes = m_MeshParser->Parsing(data)->meshesInfo;
-        SceneData->Materials = m_MaterialParser->Parsing(data)->matsInfo;
-        SceneData->Textures = m_MaterialParser->Parsing(data)->texsInfo;
-        SceneData->Rigs = anim->rigs;
-        SceneData->Clips = anim->clips;
-        SceneData->RigMap = anim->rig_map;
+        SceneData->Meshes = std::move(m_MeshParser->Parsing(data)->meshesInfo);
+        SceneData->Materials = std::move(m_MaterialParser->Parsing(data)->matsInfo);
+        SceneData->Textures = std::move(m_MaterialParser->Parsing(data)->texsInfo);
+        SceneData->Rigs = std::move(anim->rigs);
+        SceneData->Clips = std::move(anim->clips);
+        SceneData->RigMap = std::move(anim->rig_map);
         SceneData->Hierarchy = m_SceneParser->Parsing(data);
 
         AE_CORE_INFO("Parsed " + path);
