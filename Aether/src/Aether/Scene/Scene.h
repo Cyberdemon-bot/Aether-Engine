@@ -23,6 +23,7 @@ namespace Aether {
 
         Entity CreateEntity();
         Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);
+        UUID GetSceneID() { return m_SceneID; }
         void DestroyEntity(Entity entity);
         void DestroyHierarchy(Entity entity);
         void MakeParent(Entity child, Entity parent);
@@ -90,6 +91,7 @@ namespace Aether {
         }
 
     private:
+        UUID m_SceneID;
         entt::registry m_Registry;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;

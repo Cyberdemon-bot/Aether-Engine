@@ -78,6 +78,7 @@ namespace Aether {
     }
 
     Scene::Scene() 
+        : m_SceneID(UUID())
     {
         m_SceneLights.reserve(16); 
     }
