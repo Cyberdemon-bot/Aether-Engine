@@ -4,7 +4,6 @@
 #include "Aether/Core/Layer.h"
 #include "Aether/Core/Log.h"
 #include "Aether/Core/UUID.h"
-#include "Aether/Core/AssetsRegister.h"
 #include "Aether/Core/Timestep.h"
 
 #include "Aether/Core/Input.h"
@@ -19,6 +18,7 @@
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Renderer/EditorCamera.h"
 
+#include "Aether/Assets/AssetsRegister.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"

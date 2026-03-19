@@ -44,6 +44,8 @@ namespace Aether {
         TransformComponent() = default;
         TransformComponent(const TransformComponent&) = default;
         TransformComponent(const glm::vec3& translation) : Translation(translation) {}
+        TransformComponent(const glm::vec3& translation, const glm::quat& quat, const glm::vec3& scale) 
+            : Translation(translation), Rotation(quat), Scale(scale)  {}
 
         glm::mat4 GetLocalTransform() const
         {
@@ -137,7 +139,9 @@ namespace Aether {
         ColliderComponent(const UUID& id, bool visible = false)
             : BodyID(id), Visible(visible)
         {
-            auto& info = *PhysicsSystem::GetBodyInfo(BodyID);
+            auto it = PhysicsSystem::GetBodyInfo(BodyID);
+            if (it == nullptr) return;
+            auto& info = *it;
             ColliderOffset = info.offset;
             Shape = info.shape;
             Size = info.size;

@@ -1,14 +1,14 @@
 #include "aepch.h"
 #include "Aether/Importer/ImporterAPI.h"
 #include "Platform/Cgltf/GLTF_ImporterAPI.h"
-#include "Aether/Core/AssetsRegister.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
+#include "Aether/Assets/AssetsRegister.h"
+#include "Aether/Assets/AssetManager.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
-#include "Aether/Assets/AssetManager.h"
 #include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
