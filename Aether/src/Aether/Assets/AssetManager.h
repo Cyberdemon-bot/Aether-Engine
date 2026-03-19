@@ -31,9 +31,10 @@ namespace Aether {
             auto& instance = GetInstance();
             AE_CORE_ASSERT(std::is_base_of_v<Asset, T>, "T must derive from Asset");
             AssetHandle handle = RequestAssetSlot(id);
-            AssetSlot& res = instance.m_Assets[handle.index];
-            res.asset = T::CreateImpl(std::forward<Args>(args)...);
-            res.asset->id = id;
+            AssetSlot& slot = instance.m_Assets[handle.index];
+            slot.asset = T::CreateImpl(std::forward<Args>(args)...);
+            slot.asset->id = id;
+            slot.loaded = true;
             return handle;
         }
 
@@ -43,10 +44,12 @@ namespace Aether {
             auto& instance = GetInstance();
             AE_CORE_ASSERT(std::is_base_of_v<Asset, T>, "T must derive from Asset");
             if (handle.index >= instance.m_Assets.size()) return;
-            AssetSlot& res = instance.m_Assets[handle.index];
-            if (res.generation != handle.generation) return;
-            res.asset = T::CreateImpl(std::forward<Args>(args)...);
-            res.asset->id = res.id;
+            AssetSlot& slot = instance.m_Assets[handle.index];
+            if (slot.generation != handle.generation) return;
+            if (slot.loaded == true) AE_CORE_WARN("Overriding loaded Asset!");
+            slot.asset = T::CreateImpl(std::forward<Args>(args)...);
+            slot.asset->id = slot.id;
+            slot.loaded = true;
         }
 
         template<typename T>
@@ -54,9 +57,9 @@ namespace Aether {
         {
             auto& instance = GetInstance();
             if (handle.index >= instance.m_Assets.size()) return nullptr;
-            AssetSlot& res = instance.m_Assets[handle.index];
-            if (res.generation != handle.generation) return nullptr;
-            return static_cast<T*>(res.asset.get());
+            AssetSlot& slot = instance.m_Assets[handle.index];
+            if (slot.generation != handle.generation) return nullptr;
+            return static_cast<T*>(slot.asset.get());
         }
 
         template<typename T>

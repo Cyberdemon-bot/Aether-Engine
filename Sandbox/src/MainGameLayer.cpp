@@ -606,7 +606,12 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
 
             auto& mesh     = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
             mesh.Mesh      = m_BaseMapMesh;
-            mesh.Materials = m_BaseMapMaterials;
+            mesh.Materials.BaseHandles = m_BaseMapMaterials;
+            mesh.Materials.Resize(m_BaseMapMaterials.size());
+            mesh.Materials.CopyDefaultList(m_BaseMapMaterials);
+            AE_INFO("start!");
+            mesh.Materials.Reset();
+            AE_INFO("end!");
 
             ChunkData newData;
             newData.landEntity = chunk;

@@ -306,9 +306,12 @@ namespace Aether {
         {
             auto& component = AddComponent<MeshComponent>(e);
             component.Mesh = AssetManager::GetHandle(reg.meshIDs[node.meshIdx]);
-            component.Materials.reserve(reg.meshMap[node.meshIdx].size());
-            for (auto& id : reg.meshMap[node.meshIdx])
-                component.Materials.emplace_back(AssetManager::GetHandle(id));
+            component.Materials.Resize(reg.meshMap[node.meshIdx].size());
+            for(size_t i = 0; i < reg.meshMap[node.meshIdx].size(); i++)
+            {
+                auto& id = reg.meshMap[node.meshIdx][i];
+                component.Materials.SetDefault(i, AssetManager::GetHandle(id));
+            }
         }
 
         if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animatorIDS.size())
@@ -471,11 +474,7 @@ namespace Aether {
                     else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
 
-                    std::vector<Material*> resolved_mats; resolved_mats.reserve(meshcmp.Materials.size());
-                    for (auto& handle : meshcmp.Materials)
-                        resolved_mats.emplace_back(AssetManager::GetAsset<Material>(handle));
-
-                    Renderer::DrawMesh(mesh, resolved_mats, animatorID, transform.WorldTransform);
+                    Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, animatorID, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();

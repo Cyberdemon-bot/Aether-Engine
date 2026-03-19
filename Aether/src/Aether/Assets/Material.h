@@ -8,6 +8,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace Aether {
     enum class MaterialFlag
@@ -58,5 +59,30 @@ namespace Aether {
         static const AssetType GetType() { return AssetType::Material; }
         virtual const AssetType GetAssetType() const override { return AssetType::Material; }
         friend class AssetManager;
+    };
+
+    struct MaterialTable
+    {
+        std::vector<Material*> CachedPtr;
+        std::vector<AssetHandle> BaseHandles;
+        std::vector<AssetHandle> OverrideHandles;
+
+        void Resize(uint32_t size)
+        {
+            CachedPtr.resize(size);
+            BaseHandles.resize(size);
+            OverrideHandles.resize(size);
+        }
+
+        void CopyDefaultList(const std::vector<AssetHandle>& handleList);
+        void CopyOverrideList(const std::vector<AssetHandle>& handleList);
+        void MoveDefaultList(std::vector<AssetHandle>&& handleList);
+        void MoveOverrideList(std::vector<AssetHandle>&& handleList);
+
+        void Reset();
+        void SetOverride(uint32_t index, AssetHandle handle);
+        void SetDefault(uint32_t index, AssetHandle handle);
+        void Revert(uint32_t index);
+        void SwitchOverride(uint32_t index);
     };
 }

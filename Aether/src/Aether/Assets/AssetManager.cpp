@@ -41,11 +41,12 @@ namespace Aether {
         if (it == instance.m_Handles.end()) return;
         AssetHandle handle = it->second;
         if (handle.index >= instance.m_Assets.size()) return;
-        AssetSlot& res = instance.m_Assets[handle.index];
-        if (res.generation != handle.generation) return;
+        AssetSlot& slot = instance.m_Assets[handle.index];
+        if (slot.generation != handle.generation) return;
 
-        res.asset.reset();
-        res.generation++;
+        slot.asset.reset();
+        slot.loaded = false;
+        slot.generation++;
         instance.FreeList.push_back(handle.index);
         instance.m_Handles.erase(it);
     }
@@ -70,10 +71,10 @@ namespace Aether {
             index = instance.m_Assets.size();
             instance.m_Assets.emplace_back();
         }
-        AssetSlot& res = instance.m_Assets[index]; res.id = id;
+        AssetSlot& slot = instance.m_Assets[index]; slot.id = id;
         AssetHandle handle;
         handle.index = index;
-        handle.generation = res.generation;
+        handle.generation = slot.generation;
         instance.m_Handles[id] = handle;
         return handle;
     }

@@ -69,7 +69,7 @@ namespace Aether {
     struct MeshComponent
     {
         AssetHandle Mesh;
-        std::vector<AssetHandle> Materials;
+        MaterialTable Materials;
         bool ShowBounds = false;
 
         MeshComponent() = default;

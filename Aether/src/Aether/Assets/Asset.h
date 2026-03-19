@@ -13,6 +13,7 @@ namespace Aether {
     {
         int index = -1, generation = -1;
         bool IsValid() const { return index >= 0 && generation >= 0; }
+        void MakeInvalid() { index = -1, generation = -1; }
     };
 
     class Asset
