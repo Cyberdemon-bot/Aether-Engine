@@ -41,12 +41,41 @@ namespace Aether {
         if (it == instance.m_Handles.end()) return;
         AssetHandle handle = it->second;
         if (handle.index >= instance.m_Assets.size()) return;
-        AssetSlot& res = instance.m_Assets[handle.index];
-        if (res.generation != handle.generation) return;
+        AssetSlot& slot = instance.m_Assets[handle.index];
+        if (slot.generation != handle.generation) return;
 
-        res.asset.reset();
-        res.generation++;
+        slot.asset.reset();
+        slot.loaded = false;
+        slot.generation++;
         instance.FreeList.push_back(handle.index);
         instance.m_Handles.erase(it);
+    }
+
+    AssetHandle AssetManager::RequestAssetSlot(UUID id)
+    {
+        auto& instance = GetInstance();
+        auto it = instance.m_Handles.find(id); int index;
+        if (it != instance.m_Handles.end())
+        {
+            AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
+            return {};
+        } 
+
+        if (!instance.FreeList.empty())
+        {
+            index = instance.FreeList.back();
+            instance.FreeList.pop_back();
+        }
+        else
+        {
+            index = instance.m_Assets.size();
+            instance.m_Assets.emplace_back();
+        }
+        AssetSlot& slot = instance.m_Assets[index]; slot.id = id;
+        AssetHandle handle;
+        handle.index = index;
+        handle.generation = slot.generation;
+        instance.m_Handles[id] = handle;
+        return handle;
     }
 }

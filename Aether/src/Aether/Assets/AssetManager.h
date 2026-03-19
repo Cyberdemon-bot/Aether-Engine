@@ -10,7 +10,9 @@ namespace Aether {
 
     struct AssetSlot
     {
-        Scope<Asset> asset;
+        Scope<Asset> asset = nullptr;
+        UUID id = UUID(0);
+        bool loaded = false;
         int generation = 0;
     };
 
@@ -21,37 +23,33 @@ namespace Aether {
         static void Shutdown();
         static void Unload(UUID id);
         static AssetHandle GetHandle(UUID id);
+        static AssetHandle RequestAssetSlot(UUID id);
 
         template<typename T, typename... Args>
         static AssetHandle CreateAsset(UUID id, Args&&... args)
         {
             auto& instance = GetInstance();
-            static_assert(std::is_base_of_v<Asset, T>, "T must derive from Asset");
-            auto it = instance.m_Handles.find(id); int index;
-            if (it != instance.m_Handles.end())
-            {
-                AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
-                return {};
-            } 
-
-            if (!instance.FreeList.empty())
-            {
-                index = instance.FreeList.back();
-                instance.FreeList.pop_back();
-            }
-            else
-            {
-                index = instance.m_Assets.size();
-                instance.m_Assets.emplace_back();
-            }
-            AssetSlot& res = instance.m_Assets[index];
-            res.asset = T::CreateImpl(std::forward<Args>(args)...);
-            res.asset->id = id;
-            AssetHandle handle;
-            handle.index = index;
-            handle.generation = res.generation;
-            instance.m_Handles[id] = handle;
+            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
+            AssetHandle handle = RequestAssetSlot(id);
+            AssetSlot& slot = instance.m_Assets[handle.index];
+            slot.asset = T::CreateImpl(std::forward<Args>(args)...);
+            slot.asset->id = id;
+            slot.loaded = true;
             return handle;
+        }
+
+        template<typename T, typename... Args>
+        static void CommitAsset(AssetHandle handle, Args&&... args)
+        {
+            auto& instance = GetInstance();
+            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
+            if (handle.index >= instance.m_Assets.size()) return;
+            AssetSlot& slot = instance.m_Assets[handle.index];
+            if (slot.generation != handle.generation) return;
+            if (slot.loaded == true) AE_CORE_WARN("Overriding loaded Asset!");
+            slot.asset = T::CreateImpl(std::forward<Args>(args)...);
+            slot.asset->id = slot.id;
+            slot.loaded = true;
         }
 
         template<typename T>
@@ -59,9 +57,9 @@ namespace Aether {
         {
             auto& instance = GetInstance();
             if (handle.index >= instance.m_Assets.size()) return nullptr;
-            AssetSlot& res = instance.m_Assets[handle.index];
-            if (res.generation != handle.generation) return nullptr;
-            return static_cast<T*>(res.asset.get());
+            AssetSlot& slot = instance.m_Assets[handle.index];
+            if (slot.generation != handle.generation) return nullptr;
+            return static_cast<T*>(slot.asset.get());
         }
 
         template<typename T>

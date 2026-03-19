@@ -1,4 +1,6 @@
+#include "aepch.h"
 #include "Platform/SoLoud/SoLoudAPI.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
     AudioAPI::API AudioAPI::s_API = AudioAPI::API::SoLoud;

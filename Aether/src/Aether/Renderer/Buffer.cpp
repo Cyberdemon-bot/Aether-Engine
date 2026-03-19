@@ -1,4 +1,3 @@
-#include "aepch.h"
 #include "Aether/Renderer/Buffer.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLBuffer.h"

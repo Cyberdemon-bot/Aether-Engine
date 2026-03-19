@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "SceneCamera.h"
+#include "Aether/Core/Assert.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 

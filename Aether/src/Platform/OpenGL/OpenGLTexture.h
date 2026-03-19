@@ -2,6 +2,7 @@
 
 #include "Aether/Renderer/Texture.h"
 #include "Platform/OpenGL/OpenGLBase.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
     class OpenGLTexture2D : public Texture2D

@@ -462,7 +462,7 @@ namespace Aether {
 
     PhysTransform Jolt_PhysicsAPI::GetPhysTransform(UUID bodyID) const
     {
-        PhysTransform transform;
+        PhysTransform transform{};
         if (!m_PhysicsSystem) return transform;
         auto it = m_Bodies.find(bodyID);
         if (it == m_Bodies.end())

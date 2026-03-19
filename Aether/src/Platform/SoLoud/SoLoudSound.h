@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Assets/Sound.h"
+#include "Aether/Core/Assert.h"
 #include "soloud_wav.h"
 #include <string>
 

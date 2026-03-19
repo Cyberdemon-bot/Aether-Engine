@@ -2,6 +2,7 @@
 
 #include "Aether/Renderer/FrameBuffer.h" 
 #include "Platform/OpenGL/OpenGLBase.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
 

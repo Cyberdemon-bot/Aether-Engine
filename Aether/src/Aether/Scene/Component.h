@@ -39,11 +39,14 @@ namespace Aether {
         glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
 
         glm::mat4 WorldTransform = glm::mat4(1.0f);  
+        uint32_t LastUpdate = 0;
         bool Dirty = true;
 
         TransformComponent() = default;
         TransformComponent(const TransformComponent&) = default;
         TransformComponent(const glm::vec3& translation) : Translation(translation) {}
+        TransformComponent(const glm::vec3& translation, const glm::quat& quat, const glm::vec3& scale) 
+            : Translation(translation), Rotation(quat), Scale(scale)  {}
 
         glm::mat4 GetLocalTransform() const
         {
@@ -67,7 +70,7 @@ namespace Aether {
     struct MeshComponent
     {
         AssetHandle Mesh;
-        std::vector<AssetHandle> Materials;
+        MaterialTable Materials;
         bool ShowBounds = false;
 
         MeshComponent() = default;
@@ -137,7 +140,9 @@ namespace Aether {
         ColliderComponent(const UUID& id, bool visible = false)
             : BodyID(id), Visible(visible)
         {
-            auto& info = *PhysicsSystem::GetBodyInfo(BodyID);
+            auto it = PhysicsSystem::GetBodyInfo(BodyID);
+            if (it == nullptr) return;
+            auto& info = *it;
             ColliderOffset = info.offset;
             Shape = info.shape;
             Size = info.size;

@@ -233,6 +233,7 @@ namespace Aether {
 			key.mesh     = mesh;
 			key.subIdx   = i;
 			key.material = materials[submeshes[i].MaterialIdx];
+			if (!key.material) continue;
 
 			if (animatorID == UUID(0)) s_SceneData->s_RenderBatches[key].static_obj.push_back(transform);
 			else                       s_SceneData->s_RenderBatches[key].dynamic_obj.push_back({transform, animatorID});

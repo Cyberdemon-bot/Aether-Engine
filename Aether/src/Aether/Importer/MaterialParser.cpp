@@ -1,5 +1,7 @@
+#include "aepch.h"
 #include "Aether/Importer/Importer.h"
 #include "Platform/Cgltf/GLTF_MaterialParser.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
     Ref<MaterialParser> MaterialParser::Create()

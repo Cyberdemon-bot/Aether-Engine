@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "Platform/OpenGL/OpenGLContext.h"
+#include "Aether/Core/Assert.h"
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
