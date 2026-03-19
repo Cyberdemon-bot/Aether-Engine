@@ -61,7 +61,7 @@ namespace Aether {
         friend class AssetManager;
     };
 
-    struct MaterialTable
+    struct AETHER_API MaterialTable
     {
         std::vector<Material*> CachedPtr;
         std::vector<AssetHandle> BaseHandles;

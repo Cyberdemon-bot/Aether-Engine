@@ -1,6 +1,7 @@
 #include "aepch.h"
 #include "Aether/Renderer/GraphicsContext.h"
 #include "Platform/OpenGL/OpenGLContext.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
 

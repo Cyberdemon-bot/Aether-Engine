@@ -49,7 +49,9 @@
 #endif
 
 #ifdef AETHER_DEBUG
-	#define AE_ENABLE_ASSERTS
+	#ifdef AE_ENABLE_ASSERT
+		#define AE_ENABLE_ASSERTS
+	#endif
 #endif
 
 #define AE_EXPAND_MACRO(x) x
@@ -109,4 +111,3 @@ namespace Aether {
 }
 
 #include "Aether/Core/Log.h"
-#include "Aether/Core/Assert.h"

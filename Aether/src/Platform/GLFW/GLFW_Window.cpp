@@ -2,6 +2,7 @@
 #include "Platform/GLFW/GLFW_Window.h"
 
 #include "Aether/Core/Input.h"
+#include "Aether/Core/Assert.h"
 
 #include "Aether/Events/ApplicationEvent.h"
 #include "Aether/Events/MouseEvent.h"

@@ -1,5 +1,6 @@
 #include "Aether/Importer/Importer.h"
 #include "Platform/Cgltf/GLTF_AnimationParser.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
 

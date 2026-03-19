@@ -10,7 +10,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Renderer/ResourceManager.h"
-
+#include "Aether/Core/Assert.h"
 namespace Aether {
 
 	ImporterAPI::API ImporterAPI::s_API = ImporterAPI::API::Cgltf;

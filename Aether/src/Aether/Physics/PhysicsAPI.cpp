@@ -1,4 +1,5 @@
 #include "Platform/JoltPhys/Jolt_PhysicsAPI.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
     PhysicsAPI::API PhysicsAPI::s_API = PhysicsAPI::API::JoltPhys;

@@ -1,5 +1,6 @@
 #include "Aether/Importer/Importer.h"
 #include "Platform/Cgltf/GLTF_SceneGraphParser.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
     Ref<SceneGraphParser> SceneGraphParser::Create()

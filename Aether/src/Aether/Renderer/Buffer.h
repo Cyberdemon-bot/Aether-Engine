@@ -1,9 +1,10 @@
 #pragma once
 
+#include "Aether/Renderer/ResourceManager.h"
+#include "Aether/Core/Assert.h"
 
 #include <vector>
 #include <initializer_list>
-#include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
     enum class ShaderDataType
