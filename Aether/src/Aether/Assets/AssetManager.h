@@ -29,7 +29,7 @@ namespace Aether {
         static AssetHandle CreateAsset(UUID id, Args&&... args)
         {
             auto& instance = GetInstance();
-            AE_CORE_ASSERT(std::is_base_of_v<Asset, T>, "T must derive from Asset");
+            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
             AssetHandle handle = RequestAssetSlot(id);
             AssetSlot& slot = instance.m_Assets[handle.index];
             slot.asset = T::CreateImpl(std::forward<Args>(args)...);
@@ -42,7 +42,7 @@ namespace Aether {
         static void CommitAsset(AssetHandle handle, Args&&... args)
         {
             auto& instance = GetInstance();
-            AE_CORE_ASSERT(std::is_base_of_v<Asset, T>, "T must derive from Asset");
+            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
             if (handle.index >= instance.m_Assets.size()) return;
             AssetSlot& slot = instance.m_Assets[handle.index];
             if (slot.generation != handle.generation) return;
