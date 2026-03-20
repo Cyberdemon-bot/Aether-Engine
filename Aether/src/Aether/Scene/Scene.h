@@ -28,6 +28,7 @@ namespace Aether {
         void DestroyHierarchy(Entity entity);
         void MakeParent(Entity child, Entity parent);
         void BreakParent(Entity entity);
+        void MarkDirty(Entity entity);
 
         bool IsValid(Entity entity) const;
         void Update(Timestep ts, EditorCamera* camera = nullptr);
@@ -97,8 +98,8 @@ namespace Aether {
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
-        void BreathFirstSearch();
-        void UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty);
+        void BreadthFirstSearch();
+        void UpdateTransform(Entity entity);
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
     };
 }

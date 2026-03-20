@@ -41,6 +41,7 @@ namespace Aether {
         glm::mat4 WorldTransform = glm::mat4(1.0f);  
         uint32_t LastUpdate = 0;
         bool Dirty = true;
+        bool SubtreeDirty = false;
 
         TransformComponent() = default;
         TransformComponent(const TransformComponent&) = default;

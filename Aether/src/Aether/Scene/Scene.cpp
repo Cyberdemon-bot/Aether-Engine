@@ -280,29 +280,40 @@ namespace Aether {
         return m_Registry.valid(entity);
     }
 
-    // void Scene::BreathFirstSearch()
-    // {
-    //     std::queue<std::pair<Entity, uint32_t>> Queue;
-    //     auto view = View<HierarchyComponent>();
-    //     for (auto entity : view)
-    //         if (GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
-    //             Queue.push({entity, 0});
+    void Scene::BreadthFirstSearch()
+    {
+        m_HierarchyLevels.clear();
+        std::queue<std::pair<Entity, uint32_t>> Queue;
+        auto view = View<HierarchyComponent>();
+        for (auto entity : view)
+        {
+            if (GetComponent<HierarchyComponent>(entity).parent != Null_Entity) continue;
+            auto& t = GetComponent<TransformComponent>(entity);
+            if (t.Dirty || t.SubtreeDirty) Queue.push({entity, 0});
+        }
 
-    //     while (!Queue.empty())
-    //     {
-    //         auto current = Queue.front(); Queue.pop();
+        while (!Queue.empty())
+        {
+            auto [entity, depth] = Queue.front(); Queue.pop();
+            if (m_HierarchyLevels.size() <= depth) m_HierarchyLevels.push_back({});
+            m_HierarchyLevels[depth].push_back(entity);
 
-    //         Entity entity = current.first; uint32_t depth = current.second;
-    //         if (m_HierarchyLevels.size() <= depth) m_HierarchyLevels.emplace_back({});
-    //         m_HierarchyLevels[depth].push_back(entity);
-    //         Entity child = GetComponent<HierarchyComponent>(entity).firstChild;
-    //         while (child != Null_Entity)
-    //         {
-    //             Queue.push({child, depth + 1});
-    //             child = GetComponent<HierarchyComponent>(child).nextSibling;
-    //         }
-    //     }
-    // }
+            auto& parentT = GetComponent<TransformComponent>(entity);
+            bool parentDirty = parentT.Dirty || parentT.SubtreeDirty;
+
+            Entity child = GetComponent<HierarchyComponent>(entity).firstChild;
+            while (child != Null_Entity)
+            {
+                auto& childT = GetComponent<TransformComponent>(child);
+                if (parentDirty || childT.Dirty || childT.SubtreeDirty)
+                {
+                    if (parentDirty) childT.Dirty = true; // propagate dirty downward NOW
+                    Queue.push({child, depth + 1});
+                }
+                child = GetComponent<HierarchyComponent>(child).nextSibling;
+            }
+        }
+    }
 
     Entity Scene::FindEntity(UUID id) const
     {
@@ -325,7 +336,7 @@ namespace Aether {
         t.Translation = node.translation;
         t.Rotation    = glm::normalize(node.rotation);
         t.Scale       = node.scale;
-        t.Dirty       = true;
+        MarkDirty(e);
 
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
         {
@@ -350,23 +361,23 @@ namespace Aether {
         for (int rootIdx : registered.hierarchy->roots)
             CreateNodeEntity(registered, rootIdx, parent);
     }
-
-    // void Scene::UpdateTransform(Entity entity)
-    // {
-    //     auto& transform = GetComponent<TransformComponent>(entity);
-    //     auto& hierarchy = GetComponent<HierarchyComponent>(entity);
-    //     auto& parent = GetComponent<HierarchyComponent>(entity).parent;
-
-
-    // }
     
-    void Scene::UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty)
+    void Scene::UpdateTransform(Entity entity)
     {
         auto& transform = GetComponent<TransformComponent>(entity);
         auto& hierarchy = GetComponent<HierarchyComponent>(entity);
-    
+
+        glm::mat4 pTransform = glm::mat4(1.0f);
+        bool pDirty = false;
+        if (hierarchy.parent != Null_Entity)
+        {
+            const auto& parentTransform = GetComponent<TransformComponent>(hierarchy.parent);
+            pTransform = parentTransform.WorldTransform;
+            pDirty = (parentTransform.LastUpdate == CurrentFrame);
+        }
+
         bool isWorldTransformDirty = transform.Dirty || pDirty;
-        bool hasRecalculatedWorld = false; 
+        bool hasRecalculatedWorld = false;
 
         glm::vec3 scale, translation, skew;
         glm::quat rotation;
@@ -386,11 +397,11 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
-            UUID id = rbComp.BodyID;  
+            UUID id = rbComp.BodyID;
 
-            if (isWorldTransformDirty) 
+            if (isWorldTransformDirty)
             {
-                transform.WorldTransform = pTransfrom * boneMat * transform.GetLocalTransform();
+                transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
                 hasRecalculatedWorld = true;
 
                 glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
@@ -410,13 +421,13 @@ namespace Aether {
                 }
                 else
                 {
-                    glm::mat4 invParent = glm::inverse(pTransfrom);
-                    glm::quat parentRot = glm::quat_cast(pTransfrom);
+                    glm::mat4 invParent = glm::inverse(pTransform);
+                    glm::quat parentRot = glm::quat_cast(pTransform);
                     transform.Translation = glm::vec3(invParent * glm::vec4(translation, 1.0f));
-                    transform.Rotation = glm::inverse(parentRot) * physTrans.rotation; 
+                    transform.Rotation = glm::inverse(parentRot) * physTrans.rotation;
                 }
-                
-                isWorldTransformDirty = true; 
+
+                isWorldTransformDirty = true;
             }
         }
 
@@ -424,20 +435,29 @@ namespace Aether {
         {
             if (!hasRecalculatedWorld)
             {
-                transform.WorldTransform = pTransfrom * boneMat * transform.GetLocalTransform();
-                if (HasComponent<AudioSourceComponent>(entity)) 
+                transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
+                if (HasComponent<AudioSourceComponent>(entity))
                     glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
             }
-            if (HasComponent<AudioSourceComponent>(entity)) 
+            if (HasComponent<AudioSourceComponent>(entity))
                 AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, translation);
-            transform.Dirty = false;
-        }
 
-        Entity currentChild = hierarchy.firstChild;
-        while (currentChild != Null_Entity)
+            transform.Dirty = false;
+            transform.SubtreeDirty = false;
+            transform.LastUpdate = CurrentFrame;
+        }
+    }
+
+    void Scene::MarkDirty(Entity entity)
+    {
+        GetComponent<TransformComponent>(entity).Dirty = true;
+        Entity current = GetComponent<HierarchyComponent>(entity).parent;
+        while (current != Null_Entity)
         {
-            UpdateTransform(currentChild, transform.WorldTransform, isWorldTransformDirty); 
-            currentChild = GetComponent<HierarchyComponent>(currentChild).nextSibling;
+            auto& t = GetComponent<TransformComponent>(current);
+            if (t.SubtreeDirty) break;
+            t.SubtreeDirty = true;
+            current = GetComponent<HierarchyComponent>(current).parent;
         }
     }
 
@@ -448,19 +468,15 @@ namespace Aether {
             PhysicsSystem::Update(ts);
         }
 
-        { 
-            auto view = View<HierarchyComponent>();
-            for (auto entity : view)
+        {
+            CurrentFrame++;
+            BreadthFirstSearch();
+            for (auto& level : m_HierarchyLevels)
             {
-                const auto& hierarchy = GetComponent<HierarchyComponent>(entity);
-                if (hierarchy.parent == Null_Entity) UpdateTransform(entity, glm::mat4(1.0f), false);
+                for (Entity entity : level)
+                    JobSystem::SubmitJob([&, entity]() { UpdateTransform(entity); });
+                JobSystem::WaitAll();
             }
-
-            // for (auto& level : m_HierarchyLevels)
-            // {
-            //     for (Entity entity : level) JobSystem::SubmitJob();
-            //     JobSystem::WaitAll();
-            // }
         }
 
         { // render
