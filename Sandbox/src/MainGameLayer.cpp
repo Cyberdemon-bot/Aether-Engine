@@ -83,7 +83,7 @@ void MainGameLayer::Attach()
     auto& sunTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
     sunTransform.Rotation    = glm::quat(glm::vec3(glm::radians(-45.0f), glm::radians(30.0f), 0.0f));
     sunTransform.Translation = glm::vec3(0.0f, 50.0f, 0.0f);
-    sunTransform.Dirty       = true;
+    m_Scene.MarkDirty(m_SunLight);
 
     // --- MAP ---
     auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/map.glb"));
@@ -100,7 +100,7 @@ void MainGameLayer::Attach()
     pTransform.Translation   = { 0.0f, yFloor, 0.0f };
     pTransform.Scale         = { 1.0f, 1.0f,   1.0f };
     pTransform.Rotation      = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    pTransform.Dirty         = true;
+    m_Scene.MarkDirty(m_Player);
 
     auto uploadPlayer = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/humanv2.glb"));
     m_Scene.LoadHierarchy(uploadPlayer, m_Player);
@@ -139,7 +139,7 @@ void MainGameLayer::Attach()
     auto& gTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
     gTransform.Translation = { 0.0f, 0.0f, 0.0f };
     gTransform.Scale       = { 1.0f, 1.0f, 1.0f };
-    gTransform.Dirty       = true;
+    m_Scene.MarkDirty(m_Gun);
 
     auto uploadGun = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/gun.glb"));
     m_Scene.LoadHierarchy(uploadGun, m_Gun);
@@ -262,7 +262,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 m_Camera.Update(ts);
             }
 
-            pTransform.Dirty = true;
+            m_Scene.MarkDirty(m_Player);
 
             if (didMove != m_IsPlayerMoving) {
                 if (didMove) rigSystem->Play(m_RunAnimation);
@@ -302,7 +302,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
             m_Camera.SetDistance(0.0f);
             m_Camera.SetFocalPoint(playerEyePos);
             pTransform.Rotation = glm::quat(glm::vec3(0.0f, -m_Camera.GetYaw(), 0.0f));
-            pTransform.Dirty    = true;
+            m_Scene.MarkDirty(m_Player);
         }
         else
         {
@@ -310,6 +310,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
             glm::vec3 shoulderOffset  = m_Camera.GetRightDirection() * 0.5f;
             glm::vec3 stablePlayerPos = pTransform.Translation + glm::vec3(0.0f, 1.5f, 0.0f);
             m_Camera.SetFocalPoint(stablePlayerPos + shoulderOffset);
+            m_Scene.MarkDirty(m_Player);
 
             if (m_LockCamera) {
                 m_Camera.SetDistance(5.0f);
@@ -350,7 +351,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
         if (m_Scene.IsValid(m_SunLight)) {
             auto& lightTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
             lightTransform.Translation = playerTopPos + glm::vec3(0.0f, 50.0f, 0.0f);
-            lightTransform.Dirty       = true;
+            m_Scene.MarkDirty(m_SunLight);
             m_Scene.GetComponent<Aether::LightComponent>(m_SunLight).Config.castShadows = true;
         }
 
@@ -487,7 +488,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
                         if (rigSystem) rigSystem->Pause(zRec.animatorID);
                     }
                 }
-                zT.Dirty = true;
+                m_Scene.MarkDirty(zombie);
             }
         }
     }
@@ -531,7 +532,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
             gTransform.Rotation    = pRot * glm::quat(glm::radians(m_GunRotTP));
             gTransform.Scale       = m_GunScaleTP;
         }
-        gTransform.Dirty = true;
+        m_Scene.MarkDirty(m_Gun);
     }
 
     for (size_t i = 0; i < sources.size(); )
@@ -602,7 +603,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             int   randomRot = std::rand() % 4;
             float rotAngle  = glm::radians(randomRot * 90.0f);
             t.Rotation = glm::quat(glm::vec3(0.0f, rotAngle, 0.0f));
-            t.Dirty    = true;
+            m_Scene.MarkDirty(chunk);
 
             auto& mesh     = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
             mesh.Mesh      = m_BaseMapMesh;
@@ -670,7 +671,7 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
     zTransform.Translation           = position;
     zTransform.Scale                 = { 1.0f, 1.0f, 1.0f };
     zTransform.Rotation              = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    zTransform.Dirty                 = true;
+    m_Scene.MarkDirty(newZombie);
 
     m_Scene.LoadHierarchy(m_ZombieSceneData, newZombie);
     m_ZombieSceneData.animatorIDS[0] = originalAnimID;
@@ -1046,7 +1047,7 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         m_FirstPerson    = !m_FirstPerson;
         pTransform.Scale = m_FirstPerson ? glm::vec3(0.001f) : glm::vec3(1.0f);
         m_Camera.SetDistance(m_FirstPerson ? 0.5f : 6.0f);
-        pTransform.Dirty = true;
+        m_Scene.MarkDirty(m_Player);
         event.Handled    = true;
         return;
     }
