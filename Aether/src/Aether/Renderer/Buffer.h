@@ -1,5 +1,6 @@
 #pragma once
 
+#include "aepch.h"
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Core/Assert.h"
 

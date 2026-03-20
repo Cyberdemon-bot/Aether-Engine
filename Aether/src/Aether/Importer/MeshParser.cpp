@@ -1,3 +1,4 @@
+#include "aepch.h"
 #include "Aether/Importer/Importer.h"
 #include "Platform/Cgltf/GLTF_MeshParser.h"
 #include "Aether/Core/Assert.h"

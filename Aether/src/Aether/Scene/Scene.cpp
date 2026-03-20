@@ -5,6 +5,7 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
+#include "Aether/Core/JobSystem.h"
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Aether/Assets/AssetManager.h"
 
@@ -279,6 +280,30 @@ namespace Aether {
         return m_Registry.valid(entity);
     }
 
+    // void Scene::BreathFirstSearch()
+    // {
+    //     std::queue<std::pair<Entity, uint32_t>> Queue;
+    //     auto view = View<HierarchyComponent>();
+    //     for (auto entity : view)
+    //         if (GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
+    //             Queue.push({entity, 0});
+
+    //     while (!Queue.empty())
+    //     {
+    //         auto current = Queue.front(); Queue.pop();
+
+    //         Entity entity = current.first; uint32_t depth = current.second;
+    //         if (m_HierarchyLevels.size() <= depth) m_HierarchyLevels.emplace_back({});
+    //         m_HierarchyLevels[depth].push_back(entity);
+    //         Entity child = GetComponent<HierarchyComponent>(entity).firstChild;
+    //         while (child != Null_Entity)
+    //         {
+    //             Queue.push({child, depth + 1});
+    //             child = GetComponent<HierarchyComponent>(child).nextSibling;
+    //         }
+    //     }
+    // }
+
     Entity Scene::FindEntity(UUID id) const
     {
         auto it = m_EntityLibrary.find(id);
@@ -326,6 +351,15 @@ namespace Aether {
             CreateNodeEntity(registered, rootIdx, parent);
     }
 
+    // void Scene::UpdateTransform(Entity entity)
+    // {
+    //     auto& transform = GetComponent<TransformComponent>(entity);
+    //     auto& hierarchy = GetComponent<HierarchyComponent>(entity);
+    //     auto& parent = GetComponent<HierarchyComponent>(entity).parent;
+
+
+    // }
+    
     void Scene::UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty)
     {
         auto& transform = GetComponent<TransformComponent>(entity);
@@ -421,6 +455,12 @@ namespace Aether {
                 const auto& hierarchy = GetComponent<HierarchyComponent>(entity);
                 if (hierarchy.parent == Null_Entity) UpdateTransform(entity, glm::mat4(1.0f), false);
             }
+
+            // for (auto& level : m_HierarchyLevels)
+            // {
+            //     for (Entity entity : level) JobSystem::SubmitJob();
+            //     JobSystem::WaitAll();
+            // }
         }
 
         { // render

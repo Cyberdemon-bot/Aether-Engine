@@ -1,3 +1,4 @@
+#include "aepch.h"
 #include "Platform/SoLoud/SoLoudAPI.h"
 #include "Aether/Core/Assert.h"
 

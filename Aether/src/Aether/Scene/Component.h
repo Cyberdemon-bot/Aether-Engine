@@ -39,6 +39,7 @@ namespace Aether {
         glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
 
         glm::mat4 WorldTransform = glm::mat4(1.0f);  
+        uint32_t LastUpdate = 0;
         bool Dirty = true;
 
         TransformComponent() = default;

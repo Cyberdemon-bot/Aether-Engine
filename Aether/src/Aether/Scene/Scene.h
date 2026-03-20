@@ -92,9 +92,12 @@ namespace Aether {
 
     private:
         UUID m_SceneID;
+        uint32_t CurrentFrame = 0;
         entt::registry m_Registry;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
+        std::vector<std::vector<Entity>> m_HierarchyLevels;
+        void BreathFirstSearch();
         void UpdateTransform(Entity entity, const glm::mat4& pTransfrom, bool pDirty);
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
     };

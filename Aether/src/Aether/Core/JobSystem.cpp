@@ -1,3 +1,4 @@
+#include "aepch.h"
 #include "JobSystem.h"
 #include "Aether/Core/Base.h"
 
@@ -46,6 +47,7 @@ namespace Aether {
 
     void JobSystem::SubmitJob(Job job)
     {
+        if (s_Stop) return;
         s_ActiveJobCount++;
         {
             std::unique_lock<std::mutex> lock(s_QueueMutex);
