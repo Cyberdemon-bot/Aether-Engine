@@ -6,6 +6,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <vector>
+#include <atomic>
 
 namespace Aether {
 
@@ -26,7 +27,7 @@ namespace Aether {
         static std::queue<Job> s_JobQueue;
         static std::mutex s_QueueMutex;
         static std::condition_variable s_Condition;
-        static bool s_Stop;
+        static std::atomic<bool> s_Stop;
 
         static std::atomic<uint32_t> s_ActiveJobCount; 
         static std::condition_variable s_WaitCondition; 

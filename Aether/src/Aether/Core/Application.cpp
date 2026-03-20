@@ -38,8 +38,8 @@ namespace Aether {
     {
         AssetManager::Shutdown();
         Renderer::Shutdown();
-        JobSystem::Shutdown();
         AnimationSystem::Shutdown();
+        JobSystem::Shutdown();
         PhysicsSystem::Shutdown();
         AudioSystem::Shutdown();
     }

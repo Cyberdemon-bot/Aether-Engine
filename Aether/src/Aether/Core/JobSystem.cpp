@@ -8,7 +8,7 @@ namespace Aether {
     std::queue<Job> JobSystem::s_JobQueue;
     std::mutex JobSystem::s_QueueMutex;
     std::condition_variable JobSystem::s_Condition;
-    bool JobSystem::s_Stop = false;
+    std::atomic<bool> JobSystem::s_Stop = false;
 
     std::atomic<uint32_t> JobSystem::s_ActiveJobCount = 0;
     std::condition_variable JobSystem::s_WaitCondition;
@@ -27,11 +27,9 @@ namespace Aether {
 
     void JobSystem::Shutdown()
     {
-        {
-            std::unique_lock<std::mutex> lock(s_QueueMutex);
-            s_Stop = true;
-        }
+        s_Stop.store(true);
         s_Condition.notify_all();
+        s_WaitCondition.notify_all();
         
         for (std::thread& worker : s_Workers)
         {
@@ -42,12 +40,12 @@ namespace Aether {
 
         std::queue<Job> empty;
         std::swap(s_JobQueue, empty);
-        s_ActiveJobCount = 0;
+        s_ActiveJobCount.store(0);
     }
 
     void JobSystem::SubmitJob(Job job)
     {
-        if (s_Stop) return;
+        if (s_Stop.load()) return;
         s_ActiveJobCount++;
         {
             std::unique_lock<std::mutex> lock(s_QueueMutex);
@@ -63,10 +61,9 @@ namespace Aether {
             Job job;
             {
                 std::unique_lock<std::mutex> lock(s_QueueMutex);
-                s_Condition.wait(lock, []{ return s_Stop || !s_JobQueue.empty(); });
+                s_Condition.wait(lock, []{ return s_Stop.load() || !s_JobQueue.empty(); });
                 
-                if (s_Stop && s_JobQueue.empty())
-                    return;
+                if (s_Stop.load()) return;
                 
                 job = std::move(s_JobQueue.front());
                 s_JobQueue.pop();
@@ -77,7 +74,7 @@ namespace Aether {
             if (s_ActiveJobCount.fetch_sub(1) == 1)
             {
                 std::lock_guard<std::mutex> lock(s_WaitMutex);
-                s_WaitCondition.notify_all(); // Đánh thức WaitAll()
+                s_WaitCondition.notify_all(); 
             }
         }
     }
