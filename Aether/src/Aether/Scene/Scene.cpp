@@ -373,7 +373,7 @@ namespace Aether {
         {
             const auto& parentTransform = GetComponent<TransformComponent>(hierarchy.parent);
             pTransform = parentTransform.WorldTransform;
-            pDirty = (parentTransform.LastUpdate == CurrentFrame);
+            pDirty = (parentTransform.LastUpdate == m_CurrentFrame);
         }
 
         bool isWorldTransformDirty = transform.Dirty || pDirty;
@@ -444,7 +444,7 @@ namespace Aether {
 
             transform.Dirty = false;
             transform.SubtreeDirty = false;
-            transform.LastUpdate = CurrentFrame;
+            transform.LastUpdate = m_CurrentFrame;
         }
     }
 
@@ -469,13 +469,17 @@ namespace Aether {
         }
 
         {
-            CurrentFrame++;
+            m_CurrentFrame++;
             BreadthFirstSearch();
             for (auto& level : m_HierarchyLevels)
-            {
-                for (Entity entity : level)
-                    JobSystem::SubmitJob([&, entity]() { UpdateTransform(entity); });
-                JobSystem::WaitAll();
+            {   
+                if (level.size() >= m_LevelThreshold)
+                {
+                    for (Entity entity : level)
+                        JobSystem::SubmitJob([&, entity]() { UpdateTransform(entity); });
+                    JobSystem::WaitAll();
+                }
+                else for (Entity entity : level) UpdateTransform(entity);
             }
         }
 
