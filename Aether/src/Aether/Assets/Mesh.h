@@ -19,8 +19,6 @@ namespace Aether {
 
         glm::vec3 BoundsMin = glm::vec3(0.0f);
         glm::vec3 BoundsMax = glm::vec3(0.0f);
-
-        std::string NodeName;
         int MaterialIdx = -1;
     };
 

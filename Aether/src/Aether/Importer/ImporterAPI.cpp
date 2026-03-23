@@ -137,7 +137,6 @@ namespace Aether {
             for (const auto& subInfo : meshInfo.SubMeshes)
             {
                 SubMesh sm;
-                sm.NodeName = subInfo.NodeName;
                 sm.VertexCount = subInfo.VertexCount;
                 sm.IndexCount = subInfo.IndexCount;
                 sm.BaseVertex = subInfo.BaseVertex;

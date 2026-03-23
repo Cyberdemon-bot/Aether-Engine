@@ -312,7 +312,6 @@ namespace Aether {
 				shader->SetInt("u_HasAnimation",  0);
 			}
 
-			std::vector<glm::mat4> batchTransform;
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
 				auto& command = CommandList[i];
@@ -346,11 +345,10 @@ namespace Aether {
 					}
 					shader->SetMat4("u_Model", command.transform);
 					RenderCommand::DrawIndexedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex);
-					batchTransform.clear();
 				}
 				else
 				{
-					batchTransform.push_back(command.transform);
+					s_SceneData->batchTransform.push_back(command.transform);
 					if (currentAnimator != UUID(0))
 					{
 						shader->SetInt("u_UseInstancing", 1);
@@ -359,15 +357,15 @@ namespace Aether {
 					}
 					if ((i == CommandList.size() - 1) || (command != CommandList[i + 1]))
 					{
-						uint32_t dataSize = batchTransform.size() * sizeof(glm::mat4);
+						uint32_t dataSize = s_SceneData->batchTransform.size() * sizeof(glm::mat4);
 						if (instanceVBO->GetSize() < dataSize)
 						{
 							uint32_t newSize = dataSize * 2;
 							instanceVBO->Resize(newSize);
 						}
-						instanceVBO->SetData(batchTransform.data(), dataSize, 0);
-						RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, batchTransform.size());
-						batchTransform.clear();
+						instanceVBO->SetData(s_SceneData->batchTransform.data(), dataSize, 0);
+						RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, s_SceneData->batchTransform.size());
+						s_SceneData->batchTransform.clear();
 					}
 				}
 			}

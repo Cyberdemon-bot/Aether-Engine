@@ -159,6 +159,7 @@ namespace Aether {
 			CameraData camera;
 			LightsData lights;
 			std::vector<Command> CommandList;
+			std::vector<glm::mat4> batchTransform;
 		};
 
 		struct RenderData
