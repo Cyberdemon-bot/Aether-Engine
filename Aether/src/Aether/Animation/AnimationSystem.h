@@ -2,8 +2,9 @@
 
 #include "Aether/Core/Timestep.h"
 #include "Aether/Core/Base.h"
-#include <unordered_map>
+
 #include <string>
+#include <algorithm>
 
 namespace Aether {
 
@@ -27,14 +28,21 @@ namespace Aether {
         {
             auto& instance = GetInstance();
             Ref<T> module = T::Create();
-            instance.m_Modules[module->GetName()] = module;
+            const auto& name = module->GetName();
+
+            auto it = std::find_if(instance.m_Modules.begin(), instance.m_Modules.end(), 
+                [name](const auto& pair) { return pair.first == name; });
+            if (it != instance.m_Modules.end()) it->second = module;
+            else instance.m_Modules.push_back({name, module});
         }
 
         template <typename T>
         static Ref<T> GetModule() 
         {
             auto& instance = GetInstance();
-            auto it = instance.m_Modules.find(T::ModuleName());
+            const auto& name = T::ModuleName();
+            auto it = std::find_if(instance.m_Modules.begin(), instance.m_Modules.end(), 
+                [name](const auto& pair) { return pair.first == name; });
             if (it != instance.m_Modules.end()) 
                 return std::static_pointer_cast<T>(it->second);
             return nullptr;
@@ -43,6 +51,6 @@ namespace Aether {
     private:
         AnimationSystem() = default;
         static AnimationSystem& GetInstance();
-        std::unordered_map<std::string, Ref<AnimationModule>> m_Modules;
+        std::vector<std::pair<std::string, Ref<AnimationModule>>> m_Modules;
     };
 }

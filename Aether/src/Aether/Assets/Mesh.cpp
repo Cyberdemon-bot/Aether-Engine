@@ -89,6 +89,14 @@ namespace Aether {
         vao->Bind();
     }
 
+    void Mesh::AddInstanceBuffer(ResourceHandle handle)
+    {
+        auto* vao = ResourceManager::GetResource<VertexArray>(m_VertexArray);
+        auto* vbo = ResourceManager::GetResource<VertexBuffer>(handle);
+        vao->AddInstanceBuffer(vbo, static_cast<uint32_t>(VertexLayoutLocation::InstanceStart));
+        m_HasInstanceBuffer = true;
+    }
+
     void Mesh::CalculateAnimatedBounds(
         const void* positions, const BufferLayout& posLayout,
         const void* joints,    const BufferLayout& jointLayout,

@@ -218,13 +218,7 @@ namespace Aether {
 	{
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
-		if (!s_RenderData->s_MeshPtrInstanceAssigned[mesh])
-		{
-			auto* vao = ResourceManager::GetResource<VertexArray>(mesh->GetVertexArray());
-			auto* vbo = ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO);
-			vao->AddInstanceBuffer(vbo, 6);
-			s_RenderData->s_MeshPtrInstanceAssigned[mesh] = true;
-		}
+		if (!mesh->HasInstanceBuffer()) mesh->AddInstanceBuffer(s_RenderData->s_InstanceVBO);
 
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{

@@ -67,6 +67,17 @@ namespace Aether {
         }
     };
 
+    enum class VertexLayoutLocation : uint32_t 
+    {
+        Position      = 0,
+        Normal        = 1,
+        TexCoord      = 2,
+        Tangent       = 3,
+        Color         = 4,
+        Joints        = 5,    
+        InstanceStart = 6     
+    };
+
     struct VertexStream
     {
         const void* Data = nullptr;
@@ -103,8 +114,10 @@ namespace Aether {
         glm::vec3        GetBoundsCenter()  const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
         glm::vec3        GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
         bool HasAnimatedBounds() { return m_HasAnimatedBounds; }
+        bool HasInstanceBuffer() { return m_HasInstanceBuffer; }
 
         void UploadMesh();
+        void AddInstanceBuffer(ResourceHandle handle);
         static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
 
     private:
@@ -122,6 +135,7 @@ namespace Aether {
         glm::vec3 m_AnimatedBoundsMin   = glm::vec3(0.0f);
         glm::vec3 m_AnimatedBoundsMax   = glm::vec3(0.0f);
         bool m_HasAnimatedBounds = false;
+        bool m_HasInstanceBuffer = false;
 
         void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
         void CalculateAnimatedBounds(
