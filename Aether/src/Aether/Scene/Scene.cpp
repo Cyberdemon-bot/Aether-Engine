@@ -397,7 +397,7 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
-            UUID id = rbComp.BodyID;
+            BodyHandle handle = rbComp.Handle;
 
             if (isWorldTransformDirty)
             {
@@ -406,11 +406,11 @@ namespace Aether {
 
                 glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
                 glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
-                PhysicsSystem::SetPhysTransform(id, {translation + worldOffset, rotation});
+                PhysicsSystem::SetPhysTransform(handle, {translation + worldOffset, rotation});
             }
-            else if (PhysicsSystem::GetBodyInfo(id)->motionType == MotionType::Dynamic)
+            else if (PhysicsSystem::GetBodyInfo(handle)->motionType == MotionType::Dynamic)
             {
-                PhysTransform physTrans = PhysicsSystem::GetPhysTransform(id);
+                PhysTransform physTrans = PhysicsSystem::GetPhysTransform(handle);
                 glm::vec3 localOffset = rbComp.ColliderOffset;
                 glm::vec3 translation = physTrans.translation - (physTrans.rotation * localOffset);
 
@@ -565,8 +565,8 @@ namespace Aether {
                     {
                         auto& component = GetComponent<ColliderComponent>(entity);
                         if (!component.Visible) continue;
-                        UUID bodyID = component.BodyID;
-                        PhysTransform pt = PhysicsSystem::GetPhysTransform(bodyID);
+                        BodyHandle handle = component.Handle;
+                        PhysTransform pt = PhysicsSystem::GetPhysTransform(handle);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);
                         if (component.Shape == ColliderShape::Sphere)

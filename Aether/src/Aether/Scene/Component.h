@@ -131,17 +131,17 @@ namespace Aether {
 
     struct ColliderComponent
     {
-        UUID BodyID;
+        BodyHandle Handle;
         bool Visible = false;
         glm::vec3 ColliderOffset;
         ColliderShape Shape;
         glm::vec3 Size; // box: halfx, halfy, halfz --- capsule: radius, height, __ --- sphere: radius, __, __
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
-        ColliderComponent(const UUID& id, bool visible = false)
-            : BodyID(id), Visible(visible)
+        ColliderComponent(const BodyHandle& handle, bool visible = false)
+            : Handle(handle), Visible(visible)
         {
-            auto it = PhysicsSystem::GetBodyInfo(BodyID);
+            auto it = PhysicsSystem::GetBodyInfo(Handle);
             if (it == nullptr) return;
             auto& info = *it;
             ColliderOffset = info.offset;
