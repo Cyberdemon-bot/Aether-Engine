@@ -65,8 +65,7 @@ namespace Aether {
         struct OzzSkeleton
         {
             ozz::unique_ptr<ozz::animation::Skeleton> skeleton;
-            std::vector<int> ibmRemap;
-            std::vector<glm::mat4> IBM;
+            std::vector<glm::mat4> orderedIBMs;
         };
 
         struct OzzClip

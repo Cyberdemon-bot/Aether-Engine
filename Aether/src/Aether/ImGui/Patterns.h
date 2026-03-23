@@ -201,9 +201,7 @@ namespace Aether::UI
     //  UI::TransformInspector(scene, selected, &physBodyID);
     // =========================================================================
 
-    inline void TransformInspector(Scene& scene,
-                                   Entity selected,
-                                   UUID*  physBodyID = nullptr)
+    inline void TransformInspector(Scene& scene, Entity selected)
     {
         if (selected == Null_Entity || !scene.IsValid(selected))
         {
@@ -216,13 +214,6 @@ namespace Aether::UI
 
         TextColored(Color::Green(), "%s", tag.Tag.c_str());
         Spacing();
-
-        if (TRS(t))
-        {
-            if (physBodyID && *physBodyID != 0)
-                Aether::PhysicsSystem::SetPhysTransform(*physBodyID,
-                    { t.Translation, t.Rotation });
-        }
 
         Spacing();
         if (Button("Reset Transform"))
@@ -335,7 +326,7 @@ namespace Aether::UI
         std::string  label;
         bool&        enabled;
         bool         isDynamic;
-        UUID bodyID;
+        BodyHandle   bodyHandle;
     };
 
     inline void PhysicsBodyList(std::vector<PhysBodyEntry>& entries)
@@ -345,7 +336,7 @@ namespace Aether::UI
         {
             auto guard = ID(e.label.c_str());
             if (Checkbox(e.label.c_str(), e.enabled))
-                PhysicsSystem::SetActive(e.bodyID, e.enabled);
+                PhysicsSystem::SetActive(e.bodyHandle, e.enabled);
         }
     }
 

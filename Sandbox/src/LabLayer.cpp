@@ -129,7 +129,7 @@ void LabLayer::Attach()
 void LabLayer::Detach()
 {
     for (auto& [entity, entry] : m_PhysicsBodies)
-        Aether::PhysicsSystem::DestroyBody(entry.bodyID);
+        Aether::PhysicsSystem::DestroyBody(entry.handle);
     m_PhysicsBodies.clear();
 
     m_ShadowShader.reset();
@@ -251,27 +251,26 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID 
     config.friction    = 0.5f;
     config.restitution = 0.3f;
 
-    Aether::UUID bodyID;
-    Aether::PhysicsSystem::CreateBody(bodyID, config);
+    const auto& handle = Aether::PhysicsSystem::CreateBody(config);
 
     if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
-        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, bodyID, true);
+        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, handle, true);
     else
     {
         auto& col          = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
-        col.BodyID         = bodyID;
+        col.Handle         = handle;
         col.ColliderOffset = localOffset;
     }
 
     PhysicsEntry entry;
-    entry.bodyID     = bodyID;
+    entry.handle     = handle;
     entry.enabled    = false;
     entry.lastActive = false;
     entry.isDynamic  = isDynamic;
     m_PhysicsBodies[transformEntity] = entry;
 
     if (isDynamic)
-        Aether::PhysicsSystem::SetActive(bodyID, false);
+        Aether::PhysicsSystem::SetActive(handle, false);
 }
 
 // =============================================================================
@@ -292,7 +291,7 @@ void LabLayer::Update(Aether::Timestep ts)
     {
         if (entry.enabled != entry.lastActive)
         {
-            Aether::PhysicsSystem::SetActive(entry.bodyID, entry.enabled);
+            Aether::PhysicsSystem::SetActive(entry.handle, entry.enabled);
             entry.lastActive = entry.enabled;
         }
     }
@@ -403,7 +402,7 @@ void LabLayer::DrawScenePanel()
                 auto  g   = UI::ID((int)(uint64_t)entity);
                 auto& tag = m_Scene.GetComponent<TagComponent>(entity);
                 if (UI::Checkbox(tag.Tag.c_str(), entry.enabled))
-                    PhysicsSystem::SetActive(entry.bodyID, entry.enabled);
+                    PhysicsSystem::SetActive(entry.handle, entry.enabled);
             }
 
             UI::Separator();
@@ -428,14 +427,14 @@ void LabLayer::DrawScenePanel()
                 UI::DragXYZ("Force",    m_ForceInput,    0.5f);
                 UI::SameLine();
                 if (UI::Button("Apply Force"))
-                    PhysicsSystem::AddForce(physIt->second.bodyID, m_ForceInput);
+                    PhysicsSystem::AddForce(physIt->second.handle, m_ForceInput);
                 UI::SameLine();
                 if (UI::SmallButton("X##force")) m_ForceInput = glm::vec3(0.0f);
 
                 UI::DragXYZ("Velocity", m_VelocityInput, 0.5f);
                 UI::SameLine();
                 if (UI::Button("Set Velocity"))
-                    PhysicsSystem::SetVelocity(physIt->second.bodyID, m_VelocityInput);
+                    PhysicsSystem::SetVelocity(physIt->second.handle, m_VelocityInput);
                 UI::SameLine();
                 if (UI::SmallButton("X##vel")) m_VelocityInput = glm::vec3(0.0f);
             }
@@ -454,13 +453,7 @@ void LabLayer::DrawScenePanel()
         // ---- Transform ------------------------------------------------------
         if (auto h = UI::Header("Transform"))
         {
-            // Resolve optional physics body pointer for physics sync
-            UUID* physBodyPtr = nullptr;
-            auto it = m_PhysicsBodies.find(m_SelectedEntity);
-            if (it != m_PhysicsBodies.end())
-                physBodyPtr = &it->second.bodyID;
-
-            UI::TransformInspector(m_Scene, m_SelectedEntity, physBodyPtr);
+            UI::TransformInspector(m_Scene, m_SelectedEntity);
         }
     }
 }

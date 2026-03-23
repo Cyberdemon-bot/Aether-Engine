@@ -52,7 +52,7 @@ private:
     Aether::UUID   m_RunAnimation   = 0;
     float          m_PlayerSpeed    = 10.0f;
     bool           m_IsPlayerMoving = false;
-    Aether::UUID   m_PlayerBodyID   = 0;
+    Aether::BodyHandle   m_PlayerBodyHandle{};
 
     float m_bobSpeed    = 6.0f;
     float m_bobStrength = 0.1f;
@@ -66,7 +66,7 @@ private:
     // --- Zombies ---
     struct ZombieRecord {
         Aether::UUID animatorID = 0;
-        Aether::UUID bodyID     = 0;
+        Aether::BodyHandle bodyHandle{};
     };
 
     Aether::RegisteredScene                    m_ZombieSceneData;

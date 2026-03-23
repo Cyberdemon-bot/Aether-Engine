@@ -20,14 +20,14 @@ namespace Aether {
             s_PhysicsAPI->Update(ts);
         }
 
-        static void CreateBody(UUID bodyID, const BodyConfig& config)
+        static BodyHandle CreateBody(const BodyConfig& config)
         {
-            s_PhysicsAPI->CreateBody(bodyID, config);
+            return s_PhysicsAPI->CreateBody(config);
         }
 
-        static void DestroyBody(UUID bodyID)
+        static void DestroyBody(BodyHandle handle)
         {
-            s_PhysicsAPI->DestroyBody(bodyID);
+            s_PhysicsAPI->DestroyBody(handle);
         }
 
         static RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
@@ -40,29 +40,39 @@ namespace Aether {
             return s_PhysicsAPI->CastRayAll(origin, direction, distance);
         }
 
-        static void SetActive(UUID bodyID, bool active)
+        static void SetActive(BodyHandle handle, bool active)
         {
-            s_PhysicsAPI->SetActive(bodyID, active);
+            s_PhysicsAPI->SetActive(handle, active);
+        }
+
+        static void SetUUID(BodyHandle handle, UUID id)
+        {
+            s_PhysicsAPI->SetUUID(handle, id);
+        }
+
+        static UUID GetUUID(BodyHandle handle)
+        {
+            return s_PhysicsAPI->GetUUID(handle);
         }
         
-        static void SetPhysTransform(UUID bodyID, const PhysTransform& transform)
+        static void SetPhysTransform(BodyHandle handle, const PhysTransform& transform)
         {
-            s_PhysicsAPI->SetPhysTransform(bodyID, transform);
+            s_PhysicsAPI->SetPhysTransform(handle, transform);
         }
 
-        static PhysTransform GetPhysTransform(UUID bodyID)
+        static PhysTransform GetPhysTransform(BodyHandle handle)
         {
-            return s_PhysicsAPI->GetPhysTransform(bodyID);
+            return s_PhysicsAPI->GetPhysTransform(handle);
         }
 
-        static void AddForce(UUID bodyID, const glm::vec3& force)
+        static void AddForce(BodyHandle handle, const glm::vec3& force)
         {
-            s_PhysicsAPI->AddForce(bodyID, force);
+            s_PhysicsAPI->AddForce(handle, force);
         }
 
-        static void SetVelocity(UUID bodyID, const glm::vec3& velocity)
+        static void SetVelocity(BodyHandle handle, const glm::vec3& velocity)
         {
-            s_PhysicsAPI->SetVelocity(bodyID, velocity);
+            s_PhysicsAPI->SetVelocity(handle, velocity);
         }
 
         static void SetGravity(const glm::vec3& gravity)
@@ -70,14 +80,14 @@ namespace Aether {
             s_PhysicsAPI->SetGravity(gravity);
         }
 
-        static bool CanMove(UUID bodyID, const PhysTransform& target)
+        static bool CanMove(BodyHandle handle, const PhysTransform& target)
         {
-            return s_PhysicsAPI->CanMove(bodyID, target);
+            return s_PhysicsAPI->CanMove(handle, target);
         }
 
-        static const BodyConfig* GetBodyInfo(UUID bodyID)
+        static const BodyConfig* GetBodyInfo(BodyHandle handle)
         {
-            return s_PhysicsAPI->GetBodyInfo(bodyID);
+            return s_PhysicsAPI->GetBodyInfo(handle);
         }
     
     private:

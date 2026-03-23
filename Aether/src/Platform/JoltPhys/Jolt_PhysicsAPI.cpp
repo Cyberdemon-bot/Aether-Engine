@@ -155,9 +155,10 @@ namespace Aether {
         m_PhysicsSystem->Update(deltaTime, CollisionSteps, m_TempAllocator, m_JobSystem);
     }
 
-    void Jolt_PhysicsAPI::CreateBody(UUID bodyID, const BodyConfig& config)
+    BodyHandle Jolt_PhysicsAPI::CreateBody(const BodyConfig& config)
     {
-        if (!m_PhysicsSystem) return;
+        BodyHandle handle{};
+        if (!m_PhysicsSystem) return handle;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
         JPH::ShapeRefC shape;
         JPH::ShapeSettings::ShapeResult result;
@@ -190,21 +191,21 @@ namespace Aether {
             case ColliderShape::None:
             {
                 AE_CORE_ERROR("Cannot create body with no shape");
-                return;
+                return handle;
             }
         }
         if (result.HasError())
         {
             AE_CORE_ERROR("Jolt Physics Error: {0}", result.GetError().c_str());
-            return;
+            return handle;
         }
 
         shape = result.Get();
 
         if (!shape) 
         {
-            AE_CORE_ERROR("Fail to identify shape for body {0}", (uint64_t)bodyID);
-            return;
+            AE_CORE_ERROR("Fail to identify shape for body");
+            return handle;
         }
 
         auto& trans = config.transform.translation;
@@ -243,7 +244,7 @@ namespace Aether {
             case MotionType::None:
             {
                 AE_CORE_ERROR("Cannot create body with no motion type");
-                return;
+                return handle;
             }
         }
         JPH::BodyCreationSettings bodyInfo(shape, translation, rotation, motionType, objectLayer);
@@ -251,7 +252,7 @@ namespace Aether {
         bodyInfo.mRestitution = config.restitution;
         bodyInfo.mFriction = config.friction;
         bodyInfo.mIsSensor = config.isSensor;
-        bodyInfo.mUserData = static_cast<uint64_t>(bodyID);
+        //bodyInfo.mUserData = static_cast<uint64_t>(bodyID);
 
         if (motionType == JPH::EMotionType::Dynamic) 
         {
@@ -260,24 +261,43 @@ namespace Aether {
         JPH::Body* body = bodyInterface.CreateBody(bodyInfo);
         if (!body)
         {
-            AE_CORE_ERROR("Fail to create body {0}", (uint64_t)bodyID);
-            return;
+            AE_CORE_ERROR("Fail to create body");
+            return handle;
         }
-        m_Bodies[bodyID] = {body->GetID(), config};
         bodyInterface.AddBody(body->GetID(), JPH::EActivation::Activate);
+
+        int index;
+        if (!FreeList.empty())
+        {
+            index = FreeList.back();
+            FreeList.pop_back();
+        }
+        else
+        {
+            index = m_Bodies.size();
+            m_Bodies.emplace_back();
+            m_IDList.emplace_back();
+        }
+        BodySlot& slot = m_Bodies[index];
+        slot.data = {body->GetID(), config};
+        handle.index = index;
+        handle.generation = slot.generation;
+        uint32_t a = handle.index;
+        uint32_t b = handle.generation;
+        uint64_t id = ((uint64_t)a << 32) | (uint64_t)b;
+        body->SetUserData(static_cast<uint64_t>(id));
+        m_IDList[index] = UUID(0);
+        return handle;
     }
 
-    const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(UUID bodyID) const
+    const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(BodyHandle handle) const
     {
         if (!m_PhysicsSystem) return nullptr;
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return nullptr;
-        }
+        if (handle.index >= m_Bodies.size()) return nullptr;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return nullptr;
 
-        return &it->second.bodyInfo;
+        return &slot.data.bodyInfo;
     }
 
     RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
@@ -304,7 +324,10 @@ namespace Aether {
             if (lock.Succeeded())
             {
                 const JPH::Body& body = lock.GetBody();
-                result.HitEntityID = static_cast<UUID>(body.GetUserData()); 
+                uint64_t id = body.GetUserData();
+                int index = static_cast<int>(id >> 32);
+                int generation = static_cast<int>(id & 0xFFFFFFFF);
+                result.HitEntityHandle = {index, generation};
 
                 JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
@@ -341,7 +364,10 @@ namespace Aether {
             if (lock.Succeeded())
             {
                 const JPH::Body& body = lock.GetBody();
-                res.HitEntityID = static_cast<UUID>(body.GetUserData()); 
+                uint64_t id = body.GetUserData();
+                int index = static_cast<int>(id >> 32);
+                int generation = static_cast<int>(id & 0xFFFFFFFF);
+                res.HitEntityHandle = {index, generation};
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
                 res.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
@@ -354,12 +380,13 @@ namespace Aether {
         return results;
     }
 
-    bool Jolt_PhysicsAPI::CanMove(UUID bodyID, const PhysTransform& target)
+    bool Jolt_PhysicsAPI::CanMove(BodyHandle handle, const PhysTransform& target)
     {
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end()) return false;
+        if (handle.index >= m_Bodies.size()) return false;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return false;
 
-        JPH::BodyID joltID = it->second.joltID;
+        JPH::BodyID joltID = slot.data.joltID;
 
         JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), joltID);
         if (!lock.Succeeded()) return false;
@@ -406,52 +433,65 @@ namespace Aether {
         return !collector.HadHit();
     }
     
-    void Jolt_PhysicsAPI::SetActive(UUID bodyID, bool active)
+    void Jolt_PhysicsAPI::SetActive(BodyHandle handle, bool active)
     {
         if (!m_PhysicsSystem) return;
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return;
-        }
+        if (handle.index >= m_Bodies.size()) return;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return;
 
-        if (it->second.bodyInfo.motionType == MotionType::Static) return;
+        if (slot.data.bodyInfo.motionType == MotionType::Static) return;
 
-        JPH::BodyID id = it->second.joltID;
+        JPH::BodyID id = slot.data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
         if (active) bodyInterface.ActivateBody(id);
         else bodyInterface.DeactivateBody(id);
     }
 
-    void Jolt_PhysicsAPI::DestroyBody(UUID bodyID)
+    void Jolt_PhysicsAPI::SetUUID(BodyHandle handle, UUID id)
+    {
+        if (!m_PhysicsSystem) return;
+        if (handle.index >= m_Bodies.size()) return;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return;
+        m_IDList[handle.index] = id;
+    }
+
+
+    UUID Jolt_PhysicsAPI::GetUUID(BodyHandle handle) 
+    {
+        if (!m_PhysicsSystem) return 0;
+        if (handle.index >= m_Bodies.size()) return 0;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return 0;
+        return m_IDList[handle.index];
+    }
+
+    void Jolt_PhysicsAPI::DestroyBody(BodyHandle handle)
     {
         if (!m_PhysicsSystem) return;   
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return;
-        }
+        if (handle.index >= m_Bodies.size()) return;
+        BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return;
 
-        JPH::BodyID id = it->second.joltID;
+        JPH::BodyID id = slot.data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         bodyInterface.RemoveBody(id);
         bodyInterface.DestroyBody(id);
-        m_Bodies.erase(it);
+        
+        slot.generation++;
+        FreeList.push_back(handle.index);
     }
 
-    void Jolt_PhysicsAPI::SetPhysTransform(UUID bodyID, const PhysTransform& transform)
+    void Jolt_PhysicsAPI::SetPhysTransform(BodyHandle handle, const PhysTransform& transform)
     {
         if (!m_PhysicsSystem) return;
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return;
-        }
-        JPH::BodyID id = it->second.joltID;
+        if (handle.index >= m_Bodies.size()) return;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return;
+
+        JPH::BodyID id = slot.data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         JPH::Vec3 pos(transform.translation.x, transform.translation.y, transform.translation.z);
@@ -460,17 +500,15 @@ namespace Aether {
         bodyInterface.SetPositionAndRotation(id, pos, rot, JPH::EActivation::Activate);
     }
 
-    PhysTransform Jolt_PhysicsAPI::GetPhysTransform(UUID bodyID) const
+    PhysTransform Jolt_PhysicsAPI::GetPhysTransform(BodyHandle handle) const
     {
         PhysTransform transform{};
         if (!m_PhysicsSystem) return transform;
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return transform;
-        }
-        JPH::BodyID id = it->second.joltID;
+        if (handle.index >= m_Bodies.size()) return transform;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return transform;
+
+        JPH::BodyID id = slot.data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         JPH::Vec3 pos = bodyInterface.GetPosition(id);
@@ -482,32 +520,28 @@ namespace Aether {
         return transform;
     }
 
-    void Jolt_PhysicsAPI::AddForce(UUID bodyID, const glm::vec3& force)
+    void Jolt_PhysicsAPI::AddForce(BodyHandle handle, const glm::vec3& force)
     {
         if (!m_PhysicsSystem) return;
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return;
-        }
-        JPH::BodyID id = it->second.joltID;
+        if (handle.index >= m_Bodies.size()) return;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return;
+
+        JPH::BodyID id = slot.data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         JPH::Vec3 joltForce(force.x, force.y, force.z);
         bodyInterface.AddForce(id, joltForce, JPH::EActivation::Activate);
     }
 
-    void Jolt_PhysicsAPI::SetVelocity(UUID bodyID, const glm::vec3& velocity)
+    void Jolt_PhysicsAPI::SetVelocity(BodyHandle handle, const glm::vec3& velocity)
     {
         if (!m_PhysicsSystem) return;
-        auto it = m_Bodies.find(bodyID);
-        if (it == m_Bodies.end())
-        {
-            AE_CORE_ERROR("Body ID {0} is not exits", (uint64_t)bodyID);
-            return;
-        }
-        JPH::BodyID id = it->second.joltID;
+        if (handle.index >= m_Bodies.size()) return;
+        const BodySlot& slot = m_Bodies[handle.index];
+        if (slot.generation != handle.generation) return;
+
+        JPH::BodyID id = slot.data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         JPH::Vec3 joltVel(velocity.x, velocity.y, velocity.z);

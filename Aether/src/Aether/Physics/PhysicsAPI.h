@@ -29,13 +29,21 @@ namespace Aether {
         glm::quat rotation;
     };
 
+    struct BodyHandle
+    {
+        int index = -1, generation = -1;
+
+        bool IsValid() const { return index >= 0 && generation >= 0; }
+        void MakeInvalid() { index = -1, generation = -1; }
+    };
+
     struct RaycastHit
     {
         bool Hit = false;
         glm::vec3 Position{0.0f}; 
         glm::vec3 Normal{0.0f};  
         float Distance = 0.0f;    
-        UUID HitEntityID = 0;    
+        BodyHandle HitEntityHandle;
     };
 
     struct BodyConfig
@@ -65,22 +73,24 @@ namespace Aether {
         virtual void Shutdown() = 0;
         virtual void Update(Timestep ts) = 0;
 
-        virtual void CreateBody(UUID bodyID, const BodyConfig& config) = 0;
-        virtual void DestroyBody(UUID bodyID) = 0;
+        virtual BodyHandle CreateBody(const BodyConfig& config) = 0;
+        virtual void DestroyBody(BodyHandle handle) = 0;
 
-        virtual const BodyConfig* GetBodyInfo(UUID bodyID) const = 0;
+        virtual const BodyConfig* GetBodyInfo(BodyHandle handle) const = 0;
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
-        virtual bool CanMove(UUID bodyID, const PhysTransform& target) = 0;
+        virtual bool CanMove(BodyHandle handle, const PhysTransform& target) = 0;
 
-        virtual void SetActive(UUID bodyID, bool active) = 0;
+        virtual void SetActive(BodyHandle handle, bool active) = 0;
+        virtual void SetUUID(BodyHandle handle, UUID id) = 0;
+        virtual UUID GetUUID(BodyHandle handle) = 0;
         
-        virtual void SetPhysTransform(UUID bodyID, const PhysTransform& transform) = 0;
-        virtual PhysTransform GetPhysTransform(UUID bodyID) const = 0;
+        virtual void SetPhysTransform(BodyHandle handle, const PhysTransform& transform) = 0;
+        virtual PhysTransform GetPhysTransform(BodyHandle handle) const = 0;
 
-        virtual void AddForce(UUID bodyID, const glm::vec3& force) = 0;
-        virtual void SetVelocity(UUID bodyID, const glm::vec3& velocity) = 0;
+        virtual void AddForce(BodyHandle handle, const glm::vec3& force) = 0;
+        virtual void SetVelocity(BodyHandle handle, const glm::vec3& velocity) = 0;
         virtual void SetGravity(const glm::vec3& gravity) = 0;
 
         static Scope<PhysicsAPI> Create();

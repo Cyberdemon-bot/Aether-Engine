@@ -37,11 +37,11 @@ namespace Aether {
                 index = instance.m_Resources.size();
                 instance.m_Resources.emplace_back();
             }
-            ResourceSlot& res = instance.m_Resources[index];
-            res.asset = T::CreateImpl(std::forward<Args>(args)...);
+            ResourceSlot& slot = instance.m_Resources[index];
+            slot.asset = T::CreateImpl(std::forward<Args>(args)...);
             ResourceHandle handle;
             handle.index = index;
-            handle.generation = res.generation;
+            handle.generation = slot.generation;
             return handle;
         }
 
@@ -50,9 +50,9 @@ namespace Aether {
         {
             auto& instance = GetInstance();
             if (handle.index >= instance.m_Resources.size()) return nullptr;
-            ResourceSlot& res = instance.m_Resources[handle.index];
-            if (res.generation != handle.generation) return nullptr;
-            return static_cast<T*>(res.asset.get());
+            ResourceSlot& slot = instance.m_Resources[handle.index];
+            if (slot.generation != handle.generation) return nullptr;
+            return static_cast<T*>(slot.asset.get());
         }
         
     private:

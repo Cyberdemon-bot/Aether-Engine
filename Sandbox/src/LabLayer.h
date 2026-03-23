@@ -71,7 +71,7 @@ private:
     // Physics
     struct PhysicsEntry
     {
-        Aether::UUID bodyID;
+        Aether::BodyHandle handle;
         bool         enabled    = false;
         bool         lastActive = false;
         bool         isDynamic  = true;

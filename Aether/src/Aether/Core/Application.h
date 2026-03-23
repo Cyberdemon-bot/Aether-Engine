@@ -30,11 +30,11 @@ namespace Aether {
         bool OnWindowClose(WindowCloseEvent& e);
         static Application* s_Instance;
         bool m_Running = true;
+        Scope<Window> m_Window; 
         LayerStack m_LayerStack;
         float m_LastFrameTime = 0.0f;
         ImGuiLayer* m_ImGuiLayer;
         ConsoleLayer* m_Console;
-        Scope<Window> m_Window;
     };
 
     Application* CreateApplication();

@@ -46,19 +46,20 @@ namespace Aether {
             data.DebugName, ozzSkeleton.skeleton->num_joints());
 
         const auto& jointNames = ozzSkeleton.skeleton->joint_names();
-        ozzSkeleton.ibmRemap.resize(jointNames.size());
-        for (int ozzIdx = 0; ozzIdx < (int)jointNames.size(); ozzIdx++)
+        int numJoints = jointNames.size();
+
+        ozzSkeleton.orderedIBMs.resize(numJoints, glm::mat4(1.0f));
+        for (int ozzIdx = 0; ozzIdx < numJoints; ozzIdx++)
         {
             for (int origIdx = 0; origIdx < (int)data.Joints.size(); origIdx++)
             {
                 if (data.Joints[origIdx].Name == jointNames[ozzIdx])
                 {
-                    ozzSkeleton.ibmRemap[ozzIdx] = origIdx;
+                    ozzSkeleton.orderedIBMs[ozzIdx] = data.IBM[origIdx];
                     break;
                 }
             }
         }
-        ozzSkeleton.IBM = std::move(data.IBM);
         
         m_Skeletons[id] = std::move(ozzSkeleton);
     }
@@ -533,20 +534,11 @@ namespace Aether {
         }
 
         ConvertOzzMatricesToGlm(animator.modelMatrices, animator.finalMatrices);
-        const auto& ibms = rigIt->second.IBM;
+        const auto& orderedIBMs = rigIt->second.orderedIBMs;
         int numJoints = (int)animator.modelMatrices.size();
-        if (ibms.size() != numJoints)
-        {
-            AE_CORE_ERROR("IBM count mismatch! IBMs: {0}, Joints: {1}", 
-                ibms.size(), numJoints);
-            animator.dirty = false;
-            return;  
-        }
+
         for (int i = 0; i < numJoints; ++i)
-        {
-            int origIdx = rigIt->second.ibmRemap[i];
-            animator.finalMatrices[i] = animator.finalMatrices[i] * ibms[origIdx];
-        }
+            animator.finalMatrices[i] = animator.finalMatrices[i] * orderedIBMs[i];
         
         animator.dirty = false;
     }
