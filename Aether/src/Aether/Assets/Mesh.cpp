@@ -84,6 +84,12 @@ namespace Aether {
         }
     }
 
+    void Mesh::UploadMesh()
+    {
+        auto* vao = ResourceManager::GetResource<VertexArray>(m_VertexArray);
+        vao->Bind();
+    }
+
     void Mesh::CalculateAnimatedBounds(
         const void* positions, const BufferLayout& posLayout,
         const void* joints,    const BufferLayout& jointLayout,

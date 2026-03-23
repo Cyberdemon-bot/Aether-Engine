@@ -78,6 +78,31 @@ namespace Aether {
 		std::vector<glm::mat4> static_obj;
 	};
 
+
+	struct Command
+	{
+		Mesh* mesh;
+		Material* material;
+		uint32_t subIdx;
+		UUID animator = UUID(0);
+		glm::mat4 transform;
+
+		bool operator<(const Command& other) const
+		{
+			bool thisAnimated  = (uint64_t)animator  != 0;
+			bool otherAnimated = (uint64_t)other.animator != 0;
+			if (thisAnimated != otherAnimated) return thisAnimated > otherAnimated;
+			if (material != other.material) return material < other.material;
+			if (mesh != other.mesh) return mesh < other.mesh;
+			return subIdx < other.subIdx;
+		}
+
+		bool operator!=(const Command& other) const
+		{
+			return (mesh != other.mesh) || (material != other.material);
+		}
+	};
+
 	struct RenderPass
 	{
 		FrameBuffer* TargetFBO;
@@ -133,7 +158,7 @@ namespace Aether {
 		{
 			CameraData camera;
 			LightsData lights;
-			std::map<RenderKey, BatchData> s_RenderBatches;
+			std::vector<Command> CommandList;
 		};
 
 		struct RenderData

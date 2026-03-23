@@ -170,7 +170,7 @@ namespace Aether {
 			}
 		}
 		if (mainPass) RenderOnScreen(*mainPass);
-		s_SceneData->s_RenderBatches.clear();
+		s_SceneData->CommandList.clear();
 		s_SceneData->lights.lightCount = 0;
 	}
 
@@ -229,14 +229,13 @@ namespace Aether {
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{
 			if (submeshes[i].MaterialIdx >= materials.size()) continue;
-			RenderKey key;
-			key.mesh     = mesh;
-			key.subIdx   = i;
-			key.material = materials[submeshes[i].MaterialIdx];
-			if (!key.material) continue;
-
-			if (animatorID == UUID(0)) s_SceneData->s_RenderBatches[key].static_obj.push_back(transform);
-			else                       s_SceneData->s_RenderBatches[key].dynamic_obj.push_back({transform, animatorID});
+			Command command;
+			command.mesh = mesh;
+			command.material = materials[submeshes[i].MaterialIdx];
+			command.subIdx = i;
+			command.animator = animatorID;
+			command.transform = transform;
+			s_SceneData->CommandList.push_back(command);
 		}
 	}
 
@@ -244,16 +243,22 @@ namespace Aether {
 	{
 		auto& pass = s_RenderData->s_PassList[passIdx];
 		for (auto& attrib : pass.attribList)
-			if (attrib.first == name) attrib.second = value;
+			if (attrib.first == name) { attrib.second = value; return; }
+		pass.attribList.emplace_back(name, value);
 	}
 
 	void Renderer::Flush(const RenderPass& pass)
 	{
-		Mesh*     currentMesh     = nullptr;
+		Mesh* currentMesh     = nullptr;
 		Material* currentMaterial = nullptr;
-		UUID      currentAnimatorID = 0;
-		int       startSlot = 0;
+		UUID currentAnimator = UUID(0);
+		int startSlot = 0;
 
+		if (!pass.Shader || !pass.TargetFBO)
+		{
+			AE_CORE_ERROR("RenderPass has null Shader or TargetFBO — skipping.");
+			return;
+		}
 		auto* shader     = pass.Shader;    shader->Bind();
 		auto* fbo        = pass.TargetFBO; fbo->Bind();
 		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray());
@@ -287,66 +292,83 @@ namespace Aether {
 		if (pass.UsingGeometry)
 		{
 			auto skelSystem = AnimationSystem::GetModule<RigModule>();
-			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
+			auto& CommandList = s_SceneData->CommandList;
+			sort(CommandList.begin(), CommandList.end());
+			for(size_t i = 0; i < CommandList.size() && (uint64_t)CommandList[i].animator != 0; i++)
 			{
-				std::sort(transforms.dynamic_obj.begin(), transforms.dynamic_obj.end(),
-					[](const std::pair<glm::mat4, UUID>& a, const std::pair<glm::mat4, UUID>& b) { return a.second < b.second; });
-				for (const auto& transform : transforms.dynamic_obj) skelSystem->RequestMatrices(transform.second);
-				skelSystem->ProcessRequests();
+				auto& animator = CommandList[i].animator;
+				skelSystem->RequestMatrices(animator);
+			}
+			skelSystem->ProcessRequests();
+
+			if (!CommandList.empty() && CommandList[0].animator != 0)
+			{
+				shader->SetInt("u_UseInstancing", 0);
+				shader->SetInt("u_HasAnimation",  1);
+			}
+			else
+			{
+				shader->SetInt("u_UseInstancing", 1);
+				shader->SetInt("u_HasAnimation",  0);
 			}
 
-			for (auto& [key, transforms] : s_SceneData->s_RenderBatches)
+			std::vector<glm::mat4> batchTransform;
+			for (size_t i = 0; i < CommandList.size(); i++)
 			{
-				auto* material = key.material;
+				auto& command = CommandList[i];
+				auto* material = command.material;
+				auto* mesh = command.mesh;
+				if (!material || !mesh) continue; 
+				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];
+				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
+
 				if (currentMaterial != material && pass.UsingMaterial)
 				{
 					material->UploadMaterial(shader, startSlot);
 					currentMaterial = material;
 				}
 
-				auto* mesh = key.mesh;
-				auto* vao  = ResourceManager::GetResource<VertexArray>(mesh->GetVertexArray());
-				if (currentMesh != key.mesh)
+				if (currentMesh != mesh)
 				{
-					vao->Bind();
-					currentMesh = key.mesh;
+					mesh->UploadMesh();
+					currentMesh = mesh;
 				}
-				const auto& submesh     = mesh->GetSubMeshes()[key.subIdx];
-				void*       indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
 
-				if (!transforms.dynamic_obj.empty())
+				if (command.animator != UUID(0))
 				{
-					shader->SetInt("u_UseInstancing", 0);
-					shader->SetInt("u_HasAnimation",  1);
-
-					for (const auto& transform : transforms.dynamic_obj)
+					if (currentAnimator != command.animator)
 					{
-						shader->SetMat4("u_Model", transform.first);
-						if (currentAnimatorID != transform.second)
+						currentAnimator = command.animator;
+						const auto& boneMatrices = skelSystem->GetMatrices(command.animator);
+						if (!boneMatrices.empty())
+							ResourceManager::GetResource<UniformBuffer>(s_RenderData->BoneUB)
+								->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
+					}
+					shader->SetMat4("u_Model", command.transform);
+					RenderCommand::DrawIndexedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex);
+					batchTransform.clear();
+				}
+				else
+				{
+					batchTransform.push_back(command.transform);
+					if (currentAnimator != UUID(0))
+					{
+						shader->SetInt("u_UseInstancing", 1);
+						shader->SetInt("u_HasAnimation",  0);
+						currentAnimator = UUID(0);
+					}
+					if ((i == CommandList.size() - 1) || (command != CommandList[i + 1]))
+					{
+						uint32_t dataSize = batchTransform.size() * sizeof(glm::mat4);
+						if (instanceVBO->GetSize() < dataSize)
 						{
-							const auto& boneMatrices = skelSystem->GetMatrices(transform.second);
-							if (!boneMatrices.empty())
-								ResourceManager::GetResource<UniformBuffer>(s_RenderData->BoneUB)
-									->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
-							currentAnimatorID = transform.second;
+							uint32_t newSize = dataSize * 2;
+							instanceVBO->Resize(newSize);
 						}
-						RenderCommand::DrawIndexedBaseVertex(vao, submesh.IndexCount, indexOffset, submesh.BaseVertex);
+						instanceVBO->SetData(batchTransform.data(), dataSize, 0);
+						RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, batchTransform.size());
+						batchTransform.clear();
 					}
-				}
-
-				if (!transforms.static_obj.empty())
-				{
-					shader->SetInt("u_UseInstancing", 1);
-					shader->SetInt("u_HasAnimation",  0);
-
-					uint32_t dataSize = transforms.static_obj.size() * sizeof(glm::mat4);
-					if (instanceVBO->GetSize() < dataSize)
-					{
-						uint32_t newSize = dataSize * 2;
-						instanceVBO->Resize(newSize);
-					}
-					instanceVBO->SetData(transforms.static_obj.data(), dataSize, 0);
-					RenderCommand::DrawInstancedBaseVertex(vao, submesh.IndexCount, indexOffset, submesh.BaseVertex, transforms.static_obj.size());
 				}
 			}
 		}
@@ -612,6 +634,7 @@ namespace Aether {
 		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 		if (std::abs(light.direction.y) > 0.999f) up = glm::vec3(0.0f, 0.0f, 1.0f);
 
+		// First pass: compute world-space AABB of frustum corners to derive a stable light position
 		float minX = std::numeric_limits<float>::max();
 		float maxX = std::numeric_limits<float>::lowest();
 		float minY = std::numeric_limits<float>::max();
@@ -619,10 +642,32 @@ namespace Aether {
 		float minZ = std::numeric_limits<float>::max();
 		float maxZ = std::numeric_limits<float>::lowest();
 
+		// Build a temporary view from the center so we can measure frustum extents
+		glm::vec3 lightPos = center - glm::normalize(light.direction);
+		view = glm::lookAt(lightPos, center, up);
+		for (const auto& v : frustumCorners)
+		{
+			glm::vec4 trf = view * v;
+			minX = std::min(minX, trf.x);
+			maxX = std::max(maxX, trf.x);
+			minY = std::min(minY, trf.y);
+			maxY = std::max(maxY, trf.y);
+			minZ = std::min(minZ, trf.z);
+			maxZ = std::max(maxZ, trf.z);
+		}
+
+		// Now we have real extents — compute a proper radius and rebuild view
 		float radius = glm::distance(glm::vec3(maxX, maxY, maxZ), glm::vec3(minX, minY, minZ)) / 2.0f;
-		glm::vec3 lightPos = center - (glm::normalize(light.direction) * radius);
+		lightPos = center - (glm::normalize(light.direction) * radius);
 		view = glm::lookAt(lightPos, center, up);
 
+		// Second pass: recompute tight AABB in the correct light space
+		minX = std::numeric_limits<float>::max();
+		maxX = std::numeric_limits<float>::lowest();
+		minY = std::numeric_limits<float>::max();
+		maxY = std::numeric_limits<float>::lowest();
+		minZ = std::numeric_limits<float>::max();
+		maxZ = std::numeric_limits<float>::lowest();
 		for (const auto& v : frustumCorners)
 		{
 			glm::vec4 trf = view * v;

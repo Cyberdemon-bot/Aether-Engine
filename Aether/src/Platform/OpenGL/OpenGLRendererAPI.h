@@ -17,7 +17,7 @@ namespace Aether {
 		virtual void ClearColor() override;
 		virtual void ClearDepth() override;
 
-		virtual void DrawIndexed(VertexArray* vertexArray, uint32_t indexCount = 0) override;
+		virtual void DrawIndexed(VertexArray* vertexArray, uint32_t indexCount) override;
 		virtual void DrawInstanced(VertexArray* vertexArray, uint32_t instanceCount) override;
 		virtual void DrawLines(VertexArray* vertexArray, uint32_t vertexCount) override;
 		virtual void DrawIndexedLines(VertexArray* vertexArray, uint32_t indexCount) override;

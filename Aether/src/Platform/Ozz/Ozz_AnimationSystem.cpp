@@ -217,6 +217,17 @@ namespace Aether {
         return animIt->second->clipIDs;
     }
 
+    UUID Ozz_AnimationSystem::GetRig(UUID animatorID) const 
+    {
+        auto animIt = m_Animators.find(animatorID);
+        if (animIt == m_Animators.end())
+        {
+            AE_CORE_ERROR("Animator {0} not found", (uint64_t)animatorID);
+            return UUID(0);
+        }
+        return animIt->second->rigID;
+    }
+
     bool Ozz_AnimationSystem::HasAnimator(UUID animatorID) const 
     {
         auto animIt = m_Animators.find(animatorID);

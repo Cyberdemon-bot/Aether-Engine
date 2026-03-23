@@ -59,6 +59,7 @@ namespace Aether {
         virtual uint32_t GetClipCount(UUID animatorID) const override;
         virtual int GetCurrentClipIndex(UUID animatorID) const override;
         virtual std::vector<UUID> GetClips(UUID animatorID) const override;
+        virtual UUID GetRig(UUID animatorID) const override;
 
     private:
         struct OzzSkeleton
