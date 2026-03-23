@@ -45,13 +45,13 @@ namespace Aether
 
 	void OpenGLRendererAPI::DrawIndexedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex)
 	{
-		vertexArray->Bind();
+		if(vertexArray != nullptr) vertexArray->Bind();
 		glDrawElementsBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, baseVertex);
 	}
 
 	void OpenGLRendererAPI::DrawInstancedBaseVertex(VertexArray* vertexArray, uint32_t indexCount, void* indices, int32_t baseVertex, uint32_t instanceCount)
 	{
-		vertexArray->Bind();
+		if(vertexArray != nullptr) vertexArray->Bind();
     	glDrawElementsInstancedBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, indices, instanceCount, baseVertex);
 	}
 
@@ -64,7 +64,6 @@ namespace Aether
 	{
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
-
 	
 	void OpenGLRendererAPI::ClearDepth() 
 	{
@@ -73,27 +72,27 @@ namespace Aether
 
 	void OpenGLRendererAPI::DrawIndexed(VertexArray* vertexArray, uint32_t indexCount)
 	{
-		vertexArray->Bind();
+		if(vertexArray != nullptr) vertexArray->Bind();
 		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexCount();
 		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 	}
 
 	void OpenGLRendererAPI::DrawLines(VertexArray* vertexArray, uint32_t vertexCount)
 	{
-		vertexArray->Bind();
+		if(vertexArray != nullptr) vertexArray->Bind();
 		glDrawArrays(GL_LINES, 0, vertexCount);
 	}
 
 	void OpenGLRendererAPI::DrawIndexedLines(VertexArray* vertexArray, uint32_t indexCount)
 	{
-		vertexArray->Bind();
+		if(vertexArray != nullptr) vertexArray->Bind();
 		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexCount();
 		glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, nullptr);
 	}
 
 	void OpenGLRendererAPI::DrawInstanced(VertexArray* vertexArray, uint32_t instanceCount)
     {
-        vertexArray->Bind();
+		if(vertexArray != nullptr) vertexArray->Bind();
 		uint32_t count = vertexArray->GetIndexCount();
         glDrawElementsInstanced(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr, instanceCount);
     }

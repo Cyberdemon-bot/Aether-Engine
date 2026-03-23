@@ -42,7 +42,6 @@ namespace Aether {
             defaultSubMesh.BaseIndex   = 0;
             defaultSubMesh.VertexCount = m_VertexCount;
             defaultSubMesh.IndexCount  = spec.IndexCount;
-            defaultSubMesh.NodeName    = "Default";
             m_SubMeshes.push_back(defaultSubMesh);
         }
 
@@ -82,6 +81,12 @@ namespace Aether {
             m_BoundsMin = glm::min(m_BoundsMin, pos);
             m_BoundsMax = glm::max(m_BoundsMax, pos);
         }
+    }
+
+    void Mesh::UploadMesh()
+    {
+        auto* vao = ResourceManager::GetResource<VertexArray>(m_VertexArray);
+        vao->Bind();
     }
 
     void Mesh::CalculateAnimatedBounds(

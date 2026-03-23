@@ -19,8 +19,6 @@ namespace Aether {
 
         glm::vec3 BoundsMin = glm::vec3(0.0f);
         glm::vec3 BoundsMax = glm::vec3(0.0f);
-
-        std::string NodeName;
         int MaterialIdx = -1;
     };
 
@@ -106,6 +104,7 @@ namespace Aether {
         glm::vec3        GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
         bool HasAnimatedBounds() { return m_HasAnimatedBounds; }
 
+        void UploadMesh();
         static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
 
     private:
