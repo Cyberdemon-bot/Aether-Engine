@@ -177,8 +177,6 @@ namespace Aether {
 			ResourceHandle lineShader;
 
 			std::vector<RenderPass> s_PassList;
-			std::unordered_map<UUID, bool> s_MeshInstanceAssigned;
-			std::unordered_map<Mesh*, bool> s_MeshPtrInstanceAssigned;
 		};
 
 		static Scope<SceneData> s_SceneData;
