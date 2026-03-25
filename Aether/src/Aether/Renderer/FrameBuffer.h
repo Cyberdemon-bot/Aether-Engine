@@ -32,8 +32,8 @@ namespace Aether {
         virtual void BindDepthTexture(uint32_t slot = 0) const = 0;
 		virtual void BindColorTexture(uint32_t slot = 0, uint32_t index = 0) const = 0;
 
-		virtual Ref<Texture2D> GetColorAttachment(uint32_t index = 0) const = 0;
-        virtual Ref<Texture2D> GetDepthAttachment() const = 0;
+		virtual Texture2D* GetColorAttachment(uint32_t index = 0) const = 0;
+        virtual Texture2D* GetDepthAttachment() const = 0;
 
 		virtual const FramebufferSpec& GetSpecification() const = 0;
 
@@ -50,6 +50,12 @@ namespace Aether {
 
 		static Scope<FrameBuffer> CreateImpl(const FramebufferSpec& spec);
 		friend class ResourceManager;
+
+	protected:
+		Scope<Texture2D> CreateTexture(TextureSpec spec) 
+        {
+            return Texture2D::CreateImpl(spec); 
+        }
 	};
 
 }

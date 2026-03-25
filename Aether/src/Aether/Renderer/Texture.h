@@ -73,6 +73,7 @@ namespace Aether {
 		static Scope<Texture2D> CreateImpl(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
 
 		friend class ResourceManager;
+		friend class FrameBuffer;
 	};
 
     class AETHER_API TextureCube : public Texture

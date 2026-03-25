@@ -37,7 +37,7 @@ uint32_t skyboxIndices[] = {
 
 namespace Aether {
 
-	Scope<Renderer::SceneData> Renderer::s_SceneData = CreateScope<Renderer::SceneData>();
+	Scope<Renderer::SceneData>  Renderer::s_SceneData  = CreateScope<Renderer::SceneData>();
 	Scope<Renderer::RenderData> Renderer::s_RenderData = CreateScope<Renderer::RenderData>();
 
 	void Renderer::Init()
@@ -58,15 +58,42 @@ namespace Aether {
 		s_RenderData->LightUB = ResourceManager::CreateResource<UniformBuffer>(sizeof(LightsData));
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->LightUB)->Bind(2);
 
-		s_RenderData->s_ScreenShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VScreenShader, FScreenShader});
-		s_RenderData->lineShader     = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VLineShader, FLineShader});
-		s_RenderData->s_SkyboxShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VSkyboxShader, FSkyboxShader});
-		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)->SetUBOSlot("Camera", 0);
+		s_RenderData->s_ScreenShader    = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VScreenShader,    FScreenShader});
+		s_RenderData->lineShader         = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VLineShader,      FLineShader});
+		s_RenderData->s_SkyboxShader    = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VSkyboxShader,    FSkyboxShader});
+		s_RenderData->s_ShadowmapShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VShadowmapShader, FShadowmapShader});
 
-		s_RenderData->s_Screen  = new Mesh(
-			MeshSpec{{VertexStream{quadVertices, 4, MeshLayout::Quad()}}, quadIndices, 6});
-		s_RenderData->s_SkyMesh = new Mesh(
-			MeshSpec{{VertexStream{skyboxVertices, 8, MeshLayout::Vertex()}}, skyboxIndices, 36});
+		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)   ->SetUBOSlot("Camera", 0);
+		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Bones",  1);
+		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Lights", 2);
+
+		Aether::FramebufferSpec shadowFbSpec;
+		shadowFbSpec.Width       = 2048;
+		shadowFbSpec.Height      = 2048;
+		shadowFbSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
+
+		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+			s_RenderData->s_ShadowFBO[i] = ResourceManager::CreateResource<FrameBuffer>(shadowFbSpec);
+
+		s_RenderData->s_ShadowPipeline.reserve(MaxShadowCaster);
+		s_SceneData->CandList.reserve(MaxShadowCaster);
+		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+		{
+			RenderPass shadowPass;
+			shadowPass.TargetFBO     = ResourceManager::GetResource<FrameBuffer>(s_RenderData->s_ShadowFBO[i]);
+			shadowPass.Shader        = ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader);
+			shadowPass.ClearDepth    = true;
+			shadowPass.ClearColor    = false;
+			shadowPass.OnScreen      = false;
+			shadowPass.UsingMaterial = false;
+			shadowPass.CullFace      = Aether::State::FRONT_CULL;
+			shadowPass.attribList    = { {"u_LightIndex", (int)i} };
+			shadowPass.IsActive      = false; 
+			s_RenderData->s_ShadowPipeline.push_back(shadowPass);
+		}
+
+		s_RenderData->s_Screen  = new Mesh(MeshSpec{{VertexStream{quadVertices,    4, MeshLayout::Quad()}},   quadIndices,    6});
+		s_RenderData->s_SkyMesh = new Mesh(MeshSpec{{VertexStream{skyboxVertices,  8, MeshLayout::Vertex()}}, skyboxIndices, 36});
 	}
 
 	void Renderer::Shutdown()
@@ -78,9 +105,14 @@ namespace Aether {
 		ResourceManager::Unload(rd.s_InstanceVBO);
 		ResourceManager::Unload(rd.s_ScreenShader);
 		ResourceManager::Unload(rd.s_SkyboxShader);
-		if (rd.s_LutMap.IsValid())  ResourceManager::Unload(rd.s_LutMap);
-		if (rd.s_Skybox.IsValid())  ResourceManager::Unload(rd.s_Skybox);
+		ResourceManager::Unload(rd.s_ShadowmapShader); // FIX: was never unloaded
+		if (rd.s_LutMap.IsValid()) ResourceManager::Unload(rd.s_LutMap);
+		if (rd.s_Skybox.IsValid()) ResourceManager::Unload(rd.s_Skybox);
 		ResourceManager::Unload(rd.lineShader);
+
+		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+			if (rd.s_ShadowFBO[i].IsValid()) ResourceManager::Unload(rd.s_ShadowFBO[i]);
+
 		delete rd.s_Screen;
 		delete rd.s_SkyMesh;
 		s_SceneData.reset();
@@ -118,25 +150,57 @@ namespace Aether {
 			s_RenderData->s_PassList[PassIdx].IsActive = false;
 	}
 
+	Texture2D* Renderer::GetShadowDepthAttachment(uint32_t slot)
+	{
+		if (slot >= MaxShadowCaster) return nullptr;
+		auto* fbo = ResourceManager::GetResource<FrameBuffer>(s_RenderData->s_ShadowFBO[slot]);
+		return fbo ? fbo->GetDepthAttachment() : nullptr;
+	}
+
 	void Renderer::BeginScene(const Camera& camera, const std::vector<LightParam>& lights)
 	{
 		s_SceneData->camera.Position       = camera.GetPosition();
 		s_SceneData->camera.View           = camera.GetView();
 		s_SceneData->camera.ViewProjection = camera.GetViewProjection();
 
-		s_SceneData->lights.lightCount = std::min(lights.size(), (size_t)16);
-		for (size_t i = 0; i < s_SceneData->lights.lightCount; i++)
+		s_SceneData->lights.shadowMask = 0;
+		uint32_t shadowSlot = 0; 
+
+		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+			s_RenderData->s_ShadowPipeline[i].IsActive = false;
+
+		s_SceneData->lights.lightCount = (int)std::min(lights.size(), (size_t)MAX_LIGHTS);
+		s_SceneData->CandList.clear();
+
+		for (int i = 0; i < lights.size(); i++)
 		{
 			const LightParam& light = lights[i];
+			float score = 0.0f;
+			if (light.type == LightType::Directional) score = 999999.0f;
+			else
+			{
+				glm::vec3 diff = camera.GetPosition() - light.position;
+				float distSq = glm::dot(diff, diff);
+				distSq = glm::max(distSq, 0.001f);
+				score = (light.intensity * light.range) / distSq;
+			}
+			s_SceneData->CandList.push_back({i, score});
+		}
+		std::sort(s_SceneData->CandList.begin(), s_SceneData->CandList.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
+
+		for (size_t i = 0; i < s_SceneData->lights.lightCount; i++)
+		{
+			const LightParam& light = lights[s_SceneData->CandList[i].index];
 			s_SceneData->lights.lights[i].positionAndType   = glm::vec4(light.position,  (float)light.type);
 			s_SceneData->lights.lights[i].directionAndRange = glm::vec4(light.direction, light.range);
 			s_SceneData->lights.lights[i].colorAndIntensity = glm::vec4(light.color,     light.intensity);
-			s_SceneData->lights.lights[i].coneAngles        = glm::vec4(light.innerCone, light.outerCone, light.castShadows ? 1.0f : 0.0f, 0);
+			s_SceneData->lights.lights[i].coneAngles        = glm::vec4(light.innerCone, light.outerCone, light.castShadows ? 1.0f : 0.0f, 0.0f);
 
-			if (light.castShadows)
+			if (light.castShadows && shadowSlot < MaxShadowCaster)
 			{
-				glm::mat4 lightProjection, lightView;
+				s_SceneData->lights.shadowMask |= (1u << i);
 
+				glm::mat4 lightProjection, lightView;
 				if (light.type == LightType::Spot)
 				{
 					float fov = glm::acos(light.outerCone) * 2.0f;
@@ -150,6 +214,13 @@ namespace Aether {
 					CalculateDirectionalMat(camera, light, lightView, lightProjection);
 
 				s_SceneData->lights.lights[i].lightSpaceMatrix = lightProjection * lightView;
+
+				auto& shadowPass = s_RenderData->s_ShadowPipeline[shadowSlot];
+				shadowPass.IsActive = true;
+				for (auto& attrib : shadowPass.attribList)
+					if (attrib.first == "u_LightIndex") { attrib.second = i; break; }
+
+				shadowSlot++;
 			}
 			else s_SceneData->lights.lights[i].lightSpaceMatrix = glm::mat4(1.0f);
 		}
@@ -159,7 +230,10 @@ namespace Aether {
 	{
 		RenderPass* mainPass = nullptr;
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->CameraUB)->SetData(&s_SceneData->camera, sizeof(CameraData));
-		ResourceManager::GetResource<UniformBuffer>(s_RenderData->LightUB)->SetData(&s_SceneData->lights,  sizeof(LightsData));
+		ResourceManager::GetResource<UniformBuffer>(s_RenderData->LightUB) ->SetData(&s_SceneData->lights,  sizeof(LightsData));
+
+		for (auto& pass : s_RenderData->s_ShadowPipeline)
+			if (pass.IsActive) Flush(pass);
 
 		for (auto& pass : s_RenderData->s_PassList)
 		{
@@ -169,6 +243,7 @@ namespace Aether {
 				if (pass.OnScreen) mainPass = &pass;
 			}
 		}
+
 		if (mainPass) RenderOnScreen(*mainPass);
 		s_SceneData->CommandList.clear();
 		s_SceneData->lights.lightCount = 0;
@@ -182,7 +257,6 @@ namespace Aether {
 		auto* shader = ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader);
 		shader->Bind();
 		shader->SetInt("u_Skybox", 0);
-
 		RenderCommand::SetCullingMode(State::None);
 		RenderCommand::DrawIndexed(
 			ResourceManager::GetResource<VertexArray>(s_RenderData->s_SkyMesh->GetVertexArray()));
@@ -204,8 +278,8 @@ namespace Aether {
 		if (lutMap)
 		{
 			lutMap->Bind(1);
-			screenShader->SetInt("u_HasLut", 1);
-			screenShader->SetInt("u_LutTexture", 1);
+			screenShader->SetInt("u_HasLut",      1);
+			screenShader->SetInt("u_LutTexture",  1);
 			screenShader->SetFloat("u_LutIntensity", pass.LutIntensity);
 		}
 		else screenShader->SetInt("u_HasLut", 0);
@@ -224,10 +298,10 @@ namespace Aether {
 		{
 			if (submeshes[i].MaterialIdx >= materials.size()) continue;
 			Command command;
-			command.mesh = mesh;
-			command.material = materials[submeshes[i].MaterialIdx];
-			command.subIdx = i;
-			command.animator = animatorID;
+			command.mesh      = mesh;
+			command.material  = materials[submeshes[i].MaterialIdx];
+			command.subIdx    = i;
+			command.animator  = animatorID;
 			command.transform = transform;
 			s_SceneData->CommandList.push_back(command);
 		}
@@ -243,36 +317,37 @@ namespace Aether {
 
 	void Renderer::Flush(const RenderPass& pass)
 	{
-		Mesh* currentMesh     = nullptr;
+		Mesh*     currentMesh     = nullptr;
 		Material* currentMaterial = nullptr;
-		UUID currentAnimator = UUID(0);
-		int startSlot = 0;
+		UUID      currentAnimator = UUID(0);
+		int       startSlot       = 0;
 
 		if (!pass.Shader || !pass.TargetFBO)
 		{
 			AE_CORE_ERROR("RenderPass has null Shader or TargetFBO — skipping.");
 			return;
 		}
-		auto* shader     = pass.Shader;    shader->Bind();
-		auto* fbo        = pass.TargetFBO; fbo->Bind();
-		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray());
+		auto* shader      = pass.Shader;    shader->Bind();
+		auto* fbo         = pass.TargetFBO; fbo->Bind();
+		auto* screen_vao  = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray());
 		auto* instanceVBO = ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO);
 
 		if (pass.ClearColor && pass.ClearDepth)
 		{
-			if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
+			RenderCommand::SetClearColor(pass.ClearValue);
 			RenderCommand::Clear();
 		}
 		else if (pass.ClearColor)
 		{
-			if (pass.ClearColor) RenderCommand::SetClearColor(pass.ClearValue);
+			RenderCommand::SetClearColor(pass.ClearValue);
 			RenderCommand::ClearColor();
 		}
 		else if (pass.ClearDepth) RenderCommand::ClearDepth();
 
-		if (pass.CullFace == State::FRONT_CULL) RenderCommand::SetCullingMode(State::FRONT_CULL);
-		if (pass.CullFace == State::BACK_CULL)  RenderCommand::SetCullingMode(State::BACK_CULL);
-		if (pass.CullFace == State::None)        RenderCommand::SetCullingMode(State::None);
+		if      (pass.CullFace == State::FRONT_CULL) RenderCommand::SetCullingMode(State::FRONT_CULL);
+		else if (pass.CullFace == State::BACK_CULL)  RenderCommand::SetCullingMode(State::BACK_CULL);
+		else                                          RenderCommand::SetCullingMode(State::None);
+
 		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
 		for (auto [name, texture] : pass.readList)
@@ -283,16 +358,24 @@ namespace Aether {
 		}
 		for (auto& [name, value] : pass.attribList) shader->SetInt(name, value);
 
+		if (pass.UsingShadowmap)
+		{
+			for (size_t i = 0; i < MaxShadowCaster; i++)
+			{
+				GetShadowDepthAttachment(i)->Bind(startSlot);
+				shader->SetInt("u_Shadowmap" + std::to_string(i), startSlot);
+				startSlot++;
+			}
+		}
+
 		if (pass.UsingGeometry)
 		{
-			auto skelSystem = AnimationSystem::GetModule<RigModule>();
+			auto skelSystem   = AnimationSystem::GetModule<RigModule>();
 			auto& CommandList = s_SceneData->CommandList;
 			sort(CommandList.begin(), CommandList.end());
-			for(size_t i = 0; i < CommandList.size() && (uint64_t)CommandList[i].animator != 0; i++)
-			{
-				auto& animator = CommandList[i].animator;
-				skelSystem->RequestMatrices(animator);
-			}
+
+			for (size_t i = 0; i < CommandList.size() && (uint64_t)CommandList[i].animator != 0; i++)
+				skelSystem->RequestMatrices(CommandList[i].animator);
 			skelSystem->ProcessRequests();
 
 			if (!CommandList.empty() && CommandList[0].animator != 0)
@@ -308,19 +391,19 @@ namespace Aether {
 
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
-				auto& command = CommandList[i];
+				auto& command  = CommandList[i];
 				auto* material = command.material;
-				auto* mesh = command.mesh;
-				if (!material || !mesh) continue; 
-				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];
-				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
+				auto* mesh     = command.mesh;
+				if (!material || !mesh) continue;
+
+				const auto& submesh   = mesh->GetSubMeshes()[command.subIdx];
+				void*       indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
 
 				if (currentMaterial != material && pass.UsingMaterial)
 				{
 					material->UploadMaterial(shader, startSlot);
 					currentMaterial = material;
 				}
-
 				if (currentMesh != mesh)
 				{
 					mesh->UploadMesh();
@@ -351,12 +434,9 @@ namespace Aether {
 					}
 					if ((i == CommandList.size() - 1) || (command != CommandList[i + 1]))
 					{
-						uint32_t dataSize = s_SceneData->batchTransform.size() * sizeof(glm::mat4);
+						uint32_t dataSize = (uint32_t)(s_SceneData->batchTransform.size() * sizeof(glm::mat4));
 						if (instanceVBO->GetSize() < dataSize)
-						{
-							uint32_t newSize = dataSize * 2;
-							instanceVBO->Resize(newSize);
-						}
+							instanceVBO->Resize(dataSize * 2);
 						instanceVBO->SetData(s_SceneData->batchTransform.data(), dataSize, 0);
 						RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, s_SceneData->batchTransform.size());
 						s_SceneData->batchTransform.clear();
@@ -376,7 +456,7 @@ namespace Aether {
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
-	// Debug / collider primitives
+	// Debug / collider primitives  (unchanged)
 	// ─────────────────────────────────────────────────────────────────────────
 
 	void Renderer::RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color)
@@ -385,8 +465,7 @@ namespace Aether {
 		static glm::vec3 s_LastMin(FLT_MAX), s_LastMax(FLT_MAX);
 
 		glm::vec3 center  = (boundMin + boundMax) * 0.5f;
-		glm::vec3 extents = (boundMax - boundMin) * 0.5f;
-		extents = glm::max(extents, glm::vec3(0.1f)); 
+		glm::vec3 extents = glm::max((boundMax - boundMin) * 0.5f, glm::vec3(0.1f));
 		glm::vec3 clampedMin = center - extents;
 		glm::vec3 clampedMax = center + extents;
 
@@ -446,7 +525,6 @@ namespace Aether {
 			glm::vec3 topCenter(0,  halfCylinderHeight, 0);
 			glm::vec3 bottomCenter(0, -halfCylinderHeight, 0);
 
-			// Cylinder ring vertices (top and bottom interleaved)
 			int cylinderStart = v;
 			for (int s = 0; s < segments; s++)
 			{
@@ -457,7 +535,6 @@ namespace Aether {
 				s_Vertices[v++] = bottomCenter + glm::vec3(x, 0, z);
 			}
 
-			// Hemisphere arc vertices (XZ and YZ planes, top and bottom caps)
 			int hemiStart = v;
 			for (int axis = 0; axis < 2; axis++)
 			{
@@ -481,7 +558,6 @@ namespace Aether {
 				ResourceManager::GetResource<VertexArray>(s_VAO)
 					->AddVertexBuffer(ResourceManager::GetResource<VertexBuffer>(s_VBO));
 
-				// Cylinder indices: top ring, bottom ring, and vertical edges
 				{
 					uint32_t cylIndices[segments * 6];
 					int idx = 0;
@@ -495,8 +571,6 @@ namespace Aether {
 					}
 					s_IBO_Cylinder = ResourceManager::CreateResource<IndexBuffer>(cylIndices, idx);
 				}
-
-				// Hemisphere indices: arcs on XZ and YZ planes for top and bottom caps
 				{
 					uint32_t hemiIndices[2048];
 					int idx = 0;
@@ -545,21 +619,9 @@ namespace Aether {
 		{
 			glm::vec3 vertices[maxVertices];
 			int v = 0;
-			for (int s = 0; s < segments; s++) // XY plane (Z = 0)
-			{
-				float t = (float)s / segments * glm::two_pi<float>();
-				vertices[v++] = glm::vec3(cos(t), sin(t), 0.0f);
-			}
-			for (int s = 0; s < segments; s++) // XZ plane (Y = 0)
-			{
-				float t = (float)s / segments * glm::two_pi<float>();
-				vertices[v++] = glm::vec3(cos(t), 0.0f, sin(t));
-			}
-			for (int s = 0; s < segments; s++) // YZ plane (X = 0)
-			{
-				float t = (float)s / segments * glm::two_pi<float>();
-				vertices[v++] = glm::vec3(0.0f, cos(t), sin(t));
-			}
+			for (int s = 0; s < segments; s++) { float t = (float)s / segments * glm::two_pi<float>(); vertices[v++] = glm::vec3(cos(t), sin(t), 0.0f); }
+			for (int s = 0; s < segments; s++) { float t = (float)s / segments * glm::two_pi<float>(); vertices[v++] = glm::vec3(cos(t), 0.0f,  sin(t)); }
+			for (int s = 0; s < segments; s++) { float t = (float)s / segments * glm::two_pi<float>(); vertices[v++] = glm::vec3(0.0f,  cos(t), sin(t)); }
 
 			s_VBO = ResourceManager::CreateResource<VertexBuffer>(sizeof(vertices));
 			ResourceManager::GetResource<VertexBuffer>(s_VBO)->SetLayout(MeshLayout::Vertex());
@@ -569,25 +631,18 @@ namespace Aether {
 			for (int circle = 0; circle < 3; circle++)
 			{
 				int base = circle * segments;
-				for (int s = 0; s < segments; s++)
-				{
-					indices[idx++] = base + s;
-					indices[idx++] = base + (s + 1) % segments;
-				}
+				for (int s = 0; s < segments; s++) { indices[idx++] = base + s; indices[idx++] = base + (s + 1) % segments; }
 			}
 			s_IBO = ResourceManager::CreateResource<IndexBuffer>(indices, idx);
 			s_VAO = ResourceManager::CreateResource<VertexArray>();
-
 			auto* vao = ResourceManager::GetResource<VertexArray>(s_VAO);
 			vao->AddVertexBuffer(ResourceManager::GetResource<VertexBuffer>(s_VBO));
 			vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(s_IBO));
 			ResourceManager::GetResource<VertexBuffer>(s_VBO)->SetData(vertices, sizeof(vertices), 0);
 		}
 
-		// Bake radius into model matrix — no per-frame CPU work
-		glm::mat4 model = transform * glm::scale(glm::mat4(1.0f), glm::vec3(radius));
-
-		auto* shader = ResourceManager::GetResource<Shader>(s_RenderData->lineShader);
+		glm::mat4 model  = transform * glm::scale(glm::mat4(1.0f), glm::vec3(radius));
+		auto*     shader = ResourceManager::GetResource<Shader>(s_RenderData->lineShader);
 		shader->Bind();
 		shader->SetMat4("u_ViewProjection", s_SceneData->camera.ViewProjection);
 		shader->SetMat4("u_Model", model);
@@ -604,76 +659,44 @@ namespace Aether {
 		glm::mat4 invCam = glm::inverse(camera.GetProjection() * camera.GetView());
 		std::vector<glm::vec4> frustumCorners;
 		for (unsigned int x = 0; x < 2; ++x)
-		{
 			for (unsigned int y = 0; y < 2; ++y)
-			{
 				for (unsigned int z = 0; z < 2; ++z)
 				{
-					glm::vec4 pt = invCam * glm::vec4(
-						2.0f * x - 1.0f,
-						2.0f * y - 1.0f,
-						2.0f * z - 1.0f,
-						1.0f);
+					glm::vec4 pt = invCam * glm::vec4(2.0f*x-1.0f, 2.0f*y-1.0f, 2.0f*z-1.0f, 1.0f);
 					frustumCorners.push_back(pt / pt.w);
 				}
-			}
-		}
 
-		glm::vec3 center = glm::vec3(0.0f);
+		glm::vec3 center(0.0f);
 		for (const auto& v : frustumCorners) center += glm::vec3(v);
-		center /= frustumCorners.size();
+		center /= (float)frustumCorners.size();
 
-		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-		if (std::abs(light.direction.y) > 0.999f) up = glm::vec3(0.0f, 0.0f, 1.0f);
+		glm::vec3 up = (std::abs(light.direction.y) > 0.999f) ? glm::vec3(0,0,1) : glm::vec3(0,1,0);
 
-		// First pass: compute world-space AABB of frustum corners to derive a stable light position
-		float minX = std::numeric_limits<float>::max();
-		float maxX = std::numeric_limits<float>::lowest();
-		float minY = std::numeric_limits<float>::max();
-		float maxY = std::numeric_limits<float>::lowest();
-		float minZ = std::numeric_limits<float>::max();
-		float maxZ = std::numeric_limits<float>::lowest();
+		auto computeAABB = [&](const glm::mat4& v, float& minX, float& maxX, float& minY, float& maxY, float& minZ, float& maxZ)
+		{
+			minX = minY = minZ = std::numeric_limits<float>::max();
+			maxX = maxY = maxZ = std::numeric_limits<float>::lowest();
+			for (const auto& fc : frustumCorners)
+			{
+				glm::vec4 trf = v * fc;
+				minX = std::min(minX, trf.x); maxX = std::max(maxX, trf.x);
+				minY = std::min(minY, trf.y); maxY = std::max(maxY, trf.y);
+				minZ = std::min(minZ, trf.z); maxZ = std::max(maxZ, trf.z);
+			}
+		};
 
-		// Build a temporary view from the center so we can measure frustum extents
+		float minX, maxX, minY, maxY, minZ, maxZ;
 		glm::vec3 lightPos = center - glm::normalize(light.direction);
 		view = glm::lookAt(lightPos, center, up);
-		for (const auto& v : frustumCorners)
-		{
-			glm::vec4 trf = view * v;
-			minX = std::min(minX, trf.x);
-			maxX = std::max(maxX, trf.x);
-			minY = std::min(minY, trf.y);
-			maxY = std::max(maxY, trf.y);
-			minZ = std::min(minZ, trf.z);
-			maxZ = std::max(maxZ, trf.z);
-		}
+		computeAABB(view, minX, maxX, minY, maxY, minZ, maxZ);
 
-		// Now we have real extents — compute a proper radius and rebuild view
-		float radius = glm::distance(glm::vec3(maxX, maxY, maxZ), glm::vec3(minX, minY, minZ)) / 2.0f;
-		lightPos = center - (glm::normalize(light.direction) * radius);
+		float radius = glm::distance(glm::vec3(maxX,maxY,maxZ), glm::vec3(minX,minY,minZ)) / 2.0f;
+		lightPos = center - glm::normalize(light.direction) * radius;
 		view = glm::lookAt(lightPos, center, up);
-
-		// Second pass: recompute tight AABB in the correct light space
-		minX = std::numeric_limits<float>::max();
-		maxX = std::numeric_limits<float>::lowest();
-		minY = std::numeric_limits<float>::max();
-		maxY = std::numeric_limits<float>::lowest();
-		minZ = std::numeric_limits<float>::max();
-		maxZ = std::numeric_limits<float>::lowest();
-		for (const auto& v : frustumCorners)
-		{
-			glm::vec4 trf = view * v;
-			minX = std::min(minX, trf.x);
-			maxX = std::max(maxX, trf.x);
-			minY = std::min(minY, trf.y);
-			maxY = std::max(maxY, trf.y);
-			minZ = std::min(minZ, trf.z);
-			maxZ = std::max(maxZ, trf.z);
-		}
+		computeAABB(view, minX, maxX, minY, maxY, minZ, maxZ);
 
 		if (minZ < 0) minZ *= zMultiplier; else minZ /= zMultiplier;
 		if (maxZ < 0) maxZ /= zMultiplier; else maxZ *= zMultiplier;
-
 		proj = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 	}
 }

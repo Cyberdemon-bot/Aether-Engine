@@ -24,15 +24,15 @@ namespace Aether {
 
 	struct LightParam
 	{
-		LightType type;
-		glm::vec3 position;
-		glm::vec3 direction;
-		glm::vec3 color;
-		float intensity;
-		float range;
-		float innerCone;
-		float outerCone;
-		bool castShadows;
+		LightType type      = LightType::None;
+		glm::vec3 position  = glm::vec3(0.0f);
+		glm::vec3 direction = glm::vec3(0.0f, -1.0f, 0.0f);
+		glm::vec3 color     = glm::vec3(1.0f);
+		float intensity     = 1.0f;
+		float range         = 10.0f;
+		float innerCone     = 30.0f;
+		float outerCone     = 45.0f;
+		bool  castShadows   = false;
 	};
 
 	struct Light
@@ -46,9 +46,10 @@ namespace Aether {
 
 	struct LightsData
 	{
-		Light lights[MAX_LIGHTS];
-		int lightCount;
-		float _pad[3];
+		Light    lights[MAX_LIGHTS];
+		uint32_t shadowMask;
+		int      lightCount;
+		float    _pad[3];
 	};
 
 	struct CameraData
@@ -60,14 +61,14 @@ namespace Aether {
 
 	struct RenderKey
 	{
-		Mesh* mesh;
+		Mesh*     mesh;
 		Material* material;
-		uint32_t subIdx;
+		uint32_t  subIdx;
 
 		bool operator<(const RenderKey& other) const
 		{
 			if (material != other.material) return material < other.material;
-			if (mesh != other.mesh) return mesh < other.mesh;
+			if (mesh     != other.mesh)     return mesh     < other.mesh;
 			return subIdx < other.subIdx;
 		}
 	};
@@ -75,25 +76,24 @@ namespace Aether {
 	struct BatchData
 	{
 		std::vector<std::pair<glm::mat4, UUID>> dynamic_obj;
-		std::vector<glm::mat4> static_obj;
+		std::vector<glm::mat4>                  static_obj;
 	};
-
 
 	struct Command
 	{
-		Mesh* mesh;
+		Mesh*     mesh;
 		Material* material;
-		uint32_t subIdx;
-		UUID animator = UUID(0);
+		uint32_t  subIdx;
+		UUID      animator = UUID(0);
 		glm::mat4 transform;
 
 		bool operator<(const Command& other) const
 		{
-			bool thisAnimated  = (uint64_t)animator  != 0;
+			bool thisAnimated  = (uint64_t)animator       != 0;
 			bool otherAnimated = (uint64_t)other.animator != 0;
 			if (thisAnimated != otherAnimated) return thisAnimated > otherAnimated;
-			if (material != other.material) return material < other.material;
-			if (mesh != other.mesh) return mesh < other.mesh;
+			if (material != other.material)    return material < other.material;
+			if (mesh     != other.mesh)        return mesh     < other.mesh;
 			return subIdx < other.subIdx;
 		}
 
@@ -105,20 +105,27 @@ namespace Aether {
 
 	struct RenderPass
 	{
-		FrameBuffer* TargetFBO;
-		Shader* Shader;
+		FrameBuffer* TargetFBO = nullptr;
+		Shader* Shader = nullptr;
 		bool IsActive = true;
 		bool ClearColor = true;
 		bool ClearDepth = true;
-		bool OnScreen = true;
+		bool OnScreen  = true;
 		bool UsingSkybox = false;
 		bool UsingMaterial = true;
-		bool UsingGeometry = true;
+		bool UsingGeometry  = true;
+		bool UsingShadowmap = true;
 		State CullFace = State::None;
-		std::vector<std::pair<std::string, Ref<Texture2D>>> readList;
+		std::vector<std::pair<std::string, Texture2D*>> readList;
 		std::vector<std::pair<std::string, int>> attribList;
 		glm::vec4 ClearValue = {0, 0, 0, 1};
 		float LutIntensity = 0.0f;
+	};
+
+	struct LightCandidate
+	{
+		int index;
+		float score;
 	};
 
 	class AETHER_API Renderer
@@ -132,15 +139,17 @@ namespace Aether {
 		static void SetPipeline(const std::vector<RenderPass>& list);
 		static void SetLutMap(const std::string& filepath);
 		static void SetSkyBox(const std::string& filepath);
+
 		static void ActivatePass(uint32_t PassIdx);
 		static void DeactivatePass(uint32_t PassIdx);
+		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
+
+		static Texture2D* GetShadowDepthAttachment(uint32_t slot);
 
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
 		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, UUID animatorID, const glm::mat4& transform);
-
-		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);
@@ -154,12 +163,16 @@ namespace Aether {
 		static void RenderSkybox();
 		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
 
+		// ── Change this one constant to scale the entire shadow system ────────
+		static const uint32_t MaxShadowCaster = 4;
+
 		struct SceneData
 		{
 			CameraData camera;
 			LightsData lights;
-			std::vector<Command> CommandList;
+			std::vector<Command>   CommandList;
 			std::vector<glm::mat4> batchTransform;
+			std::vector<LightCandidate> CandList;
 		};
 
 		struct RenderData
@@ -168,18 +181,21 @@ namespace Aether {
 			ResourceHandle BoneUB;
 			ResourceHandle LightUB;
 			ResourceHandle s_InstanceVBO;
-			Mesh* s_Screen;
-			Mesh* s_SkyMesh;
+			Mesh*          s_Screen   = nullptr;
+			Mesh*          s_SkyMesh  = nullptr;
 			ResourceHandle s_ScreenShader;
 			ResourceHandle s_SkyboxShader;
+			ResourceHandle s_ShadowmapShader;
+			ResourceHandle lineShader;
 			ResourceHandle s_LutMap;
 			ResourceHandle s_Skybox;
-			ResourceHandle lineShader;
+			ResourceHandle s_ShadowFBO[MaxShadowCaster]; // sized by the constant
 
 			std::vector<RenderPass> s_PassList;
+			std::vector<RenderPass> s_ShadowPipeline;    // always MaxShadowCaster entries
 		};
 
-		static Scope<SceneData> s_SceneData;
+		static Scope<SceneData>  s_SceneData;
 		static Scope<RenderData> s_RenderData;
 	};
 }

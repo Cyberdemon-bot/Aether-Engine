@@ -38,11 +38,18 @@ private:
     Aether::EditorCamera        m_Camera;
     Aether::Ref<Aether::Shader> m_ShadowShader;
     Aether::Ref<Aether::Shader> m_MainShader;
-    Aether::Ref<Aether::FrameBuffer> m_ShadowFbo;
-    Aether::Ref<Aether::FrameBuffer> m_MainFbo;
-    std::vector<Aether::RenderPass> m_Pipeline;
 
-    Aether::Entity m_SunLight       = Aether::Null_Entity;
+    // 4 shadow FBOs — one per shadow-casting light slot (max 4)
+    static constexpr int k_MaxShadowCasters = 4;
+    Aether::Ref<Aether::FrameBuffer> m_ShadowFbo[k_MaxShadowCasters];
+
+    Aether::Ref<Aether::FrameBuffer> m_MainFbo;
+    std::vector<Aether::RenderPass>  m_Pipeline;
+
+    int m_ShadowLightIndices[k_MaxShadowCasters] = { -1, -1, -1, -1 };
+    int m_ActiveShadowCount = 0;
+
+    Aether::Entity m_SunLight = Aether::Null_Entity;
 
     bool m_ShowFlowFieldDebug = false;
 
@@ -59,9 +66,9 @@ private:
 
     float yFloor = -7.6f;
 
-    float m_PlayerHealth = 100.0f;    // Máu hiện tại
-    float m_MaxHealth = 100.0f;       // Máu tối đa
-    float m_DamageCooldown = 1.0f;    // Thời gian chờ giữa các lần bị cắn (để không chết ngay lập tức)
+    float m_PlayerHealth = 100.0f;
+    float m_MaxHealth    = 100.0f;
+    float m_DamageCooldown = 1.0f;
 
     // --- Zombies ---
     struct ZombieRecord {
@@ -77,6 +84,7 @@ private:
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
     int maxZombies = 100;
+
     // --- Flow Field ---
     std::map<std::pair<int, int>, FlowCell> m_FlowField;
     float m_PathGridSize = 1.0f;
@@ -87,9 +95,8 @@ private:
     float GetCellValue(int coordX, int coordZ) const;
     int   GetObstacleCost(int coordX, int coordZ) const;
     bool  IsObstacle(const glm::vec3& worldPos) const;
-    bool  IsObstacleWithRadius(const glm::vec3& worldPos) const; // uses k_CapsuleRadius + k_CollisionSkin
+    bool  IsObstacleWithRadius(const glm::vec3& worldPos) const;
     float GetSpeedMultiplier(const glm::vec3& worldPos) const;
-
 
     // --- Gun ---
     Aether::Entity m_Gun = Aether::Null_Entity;
@@ -109,7 +116,7 @@ private:
     float m_ReloadTimer    = 0.0f;
     float m_ReloadDuration = 2.5f;
     float m_ReloadRotation = 0.0f;
-    float m_AmmoEmptyTimer = 0.0f;  // Bộ đếm thời gian (tính bằng giây) để chạy hiệu ứng nhảy
+    float m_AmmoEmptyTimer = 0.0f;
 
     // --- Dynamic Map ---
     float m_ChunkSize             = 16.0f;
@@ -120,8 +127,8 @@ private:
     struct ChunkData {
         Aether::Entity              landEntity = Aether::Null_Entity;
         std::vector<Aether::Entity> zombies;
-        int                         rotation = 0; // 0-3 (multiples of 90)
-    };  
+        int                         rotation = 0;
+    };
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
     Aether::AssetHandle m_BaseMapMesh;
@@ -154,26 +161,25 @@ private:
     float m_ShootTimer    = 0.0f;
     float m_ShootDuration = 0.3f;
 
-    // hardcode matrix — 0: free, 0.5: slow zone (building edge), 1: solid wall
     static constexpr int   k_ObstacleMapSize = 16;
     static constexpr float k_CapsuleRadius   = 0.35f;
-    static constexpr float k_CollisionSkin   = 0.15f; // extra margin so block triggers before touching wall
+    static constexpr float k_CollisionSkin   = 0.15f;
     float m_ObstacleMap[k_ObstacleMapSize][k_ObstacleMapSize] = {
-        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 0
-        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 1
-        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0},  // row 2
-        {0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 3
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 4
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 5
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 6
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},  // row 7
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0},  // row 8
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 9
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 10
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},  // row 11
-        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0},  // row 12
-        {0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    1,    0.5f, 0},  // row 13
-        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 1,    1,    1,    0.5f, 0},  // row 14
-        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0},  // row 15
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0},
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0},
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0},
+        {0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    0.5f, 0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0},
+        {0,    0,    0.5f, 1,    1,    0.5f, 0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0},
+        {0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0,    0,    0,    0,    0.5f, 1,    1,    1,    0.5f, 0},
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 1,    1,    1,    0.5f, 0},
+        {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0},
     };
 };

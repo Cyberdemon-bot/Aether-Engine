@@ -76,12 +76,26 @@ namespace Aether {
             }
             return true;
         }
+
+        bool CheckSphereVisible(const Frustum& frustum, const glm::vec3& center, float radius)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                glm::vec3 normal = glm::vec3(frustum.Planes[i]);
+                float d = frustum.Planes[i].w;
+                float distance = glm::dot(normal, center) + d;
+                if (distance < -radius)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     Scene::Scene() 
         : m_SceneID(UUID())
     {
-        m_SceneLights.reserve(16); 
     }
 
     Scene::~Scene() 
@@ -442,6 +456,9 @@ namespace Aether {
             if (HasComponent<AudioSourceComponent>(entity))
                 AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, translation);
 
+            if (HasComponent<LightComponent>(entity))
+                GetComponent<LightComponent>(entity).Config.position = translation;
+
             transform.Dirty = false;
             transform.SubtreeDirty = false;
             transform.LastUpdate = m_CurrentFrame;
@@ -491,18 +508,6 @@ namespace Aether {
                 }
             }
 
-            m_SceneLights.clear();
-            auto lightView = View<LightComponent, TransformComponent>();
-            for (auto entity : lightView)
-            {
-                const auto& lightComp = lightView.get<LightComponent>(entity);
-                const auto& transform = lightView.get<TransformComponent>(entity);
-                LightParam param = lightComp.Config;
-                param.position = glm::vec3(transform.WorldTransform[3]);
-                param.direction = glm::normalize(glm::vec3(-transform.WorldTransform[2]));
-                m_SceneLights.push_back(param);
-            }
-
             if (mainCamera || camera != nullptr)
             {
                 if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights); 
@@ -511,14 +516,44 @@ namespace Aether {
                 glm::mat4 vp = (camera ? camera->GetViewProjection() : mainCamera->Camera.GetViewProjection());
                 Utils::Frustum frustum = Utils::GetFrustum(vp);
 
+                m_SceneLights.clear();
+                auto lightView = View<LightComponent>();
+
+                JobSystem::ParallelFor(lightView.size(), m_Threshold, lightView->data(), AE_MAKE_LAMBDA((&, this),  (Entity entity), 
+                    auto& lightComp = lightView.get<LightComponent>(entity);
+                    auto& light = lightComp.Config;
+                    if (light.type == LightType::None)
+                    {
+                        lightComp.Culled = true;
+                        return;
+                    }
+                    if (light.type == LightType::Spot)
+                    {
+                        float r = light.range / (2.0f * glm::cos(light.outerCone));
+                        glm::vec3 c = light.position + light.direction * r;
+                        lightComp.Culled = !Utils::CheckSphereVisible(frustum, c, r);
+                    }
+                    lightComp.Culled = false;
+                ));
+                for (auto entity : lightView)
+                {
+                    auto& lightComp = lightView.get<LightComponent>(entity);
+                    auto& light = lightComp.Config;
+                    if (!lightComp.Culled) m_SceneLights.push_back(light);
+                }
+
                 // draw meshes
                 auto meshView = View<MeshComponent>();
-                const auto* arr = meshView->data();
 
-                JobSystem::ParallelFor(meshView.size(), m_Threshold, arr, AE_MAKE_LAMBDA((&, this), (Entity entity), 
+                JobSystem::ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), 
                     auto& transform = GetComponent<TransformComponent>(entity);
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
-                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) return; 
+                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); 
+                    if (!mesh)
+                    {
+                        meshcmp.Culled = true;
+                        return; 
+                    }
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
                     glm::mat4 world = transform.WorldTransform;
