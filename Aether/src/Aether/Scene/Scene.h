@@ -94,7 +94,7 @@ namespace Aether {
     private:
         UUID m_SceneID;
         uint64_t m_CurrentFrame = 0;
-        uint32_t m_LevelThreshold = 64;
+        uint32_t m_Threshold = 64;
         entt::registry m_Registry;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;

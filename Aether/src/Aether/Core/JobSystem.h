@@ -20,6 +20,31 @@ namespace Aether {
         
         static void SubmitJob(Job job);
         static void WaitAll();
+
+        template<typename Func, typename Arr>
+        static void ParallelFor(uint32_t totalCount, uint32_t chunkSize, Arr arr, Func&& task) 
+        {
+            if (totalCount == 0) return;
+
+            if (totalCount <= chunkSize) 
+            {
+                for (uint32_t i = 0; i < totalCount; ++i) task(arr[i]);
+                return;
+            }
+
+            uint32_t jobCount = (totalCount + chunkSize - 1) / chunkSize;
+
+            for (uint32_t i = 0; i < jobCount; ++i) 
+            {
+                uint32_t startIdx = i * chunkSize;
+                uint32_t endIdx = std::min(startIdx + chunkSize, totalCount);
+
+                SubmitJob(AE_MAKE_LAMBDA((&task, startIdx, endIdx, arr), (), 
+                    for (uint32_t j = startIdx; j < endIdx; ++j) task(arr[j]);
+                ));
+            }
+            WaitAll();
+        }
     private:
         static void WorkerThread();
         
