@@ -61,18 +61,31 @@
 #define AE_BIND_EVENT_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 #define AE_BIND_CONSOLE_FN(fn) [this](const std::vector<std::string>& args) -> void { return this->fn(args); }
 
-#define AE_REFLECT_PROP_RO(MEMBER) std::make_tuple(#MEMBER, &Self::MEMBER, true)
-#define AE_REFLECT_PROP(MEMBER) std::make_tuple(#MEMBER, &Self::MEMBER, false)
+#define AE_REFLECT_ATTB_RO(MEMBER) std::make_tuple(#MEMBER, &Self::MEMBER, true)
+#define AE_REFLECT_ATTB(MEMBER) std::make_tuple(#MEMBER, &Self::MEMBER, false)
 #define AE_REFLECT_OP(OP, A, B) std::make_tuple(#OP, &Self::OP##_##A##_##B)
 #define AE_REFLECT_OP_COM(OP, A, B) AE_REFLECT_OP(OP, A, B), AE_REFLECT_OP(OP, B, A)
+#define AE_REFLECT_METHOD(METHOD)  std::make_tuple(#METHOD, &Self::METHOD)
+#define AE_REFLECT_PROP(NAME, SETTER, GETTER) std::make_tuple(#NAME, &Self::GETTER, &Self::SETTER)
+#define AE_REFLECT_PROP_RO(NAME, SETTER, GETTER) std::make_tuple(#NAME, &Self::GETTER, &Self::SETTER)
 
 #define AE_REFLECT_NAME(NAME) \
 static constexpr const char* get_name() { \
 	return NAME; \
 }
 
+#define AE_ATTB_LIST(...) \
+static constexpr auto get_attributes() { \
+    return std::make_tuple(__VA_ARGS__); \
+}
+
 #define AE_PROP_LIST(...) \
 static constexpr auto get_props() { \
+    return std::make_tuple(__VA_ARGS__); \
+}
+
+#define AE_METHOD_LIST(...) \
+static constexpr auto get_methods() { \
     return std::make_tuple(__VA_ARGS__); \
 }
 
@@ -90,6 +103,25 @@ inline RES FUNC_NAME##_##A_NAME##_##B_NAME(const A& a, const B& b)  { \
 AE_OP(FUNC_NAME, A_NAME, B_NAME, A, B, RES, NATIVE_A, NATIVE_B, OP) \
 AE_OP(FUNC_NAME, B_NAME, A_NAME, B, A, RES, NATIVE_B, NATIVE_A, OP) 
 
+
+namespace Aether {
+    template <typename T>
+    struct EnumTraits {
+        static constexpr bool is_reflected = false;
+    };
+}
+
+#define AE_ENUM_VAL(VAL) std::make_pair(#VAL, VAL)
+
+#define AE_REFLECT_ENUM(ENUM_TYPE, ...) \
+template <> \
+struct EnumTraits<ENUM_TYPE> { \
+    static constexpr bool is_reflected = true; \
+    static constexpr const char* get_name() { return #ENUM_TYPE; } \
+    static constexpr auto get_entries() { \
+        return std::make_tuple(__VA_ARGS__); \
+    } \
+};
 
 #define AE_UNWRAP(...) __VA_ARGS__
 #define AE_MAKE_LAMBDA(ENV, INP, ...) [AE_UNWRAP ENV](AE_UNWRAP INP) { __VA_ARGS__ }

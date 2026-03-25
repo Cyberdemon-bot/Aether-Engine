@@ -7,6 +7,7 @@
 #include "Aether/Animation/AnimationSystem.h" 
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
+#include "Aether/Scripting/ScriptEngine.h"
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
@@ -27,6 +28,7 @@ namespace Aether {
         PhysicsSystem::Init();
         AssetManager::Init();
         AudioSystem::Init();
+        ScriptEngine::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -42,6 +44,7 @@ namespace Aether {
         JobSystem::Shutdown();
         PhysicsSystem::Shutdown();
         AudioSystem::Shutdown();
+        ScriptEngine::Shutdown();
     }
 
     void Application::Close()
