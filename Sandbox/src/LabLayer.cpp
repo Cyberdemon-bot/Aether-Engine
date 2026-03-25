@@ -22,28 +22,6 @@ void LabLayer::Attach()
 
     auto& window = Aether::Application::Get().GetWindow();
 
-    // --- SHADOW PASS ---
-    Aether::FramebufferSpec shadowSpec;
-    shadowSpec.Width       = 2048;
-    shadowSpec.Height      = 2048;
-    shadowSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
-    m_ShadowFbo = Aether::FrameBuffer::Create(shadowSpec);
-
-    m_ShadowShader = Aether::Shader::Create("assets/shaders/ShadowMap.shader");
-    m_ShadowShader->Bind();
-    m_ShadowShader->SetUBOSlot("Bones",  1);
-    m_ShadowShader->SetUBOSlot("Lights", 2);
-
-    Aether::RenderPass shadowPass;
-    shadowPass.TargetFBO     = m_ShadowFbo.get();
-    shadowPass.Shader        = m_ShadowShader.get();
-    shadowPass.ClearDepth    = true;
-    shadowPass.ClearColor    = false;
-    shadowPass.OnScreen      = false;
-    shadowPass.UsingMaterial = false;
-    shadowPass.CullFace      = Aether::State::FRONT_CULL;
-    shadowPass.attribList    = { {"u_LightIndex", 0} };
-
     // --- MAIN PASS ---
     Aether::FramebufferSpec mainSpec;
     mainSpec.Width       = window.GetWidth();
@@ -66,8 +44,7 @@ void LabLayer::Attach()
     mainPass.ClearValue  = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
     mainPass.CullFace    = Aether::State::BACK_CULL;
     mainPass.OnScreen    = false;
-    mainPass.readList    = { {"u_DepthTex", m_ShadowFbo->GetDepthAttachment()} };
-    mainPass.attribList  = { {"u_LightIndex", 0} };
+    mainPass.UsingShadowmap = true;
 
     // --- VOLUMETRIC PASS ---
     Aether::FramebufferSpec volSpec;
@@ -89,13 +66,13 @@ void LabLayer::Attach()
     volPass.CullFace      = Aether::State::None;
     volPass.OnScreen      = true;
     volPass.UsingGeometry = false;
+    volPass.UsingShadowmap = true;
     volPass.readList      = {
         { "u_SceneColor", m_MainFbo->GetColorAttachment()  },
-        { "u_SceneDepth", m_MainFbo->GetDepthAttachment()  },
-        { "u_ShadowMap",  m_ShadowFbo->GetDepthAttachment()}
+        { "u_SceneDepth", m_MainFbo->GetDepthAttachment()  }
     };
 
-    m_Pipeline = { shadowPass, mainPass, volPass };
+    m_Pipeline = { mainPass, volPass };
     Aether::Renderer::SetPipeline(m_Pipeline);
 
     // --- SKYBOX ---
@@ -132,10 +109,8 @@ void LabLayer::Detach()
         Aether::PhysicsSystem::DestroyBody(entry.handle);
     m_PhysicsBodies.clear();
 
-    m_ShadowShader.reset();
     m_MainShader.reset();
     m_VolShader.reset();
-    m_ShadowFbo.reset();
     m_MainFbo.reset();
     m_VolFbo.reset();
 

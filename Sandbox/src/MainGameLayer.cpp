@@ -19,29 +19,13 @@ void MainGameLayer::Attach()
     Aether::Renderer::SetLutMap("Assets/textures/LUT.png");
     Aether::Renderer::SetSkyBox("Assets/textures/skybox.png");
 
-    // --- SHADOW PASS ---
-    Aether::FramebufferSpec shadowFbSpec;
-    shadowFbSpec.Width       = 1024;
-    shadowFbSpec.Height      = 1024;
-    shadowFbSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
+    // =========================================================================
+    // SHADOW SHADER
+    // =========================================================================
 
-    m_ShadowShader = Aether::Shader::Create("Assets/shaders/ShadowMap.shader");
-    m_ShadowShader->Bind();
-    m_ShadowShader->SetUBOSlot("Bones",  1);
-    m_ShadowShader->SetUBOSlot("Lights", 2);
-    m_ShadowFbo = Aether::FrameBuffer::Create(shadowFbSpec);
-
-    Aether::RenderPass shadowPass;
-    shadowPass.TargetFBO     = m_ShadowFbo.get();
-    shadowPass.Shader        = m_ShadowShader.get();
-    shadowPass.ClearDepth    = true;
-    shadowPass.ClearColor    = false;
-    shadowPass.OnScreen      = false;
-    shadowPass.UsingMaterial = false;
-    shadowPass.CullFace      = Aether::State::FRONT_CULL;
-    shadowPass.attribList    = { {"u_LightIndex", 0} };
-
-    // --- MAIN PASS ---
+    // =========================================================================
+    // MAIN PASS FBO + SHADER
+    // =========================================================================
     auto& window = Aether::Application::Get().GetWindow();
     Aether::FramebufferSpec sceneFbSpec;
     sceneFbSpec.Width       = window.GetWidth();
@@ -55,6 +39,8 @@ void MainGameLayer::Attach()
     m_MainShader->SetUBOSlot("Lights", 2);
     m_MainFbo = Aether::FrameBuffer::Create(sceneFbSpec);
 
+    
+    // --- Main pass (slot 4) ---
     Aether::RenderPass mainPass;
     mainPass.TargetFBO    = m_MainFbo.get();
     mainPass.Shader       = m_MainShader.get();
@@ -64,16 +50,17 @@ void MainGameLayer::Attach()
     mainPass.ClearValue   = glm::vec4(0.5f, 0.7f, 1.0f, 1.0f);
     mainPass.CullFace     = Aether::State::BACK_CULL;
     mainPass.OnScreen     = true;
-    mainPass.readList     = { {"u_DepthTex", shadowPass.TargetFBO->GetDepthAttachment()} };
-    mainPass.attribList   = { {"u_LightIndex", 0} };
     mainPass.LutIntensity = 0.2f;
+    mainPass.UsingShadowmap = true;
+    m_Pipeline.push_back(mainPass);
 
-    m_Pipeline = { shadowPass, mainPass };
     Aether::Renderer::SetPipeline(m_Pipeline);
 
-    // --- SUN LIGHT ---
+    // =========================================================================
+    // SUN LIGHT  (shadow-casting directional, occupies shadow slot 0)
+    // =========================================================================
     m_SunLight = m_Scene.CreateEntity("Sun Light");
-    auto& lightComp              = m_Scene.AddComponent<Aether::LightComponent>(m_SunLight);
+    auto& lightComp            = m_Scene.AddComponent<Aether::LightComponent>(m_SunLight);
     lightComp.Config.type        = Aether::LightType::Directional;
     lightComp.Config.color       = glm::vec3(0.9f, 0.95f, 1.0f);
     lightComp.Config.intensity   = 1.5f;
@@ -81,11 +68,16 @@ void MainGameLayer::Attach()
     lightComp.Config.direction   = glm::vec3(-0.5f, -1.0f, -0.5f);
 
     auto& sunTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
-    sunTransform.Rotation    = glm::quat(glm::vec3(glm::radians(-45.0f), glm::radians(30.0f), 0.0f));
     sunTransform.Translation = glm::vec3(0.0f, 50.0f, 0.0f);
     m_Scene.MarkDirty(m_SunLight);
 
-    // --- MAP ---
+    // Activate shadow pass 0 for the sun (slot 0 = first shadow-casting light)
+    Aether::Renderer::ActivatePass(0);
+    Aether::Renderer::SetPassAtrib(0, "u_LightIndex", 0);
+
+    // =========================================================================
+    // MAP
+    // =========================================================================
     auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/map.glb"));
     if (!uploadMap.meshIDs.empty()) {
         m_BaseMapMesh = Aether::AssetManager::GetHandle(uploadMap.meshIDs[0]);
@@ -94,7 +86,9 @@ void MainGameLayer::Attach()
             m_BaseMapMaterials.push_back(Aether::AssetManager::GetHandle(matID));
     }
 
-    // --- PLAYER ---
+    // =========================================================================
+    // PLAYER
+    // =========================================================================
     m_Player = m_Scene.CreateEntity("Player");
     auto& pTransform         = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
     pTransform.Translation   = { 0.0f, yFloor, 0.0f };
@@ -114,8 +108,9 @@ void MainGameLayer::Attach()
         if (!clips.empty()) rigSystem->BindClip(m_RunAnimation, clips[0]);
     }
 
-    // --- PLAYER PHYSICS (Kinematic capsule) ---
-    Aether::UUID bodyID = m_Scene.GetComponent<Aether::IDComponent>(m_Player).ID;
+    // =========================================================================
+    // PLAYER PHYSICS
+    // =========================================================================
     {
         Aether::BodyConfig cfg;
         cfg.motionType  = Aether::MotionType::Kinematic;
@@ -125,16 +120,20 @@ void MainGameLayer::Attach()
         cfg.offset      = glm::vec3(0.0f, 1.0f, 0.0f);
         cfg.friction    = 0.5f;
         cfg.restitution = 0.0f;
-        auto handle = Aether::PhysicsSystem::CreateBody(cfg);
-        m_PlayerBodyHandle = handle;
-        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, handle);
+        m_PlayerBodyHandle = Aether::PhysicsSystem::CreateBody(cfg);
+        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_PlayerBodyHandle);
     }
 
+    // =========================================================================
+    // ZOMBIES
+    // =========================================================================
     m_ZombieSceneData = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/zombie.glb"));
     if (!m_ZombieSceneData.animatorIDS.empty())
         m_ZombieRunAnimation = m_ZombieSceneData.animatorIDS[0];
 
-    // --- GUN ---
+    // =========================================================================
+    // GUN
+    // =========================================================================
     m_Gun = m_Scene.CreateEntity("Weapon_Gun");
     auto& gTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
     gTransform.Translation = { 0.0f, 0.0f, 0.0f };
@@ -151,11 +150,17 @@ void MainGameLayer::Attach()
         rigSystem->SetLoop(m_ShootAnimation, false);
     }
 
-    m_PathGridSize       = (m_ChunkSize * 1.0f) / static_cast<float>(m_FlowFieldSubdivisions);
+    // =========================================================================
+    // MISC
+    // =========================================================================
+    m_PathGridSize       = m_ChunkSize / static_cast<float>(m_FlowFieldSubdivisions);
     m_MuzzleFlashTexture = Aether::Texture2D::Create("Assets/models/tiadan.png");
 
     Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f });
 
+    // =========================================================================
+    // AUDIO
+    // =========================================================================
     Aether::AssetManager::CreateAsset<Aether::Sound>(m_BgmSoundID,   "Assets/audio/Hatsune Miku - Ievan Polkka.mp3");
     Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunSoundID,   "Assets/audio/pistol.mp3");
     Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunReloadID,  "Assets/audio/pistol_reload.mp3");

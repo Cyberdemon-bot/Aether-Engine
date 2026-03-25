@@ -8,8 +8,8 @@ out vec2 v_TexCoord;
 
 void main()
 {
-    v_TexCoord = a_TexCoord;
-    gl_Position = vec4(a_Position.x, a_Position.y, 0.0, 1.0);
+    v_TexCoord  = a_TexCoord;
+    gl_Position = vec4(a_Position, 0.0, 1.0);
 }
 
 #shader fragment
@@ -39,12 +39,18 @@ struct Light
 layout(std140) uniform Lights
 {
     Light lights[16];
+    uint shadowMask;
     int lightCount;
 } u_Lights;
 
 uniform sampler2D u_SceneColor;
 uniform sampler2D u_SceneDepth;
-uniform sampler2D u_ShadowMap;
+
+// 4 shadow map slots matching Standard.shader
+uniform sampler2D u_ShadowMap0;
+uniform sampler2D u_ShadowMap1;
+uniform sampler2D u_ShadowMap2;
+uniform sampler2D u_ShadowMap3;
 
 uniform float u_Density;
 uniform float u_Intensity;
@@ -52,25 +58,34 @@ uniform int   u_Steps;
 uniform float u_VolBias;
 uniform float u_MaxDistance;
 
+// ─── World position reconstruction ───────────────────────────────────────────
 vec3 ReconstructWorldPos(vec2 uv, float depth)
 {
-    vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 ndc      = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 worldPos = inverse(u_ViewProjection) * ndc;
     return worldPos.xyz / worldPos.w;
 }
 
-float SampleShadowMapVol(vec3 worldPos, int lightIndex)
+// ─── Shadow sampling per slot ─────────────────────────────────────────────────
+float SampleShadowVol(int slot, vec3 worldPos, mat4 lightSpaceMatrix)
 {
-    vec4 lightSpacePos = u_Lights.lights[lightIndex].lightSpaceMatrix * vec4(worldPos, 1.0);
-    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
-    projCoords = projCoords * 0.5 + 0.5;
-    if (projCoords.z > 1.0) return 0.0;
-    if (any(lessThan(projCoords.xy, vec2(0.0))) || any(greaterThan(projCoords.xy, vec2(1.0)))) return 0.0;
-    float closestDepth = texture(u_ShadowMap, projCoords.xy).r;
-    float currentDepth = projCoords.z;
-    return currentDepth - u_VolBias > closestDepth ? 0.0 : 1.0;
+    vec4 lsp  = lightSpaceMatrix * vec4(worldPos, 1.0);
+    vec3 proj = lsp.xyz / lsp.w;
+    proj      = proj * 0.5 + 0.5;
+    if (proj.z > 1.0)                          return 1.0;
+    if (any(lessThan(proj.xy, vec2(0.0))))     return 1.0;
+    if (any(greaterThan(proj.xy, vec2(1.0))))  return 1.0;
+
+    float closestDepth;
+    if      (slot == 0) closestDepth = texture(u_ShadowMap0, proj.xy).r;
+    else if (slot == 1) closestDepth = texture(u_ShadowMap1, proj.xy).r;
+    else if (slot == 2) closestDepth = texture(u_ShadowMap2, proj.xy).r;
+    else                closestDepth = texture(u_ShadowMap3, proj.xy).r;
+
+    return (proj.z - u_VolBias) > closestDepth ? 0.0 : 1.0;
 }
 
+// ─── Spot light attenuation ───────────────────────────────────────────────────
 float SpotAttenuation(vec3 worldPos, int i)
 {
     Light light      = u_Lights.lights[i];
@@ -88,15 +103,15 @@ float SpotAttenuation(vec3 worldPos, int i)
     return atten * spotFactor;
 }
 
+// ─── Main ─────────────────────────────────────────────────────────────────────
 void main()
 {
     vec4  sceneColor = texture(u_SceneColor, v_TexCoord);
     float rawDepth   = texture(u_SceneDepth, v_TexCoord).r;
     vec3  surfacePos = ReconstructWorldPos(v_TexCoord, rawDepth);
 
-    float maxRayLen = u_MaxDistance;
     vec3  toSurface = surfacePos - u_Position;
-    float rayLen    = rawDepth < 0.9999 ? min(length(toSurface), maxRayLen) : maxRayLen;
+    float rayLen    = rawDepth < 0.9999 ? min(length(toSurface), u_MaxDistance) : u_MaxDistance;
     vec3  rayDir    = rawDepth < 0.9999
                     ? normalize(toSurface)
                     : normalize(ReconstructWorldPos(v_TexCoord, 1.0) - u_Position);
@@ -106,22 +121,43 @@ void main()
 
     vec3 scattering = vec3(0.0);
 
+    // Build a per-light shadow slot table using shadowMask bits,
+    // in the same order the CPU binds u_ShadowMap0..3.
+    int shadowSlots[16];
+    int shadowSlotCount = 0;
+    for (int i = 0; i < u_Lights.lightCount && i < 16; i++)
+    {
+        if ((u_Lights.shadowMask & (1u << uint(i))) != 0u && shadowSlotCount < 4)
+        {
+            shadowSlots[i] = shadowSlotCount;
+            shadowSlotCount++;
+        }
+        else
+        {
+            shadowSlots[i] = -1; // no shadow for this light
+        }
+    }
+
     for (int s = 0; s < u_Steps; s++)
     {
-        float t        = (float(s) + jitter) * stepSize;
+        float t         = (float(s) + jitter) * stepSize;
         vec3  samplePos = u_Position + rayDir * t;
 
         for (int i = 0; i < u_Lights.lightCount && i < 16; i++)
         {
             int lightType = int(u_Lights.lights[i].positionAndType.w);
-            if (lightType != 1) continue;
+            if (lightType != 1) continue; // volumetric only for spot lights
 
-            bool  castsShadows = u_Lights.lights[i].coneAngles.z > 0.5;
-            float inLight      = castsShadows ? SampleShadowMapVol(samplePos, i) : 1.0;
-            float atten        = SpotAttenuation(samplePos, i);
-            vec3  lightColor     = u_Lights.lights[i].colorAndIntensity.xyz;
-            float lightIntensity = u_Lights.lights[i].colorAndIntensity.w;
-            scattering += lightColor * lightIntensity * atten * inLight * u_Density;
+            float inLight = 1.0;
+            if (shadowSlots[i] >= 0)
+                inLight = SampleShadowVol(shadowSlots[i],
+                                          samplePos,
+                                          u_Lights.lights[i].lightSpaceMatrix);
+
+            float atten      = SpotAttenuation(samplePos, i);
+            vec3  lColor     = u_Lights.lights[i].colorAndIntensity.xyz;
+            float lIntensity = u_Lights.lights[i].colorAndIntensity.w;
+            scattering += lColor * lIntensity * atten * inLight * u_Density;
         }
     }
 

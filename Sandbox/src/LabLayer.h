@@ -35,13 +35,11 @@ private:
     Aether::Scene        m_Scene;
     Aether::EditorCamera m_Camera;
 
-    // Shaders
-    Aether::Ref<Aether::Shader> m_ShadowShader;
+    // Shader
     Aether::Ref<Aether::Shader> m_MainShader;
     Aether::Ref<Aether::Shader> m_VolShader;
 
     // FBOs stored as members so RenderPass raw pointers stay valid
-    Aether::Ref<Aether::FrameBuffer> m_ShadowFbo;
     Aether::Ref<Aether::FrameBuffer> m_MainFbo;
     Aether::Ref<Aether::FrameBuffer> m_VolFbo;
 

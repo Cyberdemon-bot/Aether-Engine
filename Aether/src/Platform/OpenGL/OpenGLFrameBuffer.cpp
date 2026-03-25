@@ -19,7 +19,7 @@ namespace Aether {
 	OpenGLFrameBuffer::~OpenGLFrameBuffer()
 	{
 		glDeleteFramebuffers(1, &m_RendererID);
-		for (auto attachment : m_ColorAttachments) attachment.reset();
+		for (auto& attachment : m_ColorAttachments) attachment.reset();
 		m_DepthAttachment.reset();
 	}
 
@@ -34,7 +34,7 @@ namespace Aether {
 		if (m_RendererID)
 		{
 			glDeleteFramebuffers(1, &m_RendererID);
-			for (auto attachment : m_ColorAttachments) attachment.reset();
+			for (auto& attachment : m_ColorAttachments) attachment.reset();
 			m_DepthAttachment.reset();
 			m_ColorAttachments.clear();
 		}
@@ -51,7 +51,7 @@ namespace Aether {
 				spec.Width = m_Spec.Width;
 				spec.Height = m_Spec.Height;
 				spec.Samples = m_Spec.Samples;
-				m_ColorAttachments[i] = Texture2D::Create(spec);
+				m_ColorAttachments[i] = CreateTexture(spec);
 				GLenum textureTarget = spec.Samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, textureTarget, m_ColorAttachments[i]->GetRendererID(), 0);
 			}
@@ -63,7 +63,7 @@ namespace Aether {
 			spec.Width = m_Spec.Width;
 			spec.Height = m_Spec.Height;
 			spec.Samples = m_Spec.Samples;
-			m_DepthAttachment = Texture2D::Create(spec);
+			m_DepthAttachment = CreateTexture(spec);
 			GLenum textureTarget = spec.Samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, textureTarget, m_DepthAttachment->GetRendererID(), 0);
 		}

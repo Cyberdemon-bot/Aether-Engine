@@ -62,6 +62,7 @@ namespace Aether {
     struct LightComponent
     {
         LightParam Config;
+        bool Culled = false;
 
         LightComponent() = default;
         LightComponent(const LightComponent&) = default;

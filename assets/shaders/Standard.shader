@@ -29,6 +29,7 @@ struct Light
 layout(std140) uniform Lights
 {
     Light lights[16];
+    uint shadowMask;
     int lightCount;
 } u_Lights;
 
@@ -40,13 +41,12 @@ layout(std140) uniform Bones
 uniform mat4 u_Model;
 uniform int u_HasAnimation;
 uniform int u_UseInstancing;
-uniform int u_LightIndex;
 
 out vec3 v_WorldPos;
 out vec3 v_WorldNormal;
 out vec2 v_TexCoord;
 out mat3 v_TBN;
-out vec4 v_LightSpacePos;
+out vec4 v_LightSpacePos[4]; // one slot per possible shadow caster, ordered by shadowMask
 
 void main()
 {
@@ -80,10 +80,20 @@ void main()
     v_WorldNormal = N;
     v_TexCoord = a_TexCoord;
 
-    if (u_Lights.lightCount > 0 && u_LightIndex < u_Lights.lightCount && u_Lights.lights[u_LightIndex].coneAngles.z > 0.5)
-        v_LightSpacePos = u_Lights.lights[u_LightIndex].lightSpaceMatrix * worldPos;
-    else
-        v_LightSpacePos = vec4(0.0);
+    // Walk all lights; for each one flagged in shadowMask, fill the next slot.
+    // The slot order here must match the order the CPU binds u_Shadowmap0..3.
+    int slot = 0;
+    for (int i = 0; i < u_Lights.lightCount && i < 16 && slot < 4; i++)
+    {
+        if ((u_Lights.shadowMask & (1u << uint(i))) != 0u)
+        {
+            v_LightSpacePos[slot] = u_Lights.lights[i].lightSpaceMatrix * worldPos;
+            slot++;
+        }
+    }
+    // Zero out unused slots
+    for (int s = slot; s < 4; s++)
+        v_LightSpacePos[s] = vec4(0.0);
 
     gl_Position = u_ViewProjection * worldPos;
 }
@@ -97,7 +107,7 @@ in vec3 v_WorldPos;
 in vec3 v_WorldNormal;
 in vec2 v_TexCoord;
 in mat3 v_TBN;
-in vec4 v_LightSpacePos;
+in vec4 v_LightSpacePos[4];
 
 struct Light
 {
@@ -111,6 +121,7 @@ struct Light
 layout(std140) uniform Lights
 {
     Light lights[16];
+    uint shadowMask;
     int lightCount;
 } u_Lights;
 
@@ -125,7 +136,12 @@ layout(std140) uniform Camera
 uniform sampler2D u_AlbedoMap;
 uniform sampler2D u_MetallicRoughnessMap;
 uniform sampler2D u_NormalMap;
-uniform sampler2D u_DepthTex;
+
+// One sampler per shadow caster slot, bound in the same order as shadowMask bits
+uniform sampler2D u_Shadowmap0;
+uniform sampler2D u_Shadowmap1;
+uniform sampler2D u_Shadowmap2;
+uniform sampler2D u_Shadowmap3;
 
 uniform vec4 u_AlbedoColor;
 uniform float u_Metallic;
@@ -133,7 +149,7 @@ uniform float u_Roughness;
 uniform int u_HasNormalMap;
 uniform float u_Bias;
 
-uniform int   u_FogMode;   
+uniform int   u_FogMode;
 uniform vec3  u_FogColor;
 uniform float u_FogDensity;
 uniform float u_FogStart;
@@ -143,36 +159,42 @@ float ComputeFogFactor(float dist)
 {
     if (u_FogMode == 1)
     {
-        // Linear fog
         return 1.0 - clamp((dist - u_FogStart) / (u_FogEnd - u_FogStart), 0.0, 1.0);
     }
     else if (u_FogMode == 2)
     {
-        // Exponential fog
         return exp(-u_FogDensity * dist);
     }
     else if (u_FogMode == 3)
     {
-        // Exponential squared fog (thicker/more realistic)
         float f = u_FogDensity * dist;
         return exp(-(f * f));
     }
-    return 1.0; // Mode 0 = no fog, return 1 so mix() changes nothing
+    return 1.0;
 }
 
 const float PI = 3.14159265359;
 const vec3 F0_DIELECTRIC = vec3(0.04);
 
-float SampleShadowMap(vec4 lightSpacePos, vec3 normal, vec3 lightDir)
+// Sample the correct shadow map for the given slot index (0-3).
+// slot is the index into v_LightSpacePos[] / u_Shadowmap*, not the light index.
+float SampleShadowMap(int slot, vec4 lightSpacePos, vec3 normal, vec3 lightDir)
 {
     vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords = projCoords * 0.5 + 0.5;
-    if (projCoords.z > 1.0) return 0.0;
+    if (projCoords.z > 1.0) return 1.0;
     if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
-        return 0.0;
+        return 1.0;
+
     float currentDepth = projCoords.z;
     float bias = max(u_Bias * (1.0 - dot(normal, lightDir)), u_Bias * 0.1);
-    float closestDepth = texture(u_DepthTex, projCoords.xy).r;
+
+    float closestDepth;
+    if      (slot == 0) closestDepth = texture(u_Shadowmap0, projCoords.xy).r;
+    else if (slot == 1) closestDepth = texture(u_Shadowmap1, projCoords.xy).r;
+    else if (slot == 2) closestDepth = texture(u_Shadowmap2, projCoords.xy).r;
+    else                closestDepth = texture(u_Shadowmap3, projCoords.xy).r;
+
     return currentDepth - bias > closestDepth ? 0.0 : 1.0;
 }
 
@@ -220,6 +242,10 @@ void main()
     vec3 V = normalize(u_Position - v_WorldPos);
     vec3 Lo = vec3(0.0);
 
+    // shadowSlot tracks how many shadow-casting lights we have passed so far,
+    // keeping it in sync with the v_LightSpacePos[] slots filled in the vertex shader.
+    int shadowSlot = 0;
+
     for (int i = 0; i < u_Lights.lightCount && i < 16; i++)
     {
         Light light = u_Lights.lights[i];
@@ -251,9 +277,14 @@ void main()
             attenuation *= spotIntensity;
         }
 
+        // Check if this light casts a shadow (its bit is set in shadowMask)
+        bool castsShadow = (u_Lights.shadowMask & (1u << uint(i))) != 0u;
+        int  currentSlot = shadowSlot; // slot index before incrementing
+        if (castsShadow) shadowSlot++;
+
         float shadow = 1.0;
-        if (i == 0 && light.coneAngles.z > 0.5)
-            shadow = SampleShadowMap(v_LightSpacePos, N, L);
+        if (castsShadow && currentSlot < 4)
+            shadow = SampleShadowMap(currentSlot, v_LightSpacePos[currentSlot], N, L);
 
         vec3  H     = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
@@ -261,26 +292,25 @@ void main()
         float NdotH = max(dot(N, H), 0.0);
         float HdotV = max(dot(H, V), 0.0);
 
-        vec3  F0        = mix(F0_DIELECTRIC, albedo.rgb, metallic);
-        float D         = DistributionGGX(NdotH, roughness);
-        float G         = GeometrySmith(NdotV, NdotL, roughness);
-        vec3  F         = FresnelSchlick(HdotV, F0);
-        vec3  specular  = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
-        vec3  kD        = (1.0 - F) * (1.0 - metallic);
-        vec3  diffuse   = kD * albedo.rgb / PI;
+        vec3  F0       = mix(F0_DIELECTRIC, albedo.rgb, metallic);
+        float D        = DistributionGGX(NdotH, roughness);
+        float G        = GeometrySmith(NdotV, NdotL, roughness);
+        vec3  F        = FresnelSchlick(HdotV, F0);
+        vec3  specular = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
+        vec3  kD       = (1.0 - F) * (1.0 - metallic);
+        vec3  diffuse  = kD * albedo.rgb / PI;
 
-        float shadowFactor = (i == 0 && light.coneAngles.z > 0.5) ? shadow : 1.0;
-        Lo += (diffuse + specular) * lightColor * lightIntensity * NdotL * attenuation * shadowFactor;
+        Lo += (diffuse + specular) * lightColor * lightIntensity * NdotL * attenuation * shadow;
     }
 
     vec3 ambient = vec3(0.03) * albedo.rgb;
     vec3 color   = ambient + Lo;
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
-    // fog
-    float fragDist   = length(u_Position - v_WorldPos);
-    float fogFactor  = ComputeFogFactor(fragDist);
-    color            = mix(u_FogColor, color, fogFactor);
+
+    float fragDist  = length(u_Position - v_WorldPos);
+    float fogFactor = ComputeFogFactor(fragDist);
+    color           = mix(u_FogColor, color, fogFactor);
 
     FragColor = vec4(color, 1.0);
 }
