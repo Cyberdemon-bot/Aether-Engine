@@ -302,6 +302,113 @@ void LabLayer::OnImGuiRender()
     DrawScenePanel();
     DrawAnimationPanel();
     DrawLightingPanel();
+    DrawScriptingPanel();
+}
+
+void LabLayer::DrawScriptingPanel()
+{
+    using namespace Aether;
+
+    if (auto w = UI::Window("Scripting"))
+    {
+        // ---- Entity picker ---------------------------------------------------
+        std::string entityPreview = (m_ScriptTargetEntity != Null_Entity &&
+                                     m_Scene.IsValid(m_ScriptTargetEntity))
+            ? m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag
+            : "Select Entity";
+
+        if (auto c = UI::Combo("Entity##script", entityPreview.c_str()))
+        {
+            for (auto entity : m_Scene.View<TagComponent>())
+            {
+                auto  g   = UI::ID((int)(uint64_t)entity);
+                bool  sel = (m_ScriptTargetEntity == entity);
+                auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                if (UI::Selectable(tag.Tag.c_str(), sel))
+                    m_ScriptTargetEntity = entity;
+                if (sel) ImGui::SetItemDefaultFocus();
+            }
+        }
+
+        // ---- File path input -------------------------------------------------
+        char buf[512];
+        std::strncpy(buf, m_ScriptPath.c_str(), sizeof(buf));
+        buf[sizeof(buf) - 1] = '\0';
+        if (ImGui::InputText("Script Path", buf, sizeof(buf)))
+            m_ScriptPath = buf;
+
+        // ---- Current script on selected entity (read-only info) --------------
+        bool hasScript = (m_ScriptTargetEntity != Null_Entity &&
+                          m_Scene.IsValid(m_ScriptTargetEntity) &&
+                          m_Scene.HasComponent<ScriptComponent>(m_ScriptTargetEntity));
+
+        if (hasScript)
+            UI::Text("Status: Script attached");
+        else
+            UI::TextDisabled("Status: No script");
+
+        // ---- Attach button ---------------------------------------------------
+        bool canAttach = (m_ScriptTargetEntity != Null_Entity &&
+                          m_Scene.IsValid(m_ScriptTargetEntity) &&
+                          !m_ScriptPath.empty());
+        {
+            auto d = UI::Disabled(!canAttach);
+            if (UI::Button("Attach Script"))
+            {
+                // Destroy old instance if one exists
+                if (m_Scene.HasComponent<ScriptComponent>(m_ScriptTargetEntity))
+                {
+                    auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
+                    if (sc.Handle.IsValid())
+                        ScriptEngine::DestroyInstance(sc.Handle);
+                    m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
+                }
+
+                InstanceHandle handle = ScriptEngine::CreateInstance(
+                    &m_Scene, m_ScriptTargetEntity);
+
+                if (handle.IsValid())
+                {
+                    m_Scene.AddComponent<ScriptComponent>(m_ScriptTargetEntity, handle);
+                    ScriptEngine::LoadScript(handle, m_ScriptPath);
+                    AE_CORE_INFO("[Scripting] Attached '{}' to entity '{}'",
+                        m_ScriptPath,
+                        m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag);
+                }
+                else
+                {
+                    AE_CORE_ERROR("[Scripting] Failed to create instance from '{}'", m_ScriptPath);
+                }
+            }
+        }
+
+        // ---- Detach button ---------------------------------------------------
+        ImGui::SameLine();
+        {
+            auto d = UI::Disabled(!hasScript);
+            if (UI::Button("Detach Script"))
+            {
+                auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
+                if (sc.Handle.IsValid())
+                    ScriptEngine::DestroyInstance(sc.Handle);
+                m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
+                AE_CORE_INFO("[Scripting] Detached script from entity '{}'",
+                    m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag);
+            }
+        }
+
+        // ---- Active scripts list --------------------------------------------
+        UI::Separator();
+        UI::SectionHeader("Active Scripts");
+
+        for (auto entity : m_Scene.View<TagComponent, ScriptComponent>())
+        {
+            auto  g      = UI::ID((int)(uint64_t)entity);
+            auto& tag    = m_Scene.GetComponent<TagComponent>(entity);
+            auto& sc     = m_Scene.GetComponent<ScriptComponent>(entity);
+            UI::Text("%s  (slot %d)", tag.Tag.c_str(), sc.Handle.index);
+        }
+    }
 }
 
 // =============================================================================

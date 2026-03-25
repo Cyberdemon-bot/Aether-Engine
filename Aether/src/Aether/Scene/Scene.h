@@ -23,7 +23,6 @@ namespace Aether {
 
         Entity CreateEntity();
         Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);
-        UUID GetSceneID() { return m_SceneID; }
         void DestroyEntity(Entity entity);
         void DestroyHierarchy(Entity entity);
         void MakeParent(Entity child, Entity parent);
@@ -34,6 +33,7 @@ namespace Aether {
         void Update(Timestep ts, EditorCamera* camera = nullptr);
 
         Entity FindEntity(UUID id) const;
+        std::vector<Entity> FindEntity(const std::string& tag) const;
         UUID GetUUID(Entity entity) const;
 
         void LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
@@ -86,13 +86,18 @@ namespace Aether {
         }
 
         template<typename... Components>
+        auto View() const
+        {
+            return m_Registry.view<const Components...>(); 
+        }
+
+        template<typename... Components>
         auto Group()
         {
             return m_Registry.group<Components...>();
         }
 
     private:
-        UUID m_SceneID;
         uint64_t m_CurrentFrame = 0;
         uint32_t m_Threshold = 64;
         entt::registry m_Registry;

@@ -1,20 +1,32 @@
--- Scripts/hello.lua
+-- ==========================================
+-- SCRIPT: Tương tác cơ bản với Entity
+-- ==========================================
 
--- Gọi hàm SystemLog của C++
-Log("Xin chao tu Lua! Chuan bi test Class C++...")
+-- Được gọi 1 lần duy nhất khi Entity vừa được khởi tạo và nạp script
+function OnStart()
+    print("Entity đã được sinh ra! Bắt đầu khởi tạo dữ liệu...")
+    
+    -- Ví dụ: Đặt vị trí ban đầu
+    if self.Transform then
+        self.Transform.Translation.x = 0.0
+        self.Transform.Translation.y = 0.0
+        self.Transform.Translation.z = 0.0
+    end
+end
 
--- Khởi tạo Object C++ từ Lua
-local p1 = Player.new("Arthur", 0.0, 0.0)
+-- Được gọi liên tục mỗi frame
+-- ts (TimeStep / DeltaTime) giúp chuyển động mượt mà không phụ thuộc FPS
+function OnUpdate(ts)
+    if self.Transform then
+        local speed = 5.0
+        local t = self.Transform.Translation  -- gets a Vec3 copy
+        t.x = t.x + speed * ts
+        self.Transform.Translation = t   
+        self.Transform.Dirty = true;
+    end
+end
 
-Log("Ten nhan vat la: " .. p1.name)
-
--- Gọi Method C++ để thay đổi logic
-p1:Move(10.5, 5.0)
-p1:Move(0.0, -2.5)
-
--- Đọc và ghi đè property C++ trực tiếp
-p1.x = 999.9
-Log("Toa do X da bi ghi de thanh: " .. tostring(p1.x))
-
--- Trả về một giá trị cho C++ bắt lấy (giống hàm run() cũ)
-return p1.x + p1.y
+-- Được gọi 1 lần ngay trước khi Entity bị xóa khỏi Scene
+function OnDestroy()
+    print("Entity chuẩn bị bị hủy! Đang dọn dẹp...")
+end

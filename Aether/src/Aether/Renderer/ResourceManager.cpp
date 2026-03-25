@@ -26,11 +26,11 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         if (handle.index >= instance.m_Resources.size()) return;
-        ResourceSlot& res = instance.m_Resources[handle.index];
-        if (res.generation != handle.generation) return;
+        ResourceSlot& slot = instance.m_Resources[handle.index];
+        if (slot.generation != handle.generation) return;
 
-        res.asset.reset();
-        res.generation++;
+        slot.asset.reset();
+        slot.generation++;
         instance.FreeList.push_back(handle.index);
     }
 }

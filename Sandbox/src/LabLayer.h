@@ -30,6 +30,7 @@ private:
     void DrawScenePanel();
     void DrawAnimationPanel();
     void DrawLightingPanel();
+    void DrawScriptingPanel();
 
 private:
     Aether::Scene        m_Scene;
@@ -89,4 +90,7 @@ private:
     float                           m_RayDistance  = 100.0f;
     std::vector<Aether::RaycastHit> m_LastRayHits;
     bool                            m_RayHasFired  = false;
+
+    std::string    m_ScriptPath          = "";
+    Aether::Entity m_ScriptTargetEntity  = Aether::Null_Entity;
 };

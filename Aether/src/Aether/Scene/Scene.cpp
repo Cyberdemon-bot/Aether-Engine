@@ -94,7 +94,6 @@ namespace Aether {
     }
 
     Scene::Scene() 
-        : m_SceneID(UUID())
     {
     }
 
@@ -336,6 +335,18 @@ namespace Aether {
         return Null_Entity;
     }
 
+    std::vector<Entity> Scene::FindEntity(const std::string& tag) const
+    {
+        std::vector<Entity> entList;
+        const auto& view = View<TagComponent>();
+        for (auto& entity : view)
+        {
+            auto& t = GetComponent<TagComponent>(entity);
+            if (t.Tag == tag) entList.push_back(entity);
+        }
+        return entList;
+    }
+
     UUID Scene::GetUUID(Entity entity) const
     {
          if (!m_Registry.valid(entity)) return UUID(0);
@@ -492,6 +503,16 @@ namespace Aether {
                 JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((this), (Entity entity), 
                     this->UpdateTransform(entity); 
                 ));
+        }
+
+        {
+            auto scriptView = View<ScriptComponent>();
+
+            for (auto entity : scriptView)
+            {
+                auto& instance = GetComponent<ScriptComponent>(entity).Handle;
+                ScriptEngine::UpdateInstance(instance, ts);
+            }
         }
 
         { // render

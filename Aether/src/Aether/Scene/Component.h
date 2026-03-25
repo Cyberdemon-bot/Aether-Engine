@@ -7,6 +7,8 @@
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Scripting/Math.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -34,6 +36,7 @@ namespace Aether {
 
     struct TransformComponent
     {
+        using Self = TransformComponent;
         glm::vec3 Translation = {0.0f, 0.0f, 0.0f};
         glm::quat Rotation = glm::quat({0.0f, 0.0f, 0.0f});
         glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
@@ -57,6 +60,38 @@ namespace Aether {
 
             return translation * rotation * scale;
         }
+
+        void SetTranslation(Math::Vec3 translation)
+        {
+            Translation = (glm::vec3)translation;
+            Dirty = true;
+        }
+
+        Math::Vec3 GetTranslation() { return Math::Vec3(Translation); }
+
+        void SetRotation(Math::Quat rotation)
+        {
+            Rotation = (glm::quat)rotation;
+            Dirty = true;
+        }
+
+        Math::Quat GetRotation() { return Math::Quat(Rotation); }
+
+        void SetScale(Math::Vec3 scale)
+        {
+            Scale = (glm::vec3)scale;
+            Dirty = true;
+        }
+
+        Math::Vec3 GetScale() { return Math::Vec3(Scale); }
+
+        AE_REFLECT_NAME("TransformComponent")
+        AE_PROP_LIST(
+            AE_REFLECT_PROP(Translation, GetTranslation , SetTranslation),
+            AE_REFLECT_PROP(Rotation, GetRotation, SetRotation),
+            AE_REFLECT_PROP(Scale, GetScale, SetScale)
+        )
+        AE_OP_LIST()
     };
 
     struct LightComponent
@@ -108,6 +143,15 @@ namespace Aether {
         AudioSourceComponent() = default;
         AudioSourceComponent(const AudioSourceComponent&) = default;
         AudioSourceComponent(const UUID& id) : SourceID(id) {};
+    };
+
+    struct ScriptComponent
+    {
+        InstanceHandle Handle;
+
+        ScriptComponent() = default;
+        ScriptComponent(const ScriptComponent&) = default;
+        ScriptComponent(const InstanceHandle& handle) : Handle(handle) {};
     };
 
     struct HierarchyComponent 
