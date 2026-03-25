@@ -471,16 +471,10 @@ namespace Aether {
         {
             m_CurrentFrame++;
             BreadthFirstSearch();
-            for (auto& level : m_HierarchyLevels)
-            {   
-                if (level.size() >= m_LevelThreshold)
-                {
-                    for (Entity entity : level)
-                        JobSystem::SubmitJob([&, entity]() { UpdateTransform(entity); });
-                    JobSystem::WaitAll();
-                }
-                else for (Entity entity : level) UpdateTransform(entity);
-            }
+            for (auto& level : m_HierarchyLevels) 
+                JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((this), (Entity entity), 
+                    this->UpdateTransform(entity); 
+                ));
         }
 
         { // render
@@ -518,7 +512,22 @@ namespace Aether {
                 Utils::Frustum frustum = Utils::GetFrustum(vp);
 
                 // draw meshes
-                auto meshView = View<MeshComponent, TransformComponent>();
+                auto meshView = View<MeshComponent>();
+                const auto* arr = meshView->data();
+
+                JobSystem::ParallelFor(meshView.size(), m_Threshold, arr, AE_MAKE_LAMBDA((&, this), (Entity entity), 
+                    auto& transform = GetComponent<TransformComponent>(entity);
+                    auto& meshcmp = GetComponent<MeshComponent>(entity);
+                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) return; 
+                    UUID animatorID = UUID(0);
+                    if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
+                    glm::mat4 world = transform.WorldTransform;
+                    glm::vec3 worldMin, worldMax;
+                    if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
+                        Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
+                    else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                    meshcmp.Culled = !Utils::CheckBoundVisible(frustum, worldMin, worldMax);
+                ));
                 for (auto entity : meshView)
                 {
                     auto& transform = GetComponent<TransformComponent>(entity);
@@ -526,15 +535,8 @@ namespace Aether {
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
                     UUID animatorID = UUID(0);
                     if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
-
-                    glm::mat4 world = transform.WorldTransform;
-                    glm::vec3 worldMin, worldMax;
-                    if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
-                        Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
-                    else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
-                    if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
-
-                    Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, animatorID, transform.WorldTransform);
+                    if (!meshcmp.Culled) 
+                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, animatorID, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();

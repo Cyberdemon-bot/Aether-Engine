@@ -73,6 +73,7 @@ namespace Aether {
         AssetHandle Mesh;
         MaterialTable Materials;
         bool ShowBounds = false;
+        bool Culled = false;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;

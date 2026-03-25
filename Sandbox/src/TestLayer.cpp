@@ -1,11 +1,32 @@
 #include "TestLayer.h"
 #include <iostream>
+#include <string>
 
-extern "C" {
-    #include <lua.h>
-    #include <lauxlib.h>
-    #include <lualib.h>
+// Include thư viện sol2 thay cho Lua C API thủ công
+#include <sol/sol.hpp>
+#include "Aether/Scripting/Math.h"
+
+// =======================================================
+// CÁC THÀNH PHẦN C++ DÙNG ĐỂ THỬ NGHIỆM BINDING SANG LUA
+// =======================================================
+struct TestPlayer {
+    std::string name;
+    float x, y;
+
+    TestPlayer(const std::string& n, float startX, float startY) 
+        : name(n), x(startX), y(startY) {}
+
+    void Move(float dx, float dy) {
+        x += dx;
+        y += dy;
+        std::cout << "[C++] " << name << " vua di chuyen den toa do (" << x << ", " << y << ")\n";
+    }
+};
+
+void SystemLog(const std::string& msg) {
+    std::cout << "[Engine Log] " << msg << "\n";
 }
+// =======================================================
 
 TestLayer::TestLayer()
     : Layer("Main Game")
@@ -15,38 +36,44 @@ TestLayer::TestLayer()
 
 void TestLayer::Attach()
 {
-    // 1. Khởi tạo Lua State tiêu chuẩn
-    lua_State* L = luaL_newstate();
-    luaL_openlibs(L);
+    std::cout << "--- BAT DAU THU NGHIEM SOL2 ---\n";
 
-    // 2. Load script
-    if (luaL_dofile(L, "Scripts/hello.lua") != LUA_OK)
+    // 1. Khởi tạo Lua State thông qua sol2 (Thay cho luaL_newstate)
+    // Lưu ý: Biến 'lua' dùng RAII, nó sẽ tự động dọn dẹp và đóng máy ảo khi thoát hàm Attach
+    sol::state lua;
+    
+    // Mở các thư viện tiêu chuẩn cần thiết
+    lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
+
+    // 2. Bind (Ràng buộc) hàm tự do của C++
+    lua["Log"] = SystemLog;
+
+    // 3. Bind toàn bộ Class C++
+    lua.new_usertype<TestPlayer>("Player",
+        sol::constructors<TestPlayer(const std::string&, float, float)>(),
+        "name", &TestPlayer::name,
+        "x", &TestPlayer::x,
+        "y", &TestPlayer::y,
+        "Move", &TestPlayer::Move
+    );
+
+    // 4. Load và chạy file script ngoài an toàn (thay cho luaL_dofile)
+    try 
     {
-        std::cerr << "Lua error: "
-                  << lua_tostring(L, -1) << std::endl;
-        lua_close(L);
-        return;
+        // script_file sẽ tự động load, compile và chạy file hello.lua
+        auto result = lua.script_file("Scripts/hello.lua");
+        
+        // Trích xuất kết quả trả về từ file Lua (nếu có)
+        double return_val = result;
+        std::cout << "Returned from Lua: " << return_val << "\n";
+    }
+    catch (const sol::error& e) 
+    {
+        // Xử lý lỗi (sai cú pháp, gọi sai hàm, v.v.)
+        std::cerr << "Lua script execution error:\n" << e.what() << std::endl;
     }
 
-    // 3. Gọi function run()
-    lua_getglobal(L, "run");
-
-    if (lua_pcall(L, 0, 1, 0) != LUA_OK)
-    {
-        std::cerr << "Lua run() error: "
-                  << lua_tostring(L, -1) << std::endl;
-        lua_close(L);
-        return;
-    }
-
-    // 4. Lấy kết quả trả về
-    double result = lua_tonumber(L, -1);
-    std::cout << "Returned from Lua: " << result << std::endl;
-
-    lua_pop(L, 1);
-
-    // 5. Đóng Lua State (Lưu ý xem mục chú ý bên dưới)
-    lua_close(L);
+    std::cout << "--- KET THUC THU NGHIEM ---\n";
 }
 
 void TestLayer::Detach() 
