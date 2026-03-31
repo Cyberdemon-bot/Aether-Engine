@@ -39,7 +39,7 @@ namespace Aether {
                 uint32_t startIdx = i * chunkSize;
                 uint32_t endIdx = std::min(startIdx + chunkSize, totalCount);
 
-                SubmitJob(AE_MAKE_LAMBDA((&task, startIdx, endIdx, arr), (), 
+                SubmitJob(AE_MAKE_LAMBDA((&task, startIdx, endIdx, arr), (), void,
                     for (uint32_t j = startIdx; j < endIdx; ++j) task(arr[j]);
                 ));
             }

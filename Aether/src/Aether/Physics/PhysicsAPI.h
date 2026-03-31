@@ -15,12 +15,6 @@ namespace Aether {
         Box, Sphere, Capsule
     };
 
-    AE_REFLECT_ENUM(ColliderShape,
-        AE_ENUM_VAL(ColliderShape::Box),
-        AE_ENUM_VAL(ColliderShape::Sphere),
-        AE_ENUM_VAL(ColliderShape::Capsule)
-    )
-
     enum class MotionType
     {
         None = 0,

@@ -4,7 +4,6 @@
 
 // Include thư viện sol2 thay cho Lua C API thủ công
 #include <sol/sol.hpp>
-#include "Aether/Scripting/Math.h"
 
 // =======================================================
 // CÁC THÀNH PHẦN C++ DÙNG ĐỂ THỬ NGHIỆM BINDING SANG LUA

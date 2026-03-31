@@ -1,32 +1,27 @@
--- ==========================================
--- SCRIPT: Tương tác cơ bản với Entity
--- ==========================================
-
--- Được gọi 1 lần duy nhất khi Entity vừa được khởi tạo và nạp script
 function OnStart()
-    print("Entity đã được sinh ra! Bắt đầu khởi tạo dữ liệu...")
-    
-    -- Ví dụ: Đặt vị trí ban đầu
-    if self.Transform then
-        self.Transform.Translation.x = 0.0
-        self.Transform.Translation.y = 0.0
-        self.Transform.Translation.z = 0.0
-    end
+    self._time = 0.0
 end
 
--- Được gọi liên tục mỗi frame
--- ts (TimeStep / DeltaTime) giúp chuyển động mượt mà không phụ thuộc FPS
 function OnUpdate(ts)
-    if self.Transform then
-        local speed = 5.0
-        local t = self.Transform.Translation  -- gets a Vec3 copy
-        t.x = t.x + speed * ts
-        self.Transform.Translation = t   
-        self.Transform.Dirty = true;
-    end
+
+    self._time = self._time + ts
+    local t = self._time
+
+    local axis = Math.Vec3(0.0, 1.0, 0.0):Normalize()
+    local spin = Math.FromAxisAngle(axis, t * 1.3)
+
+    local radius = 4.0 + Math.Vec3(math.sin(t * 0.7), math.cos(t * 0.4), 0.0):Length()
+
+    local spoke = spin * Math.Vec3(radius, 0.0, 0.0)
+    
+    local breathe = math.sin(t * 2.5) * 1.2
+    local twistAxis = Math.Vec3(1.0, 0.0, 1.0):Normalize()
+    local twist = Math.FromAxisAngle(twistAxis, t * 0.9)
+    local wobble = twist * Math.Vec3(0.0, breathe, 0.0)
+    
+    local final = spoke + wobble
+    self.Transform.Translation = final
 end
 
--- Được gọi 1 lần ngay trước khi Entity bị xóa khỏi Scene
 function OnDestroy()
-    print("Entity chuẩn bị bị hủy! Đang dọn dẹp...")
 end
