@@ -86,6 +86,7 @@ namespace Aether {
 			shadowPass.ClearColor    = false;
 			shadowPass.OnScreen      = false;
 			shadowPass.UsingMaterial = false;
+			shadowPass.UsingShadowmap = false;
 			shadowPass.CullFace      = Aether::State::FRONT_CULL;
 			shadowPass.attribList    = { {"u_LightIndex", (int)i} };
 			shadowPass.IsActive      = false; 

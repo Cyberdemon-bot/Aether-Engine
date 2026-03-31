@@ -1,31 +1,23 @@
 #pragma once
 #include "Aether/Scene/Scene.h"
-#include "Aether/Events/Event.h"
+#include "Aether/Core/Base.h"
 #include <sol/sol.hpp>
 #include <type_traits>
 
-namespace Aether 
-{
+namespace Aether {
 
-    template <typename T, typename = void>
-    struct has_get_attributes : std::false_type {};
+    template <typename T, typename = void> struct HasGetProps : std::false_type {};
+    template <typename T> struct HasGetProps<T, std::void_t<decltype(T::get_props())>> : std::true_type {};
 
-    template <typename T>
-    struct has_get_attributes<T, std::void_t<decltype(T::get_attributes())>> : std::true_type {};
+    template <typename T, typename = void> struct HasGetOps : std::false_type {};
+    template <typename T> struct HasGetOps<T, std::void_t<decltype(T::get_ops())>> : std::true_type {};
 
-    // Dò tìm hàm get_props()
-    template <typename T, typename = void>
-    struct has_get_props : std::false_type {};
+    template <typename T, typename = void> struct HasGetMethods : std::false_type {};
+    template <typename T> struct HasGetMethods<T, std::void_t<decltype(T::get_methods())>> : std::true_type {};
 
-    template <typename T>
-    struct has_get_props<T, std::void_t<decltype(T::get_props())>> : std::true_type {};
+    template <typename T, typename = void> struct HasGetFuncs : std::false_type {};
+    template <typename T> struct HasGetFuncs<T, std::void_t<decltype(T::get_funcs())>> : std::true_type {};
 
-    // Dò tìm hàm get_ops()
-    template <typename T, typename = void>
-    struct has_get_ops : std::false_type {};
-
-    template <typename T>
-    struct has_get_ops<T, std::void_t<decltype(T::get_ops())>> : std::true_type {};
     struct InstanceHandle
     {
         int index = -1, generation = -1;
@@ -36,7 +28,9 @@ namespace Aether
     {
         sol::environment env;
         int generation = 0;
+        bool has_error = false;
     };
+
     class ScriptEngine
     {
     public:
@@ -48,6 +42,8 @@ namespace Aether
         static void DestroyInstance(InstanceHandle handle);
         static void UpdateInstance(InstanceHandle handle, Timestep ts);
         static void LoadScript(InstanceHandle handle, const std::string& path);
+        static void StartInstance(InstanceHandle handle);
+
     private:
         static ScriptEngine& GetInstance();
 
@@ -56,84 +52,78 @@ namespace Aether
         std::vector<InstanceSlot> m_Instances;
         std::vector<uint32_t> FreeList;
 
-
-        template <typename UType>
-        static void FlushOpGroup(UType& utype, sol::meta_function mf, const std::vector<sol::object>& fns)
+        template<typename Binder, typename Utype>
+        void BindType(const std::string& NS = "")
         {
-            switch (fns.size())
+            auto& instance = GetInstance();
+            auto& lua = instance.s_LuaState;
+            sol::table table = lua.globals();
+            if (!NS.empty()) table = lua[NS].get_or_create<sol::table>();
+            using TargetType = typename Binder::Type;
+            auto utype = table.new_usertype<TargetType>(Binder::get_name(), sol::call_constructor, sol::constructors<TargetType()>());
+
+            if constexpr (HasGetProps<Binder>::value)
             {
-            case 1: utype[mf] = fns[0]; break;
-            case 2: utype[mf] = sol::overload(fns[0].as<sol::function>(),fns[1].as<sol::function>()); break;
-            case 3: utype[mf] = sol::overload(fns[0].as<sol::function>(),fns[1].as<sol::function>(),fns[2].as<sol::function>()); break;
-            case 4: utype[mf] = sol::overload(fns[0].as<sol::function>(),fns[1].as<sol::function>(),
-                        fns[2].as<sol::function>(),fns[3].as<sol::function>()); break;
-            default:
-                AE_CORE_WARN("[ScriptEngine] Too many overloads for one op, only first 4 bound");
-                break;
+                ForEachTuple(Binder::get_props(), [&utype](auto&& item)
+                {
+                    auto name = std::get<0>(item);
+                    auto lambdas = std::get<1>(item);
+                    std::apply([&](auto&&... args) 
+                    {
+                        utype.set(name, sol::property(std::forward<decltype(args)>(args)...));
+                    }, lambdas);
+                });
+            }
+
+            if constexpr (HasGetMethods<Binder>::value)
+            {
+                ForEachTuple(Binder::get_methods(), [&utype](auto&& item)
+                {
+                    auto name = std::get<0>(item);
+                    auto lambdas = std::get<1>(item);
+                    auto overloaded_funcs = std::apply([](auto&&... fns) 
+                    {
+                        return sol::overload(std::forward<decltype(fns)>(fns)...);
+                    }, lambdas);
+                    utype.set_function(name, overloaded_funcs);
+                });
+            }
+
+            if constexpr (HasGetOps<Binder>::value) 
+            {
+                ForEachTuple(Binder::get_ops(), [&utype](auto&& item) 
+                {
+                    std::string name = std::get<0>(item);
+                    auto lambdas = std::get<1>(item);
+
+                    auto overloaded_ops = std::apply([](auto&&... fns) {
+                        return sol::overload(std::forward<decltype(fns)>(fns)...);
+                    }, lambdas);
+
+                    utype.set_function(OpNameToMeta(name), overloaded_ops);
+                });
             }
         }
 
-        template <typename T>
-        static void BindReflectedType()
+        template <typename Binder>
+        void BindModule(const std::string& NS = "")
         {
             auto& instance = GetInstance();
-            auto utype = instance.s_LuaState.new_usertype<T>(T::get_name(), sol::no_constructor);
-
-            if constexpr (has_get_attributes<T>::value)
+            auto& lua = instance.s_LuaState;
+            sol::table table = lua.globals();
+            if (!NS.empty()) table = lua[NS].get_or_create<sol::table>();
+            if constexpr (HasGetFuncs<Binder>::value) 
             {
-                auto attb = T::get_attributes();
-                std::apply([&](auto&&... att) {
-                    ([&](auto&& a) {
-                        auto [name, member, readonly] = a;
-                        if (readonly) utype[name] = sol::readonly(member);
-                        else          utype[name] = member;
-                    }(att), ...); 
-                }, attb);
-            }
-
-            if constexpr (has_get_props<T>::value)
-            {
-                auto props = T::get_props();
-                std::apply([&](auto&&... prop) {
-                    ([&](auto&& p) {
-                        auto [name, getter, setter] = p;
-                        
-                        using SetterType = std::decay_t<decltype(setter)>;
-                        
-                        if constexpr (std::is_same_v<SetterType, std::nullptr_t>) {
-                            utype[name] = sol::property(getter);
-                        }
-                        else {
-                            utype[name] = sol::property(getter, setter);
-                        }
-                    }(prop), ...);
-                }, props);
-            }
-
-            if constexpr (has_get_ops<T>::value)
-            {
-                auto ops = T::get_ops();
-                std::optional<sol::meta_function> currentMF;
-                std::vector<sol::object> currentFns;
-
-                auto flush = [&]() {
-                    if (currentMF && !currentFns.empty())
-                        FlushOpGroup(utype, *currentMF, currentFns);
-                    currentFns.clear();
-                    currentMF.reset();
-                };
-
-                std::apply([&](auto&&... op) {
-                    ([&](auto&& o) {
-                        auto [name, fn] = o;
-                        sol::meta_function mf = ScriptEngine::OpNameToMeta(name);
-                        if (currentMF && *currentMF != mf)
-                            flush();
-                        currentMF = mf;
-                        currentFns.push_back(sol::make_object(instance.s_LuaState, fn));
-                    }(op), ...);
-                }, ops);
-                flush(); 
+                ForEachTuple(Binder::get_funcs(), [&table](auto&& item) 
+                {
+                    auto name = std::get<0>(item);
+                    auto lambdas = std::get<1>(item);
+                    auto overloaded_funcs = std::apply([](auto&&... fns) 
+                    {
+                        return sol::overload(std::forward<decltype(fns)>(fns)...);
+                    }, lambdas);
+                    table.set_function(name, overloaded_funcs);
+                });
             }
         }
 
@@ -149,9 +139,10 @@ namespace Aether
                 if (!result.valid()) 
                 {
                     sol::error err = result;
+                    slot.has_error = true;
                     AE_CORE_ERROR("[Script Error in {0}] {1}", name, err.what());
                 }
             }
         }
     };
-}
+} 

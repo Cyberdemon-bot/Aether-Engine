@@ -47,10 +47,10 @@ uniform sampler2D u_SceneColor;
 uniform sampler2D u_SceneDepth;
 
 // 4 shadow map slots matching Standard.shader
-uniform sampler2D u_ShadowMap0;
-uniform sampler2D u_ShadowMap1;
-uniform sampler2D u_ShadowMap2;
-uniform sampler2D u_ShadowMap3;
+uniform sampler2D u_Shadowmap0;
+uniform sampler2D u_Shadowmap1;
+uniform sampler2D u_Shadowmap2;
+uniform sampler2D u_Shadowmap3;
 
 uniform float u_Density;
 uniform float u_Intensity;
@@ -77,10 +77,10 @@ float SampleShadowVol(int slot, vec3 worldPos, mat4 lightSpaceMatrix)
     if (any(greaterThan(proj.xy, vec2(1.0))))  return 1.0;
 
     float closestDepth;
-    if      (slot == 0) closestDepth = texture(u_ShadowMap0, proj.xy).r;
-    else if (slot == 1) closestDepth = texture(u_ShadowMap1, proj.xy).r;
-    else if (slot == 2) closestDepth = texture(u_ShadowMap2, proj.xy).r;
-    else                closestDepth = texture(u_ShadowMap3, proj.xy).r;
+    if      (slot == 0) closestDepth = texture(u_Shadowmap0, proj.xy).r;
+    else if (slot == 1) closestDepth = texture(u_Shadowmap1, proj.xy).r;
+    else if (slot == 2) closestDepth = texture(u_Shadowmap2, proj.xy).r;
+    else                closestDepth = texture(u_Shadowmap3, proj.xy).r;
 
     return (proj.z - u_VolBias) > closestDepth ? 0.0 : 1.0;
 }

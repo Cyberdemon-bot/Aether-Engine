@@ -293,6 +293,14 @@ namespace Aether {
         return m_Registry.valid(entity);
     }
 
+    void Scene::DirtyScan()
+    {
+        auto view = View<TransformComponent>();
+        for (auto entity : view)
+            if (GetComponent<TransformComponent>(entity).Dirty)
+                MarkDirty(entity);
+    }
+
     void Scene::BreadthFirstSearch()
     {
         m_HierarchyLevels.clear();
@@ -320,7 +328,7 @@ namespace Aether {
                 auto& childT = GetComponent<TransformComponent>(child);
                 if (parentDirty || childT.Dirty || childT.SubtreeDirty)
                 {
-                    if (parentDirty) childT.Dirty = true; // propagate dirty downward NOW
+                    if (parentDirty) childT.Dirty = true; 
                     Queue.push({child, depth + 1});
                 }
                 child = GetComponent<HierarchyComponent>(child).nextSibling;
@@ -453,27 +461,30 @@ namespace Aether {
                 }
 
                 isWorldTransformDirty = true;
+                transform.Dirty = true;
             }
         }
 
         if (isWorldTransformDirty)
         {
             if (!hasRecalculatedWorld)
-            {
                 transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
-                if (HasComponent<AudioSourceComponent>(entity))
-                    glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
-            }
+
+            bool needsDecompose = HasComponent<AudioSourceComponent>(entity) || HasComponent<LightComponent>(entity);
+            if (needsDecompose)
+                glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
+
             if (HasComponent<AudioSourceComponent>(entity))
                 AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, translation);
 
             if (HasComponent<LightComponent>(entity))
                 GetComponent<LightComponent>(entity).Config.position = translation;
 
-            transform.Dirty = false;
-            transform.SubtreeDirty = false;
             transform.LastUpdate = m_CurrentFrame;
         }
+
+        transform.Dirty = false;
+        transform.SubtreeDirty = false;
     }
 
     void Scene::MarkDirty(Entity entity)
@@ -498,9 +509,10 @@ namespace Aether {
 
         {
             m_CurrentFrame++;
+            DirtyScan();
             BreadthFirstSearch();
             for (auto& level : m_HierarchyLevels) 
-                JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((this), (Entity entity), 
+                JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((this), (Entity entity), void,
                     this->UpdateTransform(entity); 
                 ));
         }
@@ -540,7 +552,7 @@ namespace Aether {
                 m_SceneLights.clear();
                 auto lightView = View<LightComponent>();
 
-                JobSystem::ParallelFor(lightView.size(), m_Threshold, lightView->data(), AE_MAKE_LAMBDA((&, this),  (Entity entity), 
+                JobSystem::ParallelFor(lightView.size(), m_Threshold, lightView->data(), AE_MAKE_LAMBDA((&, this),  (Entity entity), void,
                     auto& lightComp = lightView.get<LightComponent>(entity);
                     auto& light = lightComp.Config;
                     if (light.type == LightType::None)
@@ -554,7 +566,7 @@ namespace Aether {
                         glm::vec3 c = light.position + light.direction * r;
                         lightComp.Culled = !Utils::CheckSphereVisible(frustum, c, r);
                     }
-                    lightComp.Culled = false;
+                    else lightComp.Culled = false;
                 ));
                 for (auto entity : lightView)
                 {
@@ -566,7 +578,7 @@ namespace Aether {
                 // draw meshes
                 auto meshView = View<MeshComponent>();
 
-                JobSystem::ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), 
+                JobSystem::ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     auto& transform = GetComponent<TransformComponent>(entity);
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); 

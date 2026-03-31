@@ -371,6 +371,7 @@ void LabLayer::DrawScriptingPanel()
                 {
                     m_Scene.AddComponent<ScriptComponent>(m_ScriptTargetEntity, handle);
                     ScriptEngine::LoadScript(handle, m_ScriptPath);
+                    ScriptEngine::StartInstance(handle);
                     AE_CORE_INFO("[Scripting] Attached '{}' to entity '{}'",
                         m_ScriptPath,
                         m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag);

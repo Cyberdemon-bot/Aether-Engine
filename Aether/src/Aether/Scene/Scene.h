@@ -104,6 +104,7 @@ namespace Aether {
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
+        void DirtyScan();
         void BreadthFirstSearch();
         void UpdateTransform(Entity entity);
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);

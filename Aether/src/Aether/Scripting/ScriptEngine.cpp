@@ -1,10 +1,8 @@
 #include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Scripting/Math.h"
-#include "Aether/Scene/Component.h"
+#include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
 
-namespace Aether 
-{
+namespace Aether {
     sol::meta_function ScriptEngine::OpNameToMeta(std::string_view name)
     {
         if (name == "ADD") return sol::meta_function::addition;
@@ -29,7 +27,7 @@ namespace Aether
     void ScriptEngine::Init()
     {   
        auto& instance = GetInstance();
-       instance.s_LuaState.open_libraries(sol::lib::base);
+       instance.s_LuaState.open_libraries(sol::lib::base, sol::lib::math);
        instance.m_Instances.reserve(100);
        RegisterTypes();
        AE_CORE_INFO("ScriptEngine initialized");
@@ -43,9 +41,11 @@ namespace Aether
 
     void ScriptEngine::RegisterTypes()
     {
-        BindReflectedType<Math::Vec3>();
-        BindReflectedType<Math::Quat>();
-        BindReflectedType<TransformComponent>();
+        auto& instance = GetInstance();
+        instance.BindType<Vec3Binding>("Math");
+        instance.BindType<QuatBinding>("Math");
+        instance.BindType<TransformComponentBinding>();
+        instance.BindModule<MathBinding>("Math");
     }
 
     InstanceHandle ScriptEngine::CreateInstance(Scene* scene, Entity entity)
@@ -74,8 +74,16 @@ namespace Aether
         handle.index = index;
         handle.generation = slot.generation;
 
+        return handle; 
+    }
+
+    void ScriptEngine::StartInstance(InstanceHandle handle)
+    {
+        auto& instance = GetInstance();
+        if (handle.index >= (int)instance.m_Instances.size()) return;
+        InstanceSlot& slot = instance.m_Instances[handle.index];
+        if (slot.generation != handle.generation) return;
         CallMethod(handle, "OnStart");
-        return handle;
     }
 
     void ScriptEngine::LoadScript(InstanceHandle handle, const std::string& path)
@@ -89,6 +97,7 @@ namespace Aether
         if (!result.valid()) 
         {
             sol::error err = result;
+            slot.has_error = true;
             AE_CORE_ERROR("[Lua Error] {0}", err.what());
             return;
         }
@@ -113,6 +122,7 @@ namespace Aether
         if (handle.index >= instance.m_Instances.size()) return;
         InstanceSlot& slot = instance.m_Instances[handle.index];
         if (slot.generation != handle.generation) return;
+        if (slot.has_error) return;
 
         CallMethod(handle, "OnUpdate", (float)ts);
     }

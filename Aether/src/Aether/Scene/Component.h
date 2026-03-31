@@ -8,7 +8,6 @@
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Scripting/Math.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -60,38 +59,6 @@ namespace Aether {
 
             return translation * rotation * scale;
         }
-
-        void SetTranslation(Math::Vec3 translation)
-        {
-            Translation = (glm::vec3)translation;
-            Dirty = true;
-        }
-
-        Math::Vec3 GetTranslation() { return Math::Vec3(Translation); }
-
-        void SetRotation(Math::Quat rotation)
-        {
-            Rotation = (glm::quat)rotation;
-            Dirty = true;
-        }
-
-        Math::Quat GetRotation() { return Math::Quat(Rotation); }
-
-        void SetScale(Math::Vec3 scale)
-        {
-            Scale = (glm::vec3)scale;
-            Dirty = true;
-        }
-
-        Math::Vec3 GetScale() { return Math::Vec3(Scale); }
-
-        AE_REFLECT_NAME("TransformComponent")
-        AE_PROP_LIST(
-            AE_REFLECT_PROP(Translation, GetTranslation , SetTranslation),
-            AE_REFLECT_PROP(Rotation, GetRotation, SetRotation),
-            AE_REFLECT_PROP(Scale, GetScale, SetScale)
-        )
-        AE_OP_LIST()
     };
 
     struct LightComponent
