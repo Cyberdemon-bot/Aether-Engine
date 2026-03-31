@@ -2,11 +2,9 @@
 
 namespace Aether
 {
-	using KeyCode = uint16_t;
-	
 	namespace Key
 	{
-		enum : KeyCode
+		enum class KeyCode : uint16_t
 		{
 			// From glfw3.h
 			Space               = 32,

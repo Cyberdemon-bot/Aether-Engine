@@ -1,5 +1,8 @@
 function OnStart()
     self._time = 0.0
+    if Key and Key.KeyCode then 
+        print(Key.KeyCode.W)
+    end
 end
 
 function OnUpdate(ts)

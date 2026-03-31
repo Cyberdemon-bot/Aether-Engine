@@ -92,19 +92,19 @@ namespace Aether {
 			{
 				case GLFW_PRESS:
 				{
-					KeyPressedEvent event(key, 0);
+					KeyPressedEvent event(static_cast<Key::KeyCode>(key), 0);
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_RELEASE:
 				{
-					KeyReleasedEvent event(key);
+					KeyReleasedEvent event(static_cast<Key::KeyCode>(key));
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_REPEAT:
 				{
-					KeyPressedEvent event(key, true);
+					KeyPressedEvent event(static_cast<Key::KeyCode>(key), true);
 					data.EventCallback(event);
 					break;
 				}
@@ -115,7 +115,7 @@ namespace Aether {
 		{
 			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
-			KeyTypedEvent event(keycode);
+			KeyTypedEvent event(static_cast<Key::KeyCode>(keycode));
 			data.EventCallback(event);
 		});
 
@@ -127,13 +127,13 @@ namespace Aether {
 			{
 				case GLFW_PRESS:
 				{
-					MouseButtonPressedEvent event(button);
+					MouseButtonPressedEvent event(static_cast<Mouse::MouseCode>(button));
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_RELEASE:
 				{
-					MouseButtonReleasedEvent event(button);
+					MouseButtonReleasedEvent event(static_cast<Mouse::MouseCode>(button));
 					data.EventCallback(event);
 					break;
 				}

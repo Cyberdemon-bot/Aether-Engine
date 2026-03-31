@@ -3,6 +3,7 @@
 #include "Aether/Core/Base.h"
 #include <sol/sol.hpp>
 #include <type_traits>
+#include <magic_enum/magic_enum.hpp>
 
 namespace Aether {
 
@@ -52,8 +53,8 @@ namespace Aether {
         std::vector<InstanceSlot> m_Instances;
         std::vector<uint32_t> FreeList;
 
-        template<typename Binder, typename Utype>
-        void BindType(const std::string& NS = "")
+        template<typename Binder>
+        static void BindType(const std::string& NS = "")
         {
             auto& instance = GetInstance();
             auto& lua = instance.s_LuaState;
@@ -105,8 +106,8 @@ namespace Aether {
             }
         }
 
-        template <typename Binder>
-        void BindModule(const std::string& NS = "")
+        template<typename Binder>
+        static void BindModule(const std::string& NS = "")
         {
             auto& instance = GetInstance();
             auto& lua = instance.s_LuaState;
@@ -125,6 +126,31 @@ namespace Aether {
                     table.set_function(name, overloaded_funcs);
                 });
             }
+        }
+
+        template<typename T>
+        static void BindEnum(const std::string& luaName, const std::string& NS = "")
+        {
+            auto& instance = GetInstance();
+            auto& lua = instance.s_LuaState;
+
+            sol::table dataTable = lua.create_table();
+            auto entries = magic_enum::enum_entries<T>();
+            for (const auto& [value, name] : entries)
+                dataTable[name] = static_cast<typename std::underlying_type<T>::type>(value);
+
+            sol::table proxyTable = lua.create_table();
+            sol::table mt = lua.create_table();
+
+            mt["__index"] = dataTable;
+            mt["__newindex"] = [](sol::table t, sol::object key, sol::object value) {};
+            mt[sol::meta_function::metatable] = false;
+
+            proxyTable[sol::metatable_key] = mt;
+
+            sol::table targetTable = lua.globals();
+            if (!NS.empty()) targetTable = lua[NS].get_or_create<sol::table>();
+            targetTable[luaName] = proxyTable;
         }
 
         template<typename... Args>

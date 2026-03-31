@@ -1,6 +1,7 @@
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
+#include "Aether/Core/KeyCodes.h"
 
 namespace Aether {
     sol::meta_function ScriptEngine::OpNameToMeta(std::string_view name)
@@ -41,11 +42,11 @@ namespace Aether {
 
     void ScriptEngine::RegisterTypes()
     {
-        auto& instance = GetInstance();
-        instance.BindType<Vec3Binding>("Math");
-        instance.BindType<QuatBinding>("Math");
-        instance.BindType<TransformComponentBinding>();
-        instance.BindModule<MathBinding>("Math");
+       BindType<Vec3Binding>("Math");
+       BindType<QuatBinding>("Math");
+       BindType<TransformComponentBinding>();
+       BindModule<MathBinding>("Math");
+       BindEnum<Key::KeyCode>("KeyCode", "Key");
     }
 
     InstanceHandle ScriptEngine::CreateInstance(Scene* scene, Entity entity)

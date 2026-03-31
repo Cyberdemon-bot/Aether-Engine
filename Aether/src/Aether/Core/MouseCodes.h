@@ -2,11 +2,9 @@
 
 namespace Aether
 {
-	using MouseCode = uint16_t;
-
 	namespace Mouse
 	{
-		enum : MouseCode
+		enum class MouseCode: uint16_t
 		{
 			// From glfw3.h
 			Button0                = 0,
