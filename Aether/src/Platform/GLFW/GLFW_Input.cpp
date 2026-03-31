@@ -6,7 +6,7 @@
 
 namespace Aether {
 
-	bool Input::IsKeyPressed(const KeyCode key)
+	bool Input::IsKeyPressed(const Key::KeyCode key)
 	{
 		auto* window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetWindow());
 		auto state = glfwGetKey(window, static_cast<int32_t>(key));
@@ -30,7 +30,7 @@ namespace Aether {
         }
     }
 
-	bool Input::IsMouseButtonPressed(const MouseCode button)
+	bool Input::IsMouseButtonPressed(const Mouse::MouseCode button)
 	{
 		auto* window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetWindow());
 		auto state = glfwGetMouseButton(window, static_cast<int32_t>(button));

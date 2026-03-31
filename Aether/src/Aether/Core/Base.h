@@ -92,3 +92,5 @@ namespace Aether {
 
 #define AE_REFLECT_LIST(...) std::make_tuple(__VA_ARGS__)
 #define AE_REFLECT(NAME, ...) std::make_tuple(NAME, std::make_tuple(__VA_ARGS__))
+
+#define AE_GET_CHAR(NAME) #NAME

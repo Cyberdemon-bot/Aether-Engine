@@ -68,9 +68,9 @@ namespace Aether {
         m_InitialMousePosition = mouse;
 
         // Right mouse button - Rotate (orbit)
-        bool isRightClick = Input::IsMouseButtonPressed(Mouse::ButtonRight);
+        bool isRightClick = Input::IsMouseButtonPressed(Mouse::MouseCode::ButtonRight);
         // Middle mouse button - Pan
-        bool isMiddleClick = Input::IsMouseButtonPressed(Mouse::ButtonMiddle);
+        bool isMiddleClick = Input::IsMouseButtonPressed(Mouse::MouseCode::ButtonMiddle);
         
         // Any mouse button interaction
         if (isRightClick || isMiddleClick) 
@@ -96,9 +96,9 @@ namespace Aether {
 
             // WASD movement when not rotating/panning
             float moveSpeed = 10.0f;
-            if (Input::IsKeyPressed(Key::LeftShift))
+            if (Input::IsKeyPressed(Key::KeyCode::LeftShift))
                 moveSpeed *= 2.5f; // Faster movement with shift
-            if (Input::IsKeyPressed(Key::LeftControl))
+            if (Input::IsKeyPressed(Key::KeyCode::LeftControl))
                 moveSpeed *= 0.25f; // Slower movement with ctrl
 
             float velocity = moveSpeed * (float)ts;
@@ -106,19 +106,19 @@ namespace Aether {
             glm::vec3 right = GetRightDirection();
 
             // WASD for horizontal movement
-            if (Input::IsKeyPressed(Key::W))
+            if (Input::IsKeyPressed(Key::KeyCode::W))
                 m_FocalPoint += forward * velocity;
-            if (Input::IsKeyPressed(Key::S))
+            if (Input::IsKeyPressed(Key::KeyCode::S))
                 m_FocalPoint -= forward * velocity;
-            if (Input::IsKeyPressed(Key::A))
+            if (Input::IsKeyPressed(Key::KeyCode::A))
                 m_FocalPoint -= right * velocity;
-            if (Input::IsKeyPressed(Key::D))
+            if (Input::IsKeyPressed(Key::KeyCode::D))
                 m_FocalPoint += right * velocity;
             
             // E/Q for vertical movement
-            if (Input::IsKeyPressed(Key::E))
+            if (Input::IsKeyPressed(Key::KeyCode::E))
                 m_FocalPoint += glm::vec3(0.0f, 1.0f, 0.0f) * velocity;
-            if (Input::IsKeyPressed(Key::Q))
+            if (Input::IsKeyPressed(Key::KeyCode::Q))
                 m_FocalPoint -= glm::vec3(0.0f, 1.0f, 0.0f) * velocity;
         }
 

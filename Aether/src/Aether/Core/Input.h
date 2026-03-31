@@ -16,9 +16,9 @@ namespace Aether {
 	class AETHER_API Input
 	{
 	public:
-		static bool IsKeyPressed(KeyCode key);
+		static bool IsKeyPressed(Key::KeyCode key);
 
-		static bool IsMouseButtonPressed(MouseCode button);
+		static bool IsMouseButtonPressed(Mouse::MouseCode button);
 		static glm::vec2 GetMousePosition();
 		static float GetMouseX();
 		static float GetMouseY();

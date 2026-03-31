@@ -227,10 +227,10 @@ void MainGameLayer::Update(Aether::Timestep ts)
         glm::vec3 moveDir(0.0f);
         if (m_PlayerHealth > 0.0f)
         {
-            if (Aether::Input::IsKeyPressed(Aether::Key::W)) moveDir += camForward;
-            if (Aether::Input::IsKeyPressed(Aether::Key::S)) moveDir -= camForward;
-            if (Aether::Input::IsKeyPressed(Aether::Key::A)) moveDir -= camRight;
-            if (Aether::Input::IsKeyPressed(Aether::Key::D)) moveDir += camRight;
+            if (Aether::Input::IsKeyPressed(Aether::Key::KeyCode::W)) moveDir += camForward;
+            if (Aether::Input::IsKeyPressed(Aether::Key::KeyCode::S)) moveDir -= camForward;
+            if (Aether::Input::IsKeyPressed(Aether::Key::KeyCode::A)) moveDir -= camRight;
+            if (Aether::Input::IsKeyPressed(Aether::Key::KeyCode::D)) moveDir += camRight;
         }
         else
         {
@@ -329,7 +329,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
         }
 
         // --- RELOAD LOGIC ---
-        if (Aether::Input::IsKeyPressed(Aether::Key::R) && !m_IsReloading && m_CurrentAmmo < m_MaxAmmo)
+        if (Aether::Input::IsKeyPressed(Aether::Key::KeyCode::R) && !m_IsReloading && m_CurrentAmmo < m_MaxAmmo)
         {
             m_IsReloading = true;
             m_ReloadTimer = m_ReloadDuration;
@@ -572,7 +572,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
         }
     }
 
-    if (m_PlayerHealth <= 0.0f && Aether::Input::IsKeyPressed(Aether::Key::R))
+    if (m_PlayerHealth <= 0.0f && Aether::Input::IsKeyPressed(Aether::Key::KeyCode::R))
     {
         m_PlayerHealth = 100.0f;
         auto& pTrans = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
@@ -1049,7 +1049,7 @@ void MainGameLayer::OnEvent(Aether::Event& event)
 
     // V: toggle perspective
     if (event.GetEventType() == Aether::EventType::KeyPressed &&
-        Aether::Input::IsKeyPressed(Aether::Key::V))
+        Aether::Input::IsKeyPressed(Aether::Key::KeyCode::V))
     {
         m_FirstPerson    = !m_FirstPerson;
         pTransform.Scale = m_FirstPerson ? glm::vec3(0.001f) : glm::vec3(1.0f);
@@ -1084,7 +1084,7 @@ void MainGameLayer::OnEvent(Aether::Event& event)
 
     // LMB: shoot
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
-        Aether::Input::IsMouseButtonPressed(Aether::Mouse::Button0) &&
+        Aether::Input::IsMouseButtonPressed(Aether::Mouse::MouseCode::Button0) &&
         m_PlayerHealth > 0.0f)
     {
         if (m_IsReloading)    { AE_WARN("Can't shoot while reloading!"); return; }
