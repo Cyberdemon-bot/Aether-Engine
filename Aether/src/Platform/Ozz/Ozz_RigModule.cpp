@@ -12,12 +12,18 @@ namespace Aether {
 
     Ozz_RigModule::Ozz_RigModule()
     {
-
+        m_CachePool.Init();
+        m_ClipPool.Init();
+        m_SkeletonPool.Init();
+        m_TaskPool.Init();
     }
 
     Ozz_RigModule::~Ozz_RigModule()
     {
-        
+        m_CachePool.Shutdown();
+        m_ClipPool.Shutdown();
+        m_SkeletonPool.Shutdown();
+        m_TaskPool.Shutdown();
     }
 
     Handle<SkeletonTag> Ozz_RigModule::CreateSkeleton(const SkeletonSpec& data)

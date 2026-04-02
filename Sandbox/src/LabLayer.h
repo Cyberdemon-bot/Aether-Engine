@@ -28,7 +28,7 @@ private:
     void DrawHierarchyPanel();
     void DrawEntityNode(Aether::Entity entity);
     void DrawScenePanel();
-    //void DrawAnimationPanel();
+    void DrawAnimationPanel();
     void DrawLightingPanel();
     void DrawScriptingPanel();
 
@@ -70,7 +70,7 @@ private:
     // Physics
     struct PhysicsEntry
     {
-        Aether::BodyHandle handle;
+        Aether::Handle<Aether::BodyTag> handle;
         bool         enabled    = false;
         bool         lastActive = false;
         bool         isDynamic  = true;

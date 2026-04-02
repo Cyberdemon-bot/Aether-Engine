@@ -231,57 +231,70 @@ namespace Aether::UI
     //  UI::AnimatorControls(animatorID, rigSystem);
     // =========================================================================
 
-    // inline void AnimatorControls(UUID animatorID,
-    //                              Ref<RigModule> rigSystem)
-    // {
-    //     if (!rigSystem) { TextDisabled("RigSystem not available."); return; }
+    // In Patterns.h — replace the commented block with this
 
-    //     auto guard = ID((uint64_t)animatorID);
+    inline void AnimatorControls(AnimatorComponent& anim, RigModule* rig)
+    {
+        if (!rig) { TextDisabled("RigSystem not available."); return; }
+        if (!anim.Skeleton.IsValid()) { TextDisabled("No skeleton bound."); return; }
 
-    //     // Clip combo
-    //     //auto  clips      = rigSystem->GetClips(animatorID);
-    //     //int   currentIdx = rigSystem->GetCurrentClipIndex(animatorID);
+        auto guard = ID("AnimatorControls");
 
-    //     std::vector<std::string> clipNames;
-    //     clipNames.reserve(clips.size());
-    //     for (auto& c : clips)
-    //         clipNames.push_back(AssetsRegister::Get(c));
+        // --- Clip combo ---
+        {
+            std::vector<std::string> clipNames;
+            clipNames.reserve(anim.Clips.size());
+            for (int i = 0; i < (int)anim.Clips.size(); i++)
+                clipNames.push_back("Clip " + std::to_string(i)); // swap with AssetManager name lookup if you have it
 
-    //     if (ComboList("Clip", clipNames, currentIdx))
-    //         //rigSystem->BindClip(animatorID, clips[currentIdx]);
+            if (ComboList("Clip", clipNames, anim.ActiveClipIdx))
+            {
+                anim.CurrentTime = 0.0f; // reset playhead on clip change
+            }
+        }
 
-    //     Separator();
+        Separator();
 
-    //     // Transport buttons
-    //     //bool isPlaying = rigSystem->IsPlaying(animatorID);
+        // --- Transport ---
+        {
+            bool canPlay = !anim.IsPlaying;
+            auto d = Disabled(!canPlay);
+            if (Button("Play"))  anim.IsPlaying = true;
+        }
+        SameLine();
+        {
+            auto d = Disabled(!anim.IsPlaying);
+            if (Button("Pause")) anim.IsPlaying = false;
+        }
+        SameLine();
+        if (Button("Stop")) { anim.IsPlaying = false; anim.CurrentTime = 0.0f; }
+        SameLine();
+        Badge(anim.IsPlaying ? "PLAYING" : "STOPPED",
+            anim.IsPlaying ? Color::Green() : Color::Red());
 
-    //     // if (Button("Play"))  rigSystem->Play(animatorID);
-    //     // SameLine();
-    //     // if (Button("Pause")) rigSystem->Pause(animatorID);
-    //     // SameLine();
-    //     // if (Button("Stop"))  rigSystem->Stop(animatorID);
-    //     // SameLine();
+        // --- Loop toggle ---
+        Checkbox("Loop", anim.Loop);
 
-    //     Badge(isPlaying ? "PLAYING" : "STOPPED",
-    //           isPlaying ? Color::Green() : Color::Red());
+        // --- Speed ---
+        SliderFloat("Speed", anim.Speed, 0.0f, 3.0f);
 
-    //     // Speed
-    //     float speed = rigSystem->GetSpeed(animatorID);
-    //     if (SliderFloat("Speed", speed, 0.f, 3.f))
-    //         rigSystem->SetSpeed(animatorID, speed);
-
-    //     // Scrubber
-    //     // float currentTime = rigSystem->GetPlayBackTime(animatorID);
-    //     // float duration    = rigSystem->GetDuration(animatorID);
-    //     // Text("Time: %.2f / %.2f", currentTime, duration);
-    //     // if (duration > 0.f)
-    //     //     ProgressBar(currentTime / duration);
-
-    //     // Loop toggle
-    //     // bool looping = rigSystem->GetLoop(animatorID);
-    //     // if (Checkbox("Loop", looping))
-    //     //     rigSystem->SetLoop(animatorID, looping);
-    // }
+        // --- Scrubber ---
+        if (anim.ActiveClipIdx >= 0 && anim.ActiveClipIdx < (int)anim.Clips.size())
+        {
+            float duration = rig->GetDuration(AssetManager::GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx])->GetHandle());
+            if (duration > 0.0f)
+            {
+                Text("Time: %.2f / %.2f", anim.CurrentTime, duration);
+                float t = anim.CurrentTime;
+                if (SliderFloat("##scrub", t, 0.0f, duration, "%.2f"))
+                {
+                    anim.CurrentTime = t;
+                    anim.IsPlaying   = false; // pause on manual scrub
+                }
+                ProgressBar(anim.CurrentTime / duration);
+            }
+        }
+    }
 
     // =========================================================================
     //  LightInspector  —  edits a LightParam in-place
@@ -326,7 +339,7 @@ namespace Aether::UI
         std::string  label;
         bool&        enabled;
         bool         isDynamic;
-        BodyHandle   bodyHandle;
+        Handle<BodyTag>  bodyHandle;
     };
 
     inline void PhysicsBodyList(std::vector<PhysBodyEntry>& entries)

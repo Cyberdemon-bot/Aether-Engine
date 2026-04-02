@@ -93,4 +93,17 @@ namespace Aether {
 #define AE_REFLECT_LIST(...) std::make_tuple(__VA_ARGS__)
 #define AE_REFLECT(NAME, ...) std::make_tuple(NAME, std::make_tuple(__VA_ARGS__))
 
-#define AE_GET_CHAR(NAME) #NAME
+template <typename T>
+constexpr std::string_view GetTypeName() {
+#if defined(__clang__) || defined(__GNUC__)
+    std::string_view name = __PRETTY_FUNCTION__;
+    size_t start = name.find("T = ") + 4;
+    size_t end = name.find_last_of(']');
+    return name.substr(start, end - start);
+#elif defined(_MSC_VER)
+    std::string_view name = __FUNCSIG__;
+    size_t start = name.find("<") + 1;
+    size_t end = name.find_last_of('>');
+    return name.substr(start, end - start);
+#endif
+}

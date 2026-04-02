@@ -20,12 +20,12 @@ namespace Aether {
             s_PhysicsAPI->Update(ts);
         }
 
-        static BodyHandle CreateBody(const BodyConfig& config)
+        static Handle<BodyTag> CreateBody(const BodyConfig& config)
         {
             return s_PhysicsAPI->CreateBody(config);
         }
 
-        static void DestroyBody(BodyHandle handle)
+        static void DestroyBody(Handle<BodyTag> handle)
         {
             s_PhysicsAPI->DestroyBody(handle);
         }
@@ -40,37 +40,37 @@ namespace Aether {
             return s_PhysicsAPI->CastRayAll(origin, direction, distance);
         }
 
-        static void SetActive(BodyHandle handle, bool active)
+        static void SetActive(Handle<BodyTag> handle, bool active)
         {
             s_PhysicsAPI->SetActive(handle, active);
         }
 
-        static void SetUUID(BodyHandle handle, UUID id)
+        static void SetUUID(Handle<BodyTag> handle, UUID id)
         {
             s_PhysicsAPI->SetUUID(handle, id);
         }
 
-        static UUID GetUUID(BodyHandle handle)
+        static UUID GetUUID(Handle<BodyTag> handle)
         {
             return s_PhysicsAPI->GetUUID(handle);
         }
         
-        static void SetPhysTransform(BodyHandle handle, const PhysTransform& transform)
+        static void SetPhysTransform(Handle<BodyTag> handle, const PhysTransform& transform)
         {
             s_PhysicsAPI->SetPhysTransform(handle, transform);
         }
 
-        static PhysTransform GetPhysTransform(BodyHandle handle)
+        static PhysTransform GetPhysTransform(Handle<BodyTag> handle)
         {
             return s_PhysicsAPI->GetPhysTransform(handle);
         }
 
-        static void AddForce(BodyHandle handle, const glm::vec3& force)
+        static void AddForce(Handle<BodyTag> handle, const glm::vec3& force)
         {
             s_PhysicsAPI->AddForce(handle, force);
         }
 
-        static void SetVelocity(BodyHandle handle, const glm::vec3& velocity)
+        static void SetVelocity(Handle<BodyTag> handle, const glm::vec3& velocity)
         {
             s_PhysicsAPI->SetVelocity(handle, velocity);
         }
@@ -80,12 +80,12 @@ namespace Aether {
             s_PhysicsAPI->SetGravity(gravity);
         }
 
-        static bool CanMove(BodyHandle handle, const PhysTransform& target)
+        static bool CanMove(Handle<BodyTag> handle, const PhysTransform& target)
         {
             return s_PhysicsAPI->CanMove(handle, target);
         }
 
-        static const BodyConfig* GetBodyInfo(BodyHandle handle)
+        static const BodyConfig* GetBodyInfo(Handle<BodyTag> handle)
         {
             return s_PhysicsAPI->GetBodyInfo(handle);
         }

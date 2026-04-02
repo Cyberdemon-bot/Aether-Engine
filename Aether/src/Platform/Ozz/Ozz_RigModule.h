@@ -40,11 +40,23 @@ namespace Aether {
         {
             ozz::unique_ptr<ozz::animation::Skeleton> data;
             std::vector<glm::mat4> orderedIBMs;
+
+            OzzSkeleton() = default;
+            OzzSkeleton(const OzzSkeleton&) = delete;
+            OzzSkeleton& operator=(const OzzSkeleton&) = delete;
+            OzzSkeleton(OzzSkeleton&&) = default;
+            OzzSkeleton& operator=(OzzSkeleton&&) = default;
         };
 
         struct OzzClip
         {
             ozz::unique_ptr<ozz::animation::Animation> data;
+
+            OzzClip() = default;
+            OzzClip(const OzzClip&) = delete;
+            OzzClip& operator=(const OzzClip&) = delete;
+            OzzClip(OzzClip&&) = default;
+            OzzClip& operator=(OzzClip&&) = default;
         };
 
         struct OzzCache

@@ -232,7 +232,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID 
     else
     {
         auto& col          = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
-        col.Handle         = handle;
+        col.ColliderHandle = handle;
         col.ColliderOffset = localOffset;
     }
 
@@ -299,7 +299,7 @@ void LabLayer::OnImGuiRender()
 
     DrawHierarchyPanel();
     DrawScenePanel();
-    //DrawAnimationPanel();
+    DrawAnimationPanel();
     DrawLightingPanel();
     DrawScriptingPanel();
 }
@@ -544,92 +544,96 @@ void LabLayer::DrawScenePanel()
 //  Animation panel
 // =============================================================================
 
-// void LabLayer::DrawAnimationPanel()
-// {
-//     using namespace Aether;
+void LabLayer::DrawAnimationPanel()
+{
+    using namespace Aether;
 
-//     if (auto w = UI::Window("Animation"))
-//     {
-//         auto rigSystem = AnimationSystem::GetModule<RigModule>();
-//         if (!rigSystem) { UI::TextDisabled("RigSystem not initialized."); return; }
+    if (auto w = UI::Window("Animation"))
+    {
+        auto rigSystem = AnimationSystem::GetModule<RigModule>();
+        if (!rigSystem) { UI::TextDisabled("RigSystem not initialized."); return; }
 
-//         // ---- Bind mesh to animator ------------------------------------------
-//         if (auto h = UI::Header("Bind Mesh to Animator"))
-//         {
-//             std::vector<std::string> meshNames;
-//             meshNames.reserve(m_MeshIDs.size());
-//             for (int i = 0; i < (int)m_MeshIDs.size(); i++)
-//                 meshNames.push_back(std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]));
-//             UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
+        // ---- Bind mesh to animator ------------------------------------------
+        if (auto h = UI::Header("Bind Mesh to Animator"))
+        {
+            std::vector<std::string> meshNames;
+            meshNames.reserve(m_MeshIDs.size());
+            for (int i = 0; i < (int)m_MeshIDs.size(); i++)
+                meshNames.push_back(std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]));
+            UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
 
-//             std::vector<std::string> animNames;
-//             animNames.reserve(m_AnimatorIDs.size());
-//             for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
-//                 animNames.push_back("Animator " + std::to_string(i));
-//             UI::ComboList("Animator##bind", animNames, m_BindAnimatorIndex);
+            // Animator list is now entities with AnimatorComponent
+            auto animView = m_Scene.View<AnimatorComponent>();
+            std::vector<Entity> animEntities(animView.begin(), animView.end());
 
-//             bool canBind = (m_BindMeshIndex    >= 0 && m_BindMeshIndex    < (int)m_MeshIDs.size() &&
-//                             m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)m_AnimatorIDs.size());
-//             {
-//                 auto d = UI::Disabled(!canBind);
-//                 if (UI::Button("Bind"))
-//                 {
-//                     UUID meshID = m_MeshIDs[m_BindMeshIndex];
-//                     UUID animID = m_AnimatorIDs[m_BindAnimatorIndex];
+            std::vector<std::string> animNames;
+            animNames.reserve(animEntities.size());
+            for (int i = 0; i < (int)animEntities.size(); i++)
+                animNames.push_back("Animator " + std::to_string(i));
+            UI::ComboList("Animator##bind", animNames, m_BindAnimatorIndex);
 
-//                     for (auto entity : m_Scene.View<MeshComponent>())
-//                     {
-//                         auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
-//                         auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
-//                         if (mesh && mesh->id == meshID)
-//                         {
-//                             if (!m_Scene.HasComponent<AnimatorComponent>(entity))
-//                                 m_Scene.AddComponent<AnimatorComponent>(entity);
-//                             m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID = animID;
-//                             break;
-//                         }
-//                     }
-//                 }
-//             }
+            bool canBind = (m_BindMeshIndex    >= 0 && m_BindMeshIndex    < (int)m_MeshIDs.size() &&
+                            m_BindAnimatorIndex >= 0 && m_BindAnimatorIndex < (int)animEntities.size());
+            {
+                auto d = UI::Disabled(!canBind);
+                if (UI::Button("Bind"))
+                {
+                    UUID meshID = m_MeshIDs[m_BindMeshIndex];
+                    Entity targetAnimEnt = animEntities[m_BindAnimatorIndex];
+                    auto& srcAnim = m_Scene.GetComponent<AnimatorComponent>(targetAnimEnt);
 
-//             UI::SectionHeader("Active Bindings");
-//             for (auto entity : m_Scene.View<MeshComponent, AnimatorComponent>())
-//             {
-//                 auto& mc    = m_Scene.GetComponent<MeshComponent>(entity);
-//                 auto* mesh  = AssetManager::GetAsset<Mesh>(mc.Mesh);
-//                 UUID  animID = m_Scene.GetComponent<AnimatorComponent>(entity).AnimatorID;
+                    for (auto entity : m_Scene.View<MeshComponent>())
+                    {
+                        auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
+                        auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                        if (mesh && mesh->id == meshID)
+                        {
+                            m_Scene.CloneComponent<AnimatorComponent>(entity, targetAnimEnt);
+                            break;
+                        }
+                    }
+                }
+            }
 
-//                 std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
-//                 int animIdx = -1;
-//                 for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
-//                     if (m_AnimatorIDs[i] == animID) { animIdx = i; break; }
+            UI::SectionHeader("Active Bindings");
+            for (auto entity : m_Scene.View<MeshComponent, AnimatorComponent>())
+            {
+                auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
+                auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                auto& anim = m_Scene.GetComponent<AnimatorComponent>(entity);
 
-//                 auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : 0);
-//                 UI::Text("%s  ->  Animator %d", meshName.c_str(), animIdx);
-//                 UI::SameLine();
-//                 if (UI::SmallButton("Unbind"))
-//                     m_Scene.RemoveComponent<AnimatorComponent>(entity);
-//             }
-//         }
+                std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
+                std::string skelName = anim.Skeleton.IsValid()
+                    ? AssetsRegister::Get(Aether::AssetManager::GetAsset<Skeleton>(anim.Skeleton)->id) : "(no skeleton)";
 
-//         UI::Separator();
+                auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : (int)(uint64_t)entity);
+                UI::Text("%s  ->  [%s]", meshName.c_str(), skelName.c_str());
+                UI::SameLine();
+                if (UI::SmallButton("Unbind"))
+                    m_Scene.RemoveComponent<AnimatorComponent>(entity);
+            }
+        }
 
-//         if (m_AnimatorIDs.empty())
-//         {
-//             UI::TextDisabled("No animators loaded. Use 'load <path>' in the console.");
-//             return;
-//         }
+        UI::Separator();
 
-//         // ---- Per-animator controls ------------------------------------------
-//         for (int i = 0; i < (int)m_AnimatorIDs.size(); i++)
-//         {
-//             auto g = UI::ID(i);
-//             if (auto h = UI::Header(("Animator " + std::to_string(i)).c_str()))
-//                 UI::AnimatorControls(m_AnimatorIDs[i], rigSystem);
-//             UI::Spacing();
-//         }
-//     }
-//}
+        // ---- Per-animator controls ------------------------------------------
+        bool anyAnimators = false;
+        for (auto entity : m_Scene.View<AnimatorComponent>())
+        {
+            anyAnimators = true;
+            auto& tag  = m_Scene.GetComponent<TagComponent>(entity);
+            auto& anim = m_Scene.GetComponent<AnimatorComponent>(entity);
+
+            auto g = UI::ID((uint64_t)entity);
+            if (auto h = UI::Header(tag.Tag.c_str()))
+                UI::AnimatorControls(anim, rigSystem.get());
+            UI::Spacing();
+        }
+
+        if (!anyAnimators)
+            UI::TextDisabled("No animators in scene.");
+    }
+}
 
 // =============================================================================
 //  Lighting panel

@@ -444,7 +444,7 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
-            BodyHandle handle = rbComp.Handle;
+            Handle<BodyTag> handle = rbComp.ColliderHandle;
 
             if (isWorldTransformDirty)
             {
@@ -564,7 +564,7 @@ namespace Aether {
             DirtyScan();
             BreadthFirstSearch();
             for (auto& level : m_HierarchyLevels) 
-                JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((this), (Entity entity), void,
+                JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 
                 ));
         }
@@ -631,8 +631,8 @@ namespace Aether {
                 auto meshView = View<MeshComponent>();
 
                 JobSystem::ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
-                    auto& transform = GetComponent<TransformComponent>(entity);
-                    auto& meshcmp = GetComponent<MeshComponent>(entity);
+                    auto& transform = this->GetComponent<TransformComponent>(entity);
+                    auto& meshcmp = this->GetComponent<MeshComponent>(entity);
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); 
                     if (!mesh)
                     {
@@ -684,7 +684,7 @@ namespace Aether {
                     {
                         auto& component = GetComponent<ColliderComponent>(entity);
                         if (!component.Visible) continue;
-                        BodyHandle handle = component.Handle;
+                        Handle<BodyTag> handle = component.ColliderHandle;
                         PhysTransform pt = PhysicsSystem::GetPhysTransform(handle);
                         glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                     * glm::toMat4(pt.rotation);
