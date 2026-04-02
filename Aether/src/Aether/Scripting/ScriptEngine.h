@@ -32,7 +32,7 @@ namespace Aether {
         bool has_error = false;
     };
 
-    class ScriptEngine
+    class AETHER_API ScriptEngine
     {
     public:
         static void Init();

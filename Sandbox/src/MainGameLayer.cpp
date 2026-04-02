@@ -677,7 +677,7 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
         m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).ActiveClipIdx = 4;
     }
 
-    Aether::BodyHandle handle{};
+    Aether::Handle<Aether::BodyTag> handle{};
     Aether::UUID bodyID = m_Scene.GetComponent<Aether::IDComponent>(newZombie).ID;
     {
         Aether::BodyConfig cfg;

@@ -32,14 +32,24 @@ namespace Aether {
 
         ResourcePool()
         {
-            m_Resources.reserve(128);
-            AE_CORE_INFO("ResourcePool {0} initialized", AE_GET_CHAR(DataType));
+            
         }
 
         ~ResourcePool()
         {
+            
+        }
+
+        void Init()
+        {
+            m_Resources.reserve(128);
+            AE_CORE_INFO("ResourcePool {0} initialized", GetTypeName<DataType>());
+        }
+
+        void Shutdown()
+        {
             Clear();
-            AE_CORE_INFO("ResourcePool {0} shutdowned", AE_GET_CHAR(DataType));
+            AE_CORE_INFO("ResourcePool {0} shutdowned", GetTypeName<DataType>());
         }
 
         void DestroyResource(HandleType handle)
@@ -71,7 +81,7 @@ namespace Aether {
             {
                 index = FreeList.back();
                 FreeList.pop_back();
-                m_Resources[index].asset = DataType(std::forward<Args>(args)...);
+                m_Resources[index].asset = std::move(DataType(std::forward<Args>(args)...));
             }
             else
             {
@@ -104,6 +114,8 @@ namespace Aether {
         }
         
     private:
+        ResourcePool& operator=(const ResourcePool&) = delete;
+        ResourcePool(const ResourcePool&) = delete;
 
         std::vector<ResourceSlot> m_Resources;
         std::vector<uint32_t> FreeList;

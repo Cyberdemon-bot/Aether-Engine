@@ -5,6 +5,7 @@
 
 #include <string>
 #include <algorithm>
+#include <vector>
 
 namespace Aether {
 
@@ -12,7 +13,6 @@ namespace Aether {
     {
     public:
         virtual ~AnimationModule() = default;
-        //virtual void Update(Timestep ts) = 0;
     private:
         virtual const char* GetName() const = 0;
     };
@@ -22,7 +22,6 @@ namespace Aether {
     public: 
         static void Init();
         static void Shutdown();
-        static void Update(Timestep ts);
 
         template <typename T>
         static void AddModule() 

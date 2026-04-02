@@ -65,7 +65,7 @@ namespace Aether {
     struct LightComponent
     {
         LightParam Config;
-        bool Culled = false;
+        mutable bool Culled = false;
 
         LightComponent() = default;
         LightComponent(const LightComponent&) = default;
@@ -77,7 +77,7 @@ namespace Aether {
         AssetHandle Mesh;
         MaterialTable Materials;
         bool ShowBounds = false;
-        bool Culled = false;
+        mutable bool Culled = false;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;
@@ -91,11 +91,12 @@ namespace Aether {
         Handle<CacheTag> Cache;
         Handle<TaskTag>  CurrentTask; 
 
-        int   ActiveClipIdx = 0;
-        float CurrentTime   = 0.0f;
-        float Speed         = 1.0f;
-        bool  IsPlaying     = true;
-        bool  Loop          = true;
+        int ActiveClipIdx = 0;
+        float CurrentTime = 0.0f;
+        float Speed = 1.0f;
+        bool IsPlaying = true;
+        bool Loop = true;
+        mutable bool Culled = false;
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
@@ -142,17 +143,17 @@ namespace Aether {
 
     struct ColliderComponent
     {
-        BodyHandle Handle;
+        Handle<BodyTag> ColliderHandle;
         bool Visible = false;
         glm::vec3 ColliderOffset;
         ColliderShape Shape;
         glm::vec3 Size; // box: halfx, halfy, halfz --- capsule: radius, height, __ --- sphere: radius, __, __
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
-        ColliderComponent(const BodyHandle& handle, bool visible = false)
-            : Handle(handle), Visible(visible)
+        ColliderComponent(const Handle<BodyTag>& handle, bool visible = false)
+            : ColliderHandle(handle), Visible(visible)
         {
-            auto it = PhysicsSystem::GetBodyInfo(Handle);
+            auto it = PhysicsSystem::GetBodyInfo(ColliderHandle);
             if (it == nullptr) return;
             auto& info = *it;
             ColliderOffset = info.offset;
