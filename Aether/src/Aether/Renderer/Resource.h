@@ -11,9 +11,9 @@ namespace Aether {
 
     struct ResourceHandle
     {
-        int index = -1, generation = -1;
-
-        bool IsValid() const { return index >= 0 && generation >= 0; }
+        uint32_t index = UINT32_MAX;
+        uint32_t generation = 0;
+        bool IsValid() const { return index != UINT32_MAX; }
     };
 
     class Resource

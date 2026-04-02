@@ -8,6 +8,7 @@
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Animation/RigModule.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -84,23 +85,20 @@ namespace Aether {
 
     struct AnimatorComponent
     {
-        UUID AnimatorID;
+        AssetHandle Skeleton;
+        std::vector<AssetHandle> Clips;
+        
+        Handle<CacheTag> Cache;
+        Handle<TaskTag>  CurrentTask; 
+
+        int   ActiveClipIdx = 0;
+        float CurrentTime   = 0.0f;
+        float Speed         = 1.0f;
+        bool  IsPlaying     = true;
+        bool  Loop          = true;
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
-        AnimatorComponent(const UUID& id) : AnimatorID(id) {};
-    };
-
-    struct BoneAttachmentComponent
-    {
-        UUID AnimatorID;
-        bool Active = false;
-        int BoneIdx = -1;
-        
-        BoneAttachmentComponent() = default;
-        BoneAttachmentComponent(const BoneAttachmentComponent&) = default;
-        BoneAttachmentComponent(const UUID& id) : AnimatorID(id) {};
-        BoneAttachmentComponent(const UUID& id, int idx, bool active = false) : AnimatorID(id), BoneIdx(idx), Active(active) {};
     };
 
     struct AudioSourceComponent

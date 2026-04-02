@@ -24,6 +24,6 @@ namespace Aether {
     void AnimationSystem::Update(Timestep ts)
     {
         auto& instance = GetInstance();
-        for (const auto& [type, module] : instance.m_Modules) module->Update(ts);
+        //for (const auto& [type, module] : instance.m_Modules) module->Update(ts);
     }
 }

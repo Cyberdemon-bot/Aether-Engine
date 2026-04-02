@@ -57,7 +57,7 @@ namespace Aether {
         {
             UUID matID = AssetsRegister::Register(matInfo.DebugName);
             AssetManager::CreateAsset<Material>(matID);
-            auto material = AssetManager::GetAsset<Material>(AssetManager::GetHandle(matID));
+            auto material = AssetManager::GetAsset<Material>(matID);
             if (!material) AE_CORE_ERROR("Fail to Create material while uploading");
             
             // Set textures
@@ -84,7 +84,6 @@ namespace Aether {
         for (const auto& rigInfo : sceneData->Rigs)
         {
             UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
-            animSystem->RegisterSkeleton(rigInfo, rigID);
             rigIDs.push_back(rigID);
         }
 
@@ -97,9 +96,11 @@ namespace Aether {
         for (size_t rigIdx = 0; rigIdx < rigIDs.size(); rigIdx++)
         {
             UUID rigID = rigIDs[rigIdx];
-            UUID animatorID = AssetsRegister::Register("RigAnimator_" + AssetsRegister::Get(rigID));
-            animSystem->CreateAnimator(animatorID, rigID);
-            res.animatorIDS.push_back(animatorID); 
+            const auto& rigInfo = sceneData->Rigs[rigIdx];
+            res.animators.push_back({});
+            auto rig = AssetManager::CreateAsset<Skeleton>(rigID, rigInfo.spec);
+            res.animators.back().skeleton = rig;
+            auto handle = AssetManager::GetAsset<Skeleton>(rig)->GetHandle();
             auto it = sceneData->RigMap.find((uint32_t)rigIdx);
             if (it != sceneData->RigMap.end())
             {
@@ -108,9 +109,8 @@ namespace Aether {
                 {
                     const auto& clipInfo = sceneData->Clips[clipIdx];
                     UUID clipID = clipIDs[clipIdx];
-                    
-                    animSystem->RegisterClip(clipInfo, clipID, rigID);
-                    animSystem->AddClip(animatorID, clipID);
+                    auto clip = AssetManager::CreateAsset<Clip>(clipID, clipInfo.spec, handle);
+                    res.animators.back().clips.push_back(clip);
                 }
             }
         }
@@ -165,7 +165,11 @@ namespace Aether {
             spec.IndexCount = meshInfo.totalIndices;
             spec.Submeshes = submeshes;
             if (rigIdx >= 0)
-                spec.RigPoseMats = animSystem->GetRestPoseMatrices(rigIDs[rigIdx]);
+            {
+                auto handle = AssetManager::GetAsset<Skeleton>(rigIDs[rigIdx])->GetHandle();
+                spec.RigPoseMats.resize(animSystem->GetJointCount(handle));
+                animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());
+            }
 
             AssetManager::CreateAsset<Mesh>(meshID, spec);
             res.meshIDs.push_back(meshID);

@@ -10,7 +10,7 @@
 #include "Aether/Assets/Material.h"
 #include "Aether/Renderer/Camera.h"
 #include "Aether/Renderer/ResourceManager.h"
-#include "Aether/Core/UUID.h"
+#include "Aether/Animation/RigModule.h"
 #include <glm/glm.hpp>
 #include <tuple>
 #define MAX_LIGHTS 16
@@ -75,7 +75,7 @@ namespace Aether {
 
 	struct BatchData
 	{
-		std::vector<std::pair<glm::mat4, UUID>> dynamic_obj;
+		std::vector<std::pair<glm::mat4, Handle<TaskTag>>> dynamic_obj;
 		std::vector<glm::mat4>                  static_obj;
 	};
 
@@ -84,16 +84,16 @@ namespace Aether {
 		Mesh*     mesh;
 		Material* material;
 		uint32_t  subIdx;
-		UUID      animator = UUID(0);
+		Handle<TaskTag> anim_task;
 		glm::mat4 transform;
 
 		bool operator<(const Command& other) const
 		{
-			bool thisAnimated  = (uint64_t)animator       != 0;
-			bool otherAnimated = (uint64_t)other.animator != 0;
-			if (thisAnimated != otherAnimated) return thisAnimated > otherAnimated;
-			if (material != other.material)    return material < other.material;
-			if (mesh     != other.mesh)        return mesh     < other.mesh;
+			bool thisAnim  = anim_task.IsValid();
+			bool otherAnim = other.anim_task.IsValid();
+			if (thisAnim != otherAnim) return thisAnim > otherAnim; 
+			if (material != other.material) return material < other.material;
+			if (mesh     != other.mesh)     return mesh     < other.mesh;
 			return subIdx < other.subIdx;
 		}
 
@@ -149,7 +149,7 @@ namespace Aether {
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
-		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, UUID animatorID, const glm::mat4& transform);
+		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<TaskTag> anim_task, const glm::mat4& transform);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);

@@ -28,7 +28,7 @@ private:
     void DrawHierarchyPanel();
     void DrawEntityNode(Aether::Entity entity);
     void DrawScenePanel();
-    void DrawAnimationPanel();
+    //void DrawAnimationPanel();
     void DrawLightingPanel();
     void DrawScriptingPanel();
 

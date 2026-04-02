@@ -11,6 +11,12 @@
 
 namespace Aether {
 
+    struct Animator
+    {
+        AssetHandle skeleton;
+        std::vector<AssetHandle> clips;
+    };
+
     struct ParsedScene
     {
         std::string FilePath;
@@ -30,7 +36,7 @@ namespace Aether {
         std::vector<UUID> matIDs;
         std::vector<std::vector<UUID>> meshMap;
 
-        std::vector<UUID> animatorIDS;
+        std::vector<Animator> animators;
         Ref<SceneHierarchy> hierarchy;
     };
 

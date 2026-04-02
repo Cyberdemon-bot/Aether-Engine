@@ -289,7 +289,7 @@ namespace Aether {
 			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray()));
 	}
 
-	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, UUID animatorID, const glm::mat4& transform)
+	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<TaskTag> anim_task, const glm::mat4& transform)
 	{
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
@@ -302,7 +302,7 @@ namespace Aether {
 			command.mesh      = mesh;
 			command.material  = materials[submeshes[i].MaterialIdx];
 			command.subIdx    = i;
-			command.animator  = animatorID;
+			command.anim_task  = anim_task;
 			command.transform = transform;
 			s_SceneData->CommandList.push_back(command);
 		}
@@ -320,7 +320,7 @@ namespace Aether {
 	{
 		Mesh*     currentMesh     = nullptr;
 		Material* currentMaterial = nullptr;
-		UUID      currentAnimator = UUID(0);
+		Handle<TaskTag>  currentAnimator = Handle<TaskTag>::MakeInvalid();
 		int       startSlot       = 0;
 
 		if (!pass.Shader || !pass.TargetFBO)
@@ -375,11 +375,7 @@ namespace Aether {
 			auto& CommandList = s_SceneData->CommandList;
 			sort(CommandList.begin(), CommandList.end());
 
-			for (size_t i = 0; i < CommandList.size() && (uint64_t)CommandList[i].animator != 0; i++)
-				skelSystem->RequestMatrices(CommandList[i].animator);
-			skelSystem->ProcessRequests();
-
-			if (!CommandList.empty() && CommandList[0].animator != 0)
+			if (!CommandList.empty() && CommandList[0].anim_task.IsValid())
 			{
 				shader->SetInt("u_UseInstancing", 0);
 				shader->SetInt("u_HasAnimation",  1);
@@ -411,15 +407,15 @@ namespace Aether {
 					currentMesh = mesh;
 				}
 
-				if (command.animator != UUID(0))
+				if (command.anim_task.IsValid())
 				{
-					if (currentAnimator != command.animator)
+					if (currentAnimator.Blend() != command.anim_task.Blend())
 					{
-						currentAnimator = command.animator;
-						const auto& boneMatrices = skelSystem->GetMatrices(command.animator);
-						if (!boneMatrices.empty())
+						currentAnimator = command.anim_task;
+						const auto [boneMatrices, size] = skelSystem->GetPose(command.anim_task);
+						if (size != 0)
 							ResourceManager::GetResource<UniformBuffer>(s_RenderData->BoneUB)
-								->SetData(boneMatrices.data(), boneMatrices.size() * sizeof(glm::mat4));
+					 			->SetData(boneMatrices, size * sizeof(glm::mat4));
 					}
 					shader->SetMat4("u_Model", command.transform);
 					RenderCommand::DrawIndexedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex);
@@ -427,11 +423,11 @@ namespace Aether {
 				else
 				{
 					s_SceneData->batchTransform.push_back(command.transform);
-					if (currentAnimator != UUID(0))
+					if (currentAnimator.IsValid())
 					{
 						shader->SetInt("u_UseInstancing", 1);
 						shader->SetInt("u_HasAnimation",  0);
-						currentAnimator = UUID(0);
+						currentAnimator = Handle<TaskTag>::MakeInvalid();
 					}
 					if ((i == CommandList.size() - 1) || (command != CommandList[i + 1]))
 					{

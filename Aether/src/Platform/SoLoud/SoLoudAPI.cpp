@@ -5,10 +5,6 @@
 
 namespace Aether {
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     SoLoud::Wav* SoLoudAPI::GetWav(UUID soundID)
     {
         auto* sound = AssetManager::GetAsset<Sound>(soundID);
@@ -28,10 +24,6 @@ namespace Aether {
         return SoLoud::AudioSource::NO_ATTENUATION;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
-
     void SoLoudAPI::Init()
     {
         soloud.init();
@@ -44,10 +36,6 @@ namespace Aether {
         m_Sources.clear();
         soloud.deinit();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Sources
-    // ─────────────────────────────────────────────────────────────────────────
 
     void SoLoudAPI::CreateSource(UUID sourceID, UUID soundID, AudioType type)
     {
@@ -80,10 +68,6 @@ namespace Aether {
         if (it == m_Sources.end()) return false;
         return soloud.isValidVoiceHandle(it->second.handle);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Playback
-    // ─────────────────────────────────────────────────────────────────────────
 
     void SoLoudAPI::Play(UUID sourceID)
     {
@@ -141,10 +125,6 @@ namespace Aether {
             soloud.stop(it->second.handle);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // State setters
-    // ─────────────────────────────────────────────────────────────────────────
-
     void SoLoudAPI::SetVolume(UUID sourceID, float value)
     {
         auto it = m_Sources.find(sourceID);
@@ -193,10 +173,6 @@ namespace Aether {
         if (soloud.isValidVoiceHandle(it->second.handle))
             soloud.seek(it->second.handle, value);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 3D
-    // ─────────────────────────────────────────────────────────────────────────
 
     void SoLoudAPI::SetPosition(UUID sourceID, const glm::vec3& position)
     {

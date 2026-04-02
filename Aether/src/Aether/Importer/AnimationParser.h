@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Assets/Skeleton.h"
+#include "Aether/Assets/Clip.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -14,42 +16,13 @@ namespace Aether {
     struct RigCreateInfo
     {
         std::string DebugName;
-        
-        struct Joint
-        {
-            std::string Name;
-            int16_t ParentIndex;
-            glm::vec3 Translation;
-            glm::quat Rotation;
-            glm::vec3 Scale;
-        };
-        
-        std::vector<Joint> Joints;
-        std::vector<glm::mat4> IBM;
-        glm::mat4 nodeTransform;
+        SkeletonSpec spec;
     };
 
     struct ClipCreateInfo
     {
         std::string DebugName;
-        float Duration;
-        float SampleRate;  
-        
-        struct Track
-        {
-            int JointIndex;  
-            
-            std::vector<float> TranslationTimes;
-            std::vector<glm::vec3> TranslationValues;
-            
-            std::vector<float> RotationTimes;
-            std::vector<glm::quat> RotationValues;
-            
-            std::vector<float> ScaleTimes;
-            std::vector<glm::vec3> ScaleValues;
-        };
-        
-        std::vector<Track> Tracks;
+        ClipSpec spec;
     };
 
     struct RigAnimsCreateInfo

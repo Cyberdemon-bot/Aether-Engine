@@ -11,7 +11,7 @@ namespace Aether {
     struct ResourceSlot
     {
         Scope<Resource> asset;
-        int generation = 0;
+        uint32_t generation = 0;
     };
 
     class AETHER_API ResourceManager

@@ -12,7 +12,8 @@ namespace Aether {
     {
     public:
         virtual ~AnimationModule() = default;
-        virtual void Update(Timestep ts) = 0;
+        //virtual void Update(Timestep ts) = 0;
+    private:
         virtual const char* GetName() const = 0;
     };
 
