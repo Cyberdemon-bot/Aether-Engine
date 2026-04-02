@@ -231,57 +231,57 @@ namespace Aether::UI
     //  UI::AnimatorControls(animatorID, rigSystem);
     // =========================================================================
 
-    inline void AnimatorControls(UUID animatorID,
-                                 Ref<RigModule> rigSystem)
-    {
-        if (!rigSystem) { TextDisabled("RigSystem not available."); return; }
+    // inline void AnimatorControls(UUID animatorID,
+    //                              Ref<RigModule> rigSystem)
+    // {
+    //     if (!rigSystem) { TextDisabled("RigSystem not available."); return; }
 
-        auto guard = ID((uint64_t)animatorID);
+    //     auto guard = ID((uint64_t)animatorID);
 
-        // Clip combo
-        auto  clips      = rigSystem->GetClips(animatorID);
-        int   currentIdx = rigSystem->GetCurrentClipIndex(animatorID);
+    //     // Clip combo
+    //     //auto  clips      = rigSystem->GetClips(animatorID);
+    //     //int   currentIdx = rigSystem->GetCurrentClipIndex(animatorID);
 
-        std::vector<std::string> clipNames;
-        clipNames.reserve(clips.size());
-        for (auto& c : clips)
-            clipNames.push_back(AssetsRegister::Get(c));
+    //     std::vector<std::string> clipNames;
+    //     clipNames.reserve(clips.size());
+    //     for (auto& c : clips)
+    //         clipNames.push_back(AssetsRegister::Get(c));
 
-        if (ComboList("Clip", clipNames, currentIdx))
-            rigSystem->BindClip(animatorID, clips[currentIdx]);
+    //     if (ComboList("Clip", clipNames, currentIdx))
+    //         //rigSystem->BindClip(animatorID, clips[currentIdx]);
 
-        Separator();
+    //     Separator();
 
-        // Transport buttons
-        bool isPlaying = rigSystem->IsPlaying(animatorID);
+    //     // Transport buttons
+    //     //bool isPlaying = rigSystem->IsPlaying(animatorID);
 
-        if (Button("Play"))  rigSystem->Play(animatorID);
-        SameLine();
-        if (Button("Pause")) rigSystem->Pause(animatorID);
-        SameLine();
-        if (Button("Stop"))  rigSystem->Stop(animatorID);
-        SameLine();
+    //     // if (Button("Play"))  rigSystem->Play(animatorID);
+    //     // SameLine();
+    //     // if (Button("Pause")) rigSystem->Pause(animatorID);
+    //     // SameLine();
+    //     // if (Button("Stop"))  rigSystem->Stop(animatorID);
+    //     // SameLine();
 
-        Badge(isPlaying ? "PLAYING" : "STOPPED",
-              isPlaying ? Color::Green() : Color::Red());
+    //     Badge(isPlaying ? "PLAYING" : "STOPPED",
+    //           isPlaying ? Color::Green() : Color::Red());
 
-        // Speed
-        float speed = rigSystem->GetSpeed(animatorID);
-        if (SliderFloat("Speed", speed, 0.f, 3.f))
-            rigSystem->SetSpeed(animatorID, speed);
+    //     // Speed
+    //     float speed = rigSystem->GetSpeed(animatorID);
+    //     if (SliderFloat("Speed", speed, 0.f, 3.f))
+    //         rigSystem->SetSpeed(animatorID, speed);
 
-        // Scrubber
-        float currentTime = rigSystem->GetPlayBackTime(animatorID);
-        float duration    = rigSystem->GetDuration(animatorID);
-        Text("Time: %.2f / %.2f", currentTime, duration);
-        if (duration > 0.f)
-            ProgressBar(currentTime / duration);
+    //     // Scrubber
+    //     // float currentTime = rigSystem->GetPlayBackTime(animatorID);
+    //     // float duration    = rigSystem->GetDuration(animatorID);
+    //     // Text("Time: %.2f / %.2f", currentTime, duration);
+    //     // if (duration > 0.f)
+    //     //     ProgressBar(currentTime / duration);
 
-        // Loop toggle
-        bool looping = rigSystem->GetLoop(animatorID);
-        if (Checkbox("Loop", looping))
-            rigSystem->SetLoop(animatorID, looping);
-    }
+    //     // Loop toggle
+    //     // bool looping = rigSystem->GetLoop(animatorID);
+    //     // if (Checkbox("Loop", looping))
+    //     //     rigSystem->SetLoop(animatorID, looping);
+    // }
 
     // =========================================================================
     //  LightInspector  —  edits a LightParam in-place

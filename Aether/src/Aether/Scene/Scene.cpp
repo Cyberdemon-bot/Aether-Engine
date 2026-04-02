@@ -178,6 +178,16 @@ namespace Aether {
             if (parentHie.firstChild == entity) parentHie.firstChild = hierarchy.nextSibling;
         }
 
+        if (HasComponent<AnimatorComponent>(entity))
+        {
+            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            if (rigModule)
+            {
+                auto& comp = GetComponent<AnimatorComponent>(entity);
+                if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
+            }
+        }
+
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
@@ -383,8 +393,22 @@ namespace Aether {
             }
         }
 
-        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animatorIDS.size())
-            AddComponent<AnimatorComponent>(e).AnimatorID = reg.animatorIDS[node.animatorIdx];
+        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animators.size())
+        {
+            const auto& animator = reg.animators[node.animatorIdx];
+            auto& comp = AddComponent<AnimatorComponent>(e);
+            comp.Skeleton = animator.skeleton;
+            comp.Clips    = animator.clips;
+
+            if (!comp.Clips.empty())
+            {
+                auto rigModule = AnimationSystem::GetModule<RigModule>();
+                auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
+                auto* clipAsset     = AssetManager::GetAsset<Clip>(comp.Clips[0]);
+                if (skeletonAsset && clipAsset)
+                    comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());
+            }
+        }
         for (int childIdx : node.children)
             CreateNodeEntity(reg, childIdx, e);
     }
@@ -416,16 +440,6 @@ namespace Aether {
         glm::quat rotation;
         glm::vec4 perspective;
         glm::mat4 boneMat = glm::mat4(1.0f);
-        if (HasComponent<BoneAttachmentComponent>(entity))
-        {
-            auto& attachment = GetComponent<BoneAttachmentComponent>(entity);
-            if (attachment.Active && attachment.BoneIdx >= 0)
-            {
-                auto rigModule = AnimationSystem::GetModule<RigModule>();
-                boneMat = rigModule->GetBoneMat(attachment.AnimatorID, attachment.BoneIdx);
-                isWorldTransformDirty = true;
-            }
-        }
 
         if (HasComponent<ColliderComponent>(entity))
         {
@@ -503,8 +517,46 @@ namespace Aether {
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
         { 
-            AnimationSystem::Update(ts);
             PhysicsSystem::Update(ts);
+        }
+
+        {
+            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            auto animView  = View<AnimatorComponent>();
+            rigModule->ClearTasks();
+
+            for (auto entity : animView)
+            {
+                auto& comp = GetComponent<AnimatorComponent>(entity);
+                if (comp.Clips.empty() || !comp.Cache.IsValid()) continue;
+
+                auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
+                auto* clipAsset     = AssetManager::GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
+                if (!skeletonAsset || !clipAsset) continue;
+
+                auto skelHandle = skeletonAsset->GetHandle();
+                auto clipHandle = clipAsset->GetHandle();
+
+                if (comp.IsPlaying)
+                {
+                    float duration = rigModule->GetDuration(clipHandle);
+                    comp.CurrentTime += ts * comp.Speed;
+                    if (comp.Loop && duration > 0.0f)
+                        comp.CurrentTime = std::fmod(comp.CurrentTime, duration);
+                    else
+                    {
+                        if (comp.CurrentTime >= duration)
+                        {
+                            comp.CurrentTime = duration;
+                            comp.IsPlaying   = false;  
+                        }
+                    }
+                }
+
+                comp.CurrentTask = rigModule->CalcPose(skelHandle, clipHandle, comp.Cache, comp.CurrentTime);
+            }
+
+            rigModule->ProcessTasks();
         }
 
         {
@@ -587,11 +639,9 @@ namespace Aether {
                         meshcmp.Culled = true;
                         return; 
                     }
-                    UUID animatorID = UUID(0);
-                    if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
+                    if (HasComponent<AnimatorComponent>(entity) && mesh->HasAnimatedBounds())
                         Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
                     else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
                     meshcmp.Culled = !Utils::CheckBoundVisible(frustum, worldMin, worldMax);
@@ -602,9 +652,10 @@ namespace Aether {
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
                     UUID animatorID = UUID(0);
-                    if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
+                    Handle<TaskTag> task = Handle<TaskTag>::MakeInvalid();
+                    if (HasComponent<AnimatorComponent>(entity)) task = GetComponent<AnimatorComponent>(entity).CurrentTask;
                     if (!meshcmp.Culled) 
-                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, animatorID, transform.WorldTransform);
+                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, task, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();
@@ -616,12 +667,10 @@ namespace Aether {
 
                     auto& transform = GetComponent<TransformComponent>(entity);
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
-                    UUID animatorID = UUID(0);
-                    if (HasComponent<AnimatorComponent>(entity)) animatorID = GetComponent<AnimatorComponent>(entity).AnimatorID;
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (animatorID != UUID(0) && mesh->HasAnimatedBounds())
+                    if (HasComponent<AnimatorComponent>(entity) && mesh->HasAnimatedBounds())
                         Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
                     else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;

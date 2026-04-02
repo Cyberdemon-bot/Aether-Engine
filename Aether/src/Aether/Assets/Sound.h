@@ -13,12 +13,11 @@ namespace Aether {
 
         virtual void* GetNativeHandle() = 0;
 
-        static const AssetType GetType()                      { return AssetType::Sound; }
-        virtual const AssetType GetAssetType() const override { return AssetType::Sound; }
-
     private:
         static Scope<Sound> CreateImpl(const std::string& path);
 
+        static const AssetType GetType() { return AssetType::Sound; }
+        virtual const AssetType GetAssetType() const override { return AssetType::Sound; }
         friend class AssetManager;
     };
 }

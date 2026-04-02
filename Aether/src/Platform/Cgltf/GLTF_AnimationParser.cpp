@@ -25,7 +25,7 @@ namespace Aether {
             
             RigCreateInfo rigInfo;
             rigInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
-            rigInfo.Joints.resize(skin->joints_count);
+            rigInfo.spec.Joints.resize(skin->joints_count);
 
             std::unordered_map<cgltf_node*, int16_t> node_map;
             for (size_t i = 0; i < skin->joints_count; i++) node_map[skin->joints[i]] = (int16_t)i;
@@ -33,19 +33,19 @@ namespace Aether {
             if (skin->inverse_bind_matrices)
             {
                 cgltf_accessor* accessor = skin->inverse_bind_matrices;
-                ReadAccessorFloatToMat4(accessor, rigInfo.IBM);
+                ReadAccessorFloatToMat4(accessor, rigInfo.spec.IBM);
             }
             else
             {
-                rigInfo.IBM.resize(skin->joints_count);
-                for(auto& mat : rigInfo.IBM) mat = glm::mat4(1.0f);
+                rigInfo.spec.IBM.resize(skin->joints_count);
+                for(auto& mat : rigInfo.spec.IBM) mat = glm::mat4(1.0f);
             }
         
             for (size_t jointIdx = 0; jointIdx < skin->joints_count; jointIdx++)
             {
                 cgltf_node* jointNode = skin->joints[jointIdx];
                 
-                RigCreateInfo::Joint joint;
+                SkeletonSpec::Joint joint;
                 joint.Name = jointNode->name ? jointNode->name : ("Joint_" + std::to_string(jointIdx));
                 
                 joint.ParentIndex = -1;
@@ -87,11 +87,11 @@ namespace Aether {
                 }
                 else joint.Scale = glm::vec3(1.0f);
                 
-                rigInfo.Joints[jointIdx] = joint;
+                rigInfo.spec.Joints[jointIdx] = joint;
             }
             
             result->rigs.push_back(rigInfo);
-            AE_CORE_INFO("Parsed skeleton: {0} with {1} joints", rigInfo.DebugName, rigInfo.Joints.size());
+            AE_CORE_INFO("Parsed skeleton: {0} with {1} joints", rigInfo.DebugName, rigInfo.spec.Joints.size());
         }
     }
 
@@ -110,7 +110,7 @@ namespace Aether {
         {
             const cgltf_animation* anim = &gltf->animations[animIdx];
             
-            std::map<int, std::map<cgltf_node*, ClipCreateInfo::Track>> rigTracks;
+            std::map<int, std::map<cgltf_node*, ClipSpec::Track>> rigTracks;
             float maxTime = 0.0f;
             
             for (size_t sampIdx = 0; sampIdx < anim->samplers_count; sampIdx++)
@@ -138,7 +138,7 @@ namespace Aether {
                 int rigIdx = it->second.rigIdx;
                 int jointIndex = it->second.jointIdx;
                 
-                ClipCreateInfo::Track& track = rigTracks[rigIdx][channel->target_node];
+                ClipSpec::Track& track = rigTracks[rigIdx][channel->target_node];
                 track.JointIndex = jointIndex;
                 
                 if (channel->target_path == cgltf_animation_path_type_translation)
@@ -173,8 +173,8 @@ namespace Aether {
                     clipInfo.DebugName = anim->name ? anim->name : ("Animation_" + std::to_string(animIdx));
                 }
                 
-                clipInfo.Duration = maxTime;
-                clipInfo.SampleRate = 30.0f;
+                clipInfo.spec.Duration = maxTime;
+                clipInfo.spec.SampleRate = 30.0f;
                 
                 for (auto& [node, trackData] : track_map) 
                 {
@@ -182,7 +182,7 @@ namespace Aether {
                         trackData.RotationTimes.empty() && 
                         trackData.ScaleTimes.empty())
                         continue;
-                    clipInfo.Tracks.push_back(trackData);
+                    clipInfo.spec.Tracks.push_back(trackData);
                 }
                 
                 uint32_t clipIdx = (uint32_t)result->clips.size();
@@ -190,7 +190,7 @@ namespace Aether {
                 result->rig_map[rigIdx].push_back(clipIdx);
                 
                 AE_CORE_INFO("Parsed animation: {0}, duration: {1}s, {2} tracks for rig {3}", 
-                    clipInfo.DebugName, clipInfo.Duration, clipInfo.Tracks.size(), rigIdx);
+                    clipInfo.DebugName, clipInfo.spec.Duration, clipInfo.spec.Tracks.size(), rigIdx);
             }
         }
     }

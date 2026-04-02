@@ -6,7 +6,7 @@ struct ProfileTimer
 	float minTime;
 	std::chrono::steady_clock::time_point start;
 
-	ProfileTimer(const char* n, float mt) : name(n), minTime(mt), start(std::chrono::steady_clock::now()) {}
+	ProfileTimer(const char* n, float mt = 0.0f) : name(n), minTime(mt), start(std::chrono::steady_clock::now()) {}
 	~ProfileTimer()
 	{
 		auto end = std::chrono::steady_clock::now();

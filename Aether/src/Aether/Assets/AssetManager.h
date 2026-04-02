@@ -3,6 +3,8 @@
 #include "Aether/Assets/Asset.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Base.h"
+#include "Aether/Core/Log.h"
+#include "Aether/Core/Assert.h"
 #include <unordered_map>
 #include <vector>
 
@@ -13,7 +15,7 @@ namespace Aether {
         Scope<Asset> asset = nullptr;
         UUID id = UUID(0);
         bool loaded = false;
-        int generation = 0;
+        uint32_t generation = 0;
     };
 
     class AETHER_API AssetManager

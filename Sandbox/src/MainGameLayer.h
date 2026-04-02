@@ -39,7 +39,6 @@ private:
     Aether::Ref<Aether::Shader> m_ShadowShader;
     Aether::Ref<Aether::Shader> m_MainShader;
 
-    // 4 shadow FBOs — one per shadow-casting light slot (max 4)
     static constexpr int k_MaxShadowCasters = 4;
     Aether::Ref<Aether::FrameBuffer> m_ShadowFbo[k_MaxShadowCasters];
 
@@ -53,10 +52,8 @@ private:
 
     bool m_ShowFlowFieldDebug = false;
 
-
     // --- Player ---
     Aether::Entity m_Player         = Aether::Null_Entity;
-    Aether::UUID   m_RunAnimation   = 0;
     float          m_PlayerSpeed    = 10.0f;
     bool           m_IsPlayerMoving = false;
     Aether::BodyHandle   m_PlayerBodyHandle{};
@@ -72,15 +69,13 @@ private:
 
     // --- Zombies ---
     struct ZombieRecord {
-        Aether::UUID animatorID = 0;
         Aether::BodyHandle bodyHandle{};
     };
 
     Aether::RegisteredScene                    m_ZombieSceneData;
     std::vector<Aether::Entity>                m_ActiveZombies;
     std::map<Aether::Entity, ZombieRecord>     m_ZombieRegistry;
-    Aether::UUID  m_ZombieRunAnimation = 0;
-    float         m_ZombieSpeed        = 4.5f;
+    float          m_ZombieSpeed       = 4.5f;
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
     int maxZombies = 100;
@@ -138,9 +133,6 @@ private:
     float m_ShadowBias  = 0.00001f;
     bool  m_LockCamera  = false;
     bool  m_FirstPerson = false;
-
-    // --- Gun Animation ---
-    Aether::UUID m_ShootAnimation = 0;
 
     std::shared_ptr<Aether::Texture2D> m_MuzzleFlashTexture;
     glm::vec3 m_MuzzleOffset = { 0.0f, -0.25f, 1.2f };

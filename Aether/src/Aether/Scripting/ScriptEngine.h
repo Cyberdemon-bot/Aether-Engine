@@ -41,9 +41,10 @@ namespace Aether {
 
         static InstanceHandle CreateInstance(Scene* scene, Entity entity);
         static void DestroyInstance(InstanceHandle handle);
-        static void UpdateInstance(InstanceHandle handle, Timestep ts);
-        static void LoadScript(InstanceHandle handle, const std::string& path);
         static void StartInstance(InstanceHandle handle);
+        static void UpdateInstance(InstanceHandle handle, Timestep ts);
+        static void PushEventToInstance(InstanceHandle handle, Event event);
+        static void LoadScript(InstanceHandle handle, const std::string& path);
 
     private:
         static ScriptEngine& GetInstance();
@@ -129,7 +130,7 @@ namespace Aether {
         }
 
         template<typename T>
-        static void BindEnum(const std::string& luaName, const std::string& NS = "")
+        static void BindEnum(const std::string& Name, const std::string& NS = "")
         {
             auto& instance = GetInstance();
             auto& lua = instance.s_LuaState;
@@ -150,7 +151,7 @@ namespace Aether {
 
             sol::table targetTable = lua.globals();
             if (!NS.empty()) targetTable = lua[NS].get_or_create<sol::table>();
-            targetTable[luaName] = proxyTable;
+            targetTable[Name] = proxyTable;
         }
 
         template<typename... Args>

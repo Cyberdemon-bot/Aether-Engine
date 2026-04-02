@@ -5,6 +5,21 @@
 #include <algorithm>
 #include <set>
 
+static Aether::Entity FindAnimatorEntity(Aether::Scene& scene, Aether::Entity root)
+{
+    if (!scene.IsValid(root)) return Aether::Null_Entity;
+    if (scene.HasComponent<Aether::AnimatorComponent>(root)) return root;
+    auto& hier = scene.GetComponent<Aether::HierarchyComponent>(root);
+    Aether::Entity child = hier.firstChild;
+    while (child != Aether::Null_Entity)
+    {
+        Aether::Entity found = FindAnimatorEntity(scene, child);
+        if (found != Aether::Null_Entity) return found;
+        child = scene.GetComponent<Aether::HierarchyComponent>(child).nextSibling;
+    }
+    return Aether::Null_Entity;
+}
+
 MainGameLayer::MainGameLayer()
     : Layer("Main Game"), m_Camera(45.0f, 1.778f, 0.1f, 1000.0f)
 {
@@ -19,13 +34,6 @@ void MainGameLayer::Attach()
     Aether::Renderer::SetLutMap("Assets/textures/LUT.png");
     Aether::Renderer::SetSkyBox("Assets/textures/skybox.png");
 
-    // =========================================================================
-    // SHADOW SHADER
-    // =========================================================================
-
-    // =========================================================================
-    // MAIN PASS FBO + SHADER
-    // =========================================================================
     auto& window = Aether::Application::Get().GetWindow();
     Aether::FramebufferSpec sceneFbSpec;
     sceneFbSpec.Width       = window.GetWidth();
@@ -39,8 +47,6 @@ void MainGameLayer::Attach()
     m_MainShader->SetUBOSlot("Lights", 2);
     m_MainFbo = Aether::FrameBuffer::Create(sceneFbSpec);
 
-    
-    // --- Main pass (slot 4) ---
     Aether::RenderPass mainPass;
     mainPass.TargetFBO    = m_MainFbo.get();
     mainPass.Shader       = m_MainShader.get();
@@ -57,10 +63,10 @@ void MainGameLayer::Attach()
     Aether::Renderer::SetPipeline(m_Pipeline);
 
     // =========================================================================
-    // SUN LIGHT  (shadow-casting directional, occupies shadow slot 0)
+    // SUN LIGHT
     // =========================================================================
     m_SunLight = m_Scene.CreateEntity("Sun Light");
-    auto& lightComp            = m_Scene.AddComponent<Aether::LightComponent>(m_SunLight);
+    auto& lightComp              = m_Scene.AddComponent<Aether::LightComponent>(m_SunLight);
     lightComp.Config.type        = Aether::LightType::Directional;
     lightComp.Config.color       = glm::vec3(0.9f, 0.95f, 1.0f);
     lightComp.Config.intensity   = 1.5f;
@@ -69,11 +75,9 @@ void MainGameLayer::Attach()
 
     auto& sunTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_SunLight);
     sunTransform.Translation = glm::vec3(0.0f, 50.0f, 0.0f);
-    sunTransform.Dirty = true;
+    sunTransform.Dirty       = true;
 
-    // Activate shadow pass 0 for the sun (slot 0 = first shadow-casting light)
     Aether::Renderer::ActivatePass(0);
-    Aether::Renderer::SetPassAtrib(0, "u_LightIndex", 0);
 
     // =========================================================================
     // MAP
@@ -90,23 +94,14 @@ void MainGameLayer::Attach()
     // PLAYER
     // =========================================================================
     m_Player = m_Scene.CreateEntity("Player");
-    auto& pTransform         = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
-    pTransform.Translation   = { 0.0f, yFloor, 0.0f };
-    pTransform.Scale         = { 1.0f, 1.0f,   1.0f };
-    pTransform.Rotation      = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    pTransform.Dirty = true;
+    auto& pTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
+    pTransform.Translation = { 0.0f, yFloor, 0.0f };
+    pTransform.Scale       = { 1.0f, 1.0f,   1.0f };
+    pTransform.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    pTransform.Dirty       = true;
 
     auto uploadPlayer = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/humanv2.glb"));
     m_Scene.LoadHierarchy(uploadPlayer, m_Player);
-
-    if (!uploadPlayer.animatorIDS.empty())
-        m_RunAnimation = uploadPlayer.animatorIDS[0];
-
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-    {
-        auto clips = rigSystem->GetClips(m_RunAnimation);
-        if (!clips.empty()) rigSystem->BindClip(m_RunAnimation, clips[0]);
-    }
 
     // =========================================================================
     // PLAYER PHYSICS
@@ -123,13 +118,12 @@ void MainGameLayer::Attach()
         m_PlayerBodyHandle = Aether::PhysicsSystem::CreateBody(cfg);
         m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_PlayerBodyHandle);
     }
+    m_Scene.GetComponent<Aether::AnimatorComponent>(FindAnimatorEntity(m_Scene, m_Player)).IsPlaying = false;
 
     // =========================================================================
     // ZOMBIES
     // =========================================================================
     m_ZombieSceneData = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/zombie.glb"));
-    if (!m_ZombieSceneData.animatorIDS.empty())
-        m_ZombieRunAnimation = m_ZombieSceneData.animatorIDS[0];
 
     // =========================================================================
     // GUN
@@ -138,16 +132,21 @@ void MainGameLayer::Attach()
     auto& gTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
     gTransform.Translation = { 0.0f, 0.0f, 0.0f };
     gTransform.Scale       = { 1.0f, 1.0f, 1.0f };
-    gTransform.Dirty = true;
+    gTransform.Dirty       = true;
 
     auto uploadGun = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/gun.glb"));
     m_Scene.LoadHierarchy(uploadGun, m_Gun);
 
-    if (!uploadGun.animatorIDS.empty()) {
-        m_ShootAnimation = uploadGun.animatorIDS[0];
-        auto clips = rigSystem->GetClips(m_ShootAnimation);
-        if (!clips.empty()) rigSystem->BindClip(m_ShootAnimation, clips[0]);
-        rigSystem->SetLoop(m_ShootAnimation, false);
+    // Set gun animator to not loop
+    if (!uploadGun.animators.empty())
+    {
+        Aether::Entity gunAnimEnt = FindAnimatorEntity(m_Scene, m_Gun);
+        if (gunAnimEnt != Aether::Null_Entity)
+        {
+            auto& animComp = m_Scene.GetComponent<Aether::AnimatorComponent>(gunAnimEnt);
+            animComp.Loop      = false;
+            animComp.IsPlaying = false;
+        }
     }
 
     // =========================================================================
@@ -176,10 +175,7 @@ void MainGameLayer::Attach()
 
 void MainGameLayer::Detach()
 {
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-
     for (auto& [entity, record] : m_ZombieRegistry) {
-        if (rigSystem) rigSystem->DestroyAnimator(record.animatorID);
         Aether::PhysicsSystem::DestroyBody(record.bodyHandle);
         if (m_Scene.IsValid(entity)) m_Scene.DestroyHierarchy(entity);
     }
@@ -199,11 +195,12 @@ void MainGameLayer::Detach()
     Aether::AssetManager::Unload(m_ZombieBiteID);
 }
 
+// Helper: find the first child entity with an AnimatorComponent
+
 void MainGameLayer::Update(Aether::Timestep ts)
 {
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
 
     m_Camera.Update(ts);
 
@@ -239,6 +236,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
 
         bool isMoving = glm::length(moveDir) > 0.0f;
 
+        // Find player animator entity once
+        Aether::Entity playerAnimEnt = FindAnimatorEntity(m_Scene, m_Player);
+
         if (isMoving)
         {
             moveDir         = glm::normalize(moveDir);
@@ -270,22 +270,23 @@ void MainGameLayer::Update(Aether::Timestep ts)
             pTransform.Dirty = true;
 
             if (didMove != m_IsPlayerMoving) {
-                if (didMove) rigSystem->Play(m_RunAnimation);
-                else         rigSystem->Pause(m_RunAnimation);
+                if (playerAnimEnt != Aether::Null_Entity)
+                    m_Scene.GetComponent<Aether::AnimatorComponent>(playerAnimEnt).IsPlaying = didMove;
                 m_IsPlayerMoving = didMove;
             }
 
             if (didMove) {
-                s_HeadBobTimer       += (float)ts * m_bobSpeed;
-                s_BobAmplitudeBlend   = glm::mix(s_BobAmplitudeBlend, 1.0f, (float)ts * 10.0f);
+                s_HeadBobTimer      += (float)ts * m_bobSpeed;
+                s_BobAmplitudeBlend  = glm::mix(s_BobAmplitudeBlend, 1.0f, (float)ts * 10.0f);
             } else {
-                s_BobAmplitudeBlend   = glm::mix(s_BobAmplitudeBlend, 0.0f, (float)ts * 10.0f);
+                s_BobAmplitudeBlend  = glm::mix(s_BobAmplitudeBlend, 0.0f, (float)ts * 10.0f);
             }
         }
         else
         {
             if (m_IsPlayerMoving) {
-                rigSystem->Pause(m_RunAnimation);
+                if (playerAnimEnt != Aether::Null_Entity)
+                    m_Scene.GetComponent<Aether::AnimatorComponent>(playerAnimEnt).IsPlaying = false;
                 m_IsPlayerMoving = false;
             }
             s_BobAmplitudeBlend = glm::mix(s_BobAmplitudeBlend, 0.0f, (float)ts * 10.0f);
@@ -388,7 +389,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
             if (glm::dot(diff, diff) > despawnRadiusSq)
             {
                 auto& rec = m_ZombieRegistry[zombie];
-                rigSystem->DestroyAnimator(rec.animatorID);
                 Aether::PhysicsSystem::DestroyBody(rec.bodyHandle);
                 m_ZombieRegistry.erase(zombie);
                 m_Scene.DestroyHierarchy(zombie);
@@ -478,19 +478,23 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 glm::vec3 facing = zT.Rotation * glm::vec3(0.0f, 0.0f, 1.0f);
                 facing.y = 0.0f;
                 if (glm::length(facing) > 0.001f) {
-                    float     zSpeedMult  = GetSpeedMultiplier(zT.Translation);
+                    float     zSpeedMult   = GetSpeedMultiplier(zT.Translation);
                     glm::vec3 newZombiePos = zT.Translation
                         + glm::normalize(facing) * (actualSpeed * zSpeedMult * (float)ts);
                     newZombiePos.y = yFloor;
                     Aether::PhysTransform zombieTarget{ newZombiePos, zT.Rotation };
                     auto& zRec = m_ZombieRegistry[zombie];
+
+                    Aether::Entity zAnimEnt = FindAnimatorEntity(m_Scene, zombie);
                     if (!IsObstacleWithRadius(newZombiePos) &&
                         Aether::PhysicsSystem::CanMove(zRec.bodyHandle, zombieTarget)) {
                         zT.Translation = newZombiePos;
-                        if (rigSystem) rigSystem->Play(zRec.animatorID);
+                        if (zAnimEnt != Aether::Null_Entity)
+                            m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).IsPlaying = true;
                     } else {
                         zT.Translation.y = yFloor;
-                        if (rigSystem) rigSystem->Pause(zRec.animatorID);
+                        if (zAnimEnt != Aether::Null_Entity)
+                            m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).IsPlaying = false;
                     }
                 }
                 zT.Dirty = true;
@@ -656,30 +660,22 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
 {
     if (m_ActiveZombies.size() >= maxZombies) return Aether::Null_Entity;
 
-    static uint32_t s_ZombieCounter = 0;
-    s_ZombieCounter++;
-
-    auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-
-    Aether::UUID newAnimID = Aether::AssetsRegister::Register("ZombieAnim_" + std::to_string(s_ZombieCounter));
-    if (rigSystem) {
-        rigSystem->CloneAnimator(newAnimID, m_ZombieRunAnimation);
-        rigSystem->BindClip(newAnimID, 4);
-        rigSystem->Play(newAnimID);
-    }
-
-    Aether::UUID originalAnimID      = m_ZombieSceneData.animatorIDS[0];
-    m_ZombieSceneData.animatorIDS[0] = newAnimID;
-
-    Aether::Entity newZombie         = m_Scene.CreateEntity("Zombie_Minion");
-    auto& zTransform                 = m_Scene.GetComponent<Aether::TransformComponent>(newZombie);
-    zTransform.Translation           = position;
-    zTransform.Scale                 = { 1.0f, 1.0f, 1.0f };
-    zTransform.Rotation              = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    zTransform.Dirty = true;
+    Aether::Entity newZombie     = m_Scene.CreateEntity("Zombie_Minion");
+    auto& zTransform             = m_Scene.GetComponent<Aether::TransformComponent>(newZombie);
+    zTransform.Translation       = position;
+    zTransform.Scale             = { 1.0f, 1.0f, 1.0f };
+    zTransform.Rotation          = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    zTransform.Dirty             = true;
 
     m_Scene.LoadHierarchy(m_ZombieSceneData, newZombie);
-    m_ZombieSceneData.animatorIDS[0] = originalAnimID;
+
+    // Start playing immediately
+    Aether::Entity zAnimEnt = FindAnimatorEntity(m_Scene, newZombie);
+    if (zAnimEnt != Aether::Null_Entity)
+    {
+        m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).IsPlaying = true;
+        m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).ActiveClipIdx = 4;
+    }
 
     Aether::BodyHandle handle{};
     Aether::UUID bodyID = m_Scene.GetComponent<Aether::IDComponent>(newZombie).ID;
@@ -695,7 +691,7 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
         Aether::PhysicsSystem::SetUUID(handle, bodyID);
     }
 
-    m_ZombieRegistry[newZombie] = { newAnimID, handle };
+    m_ZombieRegistry[newZombie] = { handle };
     m_ActiveZombies.push_back(newZombie);
     return newZombie;
 }
@@ -843,10 +839,6 @@ void MainGameLayer::UpdateFlowField(const glm::vec3& targetPos)
         cell.direction = (glm::length(avgDir) > 0.01f) ? glm::normalize(avgDir) : glm::vec3(0.0f);
     }
 }
-
-// =============================================================================
-//  ImGui render
-// =============================================================================
 
 void MainGameLayer::OnImGuiRender()
 {
@@ -1047,7 +1039,6 @@ void MainGameLayer::OnEvent(Aether::Event& event)
     m_Camera.OnEvent(event);
     auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
 
-    // V: toggle perspective
     if (event.GetEventType() == Aether::EventType::KeyPressed &&
         Aether::Input::IsKeyPressed(Aether::Key::KeyCode::V))
     {
@@ -1059,7 +1050,6 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         return;
     }
 
-    // Scroll: transition into/out of first person
     if (event.GetEventType() == Aether::EventType::MouseScrolled)
     {
         auto& e = (Aether::MouseScrolledEvent&)event;
@@ -1082,12 +1072,11 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         }
     }
 
-    // LMB: shoot
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
         Aether::Input::IsMouseButtonPressed(Aether::Mouse::MouseCode::Button0) &&
         m_PlayerHealth > 0.0f)
     {
-        if (m_IsReloading)    { AE_WARN("Can't shoot while reloading!"); return; }
+        if (m_IsReloading)      { AE_WARN("Can't shoot while reloading!"); return; }
         if (m_CurrentAmmo <= 0) { m_AmmoEmptyTimer = 1.0f; AE_WARN("Out of ammo! Press R"); return; }
         if (m_ShootTimer > 0.0f) return;
 
@@ -1095,10 +1084,16 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         m_ShootTimer = m_ShootDuration;
         if (m_CurrentAmmo == 0) m_AmmoEmptyTimer = 1.0f;
 
-        if (m_Scene.IsValid(m_Gun)) {
-            auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-            rigSystem->Stop(m_ShootAnimation);
-            rigSystem->Play(m_ShootAnimation);
+        // Trigger gun shoot animation
+        if (m_Scene.IsValid(m_Gun))
+        {
+            Aether::Entity gunAnimEnt = FindAnimatorEntity(m_Scene, m_Gun);
+            if (gunAnimEnt != Aether::Null_Entity)
+            {
+                auto& animComp = m_Scene.GetComponent<Aether::AnimatorComponent>(gunAnimEnt);
+                animComp.CurrentTime = 0.0f;
+                animComp.IsPlaying   = true;
+            }
         }
 
         Aether::UUID src;
@@ -1111,9 +1106,9 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
         Aether::RaycastHit hit       = Aether::PhysicsSystem::CastRay(origin, direction, 100.0f);
 
-        if (hit.Hit) 
+        if (hit.Hit)
         {
-            Aether::UUID bodyID = Aether::PhysicsSystem::GetUUID(hit.HitEntityHandle);
+            Aether::UUID   bodyID = Aether::PhysicsSystem::GetUUID(hit.HitEntityHandle);
             Aether::Entity target = m_Scene.FindEntity(bodyID);
             if (target != Aether::Null_Entity && target != m_Player)
             {
@@ -1128,10 +1123,6 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         event.Handled = true;
     }
 }
-
-// =============================================================================
-//  Radar
-// =============================================================================
 
 void MainGameLayer::DrawRadar()
 {
