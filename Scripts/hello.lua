@@ -1,29 +1,31 @@
 function OnStart()
-    self._time = 0.0
-    if Key and Key.KeyCode then 
-        print(Key.KeyCode.W)
-    end
+    self._speed = 5.0
 end
 
 function OnUpdate(ts)
+    local move = Math.Vec3(0.0, 0.0, 0.0)
 
-    self._time = self._time + ts
-    local t = self._time
+    if Input.IsKeyPressed(Key.KeyCode.Up) then
+        move = move + Math.Vec3(0.0, 0.0, -1.0)
+    end
+    if Input.IsKeyPressed(Key.KeyCode.Down) then
+        move = move + Math.Vec3(0.0, 0.0, 1.0)
+    end
+    if Input.IsKeyPressed(Key.KeyCode.Left) then
+        move = move + Math.Vec3(-1.0, 0.0, 0.0)
+    end
+    if Input.IsKeyPressed(Key.KeyCode.Right) then
+        move = move + Math.Vec3(1.0, 0.0, 0.0)
+    end
+    if Input.IsKeyPressed(Key.KeyCode.Space) then
+        move = move + Math.Vec3(0.0, 1.0, 0.0)
+    end
+    if Input.IsKeyPressed(Key.KeyCode.LeftShift) then
+        move = move + Math.Vec3(0.0, -1.0, 0.0)
+    end
 
-    local axis = Math.Vec3(0.0, 1.0, 0.0):Normalize()
-    local spin = Math.FromAxisAngle(axis, t * 1.3)
-
-    local radius = 4.0 + Math.Vec3(math.sin(t * 0.7), math.cos(t * 0.4), 0.0):Length()
-
-    local spoke = spin * Math.Vec3(radius, 0.0, 0.0)
-    
-    local breathe = math.sin(t * 2.5) * 1.2
-    local twistAxis = Math.Vec3(1.0, 0.0, 1.0):Normalize()
-    local twist = Math.FromAxisAngle(twistAxis, t * 0.9)
-    local wobble = twist * Math.Vec3(0.0, breathe, 0.0)
-    
-    local final = spoke + wobble
-    self.Transform.Translation = final
+    local current = self.Transform.Translation
+    self.Transform.Translation = current + move * self._speed * ts
 end
 
 function OnDestroy()

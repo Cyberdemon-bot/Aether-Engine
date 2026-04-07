@@ -47,6 +47,7 @@ namespace Aether {
        BindType<TransformComponentBinding>();
        BindModule<MathBinding>("Math");
        BindEnum<Key::KeyCode>("KeyCode", "Key");
+       BindModule<InputBinding>("Input"); 
     }
 
     InstanceHandle ScriptEngine::CreateInstance(Scene* scene, Entity entity)
