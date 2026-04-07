@@ -14,7 +14,7 @@ namespace Aether {
         if (map.find(key) == map.end()) 
         {
             AE_CORE_ERROR("Key '{0}' has not registered yet!", uint64_t(key));
-            return 0; 
+            return ""; 
         }
         return map[key];
     }

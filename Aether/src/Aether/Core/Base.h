@@ -106,4 +106,8 @@ constexpr std::string_view GetTypeName() {
     size_t end = name.find_last_of('>');
     return name.substr(start, end - start);
 #endif
+
+
+#define MAGIC_ENUM_RANGE_MIN 0
+#define MAGIC_ENUM_RANGE_MAX 512
 }

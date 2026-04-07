@@ -3,6 +3,7 @@
 #include "Aether/Core/Base.h"
 #include "Aether/Events/Event.h"
 #include "Aether/Scene/Component.h"
+#include "Aether/Core/Input.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -237,5 +238,34 @@ namespace Aether {
                 )
             );
         } 
+    };
+
+    struct InputBinding
+    {
+        using Vec2Tuple = std::tuple<float, float>;
+        static constexpr auto get_funcs()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("IsKeyPressed",
+                    AE_MAKE_LAMBDA((), (int keyCode), bool,
+                        return Input::IsKeyPressed(static_cast<Key::KeyCode>(keyCode));)
+                ),
+                AE_REFLECT("IsMouseButtonPressed",
+                    AE_MAKE_LAMBDA((), (int mouseCode), bool,
+                        return Input::IsMouseButtonPressed(static_cast<Mouse::MouseCode>(mouseCode));)
+                ),
+                AE_REFLECT("GetMousePosition",
+                    AE_MAKE_LAMBDA((), (), Vec2Tuple,
+                        auto pos = Input::GetMousePosition();
+                        return Vec2Tuple{pos.x, pos.y};)
+                ),
+                AE_REFLECT("GetMouseX",
+                    AE_MAKE_LAMBDA((), (), float, return Input::GetMouseX();)
+                ),
+                AE_REFLECT("GetMouseY",
+                    AE_MAKE_LAMBDA((), (), float, return Input::GetMouseY();)
+                )
+            );
+        }
     };
 }
