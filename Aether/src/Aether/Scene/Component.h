@@ -91,11 +91,12 @@ namespace Aether {
         Handle<CacheTag> Cache;
         Handle<TaskTag>  CurrentTask; 
 
-        int   ActiveClipIdx = 0;
-        float CurrentTime   = 0.0f;
-        float Speed         = 1.0f;
-        bool  IsPlaying     = true;
-        bool  Loop          = true;
+        int ActiveClipIdx = 0;
+        float CurrentTime = 0.0f;
+        float Speed = 1.0f;
+        bool IsPlaying = true;
+        bool Loop = true;
+        mutable bool Culled = false;
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;

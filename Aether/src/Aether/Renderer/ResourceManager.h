@@ -1,9 +1,7 @@
 #pragma once
 
 #include "Aether/Renderer/Resource.h"
-#include "Aether/Core/UUID.h"
 #include "Aether/Core/Base.h"
-#include <unordered_map>
 #include <vector>
 
 namespace Aether {

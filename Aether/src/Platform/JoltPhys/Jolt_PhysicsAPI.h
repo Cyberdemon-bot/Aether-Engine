@@ -16,7 +16,7 @@ namespace JPH {
 }
 
 namespace Aether {
-    struct BodyData
+    struct JoltBodyData
     {
         JPH::BodyID joltID;
         BodyConfig bodyInfo;
@@ -50,7 +50,7 @@ namespace Aether {
         virtual void SetGravity(const glm::vec3& gravity) override;
     private:
         std::vector<UUID> m_IDList;
-        ResourcePool<Handle<BodyTag>, BodyData> m_BodyPool;
+        ResourcePool<Handle<BodyTag>, JoltBodyData> m_BodyPool;
         JPH::PhysicsSystem* m_PhysicsSystem = nullptr;
         JPH::TempAllocatorImpl* m_TempAllocator = nullptr;
         JPH::JobSystemThreadPool* m_JobSystem = nullptr;
