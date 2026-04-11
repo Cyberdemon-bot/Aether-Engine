@@ -1,26 +1,32 @@
 function OnStart()
     self._speed = 5.0
+    self._time = 0.0
 end
 
 function OnUpdate(ts)
     local move = Math.Vec3(0.0, 0.0, 0.0)
+    self._time = self._time + ts
 
-    if Input.IsKeyPressed(Key.KeyCode.Up) then
+    if Input.IsMouseButtonPressed(Mouse.Button0) then
+        print(self._time)
+    end
+
+    if Input.IsKeyPressed(Key.Up) then
         move = move + Math.Vec3(0.0, 0.0, -1.0)
     end
-    if Input.IsKeyPressed(Key.KeyCode.Down) then
+    if Input.IsKeyPressed(Key.Down) then
         move = move + Math.Vec3(0.0, 0.0, 1.0)
     end
-    if Input.IsKeyPressed(Key.KeyCode.Left) then
+    if Input.IsKeyPressed(Key.Left) then
         move = move + Math.Vec3(-1.0, 0.0, 0.0)
     end
-    if Input.IsKeyPressed(Key.KeyCode.Right) then
+    if Input.IsKeyPressed(Key.Right) then
         move = move + Math.Vec3(1.0, 0.0, 0.0)
     end
-    if Input.IsKeyPressed(Key.KeyCode.Space) then
+    if Input.IsKeyPressed(Key.Space) then
         move = move + Math.Vec3(0.0, 1.0, 0.0)
     end
-    if Input.IsKeyPressed(Key.KeyCode.LeftShift) then
+    if Input.IsKeyPressed(Key.LeftShift) then
         move = move + Math.Vec3(0.0, -1.0, 0.0)
     end
 

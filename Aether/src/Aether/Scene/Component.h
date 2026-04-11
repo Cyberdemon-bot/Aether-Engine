@@ -113,11 +113,11 @@ namespace Aether {
 
     struct ScriptComponent
     {
-        InstanceHandle Handle;
+        Handle<ScriptTag> ScriptHandle;
 
         ScriptComponent() = default;
         ScriptComponent(const ScriptComponent&) = default;
-        ScriptComponent(const InstanceHandle& handle) : Handle(handle) {};
+        ScriptComponent(const Handle<ScriptTag>& handle) : ScriptHandle(handle) {};
     };
 
     struct HierarchyComponent 

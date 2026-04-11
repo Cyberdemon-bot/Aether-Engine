@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <chrono>
+#include <thread>
 
 #ifdef _WIN32
 	#ifdef _WIN64
@@ -62,6 +63,8 @@
 #define AE_BIND_CONSOLE_FN(fn) [this](const std::vector<std::string>& args) -> void { return this->fn(args); }
 
 namespace Aether {
+
+	static const uint32_t SYS_THREAD_NUM = std::thread::hardware_concurrency();
 
 	template<typename T>
 	using Scope = std::unique_ptr<T>;
