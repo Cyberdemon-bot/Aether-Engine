@@ -535,7 +535,7 @@ namespace Aether {
 
             for (auto entity : scriptView)
             {
-                auto& instance = GetComponent<ScriptComponent>(entity).Handle;
+                auto& instance = GetComponent<ScriptComponent>(entity).ScriptHandle;
                 ScriptEngine::UpdateInstance(instance, ts);
             }
         }

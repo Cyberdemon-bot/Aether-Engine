@@ -19,6 +19,22 @@ namespace Aether {
         return sol::meta_function::addition;
     }
 
+    uint32_t ScriptEngine::Get_MinState()
+    {
+        auto& instance = GetInstance();
+        uint32_t m = instance.StatePool[0].env_count;
+        uint32_t result = 0;
+        for(size_t i = 1; i < SYS_THREAD_NUM; i++) 
+        {
+            if (instance.StatePool[i].env_count < m)
+            {
+                m = instance.StatePool[i].env_count;
+                result = i;
+            }
+        }
+        return result;
+    }
+
     ScriptEngine& ScriptEngine::GetInstance()
     {
         static ScriptEngine instance;
@@ -28,8 +44,9 @@ namespace Aether {
     void ScriptEngine::Init()
     {   
        auto& instance = GetInstance();
-       instance.s_LuaState.open_libraries(sol::lib::base, sol::lib::math);
-       instance.m_Instances.reserve(100);
+       instance.StatePool = CreateScope<LuaWorker[]>(SYS_THREAD_NUM);
+       LUA_LOOP(lua.open_libraries(sol::lib::base, sol::lib::math);)
+       instance.m_Instances.Init();
        RegisterTypes();
        AE_CORE_INFO("ScriptEngine initialized");
     }
@@ -37,95 +54,106 @@ namespace Aether {
     void ScriptEngine::Shutdown()
     {
         auto& instance = GetInstance();
-        instance.m_Instances.clear();
+        instance.m_Instances.Shutdown();
     }
 
     void ScriptEngine::RegisterTypes()
     {
-       BindType<Vec3Binding>("Math");
-       BindType<QuatBinding>("Math");
-       BindType<TransformComponentBinding>();
-       BindModule<MathBinding>("Math");
-       BindEnum<Key::KeyCode>("KeyCode", "Key");
-       BindModule<InputBinding>("Input"); 
+        BindEnum<Key::KeyCode>("Key");
+        BindEnum<Mouse::MouseCode>("Mouse");
+        BindType<Vec3Binding>("Math");
+        BindType<QuatBinding>("Math");
+        BindType<TransformComponentBinding>();
+        BindModule<MathBinding>("Math");
+        BindModule<InputBinding>("Input"); 
     }
 
-    InstanceHandle ScriptEngine::CreateInstance(Scene* scene, Entity entity)
+    Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity)
     {
-        auto& instance = GetInstance(); int index;
+        auto& instance = GetInstance(); 
 
-        if (!instance.FreeList.empty())
-        {
-            index = instance.FreeList.back();
-            instance.FreeList.pop_back();
-        }
-        else
-        {
-            index = instance.m_Instances.size();
-            instance.m_Instances.emplace_back();
-        }
-
-        InstanceHandle handle;
-        InstanceSlot& slot = instance.m_Instances[index];
-        sol::environment env(instance.s_LuaState, sol::create, instance.s_LuaState.globals());
-        sol::table self = instance.s_LuaState.create_table();
+        uint32_t idx = Get_MinState();
+        auto env_handle = instance.StatePool[idx].CreateEnvironment();
+        sol::environment env = *instance.StatePool[idx].env_pool.GetResource(env_handle);
+        sol::table self = instance.StatePool[idx].lua.create_table();
         self["Transform"] = &scene->GetComponent<TransformComponent>(entity);
         env["self"] = self;
 
-        slot.env = env;
-        handle.index = index;
-        handle.generation = slot.generation;
+        auto handle = instance.m_Instances.CreateResource();
+        auto slot = instance.m_Instances.GetResource(handle);
 
+        slot->env_hanle = env_handle;
+        slot->state_idx = idx;
         return handle; 
     }
 
-    void ScriptEngine::StartInstance(InstanceHandle handle)
+    void ScriptEngine::StartInstance(Handle<ScriptTag> handle)
     {
         auto& instance = GetInstance();
-        if (handle.index >= (int)instance.m_Instances.size()) return;
-        InstanceSlot& slot = instance.m_Instances[handle.index];
-        if (slot.generation != handle.generation) return;
-        CallMethod(handle, "OnStart");
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return;
+        CallMethod(*slot, "OnStart");
     }
 
-    void ScriptEngine::LoadScript(InstanceHandle handle, const std::string& path)
+    void ScriptEngine::LoadScript(Handle<ScriptTag> handle, const std::string& path)
     {
         auto& instance = GetInstance();
-        if (handle.index >= instance.m_Instances.size()) return;
-        InstanceSlot& slot = instance.m_Instances[handle.index];
-        if (slot.generation != handle.generation) return;
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return;
 
-        auto result = instance.s_LuaState.script_file(path, slot.env);
+        auto& lua = instance.StatePool[slot->state_idx].lua;
+        auto env = instance.StatePool[slot->state_idx].env_pool.GetResource(slot->env_hanle);
+        if (env == nullptr) return;
+
+        auto result = lua.script_file(path, *env);
         if (!result.valid()) 
         {
             sol::error err = result;
-            slot.has_error = true;
+            slot->has_error = true;
             AE_CORE_ERROR("[Lua Error] {0}", err.what());
             return;
         }
     }
 
-    void ScriptEngine::DestroyInstance(InstanceHandle handle)
+    void ScriptEngine::DestroyInstance(Handle<ScriptTag> handle)
     {
         auto& instance = GetInstance();
-        if (handle.index >= instance.m_Instances.size()) return;
-        InstanceSlot& slot = instance.m_Instances[handle.index];
-        if (slot.generation != handle.generation) return;
-        CallMethod(handle, "OnDestroy");
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return;
+        CallMethod(*slot, "OnDestroy");
 
-        slot.env = sol::lua_nil;
-        slot.generation++;
-        instance.FreeList.push_back(handle.index);
+        instance.StatePool[slot->state_idx].RemoveEnvironment(slot->env_hanle);
+        instance.m_Instances.DestroyResource(handle);
     }
 
-    void ScriptEngine::UpdateInstance(InstanceHandle handle, Timestep ts)
+    void ScriptEngine::UpdateInstance(Handle<ScriptTag> handle, Timestep ts)
     {
         auto& instance = GetInstance();
-        if (handle.index >= instance.m_Instances.size()) return;
-        InstanceSlot& slot = instance.m_Instances[handle.index];
-        if (slot.generation != handle.generation) return;
-        if (slot.has_error) return;
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return;
+        if (slot->has_error) return;
 
-        CallMethod(handle, "OnUpdate", (float)ts);
+        CallMethod(*slot, "OnUpdate", (float)ts);
+    }
+
+    void ScriptEngine::SetActiveStage(Handle<ScriptTag> handle, bool active)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return;
+        slot->is_active = active;
+    }
+
+    bool ScriptEngine::GetActiveStage(Handle<ScriptTag> handle)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return false;
+        return slot->is_active;
+    }
+    
+    void ScriptEngine::Update()
+    {
+
     }
 }

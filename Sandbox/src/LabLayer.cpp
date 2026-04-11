@@ -358,12 +358,12 @@ void LabLayer::DrawScriptingPanel()
                 if (m_Scene.HasComponent<ScriptComponent>(m_ScriptTargetEntity))
                 {
                     auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
-                    if (sc.Handle.IsValid())
-                        ScriptEngine::DestroyInstance(sc.Handle);
+                    if (sc.ScriptHandle.IsValid())
+                        ScriptEngine::DestroyInstance(sc.ScriptHandle);
                     m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 }
 
-                InstanceHandle handle = ScriptEngine::CreateInstance(
+                Handle<ScriptTag> handle = ScriptEngine::CreateInstance(
                     &m_Scene, m_ScriptTargetEntity);
 
                 if (handle.IsValid())
@@ -389,8 +389,8 @@ void LabLayer::DrawScriptingPanel()
             if (UI::Button("Detach Script"))
             {
                 auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
-                if (sc.Handle.IsValid())
-                    ScriptEngine::DestroyInstance(sc.Handle);
+                if (sc.ScriptHandle.IsValid())
+                    ScriptEngine::DestroyInstance(sc.ScriptHandle);
                 m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 AE_CORE_INFO("[Scripting] Detached script from entity '{}'",
                     m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag);
@@ -406,7 +406,7 @@ void LabLayer::DrawScriptingPanel()
             auto  g      = UI::ID((int)(uint64_t)entity);
             auto& tag    = m_Scene.GetComponent<TagComponent>(entity);
             auto& sc     = m_Scene.GetComponent<ScriptComponent>(entity);
-            UI::Text("%s  (slot %d)", tag.Tag.c_str(), sc.Handle.index);
+            UI::Text("%s  (slot %d)", tag.Tag.c_str(), sc.ScriptHandle.index);
         }
     }
 }

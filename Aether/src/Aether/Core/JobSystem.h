@@ -2,7 +2,6 @@
 #include "Aether/Core/Base.h"
 #include <functional>
 #include <queue>
-#include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <vector>
@@ -15,7 +14,7 @@ namespace Aether {
     class AETHER_API JobSystem
     {
     public:
-        static void Init(uint32_t numThreads = std::thread::hardware_concurrency());
+        static void Init(uint32_t numThreads = SYS_THREAD_NUM);
         static void Shutdown();
         
         static void SubmitJob(Job job);
