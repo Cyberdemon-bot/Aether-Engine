@@ -1,38 +1,38 @@
 #pragma once
 
 #include "Aether/Core/Log.h"
-#include "Handle.h"
+#include "Aether/Container/Handle.h"
 #include <vector>
 
 namespace Aether {
 
     template<typename HandleType, typename DataType>
-    class AETHER_API ResourcePool
+    class AETHER_API AbstractResourcePool
     {
     public:
+        AbstractResourcePool() = default;
+        ~AbstractResourcePool() = default;
 
-        ResourcePool() = default;
-        ~ResourcePool() = default;
         struct ResourceSlot
         {
-            DataType asset;
+            Scope<DataType> asset;
             uint32_t generation = 0;
 
             template<typename... Args>
             ResourceSlot(uint32_t gen, Args&&... args) 
-                : generation(gen), asset(std::forward<Args>(args)...) {}
+                : generation(gen), asset(DataType::CreateImpl(std::forward<Args>(args)...)) {}
         };
 
         void Init()
         {
             m_Resources.reserve(128);
-            AE_CORE_INFO("ResourcePool {0} initialized");
+            AE_CORE_INFO("AbstractResourcePool {0} initialized");
         }
 
         void Shutdown()
         {
             Clear();
-            AE_CORE_INFO("ResourcePool {0} shutdowned");
+            AE_CORE_INFO("AbstractResourcePool {0} shutdowned");
         }
 
         void DestroyResource(HandleType handle)
@@ -42,11 +42,13 @@ namespace Aether {
             if (slot.generation != handle.generation) return;
 
             slot.generation++;
+            slot.asset.reset();
             FreeList.push_back(handle.index);
         }
 
         void Clear()
         {
+            for (auto& slot : m_Resources) slot.asset.reset();
             m_Resources.clear();
             FreeList.clear();
         }
@@ -64,7 +66,7 @@ namespace Aether {
             {
                 index = FreeList.back();
                 FreeList.pop_back();
-                m_Resources[index].asset = std::move(DataType(std::forward<Args>(args)...));
+                m_Resources[index].asset = std::move(DataType::CreateImpl(std::forward<Args>(args)...));
             }
             else
             {
@@ -81,11 +83,9 @@ namespace Aether {
         DataType* GetResource(HandleType handle)
         {
             if (handle.index >= m_Resources.size()) return nullptr;
-            
             ResourceSlot& slot = m_Resources[handle.index]; 
-            
             if (slot.generation != handle.generation) return nullptr;
-            return &slot.asset;
+            return slot.asset.get();
         }
 
         const DataType* GetResource(HandleType handle) const
@@ -97,8 +97,8 @@ namespace Aether {
         }
         
     private:
-        ResourcePool& operator=(const ResourcePool&) = delete;
-        ResourcePool(const ResourcePool&) = delete;
+        AbstractResourcePool& operator=(const AbstractResourcePool&) = delete;
+        AbstractResourcePool(const AbstractResourcePool&) = delete;
 
         std::vector<ResourceSlot> m_Resources;
         std::vector<uint32_t> FreeList;
