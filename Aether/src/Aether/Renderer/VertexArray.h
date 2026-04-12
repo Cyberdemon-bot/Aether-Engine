@@ -29,9 +29,6 @@ namespace Aether {
         virtual bool operator==(const VertexArray& other) const = 0;
 
     private:
-		static const ResourceType GetType() { return ResourceType::VertexArray; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::VertexArray; }
-
 		static Scope<VertexArray> CreateImpl();
 
 		friend class ResourceManager;

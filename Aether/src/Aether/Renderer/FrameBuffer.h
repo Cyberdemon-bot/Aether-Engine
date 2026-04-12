@@ -45,9 +45,6 @@ namespace Aether {
         }
 
 	private:
-		static const ResourceType GetType() { return ResourceType::FrameBuffer; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::FrameBuffer; }
-
 		static Scope<FrameBuffer> CreateImpl(const FramebufferSpec& spec);
 		friend class ResourceManager;
 

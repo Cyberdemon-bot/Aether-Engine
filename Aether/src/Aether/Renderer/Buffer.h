@@ -141,9 +141,6 @@ namespace Aether {
             return Ref<VertexBuffer>(std::move(scope));
         }
     private:
-		static const ResourceType GetType() { return ResourceType::VertexBuffer; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::VertexBuffer; }
-
         static Scope<VertexBuffer> CreateImpl(uint32_t size);
         static Scope<VertexBuffer> CreateImpl(float* vertices, uint32_t size);
 
@@ -167,9 +164,6 @@ namespace Aether {
             return Ref<IndexBuffer>(std::move(scope));
         }
     private:
-		static const ResourceType GetType() { return ResourceType::IndexBuffer; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::IndexBuffer; }
-
 		static Scope<IndexBuffer> CreateImpl(uint32_t* indices, uint32_t count);
 
 		friend class ResourceManager;

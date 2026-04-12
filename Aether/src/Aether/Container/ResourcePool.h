@@ -1,25 +1,18 @@
 #pragma once
 
-#include "Aether/Core/Base.h"
 #include "Aether/Core/Log.h"
+#include "Handle.h"
 #include <vector>
 
 namespace Aether {
-
-    template<typename Tag>
-    struct Handle
-    {
-        uint32_t index = UINT32_MAX;
-        uint32_t generation = 0;
-        bool IsValid() const { return index != UINT32_MAX; }
-        static Handle MakeInvalid() { return {UINT32_MAX, 0}; }
-        uint64_t Blend() const { return ((uint64_t)index << 32) | generation; }
-    };
 
     template<typename HandleType, typename DataType>
     class AETHER_API ResourcePool
     {
     public:
+
+        ResourcePool() = default;
+        ~ResourcePool() = default;
         struct ResourceSlot
         {
             DataType asset;
@@ -30,26 +23,16 @@ namespace Aether {
                 : generation(gen), asset(std::forward<Args>(args)...) {}
         };
 
-        ResourcePool()
-        {
-            
-        }
-
-        ~ResourcePool()
-        {
-            
-        }
-
         void Init()
         {
             m_Resources.reserve(128);
-            AE_CORE_INFO("ResourcePool {0} initialized", GetTypeName<DataType>());
+            AE_CORE_INFO("ResourcePool initialized");
         }
 
         void Shutdown()
         {
             Clear();
-            AE_CORE_INFO("ResourcePool {0} shutdowned", GetTypeName<DataType>());
+            AE_CORE_INFO("ResourcePool shutdowned");
         }
 
         void DestroyResource(HandleType handle)

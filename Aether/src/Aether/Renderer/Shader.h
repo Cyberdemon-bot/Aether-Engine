@@ -39,9 +39,6 @@ namespace Aether {
         virtual bool operator==(const Shader& other) const = 0;
 
     private:
-		static const ResourceType GetType() { return ResourceType::Shader; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::Shader; }
-
 		static Scope<Shader> CreateImpl(const std::string& filepath);
         static Scope<Shader> CreateImpl(const ShaderProgramSource& source);
 

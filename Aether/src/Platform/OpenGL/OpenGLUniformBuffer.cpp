@@ -14,7 +14,7 @@ namespace Aether {
 		glDeleteBuffers(1, &m_RendererID);
 	}
 
-	void OpenGLUniformBuffer::Bind(uint32_t slot)
+	void OpenGLUniformBuffer::Bind(uint32_t slot) const
 	{
 		glBindBufferBase(GL_UNIFORM_BUFFER, slot, m_RendererID);
 	}

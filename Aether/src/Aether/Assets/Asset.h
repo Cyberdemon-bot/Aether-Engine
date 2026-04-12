@@ -4,11 +4,6 @@
 #include "Aether/Core/UUID.h"
 
 namespace Aether {
-    enum class AssetType
-    {
-        Mesh, Material, Sound, Skeleton
-    };
-
     struct AssetHandle
     {
         uint32_t index = UINT32_MAX;
@@ -22,6 +17,5 @@ namespace Aether {
     public:
         UUID id;
         virtual ~Asset() = default;
-        virtual const AssetType GetAssetType() const = 0;
     };
 }

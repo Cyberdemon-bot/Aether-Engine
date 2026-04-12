@@ -65,9 +65,6 @@ namespace Aether {
         }
 
 	private:
-		static const ResourceType GetType() { return ResourceType::Texture2D; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::Texture2D; }
-
 		static Scope<Texture2D> CreateImpl(const TextureSpec& spec);
 		static Scope<Texture2D> CreateImpl(void* data, size_t size);
 		static Scope<Texture2D> CreateImpl(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
@@ -86,8 +83,6 @@ namespace Aether {
             return Ref<Texture2D>(std::move(scope));
         }
 	private:
-		static const ResourceType GetType() { return ResourceType::TextureCube; }
-        virtual const ResourceType GetResourceType() const override { return ResourceType::TextureCube; }
 		static Scope<TextureCube> CreateImpl(const std::string& path);
 		friend class ResourceManager;
 	};
