@@ -146,9 +146,6 @@ namespace Aether {
             const std::vector<glm::mat4>& poseMats);
 
         static Scope<Mesh> CreateImpl(const MeshSpec& spec) { return CreateScope<Mesh>(spec); }
-
-        static const AssetType GetType() { return AssetType::Mesh; }
-        virtual const AssetType GetAssetType() const override { return AssetType::Mesh; }
         friend class AssetManager;
     };
 }

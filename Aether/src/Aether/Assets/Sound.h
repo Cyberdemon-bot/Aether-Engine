@@ -15,9 +15,6 @@ namespace Aether {
 
     private:
         static Scope<Sound> CreateImpl(const std::string& path);
-
-        static const AssetType GetType() { return AssetType::Sound; }
-        virtual const AssetType GetAssetType() const override { return AssetType::Sound; }
         friend class AssetManager;
     };
 }

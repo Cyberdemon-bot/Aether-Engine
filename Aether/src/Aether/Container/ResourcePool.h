@@ -26,13 +26,13 @@ namespace Aether {
         void Init()
         {
             m_Resources.reserve(128);
-            AE_CORE_INFO("ResourcePool {0} initialized");
+            AE_CORE_INFO("ResourcePool initialized");
         }
 
         void Shutdown()
         {
             Clear();
-            AE_CORE_INFO("ResourcePool {0} shutdowned");
+            AE_CORE_INFO("ResourcePool shutdowned");
         }
 
         void DestroyResource(HandleType handle)

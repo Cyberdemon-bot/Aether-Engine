@@ -99,7 +99,12 @@ namespace Aether {
 
 		bool operator!=(const Command& other) const
 		{
-			return (mesh != other.mesh) || (material != other.material);
+			bool thisAnim  = anim_task.IsValid();
+			bool otherAnim = other.anim_task.IsValid();
+			return (mesh != other.mesh) || 
+				(material != other.material) || 
+				(subIdx != other.subIdx) ||
+				(thisAnim != otherAnim);
 		}
 	};
 

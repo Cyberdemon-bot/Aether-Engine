@@ -28,8 +28,6 @@ namespace Aether {
         Handle<ClipTag> handle;
 
         static Scope<Clip> CreateImpl(const ClipSpec& spec, Handle<SkeletonTag> skeleton) { return CreateScope<Clip>(spec, skeleton);}
-        static const AssetType GetType() { return AssetType::Skeleton; }
-        virtual const AssetType GetAssetType() const override { return AssetType::Skeleton; }
         friend class AssetManager;
     };
 }
