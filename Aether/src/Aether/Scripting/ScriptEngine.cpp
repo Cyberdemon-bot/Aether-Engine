@@ -19,22 +19,6 @@ namespace Aether {
         return sol::meta_function::addition;
     }
 
-    uint32_t ScriptEngine::Get_MinState()
-    {
-        auto& instance = GetInstance();
-        uint32_t m = instance.StatePool[0].env_count;
-        uint32_t result = 0;
-        for(size_t i = 1; i < SYS_THREAD_NUM; i++) 
-        {
-            if (instance.StatePool[i].env_count < m)
-            {
-                m = instance.StatePool[i].env_count;
-                result = i;
-            }
-        }
-        return result;
-    }
-
     ScriptEngine& ScriptEngine::GetInstance()
     {
         static ScriptEngine instance;
@@ -44,8 +28,8 @@ namespace Aether {
     void ScriptEngine::Init()
     {   
        auto& instance = GetInstance();
-       instance.StatePool = CreateScope<LuaWorker[]>(SYS_THREAD_NUM);
-       LUA_LOOP(lua.open_libraries(sol::lib::base, sol::lib::math);)
+       auto& lua = instance.LuaState.lua;
+       lua.open_libraries(sol::lib::base, sol::lib::math);
        instance.m_Instances.Init();
        RegisterTypes();
        AE_CORE_INFO("ScriptEngine initialized");
@@ -72,10 +56,9 @@ namespace Aether {
     {
         auto& instance = GetInstance(); 
 
-        uint32_t idx = Get_MinState();
-        auto env_handle = instance.StatePool[idx].CreateEnvironment();
-        sol::environment env = *instance.StatePool[idx].env_pool.GetResource(env_handle);
-        sol::table self = instance.StatePool[idx].lua.create_table();
+        auto env_handle = instance.LuaState.CreateEnvironment();
+        sol::environment env = *instance.LuaState.env_pool.GetResource(env_handle);
+        sol::table self = instance.LuaState.lua.create_table();
         self["Transform"] = &scene->GetComponent<TransformComponent>(entity);
         env["self"] = self;
 
@@ -83,7 +66,6 @@ namespace Aether {
         auto slot = instance.m_Instances.GetResource(handle);
 
         slot->env_hanle = env_handle;
-        slot->state_idx = idx;
         return handle; 
     }
 
@@ -101,8 +83,8 @@ namespace Aether {
         auto slot = instance.m_Instances.GetResource(handle);
         if (slot == nullptr) return;
 
-        auto& lua = instance.StatePool[slot->state_idx].lua;
-        auto env = instance.StatePool[slot->state_idx].env_pool.GetResource(slot->env_hanle);
+        auto& lua = instance.LuaState.lua;
+        auto env = instance.LuaState.env_pool.GetResource(slot->env_hanle);
         if (env == nullptr) return;
 
         auto result = lua.script_file(path, *env);
@@ -122,7 +104,7 @@ namespace Aether {
         if (slot == nullptr) return;
         CallMethod(*slot, "OnDestroy");
 
-        instance.StatePool[slot->state_idx].RemoveEnvironment(slot->env_hanle);
+        instance.LuaState.RemoveEnvironment(slot->env_hanle);
         instance.m_Instances.DestroyResource(handle);
     }
 

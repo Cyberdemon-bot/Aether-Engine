@@ -134,6 +134,7 @@ namespace Aether {
         layout(location = 4) in uvec4 a_Joints;
         layout(location = 5) in vec4 a_Weights;
         layout(location = 6) in mat4 a_InstanceModel;
+        layout(location = 10) in int a_InstanceRigIdx;
 
         struct Light
         {
@@ -157,25 +158,35 @@ namespace Aether {
         };
 
         uniform mat4 u_Model;
-        uniform int  u_HasAnimation;
-        uniform int  u_UseInstancing;
-        uniform int  u_LightIndex;   // which light this shadow pass renders for
+        uniform int  u_LightIndex; 
+        uniform samplerBuffer u_BoneStorage;  
+        uniform samplerBuffer u_OffsetStorage;
 
         void main()
         {
             vec4 localPos = vec4(a_Position, 1.0);
 
-            if (u_HasAnimation == 1)
+            if (a_InstanceRigIdx != -1)
             {
-                mat4 skinMatrix =
-                    a_Weights.x * u_BoneMatrices[a_Joints.x] +
-                    a_Weights.y * u_BoneMatrices[a_Joints.y] +
-                    a_Weights.z * u_BoneMatrices[a_Joints.z] +
-                    a_Weights.w * u_BoneMatrices[a_Joints.w];
+                vec4 meta = texelFetch(u_OffsetStorage, a_InstanceRigIdx);
+                int boneBase = int(meta.x) * 4; 
+                mat4 skinMatrix = mat4(0.0);
+                for (int w = 0; w < 4; w++)
+                {
+                    int boneIdx = int(a_Joints[w]);
+                    int texel   = boneBase + boneIdx * 4;
+                    mat4 boneMat = mat4(
+                        texelFetch(u_BoneStorage, texel + 0),
+                        texelFetch(u_BoneStorage, texel + 1),
+                        texelFetch(u_BoneStorage, texel + 2),
+                        texelFetch(u_BoneStorage, texel + 3)
+                    );
+                    skinMatrix += a_Weights[w] * boneMat;
+                }
                 localPos = skinMatrix * localPos;
             }
 
-            mat4 modelMatrix = u_UseInstancing == 1 ? a_InstanceModel : u_Model;
+            mat4 modelMatrix = a_InstanceModel;
             vec4 worldPos    = modelMatrix * localPos;
 
             if (u_Lights.lightCount > 0 && u_LightIndex < u_Lights.lightCount)

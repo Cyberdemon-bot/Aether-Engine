@@ -32,7 +32,6 @@ void LabLayer::Attach()
     m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
     m_MainShader->Bind();
     m_MainShader->SetUBOSlot("Camera", 0);
-    m_MainShader->SetUBOSlot("Bones",  1);
     m_MainShader->SetUBOSlot("Lights", 2);
 
     Aether::RenderPass mainPass;

@@ -8,6 +8,10 @@ layout(location = 3) in vec2 a_TexCoord;
 layout(location = 4) in uvec4 a_Joints;
 layout(location = 5) in vec4 a_Weights;
 layout(location = 6) in mat4 a_InstanceModel;
+layout(location = 10) in int a_InstanceRigIdx;
+
+uniform samplerBuffer u_BoneStorage;  
+uniform samplerBuffer u_OffsetStorage;
 
 layout(std140) uniform Camera
 {
@@ -33,20 +37,11 @@ layout(std140) uniform Lights
     int lightCount;
 } u_Lights;
 
-layout(std140) uniform Bones
-{
-    mat4 u_BoneMatrices[100];
-};
-
-uniform mat4 u_Model;
-uniform int u_HasAnimation;
-uniform int u_UseInstancing;
-
 out vec3 v_WorldPos;
 out vec3 v_WorldNormal;
 out vec2 v_TexCoord;
 out mat3 v_TBN;
-out vec4 v_LightSpacePos[4]; // one slot per possible shadow caster, ordered by shadowMask
+out vec4 v_LightSpacePos[4]; 
 
 void main()
 {
@@ -54,20 +49,31 @@ void main()
     vec3 localNormal = a_Normal;
     vec3 localTangent = a_Tangent.xyz;
 
-    if (u_HasAnimation == 1)
+    if (a_InstanceRigIdx != -1)
     {
-        mat4 skinMatrix =
-            a_Weights.x * u_BoneMatrices[a_Joints.x] +
-            a_Weights.y * u_BoneMatrices[a_Joints.y] +
-            a_Weights.z * u_BoneMatrices[a_Joints.z] +
-            a_Weights.w * u_BoneMatrices[a_Joints.w];
+        vec4 meta = texelFetch(u_OffsetStorage, a_InstanceRigIdx);
+        int boneBase = int(meta.x) * 4; 
+        mat4 skinMatrix = mat4(0.0);
+        for (int w = 0; w < 4; w++)
+        {
+            int boneIdx = int(a_Joints[w]);
+            int texel   = boneBase + boneIdx * 4;
+            mat4 boneMat = mat4(
+                texelFetch(u_BoneStorage, texel + 0),
+                texelFetch(u_BoneStorage, texel + 1),
+                texelFetch(u_BoneStorage, texel + 2),
+                texelFetch(u_BoneStorage, texel + 3)
+            );
+            skinMatrix += a_Weights[w] * boneMat;
+        }
+
         localPos = skinMatrix * localPos;
-        mat3 skinMat3 = mat3(skinMatrix);
-        localNormal = skinMat3 * localNormal;
-        localTangent = skinMat3 * localTangent;
+        mat3 skinRotation = mat3(skinMatrix);
+        localNormal = normalize(skinRotation * localNormal);
+        localTangent = normalize(skinRotation * localTangent);
     }
 
-    mat4 modelMatrix = u_UseInstancing == 1 ? a_InstanceModel : u_Model;
+    mat4 modelMatrix = a_InstanceModel;
     vec4 worldPos = modelMatrix * localPos;
     v_WorldPos = worldPos.xyz;
 
@@ -80,8 +86,6 @@ void main()
     v_WorldNormal = N;
     v_TexCoord = a_TexCoord;
 
-    // Walk all lights; for each one flagged in shadowMask, fill the next slot.
-    // The slot order here must match the order the CPU binds u_Shadowmap0..3.
     int slot = 0;
     for (int i = 0; i < u_Lights.lightCount && i < 16 && slot < 4; i++)
     {
@@ -91,7 +95,6 @@ void main()
             slot++;
         }
     }
-    // Zero out unused slots
     for (int s = slot; s < 4; s++)
         v_LightSpacePos[s] = vec4(0.0);
 
@@ -137,7 +140,6 @@ uniform sampler2D u_AlbedoMap;
 uniform sampler2D u_MetallicRoughnessMap;
 uniform sampler2D u_NormalMap;
 
-// One sampler per shadow caster slot, bound in the same order as shadowMask bits
 uniform sampler2D u_Shadowmap0;
 uniform sampler2D u_Shadowmap1;
 uniform sampler2D u_Shadowmap2;
@@ -242,8 +244,6 @@ void main()
     vec3 V = normalize(u_Position - v_WorldPos);
     vec3 Lo = vec3(0.0);
 
-    // shadowSlot tracks how many shadow-casting lights we have passed so far,
-    // keeping it in sync with the v_LightSpacePos[] slots filled in the vertex shader.
     int shadowSlot = 0;
 
     for (int i = 0; i < u_Lights.lightCount && i < 16; i++)
@@ -277,9 +277,8 @@ void main()
             attenuation *= spotIntensity;
         }
 
-        // Check if this light casts a shadow (its bit is set in shadowMask)
         bool castsShadow = (u_Lights.shadowMask & (1u << uint(i))) != 0u;
-        int  currentSlot = shadowSlot; // slot index before incrementing
+        int  currentSlot = shadowSlot;
         if (castsShadow) shadowSlot++;
 
         float shadow = 1.0;
