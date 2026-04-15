@@ -5,6 +5,9 @@
 #include "Aether/Core/Application.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Renderer/BuiltinShader.h"
+#include "Aether/Renderer/EditorCamera.h"
+#include "Aether/Renderer/UniformBuffer.h"
+#include "Aether/Renderer/StorageBuffer.h"
 
 float quadVertices[] = {
 	-1.0f,  1.0f,  0.0f, 1.0f,
@@ -43,17 +46,20 @@ namespace Aether {
 	void Renderer::Init()
 	{
 		RenderCommand::Init();
-		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 } };
+		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 }, { "a_InstanceRigIdx", ShaderDataType::Int} };
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 
-		s_RenderData->s_InstanceVBO = ResourceManager::CreateResource<VertexBuffer>(10 * sizeof(glm::mat4));
+		s_RenderData->s_InstanceVBO = ResourceManager::CreateResource<VertexBuffer>(10 * (sizeof(glm::mat4) + sizeof(glm::vec4)));
 		ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO)->SetLayout(layout);
 
 		s_RenderData->CameraUB = ResourceManager::CreateResource<UniformBuffer>(sizeof(CameraData));
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->CameraUB)->Bind(0);
 
-		s_RenderData->BoneUB = ResourceManager::CreateResource<UniformBuffer>(sizeof(glm::mat4) * 100);
-		ResourceManager::GetResource<UniformBuffer>(s_RenderData->BoneUB)->Bind(1);
+		uint32_t BoneStorageSize = 400;
+		s_SceneData->BoneStorage.reserve(BoneStorageSize);
+		s_SceneData->OffsetStorage.reserve(BoneStorageSize);
+		s_RenderData->BoneStorage = ResourceManager::CreateResource<StorageBuffer>(sizeof(glm::mat4) * BoneStorageSize);
+		s_RenderData->OffsetStorage = ResourceManager::CreateResource<StorageBuffer>(sizeof(glm::vec4) * BoneStorageSize);
 
 		s_RenderData->LightUB = ResourceManager::CreateResource<UniformBuffer>(sizeof(LightsData));
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->LightUB)->Bind(2);
@@ -64,7 +70,6 @@ namespace Aether {
 		s_RenderData->s_ShadowmapShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VShadowmapShader, FShadowmapShader});
 
 		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)   ->SetUBOSlot("Camera", 0);
-		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Bones",  1);
 		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Lights", 2);
 
 		Aether::FramebufferSpec shadowFbSpec;
@@ -101,15 +106,15 @@ namespace Aether {
 	{
 		auto& rd = *s_RenderData;
 		ResourceManager::Unload(rd.CameraUB);
-		ResourceManager::Unload(rd.BoneUB);
+		//ResourceManager::Unload(rd.BoneUB);
 		ResourceManager::Unload(rd.LightUB);
 		ResourceManager::Unload(rd.s_InstanceVBO);
 		ResourceManager::Unload(rd.s_ScreenShader);
 		ResourceManager::Unload(rd.s_SkyboxShader);
-		ResourceManager::Unload(rd.s_ShadowmapShader); // FIX: was never unloaded
+		ResourceManager::Unload(rd.s_ShadowmapShader); 
+		ResourceManager::Unload(rd.lineShader);
 		if (rd.s_LutMap.IsValid()) ResourceManager::Unload(rd.s_LutMap);
 		if (rd.s_Skybox.IsValid()) ResourceManager::Unload(rd.s_Skybox);
-		ResourceManager::Unload(rd.lineShader);
 
 		for (uint32_t i = 0; i < MaxShadowCaster; i++)
 			if (rd.s_ShadowFBO[i].IsValid()) ResourceManager::Unload(rd.s_ShadowFBO[i]);
@@ -233,6 +238,42 @@ namespace Aether {
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->CameraUB)->SetData(&s_SceneData->camera, sizeof(CameraData));
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->LightUB) ->SetData(&s_SceneData->lights,  sizeof(LightsData));
 
+		auto* boneStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->BoneStorage);
+		auto* offsetStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->OffsetStorage);
+		auto skelSystem   = AnimationSystem::GetModule<RigModule>();
+		auto& CommandList = s_SceneData->CommandList;
+		sort(CommandList.begin(), CommandList.end());
+
+		for (size_t i = 0; i < CommandList.size(); i++)
+		{
+			const auto& command = CommandList[i];
+			int currentAnimIndex = -1;
+			if (command.anim_task.IsValid()) 
+			{
+				const auto [boneMatrices, size] = skelSystem->GetPose(command.anim_task);
+				if (boneMatrices != nullptr && size > 0)
+				{
+					int boneBaseIndex = static_cast<int>(s_SceneData->BoneStorage.size());
+					s_SceneData->BoneStorage.insert(s_SceneData->BoneStorage.end(), boneMatrices, boneMatrices + size);
+					s_SceneData->OffsetStorage.push_back(glm::vec4(static_cast<float>(boneBaseIndex), static_cast<float>(size), 0.0f, 0.0f));
+					currentAnimIndex = static_cast<int>(s_SceneData->OffsetStorage.size() - 1);
+				}
+			}
+			s_SceneData->BoneIndices.push_back(currentAnimIndex);
+		}
+
+		if (boneStorage->GetSize() < s_SceneData->BoneStorage.size() * sizeof(glm::mat4)) 
+		{
+			boneStorage->Resize(s_SceneData->BoneStorage.size() * sizeof(glm::mat4));
+			offsetStorage->Resize(s_SceneData->OffsetStorage.size() * sizeof(glm::vec4));
+		}
+
+		if (!s_SceneData->BoneStorage.empty())
+		{
+			boneStorage->SetData(s_SceneData->BoneStorage.data(), s_SceneData->BoneStorage.size() * sizeof(glm::mat4));
+			offsetStorage->SetData(s_SceneData->OffsetStorage.data(), s_SceneData->OffsetStorage.size() * sizeof(glm::vec4));
+		}
+
 		for (auto& pass : s_RenderData->s_ShadowPipeline)
 			if (pass.IsActive) Flush(pass);
 
@@ -247,6 +288,9 @@ namespace Aether {
 
 		if (mainPass) RenderOnScreen(*mainPass);
 		s_SceneData->CommandList.clear();
+		s_SceneData->BoneStorage.clear();
+		s_SceneData->OffsetStorage.clear();
+		s_SceneData->BoneIndices.clear();
 		s_SceneData->lights.lightCount = 0;
 	}
 
@@ -318,20 +362,22 @@ namespace Aether {
 
 	void Renderer::Flush(const RenderPass& pass)
 	{
-		Mesh*     currentMesh     = nullptr;
+		Mesh* currentMesh = nullptr;
 		Material* currentMaterial = nullptr;
-		Handle<TaskTag>  currentAnimator = Handle<TaskTag>::MakeInvalid();
-		int       startSlot       = 0;
+		int startSlot = 3;
 
 		if (!pass.Shader || !pass.TargetFBO)
 		{
 			AE_CORE_ERROR("RenderPass has null Shader or TargetFBO — skipping.");
 			return;
 		}
-		auto* shader      = pass.Shader;    shader->Bind();
-		auto* fbo         = pass.TargetFBO; fbo->Bind();
-		auto* screen_vao  = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray());
+
+		auto* shader = pass.Shader; shader->Bind();
+		auto* fbo = pass.TargetFBO; fbo->Bind();
+		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray());
 		auto* instanceVBO = ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO);
+		auto* boneStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->BoneStorage);
+		auto* offsetStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->OffsetStorage);
 
 		if (pass.ClearColor && pass.ClearDepth)
 		{
@@ -345,9 +391,9 @@ namespace Aether {
 		}
 		else if (pass.ClearDepth) RenderCommand::ClearDepth();
 
-		if      (pass.CullFace == State::FRONT_CULL) RenderCommand::SetCullingMode(State::FRONT_CULL);
-		else if (pass.CullFace == State::BACK_CULL)  RenderCommand::SetCullingMode(State::BACK_CULL);
-		else                                          RenderCommand::SetCullingMode(State::None);
+		if (pass.CullFace == State::FRONT_CULL) RenderCommand::SetCullingMode(State::FRONT_CULL);
+		else if (pass.CullFace == State::BACK_CULL) RenderCommand::SetCullingMode(State::BACK_CULL);
+		else RenderCommand::SetCullingMode(State::None);
 
 		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
@@ -371,30 +417,19 @@ namespace Aether {
 
 		if (pass.UsingGeometry)
 		{
-			auto skelSystem   = AnimationSystem::GetModule<RigModule>();
+			boneStorage->Bind(1); pass.Shader->SetInt("u_BoneStorage", 1);
+			offsetStorage->Bind(2); pass.Shader->SetInt("u_OffsetStorage", 2);
 			auto& CommandList = s_SceneData->CommandList;
-			sort(CommandList.begin(), CommandList.end());
-
-			if (!CommandList.empty() && CommandList[0].anim_task.IsValid())
-			{
-				shader->SetInt("u_UseInstancing", 0);
-				shader->SetInt("u_HasAnimation",  1);
-			}
-			else
-			{
-				shader->SetInt("u_UseInstancing", 1);
-				shader->SetInt("u_HasAnimation",  0);
-			}
 
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
-				auto& command  = CommandList[i];
+				auto& command = CommandList[i];
 				auto* material = command.material;
-				auto* mesh     = command.mesh;
+				auto* mesh = command.mesh;
 				if (!material || !mesh) continue;
 
-				const auto& submesh   = mesh->GetSubMeshes()[command.subIdx];
-				void*       indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
+				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];
+				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
 
 				if (currentMaterial != material && pass.UsingMaterial)
 				{
@@ -407,37 +442,15 @@ namespace Aether {
 					currentMesh = mesh;
 				}
 
-				if (command.anim_task.IsValid())
+				s_SceneData->batchInstance.push_back({command.transform, s_SceneData->BoneIndices[i]});
+				if ((i == CommandList.size() - 1) || (command != CommandList[i + 1]))
 				{
-					if (currentAnimator.Blend() != command.anim_task.Blend())
-					{
-						currentAnimator = command.anim_task;
-						const auto [boneMatrices, size] = skelSystem->GetPose(command.anim_task);
-						if (size != 0)
-							ResourceManager::GetResource<UniformBuffer>(s_RenderData->BoneUB)
-					 			->SetData(boneMatrices, size * sizeof(glm::mat4));
-					}
-					shader->SetMat4("u_Model", command.transform);
-					RenderCommand::DrawIndexedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex);
-				}
-				else
-				{
-					s_SceneData->batchTransform.push_back(command.transform);
-					if (currentAnimator.IsValid())
-					{
-						shader->SetInt("u_UseInstancing", 1);
-						shader->SetInt("u_HasAnimation",  0);
-						currentAnimator = Handle<TaskTag>::MakeInvalid();
-					}
-					if ((i == CommandList.size() - 1) || (command != CommandList[i + 1]))
-					{
-						uint32_t dataSize = (uint32_t)(s_SceneData->batchTransform.size() * sizeof(glm::mat4));
-						if (instanceVBO->GetSize() < dataSize)
-							instanceVBO->Resize(dataSize * 2);
-						instanceVBO->SetData(s_SceneData->batchTransform.data(), dataSize, 0);
-						RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, s_SceneData->batchTransform.size());
-						s_SceneData->batchTransform.clear();
-					}
+					uint32_t dataSize = (uint32_t)(s_SceneData->batchInstance.size() * sizeof(InstanceData));
+					if (instanceVBO->GetSize() < dataSize)
+						instanceVBO->Resize(dataSize * 2);
+					instanceVBO->SetData(s_SceneData->batchInstance.data(), dataSize, 0);
+					RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, s_SceneData->batchInstance.size());
+					s_SceneData->batchInstance.clear();
 				}
 			}
 		}
@@ -451,10 +464,6 @@ namespace Aether {
 	{
 		RenderCommand::SetViewport(0, 0, width, height);
 	}
-
-	// ─────────────────────────────────────────────────────────────────────────
-	// Debug / collider primitives  (unchanged)
-	// ─────────────────────────────────────────────────────────────────────────
 
 	void Renderer::RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color)
 	{

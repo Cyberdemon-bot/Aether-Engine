@@ -1,16 +1,14 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
-#include "Aether/Renderer/RenderCommand.h"
-#include "Aether/Renderer/EditorCamera.h"
-#include "Aether/Renderer/UniformBuffer.h"
-#include "Aether/Renderer/FrameBuffer.h"
-#include "Aether/Renderer/Shader.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Renderer/Camera.h"
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Animation/RigModule.h"
+#include "Aether/Renderer/FrameBuffer.h"
+#include "Aether/Renderer/Shader.h"
+#include "Aether/Renderer/RenderCommand.h"
 #include <glm/glm.hpp>
 #include <tuple>
 #define MAX_LIGHTS 16
@@ -46,10 +44,10 @@ namespace Aether {
 
 	struct LightsData
 	{
-		Light    lights[MAX_LIGHTS];
+		Light lights[MAX_LIGHTS];
 		uint32_t shadowMask;
-		int      lightCount;
-		float    _pad[3];
+		int lightCount;
+		float _pad[3];
 	};
 
 	struct CameraData
@@ -59,52 +57,26 @@ namespace Aether {
 		glm::vec3 Position; float _pad;
 	};
 
-	struct RenderKey
-	{
-		Mesh*     mesh;
-		Material* material;
-		uint32_t  subIdx;
-
-		bool operator<(const RenderKey& other) const
-		{
-			if (material != other.material) return material < other.material;
-			if (mesh     != other.mesh)     return mesh     < other.mesh;
-			return subIdx < other.subIdx;
-		}
-	};
-
-	struct BatchData
-	{
-		std::vector<std::pair<glm::mat4, Handle<TaskTag>>> dynamic_obj;
-		std::vector<glm::mat4>                  static_obj;
-	};
-
 	struct Command
 	{
-		Mesh*     mesh;
+		Mesh* mesh;
 		Material* material;
-		uint32_t  subIdx;
+		uint32_t subIdx;
 		Handle<TaskTag> anim_task;
 		glm::mat4 transform;
 
 		bool operator<(const Command& other) const
 		{
-			bool thisAnim  = anim_task.IsValid();
-			bool otherAnim = other.anim_task.IsValid();
-			if (thisAnim != otherAnim) return thisAnim > otherAnim; 
 			if (material != other.material) return material < other.material;
-			if (mesh     != other.mesh)     return mesh     < other.mesh;
+			if (mesh     != other.mesh) return mesh < other.mesh;
 			return subIdx < other.subIdx;
 		}
 
 		bool operator!=(const Command& other) const
 		{
-			bool thisAnim  = anim_task.IsValid();
-			bool otherAnim = other.anim_task.IsValid();
 			return (mesh != other.mesh) || 
 				(material != other.material) || 
-				(subIdx != other.subIdx) ||
-				(thisAnim != otherAnim);
+				(subIdx != other.subIdx);
 		}
 	};
 
@@ -149,8 +121,6 @@ namespace Aether {
 		static void DeactivatePass(uint32_t PassIdx);
 		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
-		static Texture2D* GetShadowDepthAttachment(uint32_t slot);
-
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
@@ -167,17 +137,26 @@ namespace Aether {
 		static void RenderOnScreen(const RenderPass& pass);
 		static void RenderSkybox();
 		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
+		static Texture2D* GetShadowDepthAttachment(uint32_t slot);
 
-		// ── Change this one constant to scale the entire shadow system ────────
 		static const uint32_t MaxShadowCaster = 4;
+
+		struct InstanceData
+		{
+			glm::mat4 transform;
+			int rigidx;
+		};
 
 		struct SceneData
 		{
 			CameraData camera;
 			LightsData lights;
 			std::vector<Command>   CommandList;
-			std::vector<glm::mat4> batchTransform;
+			std::vector<InstanceData> batchInstance;
 			std::vector<LightCandidate> CandList;
+			std::vector<glm::mat4> BoneStorage;
+			std::vector<glm::vec4> OffsetStorage;
+			std::vector<int> BoneIndices;
 		};
 
 		struct RenderData
@@ -186,18 +165,20 @@ namespace Aether {
 			ResourceHandle BoneUB;
 			ResourceHandle LightUB;
 			ResourceHandle s_InstanceVBO;
-			Mesh*          s_Screen   = nullptr;
-			Mesh*          s_SkyMesh  = nullptr;
 			ResourceHandle s_ScreenShader;
 			ResourceHandle s_SkyboxShader;
 			ResourceHandle s_ShadowmapShader;
 			ResourceHandle lineShader;
 			ResourceHandle s_LutMap;
 			ResourceHandle s_Skybox;
-			ResourceHandle s_ShadowFBO[MaxShadowCaster]; // sized by the constant
+			ResourceHandle s_ShadowFBO[MaxShadowCaster]; 
+			ResourceHandle BoneStorage;
+			ResourceHandle OffsetStorage;
+			Mesh* s_Screen   = nullptr;
+			Mesh* s_SkyMesh  = nullptr;
 
 			std::vector<RenderPass> s_PassList;
-			std::vector<RenderPass> s_ShadowPipeline;    // always MaxShadowCaster entries
+			std::vector<RenderPass> s_ShadowPipeline;   
 		};
 
 		static Scope<SceneData>  s_SceneData;
