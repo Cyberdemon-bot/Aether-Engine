@@ -82,7 +82,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // MAP
     // =========================================================================
-    auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/map.glb"));
+    auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
     if (!uploadMap.meshIDs.empty()) {
         m_BaseMapMesh = Aether::AssetManager::GetHandle(uploadMap.meshIDs[0]);
         if (uploadMap.matIDs.empty()) AE_ERROR("no material!");
@@ -100,7 +100,7 @@ void MainGameLayer::Attach()
     pTransform.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     pTransform.Dirty       = true;
 
-    auto uploadPlayer = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/humanv2.glb"));
+    auto uploadPlayer = Aether::Importer::Upload(Aether::Importer::Import("assets/models/humanv2.glb"));
     m_Scene.LoadHierarchy(uploadPlayer, m_Player);
 
     // =========================================================================
@@ -123,7 +123,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // ZOMBIES
     // =========================================================================
-    m_ZombieSceneData = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/zombie.glb"));
+    m_ZombieSceneData = Aether::Importer::Upload(Aether::Importer::Import("assets/models/zombie.glb"));
 
     // =========================================================================
     // GUN
@@ -134,7 +134,7 @@ void MainGameLayer::Attach()
     gTransform.Scale       = { 1.0f, 1.0f, 1.0f };
     gTransform.Dirty       = true;
 
-    auto uploadGun = Aether::Importer::Upload(Aether::Importer::Import("Assets/models/gun.glb"));
+    auto uploadGun = Aether::Importer::Upload(Aether::Importer::Import("assets/models/gun.glb"));
     m_Scene.LoadHierarchy(uploadGun, m_Gun);
 
     // Set gun animator to not loop
@@ -153,17 +153,16 @@ void MainGameLayer::Attach()
     // MISC
     // =========================================================================
     m_PathGridSize       = m_ChunkSize / static_cast<float>(m_FlowFieldSubdivisions);
-    m_MuzzleFlashTexture = Aether::Texture2D::Create("Assets/models/tiadan.png");
 
     Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f });
 
     // =========================================================================
     // AUDIO
     // =========================================================================
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_BgmSoundID,   "Assets/audio/Hatsune Miku - Ievan Polkka.mp3");
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunSoundID,   "Assets/audio/pistol.mp3");
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunReloadID,  "Assets/audio/pistol_reload.mp3");
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_ZombieBiteID, "Assets/audio/zombie_bite.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_BgmSoundID,   "assets/audios/Hatsune Miku - Ievan Polkka.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunSoundID,   "assets/audios/pistol.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunReloadID,  "assets/audios/pistol_reload.mp3");
+    Aether::AssetManager::CreateAsset<Aether::Sound>(m_ZombieBiteID, "assets/audios/zombie_bite.mp3");
 
     Aether::UUID bgmSrcID;
     Aether::AudioSystem::CreateSource(bgmSrcID, m_BgmSoundID, Aether::AudioType::Audio2D);
