@@ -26,11 +26,12 @@ private:
     void RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic = true);
 
     void DrawHierarchyPanel();
-    void DrawEntityNode(Aether::Entity entity);
+    // NOTE: DrawEntityNode removed — UI::SceneHierarchy handles hierarchy traversal internally.
     void DrawScenePanel();
     void DrawAnimationPanel();
     void DrawLightingPanel();
     void DrawScriptingPanel();
+    void DrawBoneAttachmentPanel();   // <-- NEW
 
 private:
     Aether::Scene        m_Scene;
@@ -48,7 +49,7 @@ private:
 
     // Loaded assets (UUIDs for AssetManager lookup)
     std::vector<Aether::UUID> m_MeshIDs;
-    std::vector<Aether::UUID> m_AnimatorIDs;
+    // NOTE: m_AnimatorIDs removed — animator count is derived live from the ECS view to avoid stale data.
 
     Aether::Entity m_LightEntity    = Aether::Null_Entity;
     Aether::Entity m_SelectedEntity = Aether::Null_Entity;
@@ -93,4 +94,17 @@ private:
 
     std::string    m_ScriptPath          = "";
     Aether::Entity m_ScriptTargetEntity  = Aether::Null_Entity;
+
+    // -------------------------------------------------------------------------
+    //  Bone Attachment panel state
+    // -------------------------------------------------------------------------
+    // The entity that will receive / already has a BoneAttachmentComponent
+    Aether::Entity m_BoneAttachChildEntity    = Aether::Null_Entity;
+    // The entity that owns the AnimatorComponent to attach to
+    Aether::Entity m_BoneAttachAnimatorEntity = Aether::Null_Entity;
+    // Bone name typed by the user
+    char           m_BoneNameBuf[128]         = {};
+    // Local offset and rotation editable in the panel
+    glm::vec3      m_BoneAttachOffset         = glm::vec3(0.0f);
+    glm::vec3      m_BoneAttachRotEulerDeg    = glm::vec3(0.0f); // degrees, converted to quat on apply
 };

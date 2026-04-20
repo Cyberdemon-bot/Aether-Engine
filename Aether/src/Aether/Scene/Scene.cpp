@@ -320,7 +320,7 @@ namespace Aether {
         {
             if (GetComponent<HierarchyComponent>(entity).parent != Null_Entity) continue;
             auto& t = GetComponent<TransformComponent>(entity);
-            if (t.Dirty || t.SubtreeDirty) Queue.push({entity, 0});
+            if (t.Dirty || t.SubtreeDirty || HasComponent<ColliderComponent>(entity)) Queue.push({entity, 0});
         }
 
         while (!Queue.empty())
@@ -336,7 +336,7 @@ namespace Aether {
             while (child != Null_Entity)
             {
                 auto& childT = GetComponent<TransformComponent>(child);
-                if (parentDirty || childT.Dirty || childT.SubtreeDirty)
+                if (parentDirty || childT.Dirty || childT.SubtreeDirty || HasComponent<ColliderComponent>(entity))
                 {
                     if (parentDirty) childT.Dirty = true; 
                     Queue.push({child, depth + 1});
@@ -418,6 +418,33 @@ namespace Aether {
         for (int rootIdx : registered.hierarchy->roots)
             CreateNodeEntity(registered, rootIdx, parent);
     }
+
+    static bool ResolveBoneWorldTransform(Scene& scene, const BoneAttachmentComponent& attach, RigModule* rigModule)
+    {
+        Entity animEnt = attach.AnimatorEntity;
+        if (!scene.IsValid(animEnt)) return false;
+        if (!scene.HasComponent<AnimatorComponent>(animEnt)) return false;
+        auto& animComp = scene.GetComponent<AnimatorComponent>(animEnt);
+        if (!animComp.CurrentTask.IsValid()) return false;
+        auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(animComp.Skeleton);
+        if (!skeletonAsset) return false;
+
+        Handle<SkeletonTag> skelHnd = skeletonAsset->GetHandle();
+        if (attach.BoneIndex < 0 || attach.CachedSkeletonHnd.Blend() != skelHnd.Blend())
+        {
+            attach.BoneIndex = rigModule->GetBoneIndex(skelHnd, attach.BoneName);
+            attach.CachedSkeletonHnd = skelHnd;
+            if (attach.BoneIndex < 0) return false; 
+        }
+
+        auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentTask);
+        if (!poseData || (size_t)attach.BoneIndex >= poseCount) return false;
+        glm::mat4 ibm; rigModule->GetIBM(skelHnd, attach.BoneIndex, ibm);
+        glm::mat4 modelSpaceMat = poseData[attach.BoneIndex] * glm::inverse(ibm);
+        const glm::mat4& animatorWorld = scene.GetComponent<TransformComponent>(animEnt).WorldTransform;
+        attach.CachedBoneWorld = animatorWorld * modelSpaceMat;
+        return true;
+    }
     
     void Scene::UpdateTransform(Entity entity)
     {
@@ -426,7 +453,22 @@ namespace Aether {
 
         glm::mat4 pTransform = glm::mat4(1.0f);
         bool pDirty = false;
-        if (hierarchy.parent != Null_Entity)
+
+        bool hasBoneAttachment = HasComponent<BoneAttachmentComponent>(entity);
+        bool boneResolved = false;
+ 
+        if (hasBoneAttachment)
+        {
+            const auto& attach = GetComponent<BoneAttachmentComponent>(entity);
+            if (attach.BoneIndex >= 0)
+            {
+                pTransform = attach.CachedBoneWorld * attach.GetLocalAttachTransform();
+                boneResolved = true;
+                pDirty = true; 
+            }
+        }
+ 
+        if (!boneResolved && hierarchy.parent != Null_Entity)
         {
             const auto& parentTransform = GetComponent<TransformComponent>(hierarchy.parent);
             pTransform = parentTransform.WorldTransform;
@@ -651,6 +693,15 @@ namespace Aether {
 
                 rigModule->ProcessTasks();
 
+                {
+                    auto attachView = View<BoneAttachmentComponent, TransformComponent>();
+                    for (auto entity : attachView)
+                    {
+                        const auto& attach = GetComponent<BoneAttachmentComponent>(entity);
+                        ResolveBoneWorldTransform(*this, attach, rigModule.get());
+                        GetComponent<TransformComponent>(entity).Dirty = true;
+                    }
+                }
 
                 // render
                 if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights); 
