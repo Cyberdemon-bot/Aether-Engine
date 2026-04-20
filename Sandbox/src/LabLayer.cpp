@@ -114,7 +114,7 @@ void LabLayer::Detach()
     m_VolFbo.reset();
 
     m_MeshIDs.clear();
-    m_AnimatorIDs.clear();
+    // NOTE: m_AnimatorIDs removed — no longer tracked as a separate list.
 }
 
 // =============================================================================
@@ -164,8 +164,7 @@ void LabLayer::DrainParseQueue()
 
         m_Scene.LoadHierarchy(result);
 
-        AE_CORE_INFO("Loaded: {0} mesh(es)",
-            result.meshIDs.size());
+        AE_CORE_INFO("Loaded: {0} mesh(es)", result.meshIDs.size());
     }
 }
 
@@ -195,7 +194,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID 
 
     auto& t          = m_Scene.GetComponent<Aether::TransformComponent>(transformEntity);
     t.WorldTransform = worldTransform;
-    t.Dirty          = false;
+    m_Scene.MarkDirty(transformEntity);
 
     const glm::mat4& wt = worldTransform;
     glm::vec3 worldScale(
@@ -301,6 +300,7 @@ void LabLayer::OnImGuiRender()
     DrawAnimationPanel();
     DrawLightingPanel();
     DrawScriptingPanel();
+    DrawBoneAttachmentPanel();   // <-- NEW
 }
 
 void LabLayer::DrawScriptingPanel()
@@ -433,8 +433,13 @@ void LabLayer::DrawScenePanel()
 
     if (auto w = UI::Window("Scene"))
     {
+        // BUG FIX: derive animator count live from the ECS view instead of
+        // m_AnimatorIDs which was never populated and always showed 0.
+        int animatorCount = 0;
+        for (auto e : m_Scene.View<AnimatorComponent>()) { (void)e; animatorCount++; }
+
         UI::Text("Meshes:    %d", (int)m_MeshIDs.size());
-        UI::Text("Animators: %d", (int)m_AnimatorIDs.size());
+        UI::Text("Animators: %d", animatorCount);
         UI::Separator();
 
         // ---- Physics --------------------------------------------------------
@@ -661,6 +666,195 @@ void LabLayer::DrawLightingPanel()
         if (auto h = UI::Header("Shadow"))
         {
             UI::SliderFloat("Bias", m_ShadowBias, 0.00001f, 0.005f);
+        }
+    }
+}
+
+// =============================================================================
+//  Bone Attachment panel
+// =============================================================================
+
+void LabLayer::DrawBoneAttachmentPanel()
+{
+    using namespace Aether;
+
+    if (auto w = UI::Window("Bone Attachment"))
+    {
+        // ---- Setup section --------------------------------------------------
+        if (auto h = UI::Header("Attach"))
+        {
+            // --- Child entity picker (the object that will follow the bone) ---
+            std::string childPreview = (m_BoneAttachChildEntity != Null_Entity &&
+                                        m_Scene.IsValid(m_BoneAttachChildEntity))
+                ? m_Scene.GetComponent<TagComponent>(m_BoneAttachChildEntity).Tag
+                : "Select Child Entity";
+
+            if (auto c = UI::Combo("Child Entity##boneattach", childPreview.c_str()))
+            {
+                for (auto entity : m_Scene.View<TagComponent>())
+                {
+                    auto  g   = UI::ID((int)(uint64_t)entity);
+                    bool  sel = (m_BoneAttachChildEntity == entity);
+                    auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                    if (UI::Selectable(tag.Tag.c_str(), sel))
+                        m_BoneAttachChildEntity = entity;
+                    if (sel) ImGui::SetItemDefaultFocus();
+                }
+            }
+
+            // --- Animator entity picker (the entity that owns the skeleton) --
+            std::string animPreview = (m_BoneAttachAnimatorEntity != Null_Entity &&
+                                       m_Scene.IsValid(m_BoneAttachAnimatorEntity))
+                ? m_Scene.GetComponent<TagComponent>(m_BoneAttachAnimatorEntity).Tag
+                : "Select Animator Entity";
+
+            if (auto c = UI::Combo("Animator Entity##boneattach", animPreview.c_str()))
+            {
+                // Only show entities that actually have an AnimatorComponent
+                for (auto entity : m_Scene.View<AnimatorComponent, TagComponent>())
+                {
+                    auto  g   = UI::ID((int)(uint64_t)entity);
+                    bool  sel = (m_BoneAttachAnimatorEntity == entity);
+                    auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                    if (UI::Selectable(tag.Tag.c_str(), sel))
+                        m_BoneAttachAnimatorEntity = entity;
+                    if (sel) ImGui::SetItemDefaultFocus();
+                }
+            }
+
+            // --- Bone name text input ----------------------------------------
+            ImGui::InputText("Bone Name##boneattach", m_BoneNameBuf, sizeof(m_BoneNameBuf));
+
+            // --- Local offset / rotation -------------------------------------
+            UI::DragXYZ("Local Offset##boneattach",   m_BoneAttachOffset,      0.01f);
+            UI::DragXYZ("Local Rotation (deg)##boneattach", m_BoneAttachRotEulerDeg, 0.5f);
+
+            UI::Separator();
+
+            // --- Attach button -----------------------------------------------
+            bool boneName    = (m_BoneNameBuf[0] != '\0');
+            bool childValid  = (m_BoneAttachChildEntity    != Null_Entity &&
+                                m_Scene.IsValid(m_BoneAttachChildEntity));
+            bool animValid   = (m_BoneAttachAnimatorEntity != Null_Entity &&
+                                m_Scene.IsValid(m_BoneAttachAnimatorEntity));
+            // Guard: child must not be the same entity as the animator
+            bool notSelf     = (m_BoneAttachChildEntity != m_BoneAttachAnimatorEntity);
+            bool canAttach   = boneName && childValid && animValid && notSelf;
+
+            {
+                auto d = UI::Disabled(!canAttach);
+                if (UI::Button("Attach##boneattach"))
+                {
+                    // Convert Euler degrees to quaternion
+                    glm::vec3 radians = glm::radians(m_BoneAttachRotEulerDeg);
+                    glm::quat localRot = glm::quat(radians); // glm constructs from Euler (pitch,yaw,roll)
+
+                    if (m_Scene.HasComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity))
+                    {
+                        // Update in place so the scene's cached bone index is invalidated properly
+                        auto& existing = m_Scene.GetComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
+                        existing.Invalidate();
+                        existing.AnimatorEntity = m_BoneAttachAnimatorEntity;
+                        existing.BoneName       = m_BoneNameBuf;
+                        existing.LocalOffset    = m_BoneAttachOffset;
+                        existing.LocalRotation  = localRot;
+                    }
+                    else
+                    {
+                        m_Scene.AddComponent<BoneAttachmentComponent>(
+                            m_BoneAttachChildEntity,
+                            m_BoneAttachAnimatorEntity,
+                            std::string_view(m_BoneNameBuf),
+                            m_BoneAttachOffset,
+                            localRot);
+                    }
+
+                    // Mark the child's transform dirty so the scene picks it up next frame
+                    m_Scene.GetComponent<TransformComponent>(m_BoneAttachChildEntity).Dirty = true;
+
+                    AE_CORE_INFO("[BoneAttach] '{}' -> bone '{}' on '{}'",
+                        m_Scene.GetComponent<TagComponent>(m_BoneAttachChildEntity).Tag,
+                        m_BoneNameBuf,
+                        m_Scene.GetComponent<TagComponent>(m_BoneAttachAnimatorEntity).Tag);
+                }
+            }
+
+            // --- Detach button (only shown when the child already has one) ---
+            bool hasAttach = childValid &&
+                             m_Scene.HasComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
+            ImGui::SameLine();
+            {
+                auto d = UI::Disabled(!hasAttach);
+                if (UI::Button("Detach##boneattach"))
+                {
+                    m_Scene.RemoveComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
+                    // Restore Dirty so normal transform propagation takes back over
+                    m_Scene.GetComponent<TransformComponent>(m_BoneAttachChildEntity).Dirty = true;
+
+                    AE_CORE_INFO("[BoneAttach] Detached '{}' from bone.",
+                        m_Scene.GetComponent<TagComponent>(m_BoneAttachChildEntity).Tag);
+                }
+            }
+
+            // Helper: if child already has a BoneAttachmentComponent, populate
+            // the panel fields from it so the user can inspect / edit live.
+            if (hasAttach)
+            {
+                auto& existing = m_Scene.GetComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
+
+                // Sync animator picker to match the component
+                if (m_BoneAttachAnimatorEntity != existing.AnimatorEntity)
+                    m_BoneAttachAnimatorEntity = existing.AnimatorEntity;
+
+                // Show current bone index as a read-only hint
+                if (existing.BoneIndex >= 0)
+                    UI::Text("Resolved bone index: %d", existing.BoneIndex);
+                else
+                    UI::TextDisabled("Bone not yet resolved (check bone name).");
+            }
+        }
+
+        UI::Separator();
+
+        // ---- Active attachments list ----------------------------------------
+        if (auto h = UI::Header("Active Attachments"))
+        {
+            bool any = false;
+            for (auto entity : m_Scene.View<BoneAttachmentComponent, TagComponent>())
+            {
+                any = true;
+                auto  g      = UI::ID((int)(uint64_t)entity);
+                auto& tag    = m_Scene.GetComponent<TagComponent>(entity);
+                auto& attach = m_Scene.GetComponent<BoneAttachmentComponent>(entity);
+
+                // Resolve animator tag safely
+                std::string animTag = "(invalid)";
+                if (attach.AnimatorEntity != Null_Entity &&
+                    m_Scene.IsValid(attach.AnimatorEntity))
+                    animTag = m_Scene.GetComponent<TagComponent>(attach.AnimatorEntity).Tag;
+
+                UI::Text("'%s'  ->  bone '%s'  on  '%s'",
+                    tag.Tag.c_str(),
+                    attach.BoneName.c_str(),
+                    animTag.c_str());
+
+                // Quick-select this child entity for editing
+                ImGui::SameLine();
+                if (UI::SmallButton("Select##bonerow"))
+                {
+                    m_BoneAttachChildEntity = entity;
+
+                    // Populate edit fields from the component
+                    std::strncpy(m_BoneNameBuf, attach.BoneName.c_str(), sizeof(m_BoneNameBuf));
+                    m_BoneNameBuf[sizeof(m_BoneNameBuf) - 1] = '\0';
+                    m_BoneAttachOffset      = attach.LocalOffset;
+                    m_BoneAttachRotEulerDeg = glm::degrees(glm::eulerAngles(attach.LocalRotation));
+                    m_BoneAttachAnimatorEntity = attach.AnimatorEntity;
+                }
+            }
+
+            if (!any)
+                UI::TextDisabled("No bone attachments in scene.");
         }
     }
 }

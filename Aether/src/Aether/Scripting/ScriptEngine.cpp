@@ -32,7 +32,7 @@ namespace Aether {
        lua.open_libraries(sol::lib::base, sol::lib::math);
        instance.m_Instances.Init();
        RegisterTypes();
-       AE_CORE_INFO("ScriptEngine initialized");
+       AE_CORE_INFO("ScriptEngine initialized with {0}", LUA_VERSION);
     }
 
     void ScriptEngine::Shutdown()

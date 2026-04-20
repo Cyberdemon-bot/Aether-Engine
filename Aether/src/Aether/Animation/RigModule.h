@@ -66,6 +66,7 @@ namespace Aether {
         virtual float GetDuration(Handle<ClipTag> clip) const = 0;
         virtual int GetJointCount(Handle<SkeletonTag> skeleton) const = 0;
         virtual void GetRestPoseMatrices(Handle<SkeletonTag> skeleton, glm::mat4* arr, size_t size) const = 0;
+        virtual bool GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const = 0;
         virtual void ProcessTasks() = 0;
         virtual void ClearTasks() = 0;
     private:

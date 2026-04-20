@@ -193,6 +193,15 @@ namespace Aether {
         for (size_t i = 0; i < size; i++) 
             ConvertOzzMatrixToGlm(modelMats[i], arr[i]);
     }
+
+    bool Ozz_RigModule::GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const
+    {
+        const auto* it = m_SkeletonPool.GetResource(skeleton);
+        if (!it) return false;
+        if (boneIndex < 0 || (size_t)boneIndex >= it->orderedIBMs.size()) return false;
+        out = it->orderedIBMs[boneIndex];
+        return true;
+    }
     
     void Ozz_RigModule::CalculateMatrices(glm::mat4* out, glm::mat4* ibm, size_t size, ozz::animation::Skeleton* skeleton, ozz::animation::Animation* clip, ozz::animation::SamplingJob::Context* cache, float time)
     {
