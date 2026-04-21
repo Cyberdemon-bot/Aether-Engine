@@ -9,7 +9,7 @@ namespace Aether {
     {
     public:
         static std::string Get(UUID key);
-        static UUID Register(const std::string& name);
+        static UUID Register(const std::string& name, UUID id);
         static bool Exists(UUID key);
 
     private:

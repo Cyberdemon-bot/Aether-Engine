@@ -1,9 +1,12 @@
-#include "Platform/Cgltf/GLTF_ImporterAPI.h"
 #include "aepch.h"
 #include <cgltf.h>
+#include "Platform/Cgltf/GLTF_ImporterAPI.h"
+#include "Aether/Packer/MaterialPack.h"
+#include "Aether/Packer/RigPack.h"
+#include "Aether/Packer/MeshPack.h"
 
 namespace Aether {
-    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path)
+    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path, bool createCache, const char* cacheName)
     {
         Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
         SceneData->FilePath = path;
@@ -28,13 +31,22 @@ namespace Aether {
 
         void* data = static_cast<void*>(gltf);
         auto anim = m_AnimationParser->ParseRigAnim(data);
-        SceneData->Meshes = std::move(m_MeshParser->Parsing(data)->meshesInfo);
-        SceneData->Materials = std::move(m_MaterialParser->Parsing(data)->matsInfo);
-        SceneData->Textures = std::move(m_MaterialParser->Parsing(data)->texsInfo);
+        auto matRes = m_MaterialParser->Parsing(data);
+        auto meshRes = m_MeshParser->Parsing(data);
+        SceneData->Hierarchy = m_SceneParser->Parsing(data);
+        SceneData->Meshes = std::move(meshRes->meshesInfo);
+        SceneData->Materials = std::move(matRes->matsInfo);
+        SceneData->Textures = std::move(matRes->texsInfo);
         SceneData->Rigs = std::move(anim->rigs);
         SceneData->Clips = std::move(anim->clips);
-        SceneData->RigMap = std::move(anim->rig_map);
-        SceneData->Hierarchy = m_SceneParser->Parsing(data);
+
+        if (createCache)
+        {
+            const auto& name = std::string(cacheName);
+            WriteMatFile(".cache/" + name + ".mat", SceneData->Textures, SceneData->Materials);
+            WriteMeshFile(".cache/" + name + ".mesh", SceneData->Meshes);
+            WriteRigFile(".cache/" + name + ".rig", SceneData->Rigs, SceneData->Clips);
+        }
 
         AE_CORE_INFO("Parsed " + path);
         return SceneData;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Core/UUID.h"
 #include "Aether/Assets/Skeleton.h"
 #include "Aether/Assets/Clip.h"
 #include <vector>
@@ -8,6 +9,7 @@
 #include <unordered_map>
 #include <map>
 #include <set>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -15,13 +17,16 @@ namespace Aether {
 
     struct RigCreateInfo
     {
+        UUID AssetID;
         std::string DebugName;
         SkeletonSpec spec;
     };
 
     struct ClipCreateInfo
     {
+        UUID AssetID;
         std::string DebugName;
+        uint32_t rigIdx;
         ClipSpec spec;
     };
 
@@ -29,7 +34,6 @@ namespace Aether {
     {
         std::vector<RigCreateInfo> rigs;
         std::vector<ClipCreateInfo> clips;
-        std::unordered_map<uint32_t, std::vector<uint32_t>> rig_map;
     };
 
     class AnimationParser

@@ -24,6 +24,7 @@ namespace Aether {
 
         Entity CreateEntity();
         Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);
+        Entity CreateEntity(std::string_view name, UUID id, Entity parent = Null_Entity);
         void DestroyEntity(Entity entity);
         void DestroyHierarchy(Entity entity);
         void MakeParent(Entity child, Entity parent);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Core/UUID.h"
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
@@ -23,6 +24,7 @@ namespace Aether {
 
     struct MeshCreateInfo
     {
+        UUID AssetID;
         std::string DebugName;
         std::vector<float> Positions;
         std::vector<float> Normals;

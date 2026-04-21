@@ -21,6 +21,7 @@ public:
 
 private:
     void LoadModelAsync(const std::vector<std::string>& args);
+    void LoadCacheModelAsync(const std::vector<std::string>& args);
     void AddEntity(const std::vector<std::string>& args);
     void DrainParseQueue();
     void RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic = true);
@@ -104,4 +105,7 @@ private:
     Aether::Entity m_BoneAttachAnimatorEntity = Aether::Null_Entity;
     // Bone name typed by the user
     char           m_BoneNameBuf[128]         = {};
+
+    char m_SceneSavePath[256] = ".cache/untitled.yaml";
+    char m_SceneLoadPath[256] = ".cache/untitled.yaml";
 };

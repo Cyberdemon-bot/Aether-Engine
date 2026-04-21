@@ -96,7 +96,8 @@ void LabLayer::Attach()
     lightTransform.Dirty       = true;
 
     // --- CONSOLE COMMANDS ---
-    Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync));
+    Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync)); 
+    Aether::ConsoleLayer::RegisterCommand("loadcache", AE_BIND_CONSOLE_FN(LoadCacheModelAsync));
     Aether::ConsoleLayer::RegisterCommand("add",  AE_BIND_CONSOLE_FN(AddEntity));
 
     AE_CORE_INFO("LabLayer initialized!");
@@ -132,15 +133,49 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
     if (args.empty()) return;
     std::string path = args[0];
 
-    Aether::JobSystem::SubmitJob([this, path]()
+    if (args.size() == 1)
     {
-        AE_CORE_INFO("Worker: Parsing {0}", path);
-        auto parsed = Aether::Importer::Import(path);
+        Aether::JobSystem::SubmitJob([this, path]()
+        {
+            AE_CORE_INFO("Worker: Parsing {0}", path);
+            auto parsed = Aether::Importer::Import(path);
+            {
+                std::lock_guard<std::mutex> lock(m_ParseMutex);
+                m_CompletedParses.push(parsed);
+            }
+            AE_CORE_INFO("Worker: Parsing complete for {0}", path);
+        });
+    }
+    if (args.size() == 2)
+    {
+        std::string name = args[1];
+        Aether::JobSystem::SubmitJob([this, path, name]()
+        {
+            AE_CORE_INFO("Worker: Parsing {0}", path);
+            auto parsed = Aether::Importer::Import(path, true, name.c_str());
+            {
+                std::lock_guard<std::mutex> lock(m_ParseMutex);
+                m_CompletedParses.push(parsed);
+            }
+            AE_CORE_INFO("Worker: Parsing complete for {0}", path);
+        });
+    }
+}
+
+void LabLayer::LoadCacheModelAsync(const std::vector<std::string>& args)
+{
+    if (args.empty()) return;
+    std::string name = args[0];
+
+    Aether::JobSystem::SubmitJob([this, name]()
+    {
+        AE_CORE_INFO("Worker: Loading cache {0}", name);
+        auto parsed = Aether::Importer::ImportCache(name.c_str());
         {
             std::lock_guard<std::mutex> lock(m_ParseMutex);
             m_CompletedParses.push(parsed);
         }
-        AE_CORE_INFO("Worker: Parsing complete for {0}", path);
+        AE_CORE_INFO("Worker: Load cache complete for {0}", name);
     });
 }
 
@@ -159,8 +194,7 @@ void LabLayer::DrainParseQueue()
 
         AE_CORE_INFO("Main thread: Uploading to GPU...");
         auto result = Aether::Importer::Upload(parsed);
-
-        for (auto& meshID : result.meshIDs)     m_MeshIDs.push_back(meshID);
+        for (auto& meshID : result.meshIDs) m_MeshIDs.push_back(meshID);
 
         m_Scene.LoadHierarchy(result);
 
@@ -540,6 +574,30 @@ void LabLayer::DrawScenePanel()
         if (auto h = UI::Header("Transform"))
         {
             UI::TransformInspector(m_Scene, m_SelectedEntity);
+        }
+
+        if (auto h = UI::Header("Export"))
+        {
+            UI::InputText("Path##export", m_SceneSavePath, sizeof(m_SceneSavePath));
+            if (UI::Button("Export Scene"))
+            {
+                if (SceneSerializer::Serialize(m_Scene, m_SceneSavePath))
+                    AE_CORE_INFO("Scene exported to '{0}'", m_SceneSavePath);
+                else
+                    AE_CORE_ERROR("Failed to export scene to '{0}'", m_SceneSavePath);
+            }
+        }
+
+        if (auto h = UI::Header("Load"))
+        {
+            UI::InputText("Path##load", m_SceneLoadPath, sizeof(m_SceneLoadPath));
+            if (UI::Button("Load Scene"))
+            {
+                if (SceneSerializer::DeserializeInto(m_SceneLoadPath, m_Scene))
+                    AE_CORE_INFO("Scene loaded from '{0}'", m_SceneLoadPath);
+                else
+                    AE_CORE_ERROR("Failed to load scene from '{0}'", m_SceneLoadPath);
+            }
         }
     }
 }
