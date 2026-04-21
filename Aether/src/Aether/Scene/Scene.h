@@ -109,5 +109,7 @@ namespace Aether {
         void BreadthFirstSearch();
         void UpdateTransform(Entity entity);
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
+        void UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform);
+        void ResolveBoneAttachments();
     };
 }

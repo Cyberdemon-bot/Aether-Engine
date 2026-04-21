@@ -419,31 +419,71 @@ namespace Aether {
             CreateNodeEntity(registered, rootIdx, parent);
     }
 
-    static bool ResolveBoneWorldTransform(Scene& scene, const BoneAttachmentComponent& attach, RigModule* rigModule)
+    void Scene::ResolveBoneAttachments()
     {
-        Entity animEnt = attach.AnimatorEntity;
-        if (!scene.IsValid(animEnt)) return false;
-        if (!scene.HasComponent<AnimatorComponent>(animEnt)) return false;
-        auto& animComp = scene.GetComponent<AnimatorComponent>(animEnt);
-        if (!animComp.CurrentTask.IsValid()) return false;
-        auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(animComp.Skeleton);
-        if (!skeletonAsset) return false;
-
-        Handle<SkeletonTag> skelHnd = skeletonAsset->GetHandle();
-        if (attach.BoneIndex < 0 || attach.CachedSkeletonHnd.Blend() != skelHnd.Blend())
+        auto view = View<BoneAttachmentComponent, TransformComponent>();
+        for (auto entity : view)
         {
-            attach.BoneIndex = rigModule->GetBoneIndex(skelHnd, attach.BoneName);
-            attach.CachedSkeletonHnd = skelHnd;
-            if (attach.BoneIndex < 0) return false; 
-        }
+            auto& attach = GetComponent<BoneAttachmentComponent>(entity);
+            auto& transform = GetComponent<TransformComponent>(entity);
+            Entity animEnt = attach.AnimatorEntity;
 
-        auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentTask);
-        if (!poseData || (size_t)attach.BoneIndex >= poseCount) return false;
-        glm::mat4 ibm; rigModule->GetIBM(skelHnd, attach.BoneIndex, ibm);
-        glm::mat4 modelSpaceMat = poseData[attach.BoneIndex] * glm::inverse(ibm);
-        const glm::mat4& animatorWorld = scene.GetComponent<TransformComponent>(animEnt).WorldTransform;
-        attach.CachedBoneWorld = animatorWorld * modelSpaceMat;
-        return true;
+            if (!IsValid(animEnt) || !HasComponent<AnimatorComponent>(animEnt)) continue;
+            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            auto& animComp = GetComponent<AnimatorComponent>(animEnt);
+            const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
+            
+            auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(animComp.Skeleton);
+            if (skeletonAsset && animComp.CurrentTask.IsValid())
+            {
+                Handle<SkeletonTag> skelHnd = skeletonAsset->GetHandle();
+                if (attach.BoneIndex < 0) 
+                    attach.BoneIndex = rigModule->GetBoneIndex(skelHnd, attach.BoneName);
+                
+                auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentTask);
+                if (poseData && attach.BoneIndex >= 0 && (size_t)attach.BoneIndex < poseCount)
+                {
+                    glm::mat4 ibm; 
+                    rigModule->GetIBM(skelHnd, attach.BoneIndex, ibm);
+                    
+                    glm::mat4 modelSpaceMat = poseData[attach.BoneIndex] * glm::inverse(ibm);
+                    glm::mat4 boneWorld = animatorWorld * modelSpaceMat;
+
+                    glm::vec3 right = glm::normalize(glm::vec3(boneWorld[0])); glm::vec3 up = glm::normalize(glm::vec3(boneWorld[1]));
+                    glm::vec3 forward = glm::normalize(glm::vec3(boneWorld[2])); glm::vec3 trans = glm::vec3(boneWorld[3]);
+                    glm::mat4 pureBoneWorld(1.0f);
+                    pureBoneWorld[0] = glm::vec4(right, 0.0f); pureBoneWorld[1] = glm::vec4(up, 0.0f); 
+                    pureBoneWorld[2] = glm::vec4(forward, 0.0f); pureBoneWorld[3] = glm::vec4(trans, 1.0f);
+
+                    glm::mat4 objScaleMat = glm::scale(glm::mat4(1.0f), transform.Scale);
+                    glm::mat4 localOffsetMat = glm::translate(glm::mat4(1.0f), transform.Translation) * glm::toMat4(transform.Rotation) * objScaleMat;
+                    transform.WorldTransform = pureBoneWorld * localOffsetMat;
+
+                    if (attach.affectChild)
+                    {
+                        Entity firstChild = GetComponent<HierarchyComponent>(entity).firstChild;
+                        if (firstChild != Null_Entity) UpdateSubtreeTransforms(firstChild, transform.WorldTransform);
+                    }
+                }
+            }
+        }
+    }
+
+    void Scene::UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform)
+    {
+        while (entity != Null_Entity && IsValid(entity))
+        {
+            auto& transform = GetComponent<TransformComponent>(entity);
+            transform.WorldTransform = pTransform * transform.GetLocalTransform();
+            if (HasComponent<HierarchyComponent>(entity))
+            {
+                auto& hierarchy = GetComponent<HierarchyComponent>(entity);
+                if (hierarchy.firstChild != Null_Entity)
+                    UpdateSubtreeTransforms(hierarchy.firstChild, transform.WorldTransform);
+                entity = hierarchy.nextSibling;
+            }
+            else break; 
+        }
     }
     
     void Scene::UpdateTransform(Entity entity)
@@ -453,22 +493,8 @@ namespace Aether {
 
         glm::mat4 pTransform = glm::mat4(1.0f);
         bool pDirty = false;
-
-        bool hasBoneAttachment = HasComponent<BoneAttachmentComponent>(entity);
-        bool boneResolved = false;
  
-        if (hasBoneAttachment)
-        {
-            const auto& attach = GetComponent<BoneAttachmentComponent>(entity);
-            if (attach.BoneIndex >= 0)
-            {
-                pTransform = attach.CachedBoneWorld * attach.GetLocalAttachTransform();
-                boneResolved = true;
-                pDirty = true; 
-            }
-        }
- 
-        if (!boneResolved && hierarchy.parent != Null_Entity)
+        if (hierarchy.parent != Null_Entity)
         {
             const auto& parentTransform = GetComponent<TransformComponent>(hierarchy.parent);
             pTransform = parentTransform.WorldTransform;
@@ -666,7 +692,7 @@ namespace Aether {
                     if (comp.Clips.empty() || !comp.Cache.IsValid() || comp.Culled) continue;
 
                     auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
-                    auto* clipAsset     = AssetManager::GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
+                    auto* clipAsset = AssetManager::GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
 
                     auto skelHandle = skeletonAsset->GetHandle();
@@ -693,15 +719,7 @@ namespace Aether {
 
                 rigModule->ProcessTasks();
 
-                {
-                    auto attachView = View<BoneAttachmentComponent, TransformComponent>();
-                    for (auto entity : attachView)
-                    {
-                        const auto& attach = GetComponent<BoneAttachmentComponent>(entity);
-                        ResolveBoneWorldTransform(*this, attach, rigModule.get());
-                        GetComponent<TransformComponent>(entity).Dirty = true;
-                    }
-                }
+                ResolveBoneAttachments();
 
                 // render
                 if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights); 

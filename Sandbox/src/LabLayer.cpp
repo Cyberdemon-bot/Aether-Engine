@@ -725,10 +725,6 @@ void LabLayer::DrawBoneAttachmentPanel()
             // --- Bone name text input ----------------------------------------
             ImGui::InputText("Bone Name##boneattach", m_BoneNameBuf, sizeof(m_BoneNameBuf));
 
-            // --- Local offset / rotation -------------------------------------
-            UI::DragXYZ("Local Offset##boneattach",   m_BoneAttachOffset,      0.01f);
-            UI::DragXYZ("Local Rotation (deg)##boneattach", m_BoneAttachRotEulerDeg, 0.5f);
-
             UI::Separator();
 
             // --- Attach button -----------------------------------------------
@@ -745,9 +741,6 @@ void LabLayer::DrawBoneAttachmentPanel()
                 auto d = UI::Disabled(!canAttach);
                 if (UI::Button("Attach##boneattach"))
                 {
-                    // Convert Euler degrees to quaternion
-                    glm::vec3 radians = glm::radians(m_BoneAttachRotEulerDeg);
-                    glm::quat localRot = glm::quat(radians); // glm constructs from Euler (pitch,yaw,roll)
 
                     if (m_Scene.HasComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity))
                     {
@@ -756,17 +749,13 @@ void LabLayer::DrawBoneAttachmentPanel()
                         existing.Invalidate();
                         existing.AnimatorEntity = m_BoneAttachAnimatorEntity;
                         existing.BoneName       = m_BoneNameBuf;
-                        existing.LocalOffset    = m_BoneAttachOffset;
-                        existing.LocalRotation  = localRot;
                     }
                     else
                     {
                         m_Scene.AddComponent<BoneAttachmentComponent>(
                             m_BoneAttachChildEntity,
                             m_BoneAttachAnimatorEntity,
-                            std::string_view(m_BoneNameBuf),
-                            m_BoneAttachOffset,
-                            localRot);
+                            std::string_view(m_BoneNameBuf));
                     }
 
                     // Mark the child's transform dirty so the scene picks it up next frame
@@ -847,8 +836,6 @@ void LabLayer::DrawBoneAttachmentPanel()
                     // Populate edit fields from the component
                     std::strncpy(m_BoneNameBuf, attach.BoneName.c_str(), sizeof(m_BoneNameBuf));
                     m_BoneNameBuf[sizeof(m_BoneNameBuf) - 1] = '\0';
-                    m_BoneAttachOffset      = attach.LocalOffset;
-                    m_BoneAttachRotEulerDeg = glm::degrees(glm::eulerAngles(attach.LocalRotation));
                     m_BoneAttachAnimatorEntity = attach.AnimatorEntity;
                 }
             }

@@ -54,23 +54,12 @@ namespace Aether::UI
         return changed;
     }
 
-    // Full TransformComponent overload — sets Dirty automatically
-    inline bool TRS(TransformComponent& t, float dragSpeed=0.01f)
-    {
-        bool changed = TRS(t.Translation, t.Rotation, t.Scale, dragSpeed);
-        if (changed) t.Dirty = true;
-        return changed;
-    }
+    // Full TransformComponent overload — sets Dirty automaticall
 
     // =========================================================================
     //  EntityNode  —  single node in a scene hierarchy tree
     //
     //  Decoupled via callbacks — no direct scene dependency.
-    //
-    //  struct EntityNodeDesc {
-    //      label, selected, hasChildren,
-    //      onSelect, onContext (lambda for menu items), children (lambda to recurse)
-    //  };
     // =========================================================================
 
     struct EntityNodeDesc
@@ -78,11 +67,11 @@ namespace Aether::UI
         const char*           label       = "";
         bool                  selected    = false;
         bool                  hasChildren = false;
-        const void*           id          = nullptr; // unique ptr-sized id
+        const void*           id          = nullptr;
 
         std::function<void()> onSelect    = nullptr;
-        std::function<void()> onContext   = nullptr; // called inside context menu
-        std::function<void()> children    = nullptr; // called if node is open
+        std::function<void()> onContext   = nullptr;
+        std::function<void()> children    = nullptr;
     };
 
     inline void EntityNode(const EntityNodeDesc& desc)
@@ -97,7 +86,7 @@ namespace Aether::UI
         bool open = ImGui::TreeNodeEx(desc.id ? desc.id : (const void*)desc.label,
                                       flags, "%s", desc.label);
 
-        if (ImGui::IsItemClicked() && desc.onSelect)
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen() && desc.onSelect)
             desc.onSelect();
 
         if (desc.onContext)
@@ -122,8 +111,7 @@ namespace Aether::UI
     // =========================================================================
 
     // Forward declaration for recursion
-    inline void _DrawHierarchyNode(Scene& scene, Entity entity,
-                                   Entity& selected);
+    inline void _DrawHierarchyNode(Scene& scene, Entity entity, Entity& selected);
 
     inline void SceneHierarchy(const char* windowTitle,
                                 Scene& scene,
@@ -131,24 +119,28 @@ namespace Aether::UI
     {
         if (auto w = Window(windowTitle))
         {
-            // Deselect on empty click
-            if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
+            // BUG FIX: was IsMouseDown — fired every frame the button was held,
+            // wiping selection on the same frame as a click and also while
+            // dragging the camera across the window.
+            // Fix: IsMouseClicked (single-frame), only when no item is hovered
+            // (so clicking a node doesn't also trigger the deselect).
+            if (ImGui::IsMouseClicked(0) &&
+                ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+                !ImGui::IsAnyItemHovered())
+            {
                 selected = Null_Entity;
+            }
 
             auto view = scene.View<HierarchyComponent>();
             for (auto entity : view)
             {
-                if (scene.GetComponent<HierarchyComponent>(entity).parent
-                    == Null_Entity)
-                {
+                if (scene.GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
                     _DrawHierarchyNode(scene, entity, selected);
-                }
             }
         }
     }
 
-    inline void _DrawHierarchyNode(Scene& scene, Entity entity,
-                                   Entity& selected)
+    inline void _DrawHierarchyNode(Scene& scene, Entity entity, Entity& selected)
     {
         auto& tag  = scene.GetComponent<TagComponent>(entity);
         auto& hier = scene.GetComponent<HierarchyComponent>(entity);
@@ -182,8 +174,7 @@ namespace Aether::UI
             Entity child = hier.firstChild;
             while (child != Null_Entity)
             {
-                Entity next =
-                    scene.GetComponent<HierarchyComponent>(child).nextSibling;
+                Entity next = scene.GetComponent<HierarchyComponent>(child).nextSibling;
                 _DrawHierarchyNode(scene, child, selected);
                 child = next;
             }
@@ -198,7 +189,7 @@ namespace Aether::UI
     //  Shows entity name at top, edits TransformComponent,
     //  optionally syncs to a physics body.
     //
-    //  UI::TransformInspector(scene, selected, &physBodyID);
+    //  UI::TransformInspector(scene, selected);
     // =========================================================================
 
     inline void TransformInspector(Scene& scene, Entity selected)
@@ -215,23 +206,24 @@ namespace Aether::UI
         TextColored(Color::Green(), "%s", tag.Tag.c_str());
         Spacing();
 
+        TRS(t.Translation, t.Rotation, t.Scale, 0.01f);
+        scene.MarkDirty(selected);
+
         Spacing();
         if (Button("Reset Transform"))
         {
             t.Translation = glm::vec3(0.f);
             t.Rotation    = glm::quat(1.f, 0.f, 0.f, 0.f);
             t.Scale       = glm::vec3(1.f);
-            t.Dirty       = true;
+            scene.MarkDirty(selected);
         }
     }
 
     // =========================================================================
     //  AnimatorControls  —  clip picker + play/pause/stop + scrubber
     //
-    //  UI::AnimatorControls(animatorID, rigSystem);
+    //  UI::AnimatorControls(anim, rigSystem);
     // =========================================================================
-
-    // In Patterns.h — replace the commented block with this
 
     inline void AnimatorControls(AnimatorComponent& anim, RigModule* rig)
     {
@@ -245,21 +237,22 @@ namespace Aether::UI
             std::vector<std::string> clipNames;
             clipNames.reserve(anim.Clips.size());
             for (int i = 0; i < (int)anim.Clips.size(); i++)
-                clipNames.push_back("Clip " + std::to_string(i)); // swap with AssetManager name lookup if you have it
+                clipNames.push_back("Clip " + std::to_string(i));
 
             if (ComboList("Clip", clipNames, anim.ActiveClipIdx))
-            {
-                anim.CurrentTime = 0.0f; // reset playhead on clip change
-            }
+                anim.CurrentTime = 0.0f;
         }
 
         Separator();
 
         // --- Transport ---
         {
+            auto d = Disabled(!anim.IsPlaying ? false : false); // play always available to re-trigger
             bool canPlay = !anim.IsPlaying;
-            auto d = Disabled(!canPlay);
-            if (Button("Play"))  anim.IsPlaying = true;
+            {
+                auto dd = Disabled(!canPlay);
+                if (Button("Play"))  anim.IsPlaying = true;
+            }
         }
         SameLine();
         {
@@ -281,17 +274,21 @@ namespace Aether::UI
         // --- Scrubber ---
         if (anim.ActiveClipIdx >= 0 && anim.ActiveClipIdx < (int)anim.Clips.size())
         {
-            float duration = rig->GetDuration(AssetManager::GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx])->GetHandle());
-            if (duration > 0.0f)
+            auto* clipAsset = AssetManager::GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx]);
+            if (clipAsset)
             {
-                Text("Time: %.2f / %.2f", anim.CurrentTime, duration);
-                float t = anim.CurrentTime;
-                if (SliderFloat("##scrub", t, 0.0f, duration, "%.2f"))
+                float duration = rig->GetDuration(clipAsset->GetHandle());
+                if (duration > 0.0f)
                 {
-                    anim.CurrentTime = t;
-                    anim.IsPlaying   = false; // pause on manual scrub
+                    Text("Time: %.2f / %.2f", anim.CurrentTime, duration);
+                    float t = anim.CurrentTime;
+                    if (SliderFloat("##scrub", t, 0.0f, duration, "%.2f"))
+                    {
+                        anim.CurrentTime = t;
+                        anim.IsPlaying   = false;
+                    }
+                    ProgressBar(anim.CurrentTime / duration);
                 }
-                ProgressBar(anim.CurrentTime / duration);
             }
         }
     }
@@ -311,7 +308,7 @@ namespace Aether::UI
             TextDisabled("Direction: (%.2f, %.2f, %.2f)", dir.x, dir.y, dir.z);
         }
 
-        ColorEdit3("Color",     light.color);
+        ColorEdit3("Color",      light.color);
         SliderFloat("Intensity", light.intensity, 0.f, 10.f);
         SliderFloat("Range",     light.range,     1.f, 200.f);
 
@@ -330,15 +327,13 @@ namespace Aether::UI
 
     // =========================================================================
     //  PhysicsBodyEntry  —  one row in a physics body list
-    //
-    //  Checkbox to enable/disable + optional force/velocity inputs.
     // =========================================================================
 
     struct PhysBodyEntry
     {
-        std::string  label;
-        bool&        enabled;
-        bool         isDynamic;
+        std::string      label;
+        bool&            enabled;
+        bool             isDynamic;
         Handle<BodyTag>  bodyHandle;
     };
 
@@ -357,21 +352,20 @@ namespace Aether::UI
     //  PerformanceOverlay  —  FPS + frame time pinned to a screen corner
     //
     //  corner: 0=TL  1=TR  2=BL  3=BR
-    //  UI::PerformanceOverlay(1);
     // =========================================================================
 
     inline void PerformanceOverlay(int corner = 1, float xpad = 10.0f, float ypad = 10.0f)
     {
-        auto*  vp   = ImGui::GetMainViewport();
-        float  io   = ImGui::GetIO().Framerate;
+        auto*  vp  = ImGui::GetMainViewport();
+        float  io  = ImGui::GetIO().Framerate;
         ImVec2 pos;
 
         switch (corner)
         {
-            case 0: pos = {vp->Pos.x + xpad,              vp->Pos.y + ypad             }; break;
-            case 1: pos = {vp->Pos.x + vp->Size.x - xpad, vp->Pos.y + ypad             }; break;
-            case 2: pos = {vp->Pos.x + xpad,              vp->Pos.y + vp->Size.y - ypad}; break;
-            default:pos = {vp->Pos.x + vp->Size.x - xpad, vp->Pos.y + vp->Size.y - ypad}; break;
+            case 0:  pos = {vp->Pos.x + xpad,               vp->Pos.y + ypad             }; break;
+            case 1:  pos = {vp->Pos.x + vp->Size.x - xpad,  vp->Pos.y + ypad             }; break;
+            case 2:  pos = {vp->Pos.x + xpad,               vp->Pos.y + vp->Size.y - ypad}; break;
+            default: pos = {vp->Pos.x + vp->Size.x - xpad,  vp->Pos.y + vp->Size.y - ypad}; break;
         }
 
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
@@ -386,8 +380,6 @@ namespace Aether::UI
 
     // =========================================================================
     //  HealthBar  —  drawn directly on foreground draw list (no window needed)
-    //
-    //  UI::HealthBar(hp, maxHp, {barX, barY}, {200, 18});
     // =========================================================================
 
     inline void HealthBar(float hp, float maxHp,
@@ -405,8 +397,8 @@ namespace Aether::UI
         float frac = glm::clamp(hp / maxHp, 0.f, 1.f);
         auto  c    = Foreground();
 
-        c.RectFill({pos.x,                   pos.y},
-                   {pos.x + size.x,          pos.y + size.y},
+        c.RectFill({pos.x,          pos.y},
+                   {pos.x + size.x, pos.y + size.y},
                    Col32(30, 30, 30, 180), rounding);
 
         if (frac > 0.f)
@@ -415,8 +407,8 @@ namespace Aether::UI
                 (uint8_t)((1.f - frac) * 255),
                 (uint8_t)( frac        * 220),
                 0, 220);
-            c.RectFill({pos.x,                   pos.y},
-                       {pos.x + size.x * frac,   pos.y + size.y},
+            c.RectFill({pos.x,                 pos.y},
+                       {pos.x + size.x * frac, pos.y + size.y},
                        fill, rounding);
         }
 
