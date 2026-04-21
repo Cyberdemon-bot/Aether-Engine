@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Aether/Importer/MaterialParser.h"
 
 namespace Aether {

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Aether/Importer/SceneGraphParser.h"
 #include <unordered_set>
 #include <cgltf.h>

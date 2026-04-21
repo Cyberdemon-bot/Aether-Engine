@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Core/UUID.h"
 #include "Aether/Renderer/Texture.h"
 #include <vector>
 #include <string>
@@ -16,6 +17,7 @@ namespace Aether {
 
     struct MaterialCreateInfo
     {
+        UUID AssetID;
         std::string DebugName;
         glm::vec4 AlbedoColor = {1.0f, 1.0f, 1.0f, 1.0f};
         float Metallic = 0.0f;

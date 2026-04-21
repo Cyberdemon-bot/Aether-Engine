@@ -23,11 +23,9 @@ namespace Aether {
         std::vector<TextureCreateInfo> Textures;
         std::vector<MaterialCreateInfo> Materials;
         std::vector<MeshCreateInfo> Meshes;
-
         std::vector<RigCreateInfo> Rigs;      
         std::vector<ClipCreateInfo> Clips;
         Ref<SceneHierarchy> Hierarchy;
-        std::unordered_map<uint32_t, std::vector<uint32_t>> RigMap;
     };
 
     struct RegisteredScene
@@ -35,7 +33,6 @@ namespace Aether {
         std::vector<UUID> meshIDs;
         std::vector<UUID> matIDs;
         std::vector<std::vector<UUID>> meshMap;
-
         std::vector<Animator> animators;
         Ref<SceneHierarchy> hierarchy;
     };
@@ -49,7 +46,8 @@ namespace Aether {
 
     public:
         virtual ~ImporterAPI() = default;
-		virtual  Ref<ParsedScene> Import(const std::string& path) = 0;
+		virtual  Ref<ParsedScene> Import(const std::string& path, bool createCache, const char* cacheName) = 0;
+        Ref<ParsedScene> ImportCache(const char* cacheName);
         
         RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
         static API GetAPI() { return s_API; }

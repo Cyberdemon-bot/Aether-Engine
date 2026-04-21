@@ -24,6 +24,7 @@ namespace Aether {
             const cgltf_skin* skin = &gltf->skins[skinIdx];
             
             RigCreateInfo rigInfo;
+            rigInfo.AssetID = UUID();
             rigInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
             rigInfo.spec.Joints.resize(skin->joints_count);
 
@@ -173,8 +174,10 @@ namespace Aether {
                     clipInfo.DebugName = anim->name ? anim->name : ("Animation_" + std::to_string(animIdx));
                 }
                 
+                clipInfo.AssetID = UUID();
                 clipInfo.spec.Duration = maxTime;
                 clipInfo.spec.SampleRate = 30.0f;
+                clipInfo.rigIdx = rigIdx;
                 
                 for (auto& [node, trackData] : track_map) 
                 {
@@ -187,7 +190,6 @@ namespace Aether {
                 
                 uint32_t clipIdx = (uint32_t)result->clips.size();
                 result->clips.push_back(clipInfo);
-                result->rig_map[rigIdx].push_back(clipIdx);
                 
                 AE_CORE_INFO("Parsed animation: {0}, duration: {1}s, {2} tracks for rig {3}", 
                     clipInfo.DebugName, clipInfo.spec.Duration, clipInfo.spec.Tracks.size(), rigIdx);

@@ -106,6 +106,55 @@ namespace Aether {
         return CreateEntity("default entity");
     }
 
+    Entity Scene::CreateEntity(std::string_view name, UUID id, Entity parent)
+    {
+        Entity e = m_Registry.create();
+        m_Registry.emplace<IDComponent>(e, id);
+        m_Registry.emplace<TagComponent>(e, std::string(name));
+        m_Registry.emplace<TransformComponent>(e);
+        auto& hierarchy = m_Registry.emplace<HierarchyComponent>(e);
+        m_EntityLibrary[id] = e;
+
+        if (parent != Null_Entity && IsValid(parent))
+        {
+            hierarchy.parent = parent;
+            auto& parentHie = GetComponent<HierarchyComponent>(parent);
+            if (parentHie.firstChild == Null_Entity) parentHie.firstChild = e;
+            else
+            {
+                Entity lastSib = parentHie.firstChild;
+                while (GetComponent<HierarchyComponent>(lastSib).nextSibling != Null_Entity)
+                    lastSib = GetComponent<HierarchyComponent>(lastSib).nextSibling;
+                
+                GetComponent<HierarchyComponent>(lastSib).nextSibling = e;
+                hierarchy.prevSibling = lastSib;
+            }
+        }
+        else
+        {
+            auto view = View<HierarchyComponent>();
+            Entity sib = Null_Entity; 
+            for (auto entity : view)
+            {
+                if (entity == e) continue;
+                if (GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
+                {
+                    sib = entity;
+                    break;
+                }
+            }
+            if (sib != Null_Entity) 
+            {
+                Entity oldNext = GetComponent<HierarchyComponent>(sib).nextSibling;
+                hierarchy.prevSibling = sib;
+                hierarchy.nextSibling = oldNext;
+                GetComponent<HierarchyComponent>(sib).nextSibling = e;
+                if (oldNext != Null_Entity) GetComponent<HierarchyComponent>(oldNext).prevSibling = e;
+            }
+        }
+        return e;
+    }
+
     Entity Scene::CreateEntity(std::string_view name, Entity parent)
     {
         Entity e = m_Registry.create();
@@ -415,6 +464,7 @@ namespace Aether {
 
     void Scene::LoadHierarchy(const RegisteredScene& registered, Entity parent)
     {
+        if(!registered.hierarchy) return;
         for (int rootIdx : registered.hierarchy->roots)
             CreateNodeEntity(registered, rootIdx, parent);
     }

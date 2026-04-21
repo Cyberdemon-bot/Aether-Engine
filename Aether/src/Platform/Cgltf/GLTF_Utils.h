@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 #include <cgltf.h>
 #include <glm/glm.hpp>

@@ -19,11 +19,10 @@ namespace Aether {
         return map[key];
     }
 
-    UUID AssetsRegister::Register(const std::string& name)
+    UUID AssetsRegister::Register(const std::string& name, UUID id)
     {
-        UUID newID = UUID(); 
-        GetMap()[newID] = name;
-        return newID;
+        GetMap()[id] = name;
+        return id;
     }
 
     bool AssetsRegister::Exists(UUID key)

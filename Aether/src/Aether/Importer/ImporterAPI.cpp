@@ -11,6 +11,9 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Core/Assert.h"
+#include "Aether/Packer/MaterialPack.h"
+#include "Aether/Packer/RigPack.h"
+#include "Aether/Packer/MeshPack.h"
 namespace Aether {
 
 	ImporterAPI::API ImporterAPI::s_API = ImporterAPI::API::Cgltf;
@@ -36,6 +39,18 @@ namespace Aether {
 		return nullptr;
 	}
 
+    Ref<ParsedScene> ImporterAPI::ImportCache(const char* cacheName)
+    {
+        Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
+        const auto& name = std::string(cacheName);
+
+        ReadMatFile(".cache/" + name + ".mat", SceneData->Textures, SceneData->Materials);
+        ReadMeshFile(".cache/" + name + ".mesh", SceneData->Meshes);
+        ReadRigFile(".cache/" + name + ".rig", SceneData->Rigs, SceneData->Clips);
+
+        return SceneData;
+    }
+
     RegisteredScene ImporterAPI::Upload(const Ref<ParsedScene>& sceneData)
     {
         RegisteredScene res;
@@ -45,7 +60,6 @@ namespace Aether {
         // Upload textures
         for (const auto& texInfo : sceneData->Textures)
         {
-            UUID texID = AssetsRegister::Register(texInfo.DebugName);
             auto handle = ResourceManager::CreateResource<Texture2D>(texInfo.Spec);
             auto resource = ResourceManager::GetResource<Texture2D>(handle);
             if (!resource) AE_CORE_ERROR("Fail to Create texture while uploading");
@@ -55,7 +69,7 @@ namespace Aether {
         // Upload materials
         for (const auto& matInfo : sceneData->Materials)
         {
-            UUID matID = AssetsRegister::Register(matInfo.DebugName);
+            UUID matID = AssetsRegister::Register(matInfo.DebugName, matInfo.AssetID);
             AssetManager::CreateAsset<Material>(matID);
             auto material = AssetManager::GetAsset<Material>(matID);
             if (!material) AE_CORE_ERROR("Fail to Create material while uploading");
@@ -81,37 +95,28 @@ namespace Aether {
             res.matIDs.push_back(matID);
         }
         auto animSystem = AnimationSystem::GetModule<RigModule>();
-        for (const auto& rigInfo : sceneData->Rigs)
+
+        for (size_t rigIdx = 0; rigIdx < sceneData->Rigs.size(); rigIdx++)
         {
-            UUID rigID = AssetsRegister::Register(rigInfo.DebugName);
+            auto& rigInfo = sceneData->Rigs[rigIdx];
+            UUID rigID = AssetsRegister::Register(rigInfo.DebugName, rigInfo.AssetID);
             rigIDs.push_back(rigID);
-        }
-
-        for (const auto& clipInfo : sceneData->Clips)
-        {
-            UUID clipID = AssetsRegister::Register(clipInfo.DebugName);
-            clipIDs.push_back(clipID);
-        }
-
-        for (size_t rigIdx = 0; rigIdx < rigIDs.size(); rigIdx++)
-        {
-            UUID rigID = rigIDs[rigIdx];
-            const auto& rigInfo = sceneData->Rigs[rigIdx];
             res.animators.push_back({});
             auto rig = AssetManager::CreateAsset<Skeleton>(rigID, rigInfo.spec);
-            res.animators.back().skeleton = rig;
-            auto handle = AssetManager::GetAsset<Skeleton>(rig)->GetHandle();
-            auto it = sceneData->RigMap.find((uint32_t)rigIdx);
-            if (it != sceneData->RigMap.end())
+            res.animators[rigIdx].skeleton = rig;
+        }
+
+        for (size_t clipIdx = 0; clipIdx < sceneData->Clips.size(); clipIdx++)
+        {
+            auto& clipInfo = sceneData->Clips[clipIdx];
+            UUID clipID = AssetsRegister::Register(clipInfo.DebugName, clipInfo.AssetID); clipIDs.push_back(clipID);
+            
+            uint32_t targetRigIdx = clipInfo.rigIdx; 
+            if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
-                const std::vector<uint32_t>& clipIndices = it->second;
-                for (uint32_t clipIdx : clipIndices)
-                {
-                    const auto& clipInfo = sceneData->Clips[clipIdx];
-                    UUID clipID = clipIDs[clipIdx];
-                    auto clip = AssetManager::CreateAsset<Clip>(clipID, clipInfo.spec, handle);
-                    res.animators.back().clips.push_back(clip);
-                }
+                auto skeletonHandle = AssetManager::GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->GetHandle();
+                auto clip = AssetManager::CreateAsset<Clip>(clipID, clipInfo.spec, skeletonHandle);
+                res.animators[targetRigIdx].clips.push_back(clip);
             }
         }
 
@@ -121,16 +126,19 @@ namespace Aether {
             const auto& meshInfo = sceneData->Meshes[meshIdx];
 
             int rigIdx = -1;
-            for (const auto& node : sceneData->Hierarchy->nodes)
+            if (sceneData->Hierarchy)
             {
-                if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
+                for (const auto& node : sceneData->Hierarchy->nodes)
                 {
-                    rigIdx = node.animatorIdx;
-                    break;
+                    if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
+                    {
+                        rigIdx = node.animatorIdx;
+                        break;
+                    }
                 }
             }
 
-            UUID meshID = AssetsRegister::Register(meshInfo.DebugName);
+            UUID meshID = AssetsRegister::Register(meshInfo.DebugName, meshInfo.AssetID);
             res.meshMap.emplace_back();
             // Convert SubMeshCreateInfo to SubMesh
             std::vector<SubMesh> submeshes;

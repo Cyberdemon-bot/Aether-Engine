@@ -50,7 +50,8 @@ namespace Aether {
         for (size_t i = 0; i < gltf->materials_count; i++)
         {
             const cgltf_material* mat = &gltf->materials[i];
-            MaterialCreateInfo& matInfo = result->matsInfo[i];;
+            MaterialCreateInfo& matInfo = result->matsInfo[i];
+            matInfo.AssetID = UUID();
             matInfo.DebugName = mat->name ? mat->name : ("Material_" + std::to_string(i));
             
             if (mat->has_pbr_metallic_roughness)

@@ -11,9 +11,13 @@ build/
 *.txt
 *.json
 *.py
+*.rig
+*.mesh
+*.mat
 
 # os files (MacOS)
 .DS_Store
 
 #VS Code files
 .vscode/
+.cache/
