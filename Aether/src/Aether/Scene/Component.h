@@ -166,8 +166,7 @@ namespace Aether {
     {
         Entity AnimatorEntity = Null_Entity;
         std::string BoneName;
-        glm::vec3 LocalOffset = {0.0f, 0.0f, 0.0f};
-        glm::quat LocalRotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); 
+        bool affectChild = true;
  
         mutable int BoneIndex = -1;
         mutable Handle<SkeletonTag> CachedSkeletonHnd = Handle<SkeletonTag>::MakeInvalid();
@@ -175,19 +174,11 @@ namespace Aether {
  
         BoneAttachmentComponent() = default;
         BoneAttachmentComponent(const BoneAttachmentComponent&) = default;
-        BoneAttachmentComponent(Entity animatorEntity, std::string_view boneName, 
-                                const glm::vec3& offset   = {0.0f, 0.0f, 0.0f},
-                                const glm::quat& localRot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f))
+        BoneAttachmentComponent(Entity animatorEntity, std::string_view boneName)
             : AnimatorEntity(animatorEntity)
             , BoneName(boneName)
-            , LocalOffset(offset)
-            , LocalRotation(localRot)
         {}
  
-        glm::mat4 GetLocalAttachTransform() const
-        {
-            return glm::translate(glm::mat4(1.0f), LocalOffset) * glm::toMat4(LocalRotation);
-        }
         void Invalidate() const { BoneIndex = -1; }
     };
 }

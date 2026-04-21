@@ -104,7 +104,4 @@ private:
     Aether::Entity m_BoneAttachAnimatorEntity = Aether::Null_Entity;
     // Bone name typed by the user
     char           m_BoneNameBuf[128]         = {};
-    // Local offset and rotation editable in the panel
-    glm::vec3      m_BoneAttachOffset         = glm::vec3(0.0f);
-    glm::vec3      m_BoneAttachRotEulerDeg    = glm::vec3(0.0f); // degrees, converted to quat on apply
 };
