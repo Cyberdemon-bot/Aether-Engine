@@ -7,45 +7,6 @@
 #include <ozz/animation/runtime/local_to_model_job.h>
 
 namespace Aether {
-    void Ozz_RigModule::CalculateMatrices(glm::mat4* out, glm::mat4* ibm, size_t size, ozz::animation::Skeleton* skeleton, ozz::animation::Animation* clip, ozz::animation::SamplingJob::Context* cache, float time)
-    {
-        if (!skeleton || !clip || !cache || size < skeleton->num_joints()) return;
-
-        float duration = clip->duration();
-        float ratio = 0.0f;
-        if (duration > 0.0f)
-        {
-            ratio = std::fmod(time, duration) / duration;
-            if (ratio < 0.0f) ratio += 1.0f;
-        }
-
-        thread_local ozz::vector<ozz::math::SoaTransform> local_transforms;
-        thread_local ozz::vector<ozz::math::Float4x4> model_matrices;
-
-        local_transforms.resize(skeleton->num_soa_joints());
-        model_matrices.resize(skeleton->num_joints());
-
-        ozz::animation::SamplingJob samplingJob;
-        samplingJob.animation = clip;
-        samplingJob.context = cache;
-        samplingJob.ratio = ratio;
-        samplingJob.output = ozz::make_span(local_transforms);
-
-        if (!samplingJob.Run()) return;
-
-        ozz::animation::LocalToModelJob localToModelJob;
-        localToModelJob.skeleton = skeleton;
-        localToModelJob.input = ozz::make_span(local_transforms);
-        localToModelJob.output = ozz::make_span(model_matrices);
-
-        if (!localToModelJob.Run()) return;
-
-        for (int i = 0; i < size; i++)
-        {
-            ConvertOzzMatrixToGlm(model_matrices[i], out[i]);
-            out[i] = out[i] * ibm[i];
-        }
-    }
 
     void Ozz_RigModule::SampleClipIntoPose(const SampleTask& task)
     {
@@ -70,8 +31,7 @@ namespace Aether {
         samplingJob.context = cache->data.get();
         samplingJob.ratio = ratio;
         samplingJob.output = ozz::make_span(pose->localTransforms);
-        
-        if (!samplingJob.Run()) AE_CORE_WARN("samplingJob failed");
+        samplingJob.Run()
     }
 
     void Ozz_RigModule::BlendPoses(const BlendTask& task)

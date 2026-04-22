@@ -313,6 +313,61 @@ void LabLayer::Update(Aether::Timestep ts)
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
 
     m_Scene.Update(ts, &m_Camera);
+
+    // Inject persistent IK tasks AFTER the scene has run its own animation pass
+    // (scene calls ClearTasks+ProcessTasks internally; these go in the next frame's
+    // pre-render window if you wire them before scene update, but for a test panel
+    // "apply next frame" is fine — just schedule here and they'll fire next Update)
+    {
+        auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
+        if (rigSystem && m_IKAnimatorEntity != Aether::Null_Entity &&
+            m_Scene.IsValid(m_IKAnimatorEntity) &&
+            m_Scene.HasComponent<Aether::AnimatorComponent>(m_IKAnimatorEntity))
+        {
+            auto& anim = m_Scene.GetComponent<Aether::AnimatorComponent>(m_IKAnimatorEntity);
+            auto* skelAsset = Aether::AssetManager::GetAsset<Aether::Skeleton>(anim.Skeleton);
+
+            if (skelAsset && anim.CurrentPose.IsValid())
+            {
+                auto skelHnd = skelAsset->GetHandle();
+
+                if (m_TwoBoneIK.enabled &&
+                    m_TwoBoneIK.rootIdx >= 0 && m_TwoBoneIK.midIdx >= 0 && m_TwoBoneIK.endIdx >= 0)
+                {
+                    Aether::TwoBoneIKSpec spec;
+                    spec.Skeleton = skelHnd;
+                    spec.Pose     = anim.CurrentPose;
+                    spec.Root     = m_TwoBoneIK.rootIdx;
+                    spec.Mid      = m_TwoBoneIK.midIdx;
+                    spec.End      = m_TwoBoneIK.endIdx;
+                    spec.Target   = m_TwoBoneIK.target;
+                    spec.Pole     = m_TwoBoneIK.pole;
+                    spec.Weight   = m_TwoBoneIK.weight;
+                    rigSystem->ScheduleTwoBoneIK(spec);
+                    rigSystem->ScheduleFinalize(skelHnd, anim.CurrentPose);
+                    rigSystem->ProcessTasks();
+                    rigSystem->ClearTasks();
+                }
+
+                if (m_LookAt.enabled && m_LookAt.boneIdx >= 0)
+                {
+                    Aether::LookAtSpec spec;
+                    spec.Skeleton   = skelHnd;
+                    spec.Pose       = anim.CurrentPose;
+                    spec.Bone       = m_LookAt.boneIdx;
+                    spec.Target     = m_LookAt.target;
+                    spec.Forward    = m_LookAt.forward;
+                    spec.Up         = m_LookAt.up;
+                    spec.Weight     = m_LookAt.weight;
+                    spec.AngleLimit = m_LookAt.angleLimit;
+                    rigSystem->ScheduleLookAt(spec);
+                    rigSystem->ScheduleFinalize(skelHnd, anim.CurrentPose);
+                    rigSystem->ProcessTasks();
+                    rigSystem->ClearTasks();
+                }
+            }
+        }
+    }
 }
 
 void LabLayer::OnEvent(Aether::Event& event)
@@ -606,6 +661,53 @@ void LabLayer::DrawScenePanel()
 //  Animation panel
 // =============================================================================
 
+// Helper: (re)populate m_CachedJointNames when the selected animator changes
+static void RefreshJointCache(
+    Aether::Entity entity,
+    Aether::Entity& cachedEntity,
+    std::vector<std::string>& cache,
+    Aether::Scene& scene,
+    Aether::RigModule* rig)
+{
+    if (entity == cachedEntity && !cache.empty()) return;
+    cache.clear();
+    cachedEntity = entity;
+    if (entity == Aether::Null_Entity || !scene.IsValid(entity)) return;
+    if (!scene.HasComponent<Aether::AnimatorComponent>(entity)) return;
+
+    auto& anim = scene.GetComponent<Aether::AnimatorComponent>(entity);
+    auto* skelAsset = Aether::AssetManager::GetAsset<Aether::Skeleton>(anim.Skeleton);
+    if (!skelAsset) return;
+
+    auto skelHnd = skelAsset->GetHandle();
+    int count = rig->GetJointCount(skelHnd);
+    cache.reserve(count);
+    for (int i = 0; i < count; i++)
+        cache.push_back(std::to_string(i) + "  " + rig->GetJointName(skelHnd, i));
+}
+
+// Small helper: draw a combo that lets the user pick a joint index.
+// Returns true when the selection changed.
+static bool JointCombo(const char* label, int& selectedIdx,
+                       const std::vector<std::string>& names)
+{
+    if (names.empty()) { ImGui::TextDisabled("(no skeleton)"); return false; }
+    std::string preview = (selectedIdx >= 0 && selectedIdx < (int)names.size())
+        ? names[selectedIdx] : "-- pick joint --";
+    bool changed = false;
+    if (ImGui::BeginCombo(label, preview.c_str()))
+    {
+        for (int i = 0; i < (int)names.size(); i++)
+        {
+            bool sel = (selectedIdx == i);
+            if (ImGui::Selectable(names[i].c_str(), sel)) { selectedIdx = i; changed = true; }
+            if (sel) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+
 void LabLayer::DrawAnimationPanel()
 {
     using namespace Aether;
@@ -624,14 +726,13 @@ void LabLayer::DrawAnimationPanel()
                 meshNames.push_back(std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]));
             UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
 
-            // Animator list is now entities with AnimatorComponent
             auto animView = m_Scene.View<AnimatorComponent>();
             std::vector<Entity> animEntities(animView.begin(), animView.end());
 
             std::vector<std::string> animNames;
             animNames.reserve(animEntities.size());
             for (int i = 0; i < (int)animEntities.size(); i++)
-                animNames.push_back("Animator " + std::to_string(i));
+                animNames.push_back(m_Scene.GetComponent<TagComponent>(animEntities[i]).Tag);
             UI::ComboList("Animator##bind", animNames, m_BindAnimatorIndex);
 
             bool canBind = (m_BindMeshIndex    >= 0 && m_BindMeshIndex    < (int)m_MeshIDs.size() &&
@@ -642,7 +743,6 @@ void LabLayer::DrawAnimationPanel()
                 {
                     UUID meshID = m_MeshIDs[m_BindMeshIndex];
                     Entity targetAnimEnt = animEntities[m_BindAnimatorIndex];
-                    auto& srcAnim = m_Scene.GetComponent<AnimatorComponent>(targetAnimEnt);
 
                     for (auto entity : m_Scene.View<MeshComponent>())
                     {
@@ -666,7 +766,8 @@ void LabLayer::DrawAnimationPanel()
 
                 std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
                 std::string skelName = anim.Skeleton.IsValid()
-                    ? AssetsRegister::Get(Aether::AssetManager::GetAsset<Skeleton>(anim.Skeleton)->id) : "(no skeleton)";
+                    ? AssetsRegister::Get(AssetManager::GetAsset<Skeleton>(anim.Skeleton)->id)
+                    : "(no skeleton)";
 
                 auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : (int)(uint64_t)entity);
                 UI::Text("%s  ->  [%s]", meshName.c_str(), skelName.c_str());
@@ -678,7 +779,7 @@ void LabLayer::DrawAnimationPanel()
 
         UI::Separator();
 
-        // ---- Per-animator controls ------------------------------------------
+        // ---- Per-animator playback controls ---------------------------------
         bool anyAnimators = false;
         for (auto entity : m_Scene.View<AnimatorComponent>())
         {
@@ -691,9 +792,223 @@ void LabLayer::DrawAnimationPanel()
                 UI::AnimatorControls(anim, rigSystem.get());
             UI::Spacing();
         }
-
         if (!anyAnimators)
             UI::TextDisabled("No animators in scene.");
+
+        UI::Separator();
+
+        // =====================================================================
+        //  IK / Advanced section
+        //  All IK operations target a single selected animator entity.
+        // =====================================================================
+        if (auto h = UI::Header("IK & Advanced"))
+        {
+            // ---- Animator entity picker -------------------------------------
+            {
+                std::string preview = (m_IKAnimatorEntity != Null_Entity &&
+                                       m_Scene.IsValid(m_IKAnimatorEntity))
+                    ? m_Scene.GetComponent<TagComponent>(m_IKAnimatorEntity).Tag
+                    : "Select Animator";
+
+                if (ImGui::BeginCombo("Animator##ik", preview.c_str()))
+                {
+                    for (auto entity : m_Scene.View<AnimatorComponent, TagComponent>())
+                    {
+                        auto  g   = UI::ID((int)(uint64_t)entity);
+                        bool  sel = (m_IKAnimatorEntity == entity);
+                        auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                        if (ImGui::Selectable(tag.Tag.c_str(), sel))
+                        {
+                            m_IKAnimatorEntity = entity;
+                            // Invalidate joint cache so it rebuilds next frame
+                            m_JointBrowserEntity = Null_Entity;
+                            m_CachedJointNames.clear();
+                        }
+                        if (sel) ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+
+            // Rebuild joint name cache if entity changed
+            RefreshJointCache(m_IKAnimatorEntity, m_JointBrowserEntity,
+                              m_CachedJointNames, m_Scene, rigSystem.get());
+
+            bool hasAnimator = (m_IKAnimatorEntity != Null_Entity &&
+                                m_Scene.IsValid(m_IKAnimatorEntity) &&
+                                m_Scene.HasComponent<AnimatorComponent>(m_IKAnimatorEntity));
+
+            // ---- Joint browser (read-only list) -----------------------------
+            UI::Separator();
+            UI::SectionHeader("Joint Browser");
+            if (!hasAnimator)
+            {
+                UI::TextDisabled("Select an animator to browse joints.");
+            }
+            else if (m_CachedJointNames.empty())
+            {
+                UI::TextDisabled("Skeleton has no joints or is not loaded.");
+            }
+            else
+            {
+                // Scrollable child so it doesn't blow out the panel height
+                ImGui::BeginChild("##jointlist", ImVec2(0, 160), true);
+                for (int i = 0; i < (int)m_CachedJointNames.size(); i++)
+                    ImGui::TextUnformatted(m_CachedJointNames[i].c_str());
+                ImGui::EndChild();
+            }
+
+            // ---- Two-Bone IK ------------------------------------------------
+            UI::Separator();
+            UI::SectionHeader("Two-Bone IK");
+            {
+                auto d = UI::Disabled(!hasAnimator);
+
+                UI::Checkbox("Enable##tbik", m_TwoBoneIK.enabled);
+                JointCombo("Root Joint##tbik",  m_TwoBoneIK.rootIdx, m_CachedJointNames);
+                JointCombo("Mid Joint##tbik",   m_TwoBoneIK.midIdx,  m_CachedJointNames);
+                JointCombo("End Joint##tbik",   m_TwoBoneIK.endIdx,  m_CachedJointNames);
+                UI::DragXYZ("Target##tbik",  m_TwoBoneIK.target, 0.01f);
+                UI::DragXYZ("Pole##tbik",    m_TwoBoneIK.pole,   0.01f);
+                UI::SliderFloat("Weight##tbik", m_TwoBoneIK.weight, 0.f, 1.f);
+
+                bool canApply = hasAnimator &&
+                                m_TwoBoneIK.rootIdx >= 0 &&
+                                m_TwoBoneIK.midIdx  >= 0 &&
+                                m_TwoBoneIK.endIdx  >= 0 &&
+                                m_TwoBoneIK.rootIdx != m_TwoBoneIK.midIdx &&
+                                m_TwoBoneIK.midIdx  != m_TwoBoneIK.endIdx;
+                {
+                    auto d2 = UI::Disabled(!canApply);
+                    if (UI::Button("Apply Once##tbik") && canApply)
+                    {
+                        auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
+                        auto* skelAsset = AssetManager::GetAsset<Skeleton>(anim.Skeleton);
+                        if (skelAsset && anim.CurrentPose.IsValid())
+                        {
+                            TwoBoneIKSpec spec;
+                            spec.Skeleton = skelAsset->GetHandle();
+                            spec.Pose     = anim.CurrentPose;
+                            spec.Root     = m_TwoBoneIK.rootIdx;
+                            spec.Mid      = m_TwoBoneIK.midIdx;
+                            spec.End      = m_TwoBoneIK.endIdx;
+                            spec.Target   = m_TwoBoneIK.target;
+                            spec.Pole     = m_TwoBoneIK.pole;
+                            spec.Weight   = m_TwoBoneIK.weight;
+                            rigSystem->ScheduleTwoBoneIK(spec);
+                        }
+                    }
+                }
+                if (m_TwoBoneIK.enabled)
+                    UI::TextDisabled("IK will be injected each frame via Update.");
+            }
+
+            // ---- Look-At IK -------------------------------------------------
+            UI::Separator();
+            UI::SectionHeader("Look-At IK");
+            {
+                auto d = UI::Disabled(!hasAnimator);
+
+                UI::Checkbox("Enable##lookat", m_LookAt.enabled);
+                JointCombo("Bone##lookat", m_LookAt.boneIdx, m_CachedJointNames);
+                UI::DragXYZ("Target##lookat",  m_LookAt.target,  0.01f);
+                UI::DragXYZ("Forward##lookat", m_LookAt.forward, 0.01f);
+                UI::DragXYZ("Up##lookat",      m_LookAt.up,      0.01f);
+                UI::SliderFloat("Weight##lookat",     m_LookAt.weight,     0.f, 1.f);
+                UI::SliderFloat("Angle Limit (rad)##lookat", m_LookAt.angleLimit, 0.f, 3.14159f);
+
+                bool canApply = hasAnimator && m_LookAt.boneIdx >= 0;
+                {
+                    auto d2 = UI::Disabled(!canApply);
+                    if (UI::Button("Apply Once##lookat") && canApply)
+                    {
+                        auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
+                        auto* skelAsset = AssetManager::GetAsset<Skeleton>(anim.Skeleton);
+                        if (skelAsset && anim.CurrentPose.IsValid())
+                        {
+                            LookAtSpec spec;
+                            spec.Skeleton   = skelAsset->GetHandle();
+                            spec.Pose       = anim.CurrentPose;
+                            spec.Bone       = m_LookAt.boneIdx;
+                            spec.Target     = m_LookAt.target;
+                            spec.Forward    = m_LookAt.forward;
+                            spec.Up         = m_LookAt.up;
+                            spec.Weight     = m_LookAt.weight;
+                            spec.AngleLimit = m_LookAt.angleLimit;
+                            rigSystem->ScheduleLookAt(spec);
+                        }
+                    }
+                }
+            }
+
+            // ---- Blend ------------------------------------------------------
+            UI::Separator();
+            UI::SectionHeader("Clip Blend");
+            {
+                auto d = UI::Disabled(!hasAnimator);
+                UI::Checkbox("Enable##blend", m_Blend.enabled);
+                UI::Checkbox("Additive##blend", m_Blend.additive);
+
+                // Clip pickers — list clips on the selected animator
+                if (hasAnimator)
+                {
+                    auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
+                    std::vector<std::string> clipNames;
+                    for (int i = 0; i < (int)anim.Clips.size(); i++)
+                        clipNames.push_back("Clip " + std::to_string(i));
+
+                    UI::ComboList("Clip A##blend", clipNames, m_Blend.clipAIdx);
+                    UI::ComboList("Clip B##blend", clipNames, m_Blend.clipBIdx);
+                }
+
+                UI::SliderFloat("Alpha##blend", m_Blend.alpha, 0.f, 1.f);
+
+                bool canBlend = hasAnimator && [&]() -> bool {
+                    auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
+                    return m_Blend.clipAIdx >= 0 && m_Blend.clipAIdx < (int)anim.Clips.size() &&
+                           m_Blend.clipBIdx >= 0 && m_Blend.clipBIdx < (int)anim.Clips.size() &&
+                           m_Blend.clipAIdx != m_Blend.clipBIdx &&
+                           anim.CurrentPose.IsValid();
+                }();
+
+                {
+                    auto d2 = UI::Disabled(!canBlend);
+                    if (UI::Button("Apply Once##blend") && canBlend)
+                    {
+                        auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
+                        auto* skelAsset = AssetManager::GetAsset<Skeleton>(anim.Skeleton);
+                        auto* clipAAsset = AssetManager::GetAsset<Clip>(anim.Clips[m_Blend.clipAIdx]);
+                        auto* clipBAsset = AssetManager::GetAsset<Clip>(anim.Clips[m_Blend.clipBIdx]);
+                        if (skelAsset && clipAAsset && clipBAsset)
+                        {
+                            // We need two scratch poses for A and B, then blend into CurrentPose.
+                            // For a quick test we reuse CurrentPose as poseOut and sample A into
+                            // a temporary pose, B into another, then blend.
+                            auto skelHnd  = skelAsset->GetHandle();
+                            auto poseA    = rigSystem->CreatePose(skelHnd);
+                            auto poseB    = rigSystem->CreatePose(skelHnd);
+
+                            rigSystem->ScheduleSample(skelHnd, clipAAsset->GetHandle(),
+                                anim.Cache, poseA, anim.CurrentTime);
+                            rigSystem->ScheduleSample(skelHnd, clipBAsset->GetHandle(),
+                                anim.Cache, poseB, anim.CurrentTime);
+
+                            if (m_Blend.additive)
+                                rigSystem->ScheduleAdditive(poseA, poseB, anim.CurrentPose, m_Blend.alpha);
+                            else
+                                rigSystem->ScheduleBlend(poseA, poseB, anim.CurrentPose, m_Blend.alpha);
+
+                            rigSystem->ScheduleFinalize(skelHnd, anim.CurrentPose);
+                            rigSystem->ProcessTasks();
+                            rigSystem->ClearTasks();
+
+                            rigSystem->DestroyPose(poseA);
+                            rigSystem->DestroyPose(poseB);
+                        }
+                    }
+                }
+            }
+        } // end IK & Advanced header
     }
 }
 
@@ -780,8 +1095,36 @@ void LabLayer::DrawBoneAttachmentPanel()
                 }
             }
 
-            // --- Bone name text input ----------------------------------------
-            ImGui::InputText("Bone Name##boneattach", m_BoneNameBuf, sizeof(m_BoneNameBuf));
+            // --- Joint picker (uses shared joint name cache) -----------------
+            {
+                auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
+                if (rigSystem)
+                    RefreshJointCache(m_BoneAttachAnimatorEntity, m_JointBrowserEntity,
+                                      m_CachedJointNames, m_Scene, rigSystem.get());
+            }
+            {
+                std::string preview = (m_BoneNameBuf[0] != '\0') ? m_BoneNameBuf : "-- pick joint --";
+                if (ImGui::BeginCombo("Joint##boneattach", preview.c_str()))
+                {
+                    for (int i = 0; i < (int)m_CachedJointNames.size(); i++)
+                    {
+                        // Entry format is "N  jointName" — strip prefix for comparison/storage
+                        auto& entry = m_CachedJointNames[i];
+                        auto sep = entry.find("  ");
+                        std::string name = (sep != std::string::npos) ? entry.substr(sep + 2) : entry;
+                        bool sel = (std::string(m_BoneNameBuf) == name);
+                        if (ImGui::Selectable(entry.c_str(), sel))
+                        {
+                            std::strncpy(m_BoneNameBuf, name.c_str(), sizeof(m_BoneNameBuf));
+                            m_BoneNameBuf[sizeof(m_BoneNameBuf) - 1] = '\0';
+                        }
+                        if (sel) ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            // Manual fallback if skeleton isn't loaded yet
+            ImGui::InputText("Joint Name (manual)##boneattach", m_BoneNameBuf, sizeof(m_BoneNameBuf));
 
             UI::Separator();
 
@@ -806,7 +1149,7 @@ void LabLayer::DrawBoneAttachmentPanel()
                         auto& existing = m_Scene.GetComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
                         existing.Invalidate();
                         existing.AnimatorEntity = m_BoneAttachAnimatorEntity;
-                        existing.BoneName       = m_BoneNameBuf;
+                        existing.JointName      = m_BoneNameBuf;
                     }
                     else
                     {
@@ -854,10 +1197,10 @@ void LabLayer::DrawBoneAttachmentPanel()
                     m_BoneAttachAnimatorEntity = existing.AnimatorEntity;
 
                 // Show current bone index as a read-only hint
-                if (existing.BoneIndex >= 0)
-                    UI::Text("Resolved bone index: %d", existing.BoneIndex);
+                if (existing.JointIndex >= 0)
+                    UI::Text("Resolved joint index: %d", existing.JointIndex);
                 else
-                    UI::TextDisabled("Bone not yet resolved (check bone name).");
+                    UI::TextDisabled("Joint not yet resolved (check joint name).");
             }
         }
 
@@ -882,7 +1225,7 @@ void LabLayer::DrawBoneAttachmentPanel()
 
                 UI::Text("'%s'  ->  bone '%s'  on  '%s'",
                     tag.Tag.c_str(),
-                    attach.BoneName.c_str(),
+                    attach.JointName.c_str(),
                     animTag.c_str());
 
                 // Quick-select this child entity for editing
@@ -892,7 +1235,7 @@ void LabLayer::DrawBoneAttachmentPanel()
                     m_BoneAttachChildEntity = entity;
 
                     // Populate edit fields from the component
-                    std::strncpy(m_BoneNameBuf, attach.BoneName.c_str(), sizeof(m_BoneNameBuf));
+                    std::strncpy(m_BoneNameBuf, attach.JointName.c_str(), sizeof(m_BoneNameBuf));
                     m_BoneNameBuf[sizeof(m_BoneNameBuf) - 1] = '\0';
                     m_BoneAttachAnimatorEntity = attach.AnimatorEntity;
                 }

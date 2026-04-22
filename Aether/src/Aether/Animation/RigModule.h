@@ -1,12 +1,13 @@
 #pragma once
 
+#include <tuple>
+#include <string>
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp> 
 #include "Aether/Core/Base.h"
 #include "Aether/Core/Timestep.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Container/ResourcePool.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp> 
-#include <tuple>
 
 namespace Aether {
 
@@ -87,7 +88,8 @@ namespace Aether {
         virtual void DestroyMask(Handle<MaskTag> mask) = 0;
         virtual void FillMaskSubtree(Handle<MaskTag> mask, Handle<SkeletonTag> skeleton, const std::string& boneName, float weight) = 0;
 
-        virtual int GetBoneIndex(Handle<SkeletonTag> skeleton, const std::string& name) const = 0;
+        virtual int GetJointIndex(Handle<SkeletonTag> skeleton, const std::string& name) const = 0;
+        virtual std::string GetJointName(Handle<SkeletonTag> skeleton, int index) const = 0;
         virtual float GetDuration(Handle<ClipTag> clip) const = 0;
         virtual int GetJointCount(Handle<SkeletonTag> skeleton) const = 0;
         virtual bool GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const = 0;

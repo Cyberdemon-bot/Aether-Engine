@@ -27,49 +27,40 @@ private:
     void RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic = true);
 
     void DrawHierarchyPanel();
-    // NOTE: DrawEntityNode removed — UI::SceneHierarchy handles hierarchy traversal internally.
     void DrawScenePanel();
     void DrawAnimationPanel();
     void DrawLightingPanel();
     void DrawScriptingPanel();
-    void DrawBoneAttachmentPanel();   // <-- NEW
+    void DrawBoneAttachmentPanel();
 
 private:
     Aether::Scene        m_Scene;
     Aether::EditorCamera m_Camera;
 
-    // Shader
     Aether::Ref<Aether::Shader> m_MainShader;
     Aether::Ref<Aether::Shader> m_VolShader;
 
-    // FBOs stored as members so RenderPass raw pointers stay valid
     Aether::Ref<Aether::FrameBuffer> m_MainFbo;
     Aether::Ref<Aether::FrameBuffer> m_VolFbo;
 
     std::vector<Aether::RenderPass> m_Pipeline;
 
-    // Loaded assets (UUIDs for AssetManager lookup)
     std::vector<Aether::UUID> m_MeshIDs;
-    // NOTE: m_AnimatorIDs removed — animator count is derived live from the ECS view to avoid stale data.
 
     Aether::Entity m_LightEntity    = Aether::Null_Entity;
     Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
-    // Async model loading
     std::queue<Aether::Ref<Aether::ParsedScene>> m_CompletedParses;
     std::mutex                      m_ParseMutex;
 
-    // Volumetric / shadow settings
     float m_VolDensity   = 0.03f;
     float m_VolIntensity = 1.0f;
     int   m_VolSteps     = 64;
     float m_ShadowBias   = 0.00001f;
 
-    // Animation panel
     int m_BindMeshIndex     = -1;
     int m_BindAnimatorIndex = -1;
 
-    // Physics
     struct PhysicsEntry
     {
         Aether::Handle<Aether::BodyTag> handle;
@@ -86,7 +77,6 @@ private:
     glm::vec3 m_ForceInput    = glm::vec3(0.0f);
     glm::vec3 m_VelocityInput = glm::vec3(0.0f);
 
-    // Raycast
     glm::vec3                       m_RayOrigin    = glm::vec3(0.0f);
     glm::vec3                       m_RayDirection = glm::vec3(0.0f, -1.0f, 0.0f);
     float                           m_RayDistance  = 100.0f;
@@ -99,12 +89,55 @@ private:
     // -------------------------------------------------------------------------
     //  Bone Attachment panel state
     // -------------------------------------------------------------------------
-    // The entity that will receive / already has a BoneAttachmentComponent
     Aether::Entity m_BoneAttachChildEntity    = Aether::Null_Entity;
-    // The entity that owns the AnimatorComponent to attach to
     Aether::Entity m_BoneAttachAnimatorEntity = Aether::Null_Entity;
-    // Bone name typed by the user
     char           m_BoneNameBuf[128]         = {};
+
+    // -------------------------------------------------------------------------
+    //  Animation panel — IK / advanced state
+    // -------------------------------------------------------------------------
+
+    // Entity whose AnimatorComponent is being inspected in the IK section
+    Aether::Entity m_IKAnimatorEntity = Aether::Null_Entity;
+
+    // Two-bone IK
+    struct TwoBoneIKState
+    {
+        int  rootIdx   = -1;
+        int  midIdx    = -1;
+        int  endIdx    = -1;
+        glm::vec3 target   = { 0.f, 0.f, 0.f };
+        glm::vec3 pole     = { 0.f, 1.f, 0.f };
+        float     weight   = 1.f;
+        bool      enabled  = false;
+    } m_TwoBoneIK;
+
+    // Look-at IK
+    struct LookAtState
+    {
+        int       boneIdx    = -1;
+        glm::vec3 target     = { 0.f, 0.f, 1.f };
+        glm::vec3 forward    = { 0.f, 0.f, 1.f };
+        glm::vec3 up         = { 0.f, 1.f, 0.f };
+        float     weight     = 1.f;
+        float     angleLimit = 1.5708f; // π/2 rad
+        bool      enabled    = false;
+    } m_LookAt;
+
+    // Blend
+    struct BlendState
+    {
+        int   clipAIdx  = 0;
+        int   clipBIdx  = 1;
+        float alpha     = 0.5f;
+        bool  additive  = false;
+        bool  enabled   = false;
+    } m_Blend;
+
+    // Joint browser (shared between IK pickers and bone attachment)
+    // Cached per selected animator entity to avoid querying every frame
+    Aether::Entity              m_JointBrowserEntity = Aether::Null_Entity;
+    std::vector<std::string>    m_CachedJointNames;
 
     char m_SceneSavePath[256] = ".cache/untitled.yaml";
     char m_SceneLoadPath[256] = ".cache/untitled.yaml";

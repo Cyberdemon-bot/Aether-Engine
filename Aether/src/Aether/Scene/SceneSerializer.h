@@ -69,7 +69,7 @@ namespace Aether
 
         bool hasBoneAttachment = false;
         uint64_t AnimatorEntityID = 0;
-        std::string BoneName;
+        std::string JointName;
         bool AffectChild = true;
     };
 

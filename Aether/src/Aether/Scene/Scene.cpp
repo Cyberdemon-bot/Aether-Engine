@@ -503,16 +503,16 @@ namespace Aether {
             if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
                 Handle<SkeletonTag> skelHnd = skeletonAsset->GetHandle();
-                if (attach.BoneIndex < 0) 
-                    attach.BoneIndex = rigModule->GetBoneIndex(skelHnd, attach.BoneName);
+                if (attach.JointIndex < 0) 
+                    attach.JointIndex = rigModule->GetJointIndex(skelHnd, attach.JointName);
                 
                 auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentPose);
-                if (poseData && attach.BoneIndex >= 0 && (size_t)attach.BoneIndex < poseCount)
+                if (poseData && attach.JointIndex >= 0 && (size_t)attach.JointIndex < poseCount)
                 {
                     glm::mat4 ibm; 
-                    rigModule->GetIBM(skelHnd, attach.BoneIndex, ibm);
+                    rigModule->GetIBM(skelHnd, attach.JointIndex, ibm);
                     
-                    glm::mat4 modelSpaceMat = poseData[attach.BoneIndex] * glm::inverse(ibm);
+                    glm::mat4 modelSpaceMat = poseData[attach.JointIndex] * glm::inverse(ibm);
                     glm::mat4 boneWorld = animatorWorld * modelSpaceMat;
 
                     glm::vec3 right = glm::normalize(glm::vec3(boneWorld[0])); glm::vec3 up = glm::normalize(glm::vec3(boneWorld[1]));
