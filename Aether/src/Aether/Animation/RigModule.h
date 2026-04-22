@@ -10,10 +10,11 @@
 
 namespace Aether {
 
-    struct TaskTag;
     struct CacheTag;
     struct ClipTag;
     struct SkeletonTag;
+    struct PoseTag;
+    struct MaskTag;
 
     struct SkeletonSpec
     {
@@ -52,21 +53,79 @@ namespace Aether {
         std::vector<Track> Tracks;
     };
 
+    struct TwoBoneIKSpec
+    {
+        Handle<SkeletonTag> Skeleton;
+        Handle<PoseTag> Pose;
+        int Root, Mid, End;
+        glm::vec3 Target, Pole;
+        float Weight;
+    };
+
+    struct LookAtSpec
+    {
+        Handle<SkeletonTag> Skeleton;
+        Handle<PoseTag> Pose;
+        int Bone;
+        glm::vec3 Target, Forward, Up;
+        float Weight, AngleLimit; //rad
+    };
+
     class RigModule : public AnimationModule
     {
     public:
         virtual Handle<SkeletonTag> CreateSkeleton(const SkeletonSpec& data) = 0;
         virtual Handle<ClipTag> CreateClip(const ClipSpec& data, Handle<SkeletonTag> skeleton) = 0;
+
         virtual Handle<CacheTag> CreateCache(Handle<ClipTag> clip) = 0;
         virtual void DestroyCache(Handle<CacheTag> cache) = 0;
 
-        virtual Handle<TaskTag> CalcPose(Handle<SkeletonTag> skeleton, Handle<ClipTag> clip, Handle<CacheTag> cache, float time) = 0;
-        virtual std::tuple<const glm::mat4*, size_t> GetPose(Handle<TaskTag> handle) const = 0;
+        virtual Handle<PoseTag> CreatePose(Handle<SkeletonTag> skeleton) = 0;
+        virtual void DestroyPose(Handle<PoseTag> pose) = 0;
+
+        virtual Handle<MaskTag> CreateMask(Handle<SkeletonTag> skeleton, float* weights, size_t size) = 0;
+        virtual void DestroyMask(Handle<MaskTag> mask) = 0;
+        virtual void FillMaskSubtree(Handle<MaskTag> mask, Handle<SkeletonTag> skeleton, const std::string& boneName, float weight) = 0;
+
         virtual int GetBoneIndex(Handle<SkeletonTag> skeleton, const std::string& name) const = 0;
         virtual float GetDuration(Handle<ClipTag> clip) const = 0;
         virtual int GetJointCount(Handle<SkeletonTag> skeleton) const = 0;
-        virtual void GetRestPoseMatrices(Handle<SkeletonTag> skeleton, glm::mat4* arr, size_t size) const = 0;
         virtual bool GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const = 0;
+        virtual void GetRestPoseMatrices(Handle<SkeletonTag> skeleton, glm::mat4* arr, size_t size) const = 0;
+        virtual std::tuple<const glm::mat4*, size_t> GetPose(Handle<PoseTag> pose) = 0;
+
+        virtual void ScheduleSample(  
+            Handle<SkeletonTag> skeleton,
+            Handle<ClipTag> clip, 
+            Handle<CacheTag> cache, 
+            Handle<PoseTag> poseOut,
+            float time) = 0;
+
+        virtual void ScheduleBlend(
+            Handle<PoseTag> poseA,
+            Handle<PoseTag> poseB,
+            Handle<PoseTag> poseOut,
+            float alpha) = 0;
+        
+        virtual void ScheduleAdditive(
+            Handle<PoseTag> poseBase,
+            Handle<PoseTag> poseAdditive,
+            Handle<PoseTag> poseOut,
+            float weight) = 0;
+
+        virtual void ScheduleLayeredBlend(
+            Handle<PoseTag> poseA,
+            Handle<PoseTag> poseB,
+            Handle<MaskTag> mask,
+            Handle<PoseTag> poseOut) = 0;
+
+        virtual void ScheduleTwoBoneIK(const TwoBoneIKSpec& spec) = 0;
+        virtual void ScheduleLookAt(const LookAtSpec& spec) = 0;
+
+        virtual void ScheduleFinalize(
+            Handle<SkeletonTag> skeleton,
+            Handle<PoseTag> pose) = 0;
+
         virtual void ProcessTasks() = 0;
         virtual void ClearTasks() = 0;
     private:

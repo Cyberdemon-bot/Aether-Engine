@@ -234,6 +234,7 @@ namespace Aether {
             {
                 auto& comp = GetComponent<AnimatorComponent>(entity);
                 if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
+                if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
             }
         }
 
@@ -246,6 +247,18 @@ namespace Aether {
     {
         if (!m_Registry.valid(entity)) return;
         BreakParent(entity);
+
+        if (HasComponent<AnimatorComponent>(entity))
+        {
+            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            if (rigModule)
+            {
+                auto& comp = GetComponent<AnimatorComponent>(entity);
+                if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
+                if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
+            }
+        }
+        
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
@@ -369,7 +382,7 @@ namespace Aether {
         {
             if (GetComponent<HierarchyComponent>(entity).parent != Null_Entity) continue;
             auto& t = GetComponent<TransformComponent>(entity);
-            if (t.Dirty || t.SubtreeDirty || HasComponent<ColliderComponent>(entity)) Queue.push({entity, 0});
+            if (t.Dirty || t.SubtreeDirty || (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).Type != MotionType::Static)) Queue.push({entity, 0});
         }
 
         while (!Queue.empty())
@@ -447,15 +460,18 @@ namespace Aether {
             const auto& animator = reg.animators[node.animatorIdx];
             auto& comp = AddComponent<AnimatorComponent>(e);
             comp.Skeleton = animator.skeleton;
-            comp.Clips    = animator.clips;
+            comp.Clips = animator.clips;
 
             if (!comp.Clips.empty())
             {
                 auto rigModule = AnimationSystem::GetModule<RigModule>();
                 auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
-                auto* clipAsset     = AssetManager::GetAsset<Clip>(comp.Clips[0]);
+                auto* clipAsset = AssetManager::GetAsset<Clip>(comp.Clips[0]);
                 if (skeletonAsset && clipAsset)
+                {
                     comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());
+                    comp.CurrentPose = rigModule->CreatePose(skeletonAsset->GetHandle());
+                }
             }
         }
         for (int childIdx : node.children)
@@ -484,13 +500,13 @@ namespace Aether {
             const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
             
             auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(animComp.Skeleton);
-            if (skeletonAsset && animComp.CurrentTask.IsValid())
+            if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
                 Handle<SkeletonTag> skelHnd = skeletonAsset->GetHandle();
                 if (attach.BoneIndex < 0) 
                     attach.BoneIndex = rigModule->GetBoneIndex(skelHnd, attach.BoneName);
                 
-                auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentTask);
+                auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentPose);
                 if (poseData && attach.BoneIndex >= 0 && (size_t)attach.BoneIndex < poseCount)
                 {
                     glm::mat4 ibm; 
@@ -764,7 +780,8 @@ namespace Aether {
                         }
                     }
 
-                    comp.CurrentTask = rigModule->CalcPose(skelHandle, clipHandle, comp.Cache, comp.CurrentTime);
+                    rigModule->ScheduleSample(skelHandle, clipHandle, comp.Cache, comp.CurrentPose, comp.CurrentTime);
+                    rigModule->ScheduleFinalize(skelHandle, comp.CurrentPose);
                 }
 
                 rigModule->ProcessTasks();
@@ -781,10 +798,10 @@ namespace Aether {
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
                     UUID animatorID = UUID(0);
-                    Handle<TaskTag> task = Handle<TaskTag>::MakeInvalid();
-                    if (HasComponent<AnimatorComponent>(entity)) task = GetComponent<AnimatorComponent>(entity).CurrentTask;
+                    Handle<PoseTag> pose = Handle<PoseTag>::MakeInvalid();
+                    if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
-                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, task, transform.WorldTransform);
+                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, pose, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();

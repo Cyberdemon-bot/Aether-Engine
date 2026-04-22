@@ -248,9 +248,9 @@ namespace Aether {
 		{
 			const auto& command = CommandList[i];
 			int currentAnimIndex = -1;
-			if (command.anim_task.IsValid()) 
+			if (command.pose.IsValid()) 
 			{
-				const auto [boneMatrices, size] = skelSystem->GetPose(command.anim_task);
+				const auto [boneMatrices, size] = skelSystem->GetPose(command.pose);
 				if (boneMatrices != nullptr && size > 0)
 				{
 					int boneBaseIndex = static_cast<int>(s_SceneData->BoneStorage.size());
@@ -333,7 +333,7 @@ namespace Aether {
 			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray()));
 	}
 
-	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<TaskTag> anim_task, const glm::mat4& transform)
+	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<PoseTag> pose, const glm::mat4& transform)
 	{
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
@@ -343,10 +343,10 @@ namespace Aether {
 		{
 			if (submeshes[i].MaterialIdx >= materials.size()) continue;
 			Command command;
-			command.mesh      = mesh;
-			command.material  = materials[submeshes[i].MaterialIdx];
-			command.subIdx    = i;
-			command.anim_task  = anim_task;
+			command.mesh = mesh;
+			command.material = materials[submeshes[i].MaterialIdx];
+			command.subIdx = i;
+			command.pose  = pose;
 			command.transform = transform;
 			s_SceneData->CommandList.push_back(command);
 		}
