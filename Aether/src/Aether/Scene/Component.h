@@ -89,7 +89,7 @@ namespace Aether {
         std::vector<AssetHandle> Clips;
         
         Handle<CacheTag> Cache;
-        Handle<TaskTag>  CurrentTask; 
+        Handle<PoseTag> CurrentPose;
 
         int ActiveClipIdx = 0;
         float CurrentTime = 0.0f;
@@ -147,6 +147,7 @@ namespace Aether {
         bool Visible = false;
         glm::vec3 ColliderOffset;
         ColliderShape Shape;
+        MotionType Type;
         glm::vec3 Size; // box: halfx, halfy, halfz --- capsule: radius, height, __ --- sphere: radius, __, __
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
@@ -159,6 +160,7 @@ namespace Aether {
             ColliderOffset = info.offset;
             Shape = info.shape;
             Size = info.size;
+            Type = info.motionType;
         }
     };
 

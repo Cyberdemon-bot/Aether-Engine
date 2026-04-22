@@ -5,7 +5,7 @@
 #include <ozz/animation/offline/skeleton_builder.h>
 #include <ozz/animation/offline/raw_animation.h>
 #include <ozz/animation/offline/animation_builder.h>
-#include <ozz/base/maths/simd_math.h> 
+#include <ozz/animation/runtime/local_to_model_job.h>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace Aether {
@@ -15,7 +15,6 @@ namespace Aether {
         m_CachePool.Init();
         m_ClipPool.Init();
         m_SkeletonPool.Init();
-        m_TaskPool.Init();
     }
 
     Ozz_RigModule::~Ozz_RigModule()
@@ -23,8 +22,9 @@ namespace Aether {
         m_CachePool.Shutdown();
         m_ClipPool.Shutdown();
         m_SkeletonPool.Shutdown();
-        m_TaskPool.Shutdown();
     }
+
+    //resource management
 
     Handle<SkeletonTag> Ozz_RigModule::CreateSkeleton(const SkeletonSpec& data)
     {
@@ -55,18 +55,6 @@ namespace Aether {
         }
 
         return handle;
-    }
-
-    int Ozz_RigModule::GetBoneIndex(Handle<SkeletonTag> skeleton, const std::string& name) const
-    {
-        auto it = m_SkeletonPool.GetResource(skeleton);
-        if (!it) return -1;
-
-        const auto names = it->data->joint_names();
-
-        for (int i = 0; i < (int)names.size(); i++)
-            if (names[i] == name) return i;
-        return -1;
     }
 
     Handle<ClipTag> Ozz_RigModule::CreateClip(const ClipSpec& data, Handle<SkeletonTag> skeleton) 
@@ -123,40 +111,222 @@ namespace Aether {
         m_CachePool.DestroyResource(cache);
     }
 
-    Handle<TaskTag> Ozz_RigModule::CalcPose(Handle<SkeletonTag> skeleton, Handle<ClipTag> clip, Handle<CacheTag> cache, float time)
+
+    Handle<PoseTag> Ozz_RigModule::CreatePose(Handle<SkeletonTag> skeleton)
     {
-        return m_TaskPool.CreateResource(skeleton, clip, cache, time, std::vector<glm::mat4>{});
+        auto* it = m_SkeletonPool.GetResource(skeleton);
+        if (!it)
+        {
+            AE_CORE_ERROR("Skeleton not found for pose creation");
+            return Handle<PoseTag>::MakeInvalid();
+        }
+
+        auto handle = m_PosePool.CreateResource();
+        auto* pose = m_PosePool.GetResource(handle);
+
+        pose->localTransforms.resize(it->data->num_soa_joints());
+        return handle;
     }
 
-    std::tuple<const glm::mat4*, size_t> Ozz_RigModule::GetPose(Handle<TaskTag> handle) const 
+    void Ozz_RigModule::DestroyPose(Handle<PoseTag> pose)
     {
-        const auto* it = m_TaskPool.GetResource(handle);
-        if (!it) return {nullptr, 0};
+        auto* it = m_PosePool.GetResource(pose);
+        if (!it)
+        {
+            AE_CORE_ERROR("Pose not found");
+            return;
+        }
+        it->localTransforms.clear();
+        m_PosePool.DestroyResource(pose);
+    }
 
-        auto& [s, c, ca, time, out] = *it;
-        return {out.data(), out.size()};
+    Handle<MaskTag> Ozz_RigModule::CreateMask(Handle<SkeletonTag> skeleton, float* weights, size_t size)
+    {
+        auto* it = m_SkeletonPool.GetResource(skeleton);
+        if (!it)
+        {
+            AE_CORE_ERROR("Skeleton not found for mask");
+            return Handle<MaskTag>::MakeInvalid();
+        }
+
+        int num = it->data->num_joints();
+        if (size != num)
+        {
+            AE_CORE_ERROR("Mask weight count doesn't match skeleton joint count");
+            return Handle<MaskTag>::MakeInvalid();
+        }
+
+        auto handle = m_MaskPool.CreateResource();
+        auto* mask = m_MaskPool.GetResource(handle);
+        mask->weights.assign(weights, weights + size);
+        return handle;
+    }
+
+    void Ozz_RigModule::DestroyMask(Handle<MaskTag> mask)
+    {
+        auto* it = m_MaskPool.GetResource(mask);
+        if (!it)
+        {
+            AE_CORE_ERROR("Mask not found");
+            return;
+        }
+        it->weights.clear();
+        m_MaskPool.DestroyResource(mask);
+    }
+
+    void Ozz_RigModule::FillMaskSubtree(Handle<MaskTag> mask, Handle<SkeletonTag> skeleton, const std::string& boneName, float weight)
+    {
+        auto* it  = m_MaskPool.GetResource(mask);
+        auto* sk  = m_SkeletonPool.GetResource(skeleton);
+        if (!it || !sk) return;
+
+        int root = GetBoneIndex(skeleton, boneName);
+        if (root == -1)
+        {
+            AE_CORE_ERROR("FillMaskSubtree: bone '{}' not found", boneName);
+            return;
+        }
+
+        const auto parents = sk->data->joint_parents();
+        it->weights[root] = weight;
+
+        const auto names = sk->data->joint_names();
+        for (int i = root + 1; i < (int)names.size(); i++)
+        {
+            int p = parents[i];
+            while (p > root) p = parents[p];
+            if (p == root) it->weights[i] = weight;
+        }
+    }
+
+    // task handling
+
+
+
+    void Ozz_RigModule::ScheduleSample(  
+            Handle<SkeletonTag> skeleton,
+            Handle<ClipTag> clip, 
+            Handle<CacheTag> cache, 
+            Handle<PoseTag> poseOut,
+            float time) { m_SampleTasks.push_back({ skeleton, clip, cache, time, poseOut }); }
+
+    void Ozz_RigModule::ScheduleBlend(
+        Handle<PoseTag> poseA,
+        Handle<PoseTag> poseB,
+        Handle<PoseTag> poseOut,
+        float alpha) { m_BlendTasks.push_back({ BlendMode::Lerp, poseA, poseB, Handle<MaskTag>::MakeInvalid(), alpha, poseOut }); }
+    
+    
+    void Ozz_RigModule::ScheduleAdditive(
+        Handle<PoseTag> poseBase,
+        Handle<PoseTag> poseAdditive,
+        Handle<PoseTag> poseOut,
+        float weight) { m_BlendTasks.push_back({ BlendMode::Additive, poseBase, poseAdditive, Handle<MaskTag>::MakeInvalid(), weight, poseOut }); }
+    
+
+    void Ozz_RigModule::ScheduleLayeredBlend(
+        Handle<PoseTag> poseA,
+        Handle<PoseTag> poseB,
+        Handle<MaskTag> mask,
+        Handle<PoseTag> poseOut) { m_BlendTasks.push_back({ BlendMode::Layered, poseA, poseB, mask, 0.0f, poseOut }); }
+    
+
+    void Ozz_RigModule::ScheduleTwoBoneIK(const TwoBoneIKSpec& spec)
+    {
+        IKTask task;
+        task.mode = IKMode::TwoBone;
+        task.TBspec = spec;
+        m_IKTasks.push_back(task);
+    }
+
+    void Ozz_RigModule::ScheduleLookAt(const LookAtSpec& spec)
+    {
+        IKTask task;
+        task.mode   = IKMode::LookAt;
+        task.LAspec = spec;
+        m_IKTasks.push_back(task);
+    }
+
+
+    void Ozz_RigModule::ScheduleFinalize(
+        Handle<SkeletonTag> skeleton,
+        Handle<PoseTag> pose) { m_FinalizeTasks.push_back({ skeleton, pose }); }
+    
+
+
+    void Ozz_RigModule::ExecuteSampleTasks()
+    {
+        uint32_t total = (uint32_t)m_SampleTasks.size();
+        if (total == 0) return;
+
+        uint32_t chunkSize = 16;
+        JobSystem::ParallelFor(total, chunkSize, m_SampleTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+            SampleClipIntoPose(task);
+        ));
+    }
+
+    void Ozz_RigModule::ExecuteBlendTasks()
+    {
+        uint32_t total = (uint32_t)m_BlendTasks.size();
+        if (total == 0) return;
+
+        uint32_t chunkSize = 16;
+        JobSystem::ParallelFor(total, chunkSize, m_BlendTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+            BlendPoses(task);
+        ));
+    }
+
+    void Ozz_RigModule::ExecuteIKTasks()
+    {
+        uint32_t total = (uint32_t)m_IKTasks.size();
+        if (total == 0) return;
+
+        uint32_t chunkSize = 16;
+        JobSystem::ParallelFor(total, chunkSize, m_IKTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+            if (task.mode == IKMode::TwoBone) ApplyTwoBoneIK(task);
+            else ApplyLookAt(task);
+        ));
+    }
+
+    void Ozz_RigModule::ExecuteFinalizeTasks()
+    {
+        uint32_t total = (uint32_t)m_FinalizeTasks.size();
+        if (total == 0) return;
+
+        uint32_t chunkSize = 16;
+        JobSystem::ParallelFor(total, chunkSize, m_FinalizeTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+            FinalizePose(task);
+        ));
     }
     
     void Ozz_RigModule::ProcessTasks() 
     {
-        uint32_t totalTasks = m_TaskPool.GetSize();
-        if (totalTasks == 0) return;
-        uint32_t chunkSize = 16; 
-
-        JobSystem::ParallelFor(totalTasks, chunkSize, m_TaskPool.Begin(), AE_MAKE_LAMBDA((this), (auto& slot), auto, 
-            auto& [s, c, ca, time, out] = slot.asset;
-            auto* skeleton = m_SkeletonPool.GetResource(s);
-            auto* clip = m_ClipPool.GetResource(c);
-            auto* cache = m_CachePool.GetResource(ca);
-            if (!skeleton || !clip || !cache) return;
-            out.resize(skeleton->data->num_joints());
-            CalculateMatrices(out.data(), skeleton->orderedIBMs.data(), out.size(), skeleton->data.get(), clip->data.get(), cache->data.get(), time);
-        ));
+        ExecuteSampleTasks();    
+        ExecuteBlendTasks();     
+        ExecuteIKTasks();       
+        ExecuteFinalizeTasks();  
     }
 
     void Ozz_RigModule::ClearTasks()
     {
-        m_TaskPool.Clear();
+        m_SampleTasks.clear();
+        m_BlendTasks.clear();
+        m_IKTasks.clear();
+        m_FinalizeTasks.clear();
+    }
+
+    // queries
+
+    int Ozz_RigModule::GetBoneIndex(Handle<SkeletonTag> skeleton, const std::string& name) const
+    {
+        auto it = m_SkeletonPool.GetResource(skeleton);
+        if (!it) return -1;
+
+        const auto names = it->data->joint_names();
+
+        for (int i = 0; i < (int)names.size(); i++)
+            if (names[i] == name) return i;
+        return -1;
     }
 
     float Ozz_RigModule::GetDuration(Handle<ClipTag> clip) const
@@ -202,46 +372,19 @@ namespace Aether {
         out = it->orderedIBMs[boneIndex];
         return true;
     }
-    
-    void Ozz_RigModule::CalculateMatrices(glm::mat4* out, glm::mat4* ibm, size_t size, ozz::animation::Skeleton* skeleton, ozz::animation::Animation* clip, ozz::animation::SamplingJob::Context* cache, float time)
+
+    std::tuple<const glm::mat4*, size_t> Ozz_RigModule::GetPose(Handle<PoseTag> pose)
     {
-        if (!skeleton || !clip || !cache || size < skeleton->num_joints()) return;
-
-        float duration = clip->duration();
-        float ratio = 0.0f;
-        if (duration > 0.0f)
+        auto* it = m_PosePool.GetResource(pose);
+        if (!it || it->finalMats.empty())
         {
-            ratio = std::fmod(time, duration) / duration;
-            if (ratio < 0.0f) ratio += 1.0f;
+            //AE_CORE_ERROR("Pose not found");
+            return {nullptr, 0};
         }
-
-        thread_local ozz::vector<ozz::math::SoaTransform> local_transforms;
-        thread_local ozz::vector<ozz::math::Float4x4> model_matrices;
-
-        local_transforms.resize(skeleton->num_soa_joints());
-        model_matrices.resize(skeleton->num_joints());
-
-        ozz::animation::SamplingJob samplingJob;
-        samplingJob.animation = clip;
-        samplingJob.context = cache;
-        samplingJob.ratio = ratio;
-        samplingJob.output = ozz::make_span(local_transforms);
-
-        if (!samplingJob.Run()) return;
-
-        ozz::animation::LocalToModelJob localToModelJob;
-        localToModelJob.skeleton = skeleton;
-        localToModelJob.input = ozz::make_span(local_transforms);
-        localToModelJob.output = ozz::make_span(model_matrices);
-
-        if (!localToModelJob.Run()) return;
-
-        for (int i = 0; i < size; i++)
-        {
-            ConvertOzzMatrixToGlm(model_matrices[i], out[i]);
-            out[i] = out[i] * ibm[i];
-        }
+        return {it->finalMats.data(), it->finalMats.size()};
     }
+
+    // helper 
 
     void Ozz_RigModule::BuildHierarchy(const SkeletonSpec& data, int parentIdx, ozz::animation::offline::RawSkeleton::Joint& out)
     {
