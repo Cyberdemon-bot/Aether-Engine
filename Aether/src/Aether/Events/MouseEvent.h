@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include "Aether/Events/Event.h"
 #include "Aether/Core/MouseCodes.h"
 

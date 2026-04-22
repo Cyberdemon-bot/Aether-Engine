@@ -1,9 +1,12 @@
 #pragma once
+
+
 #include <string>
 #include <vector>
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include "Aether/Core/Base.h"
 
 namespace Aether
 {
@@ -76,7 +79,7 @@ namespace Aether
         std::vector<EntitySnapshot>  Entities;
     };
 
-    class SceneSerializer
+    class AETHER_API SceneSerializer
     {
     public:
         static bool Serialize(Scene& scene, const std::string& path);

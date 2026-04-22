@@ -126,8 +126,10 @@ Aether is built around a **Layer system** combined with **ECS (EnTT)**. Systems 
 
 Requires [xmake](https://xmake.io) installed.
 
+Note: MSVC compiler is highly recommended on Windows
+
 ```bash
-git clone https://github.com/Cyberdemon-bot/Aether-Engine.git
+git clone https://github.com/Cyberdemon-bot/Aether-Engine
 cd Aether-Engine
 xmake
 xmake run
