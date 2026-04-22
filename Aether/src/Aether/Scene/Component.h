@@ -167,20 +167,20 @@ namespace Aether {
     struct BoneAttachmentComponent
     {
         Entity AnimatorEntity = Null_Entity;
-        std::string BoneName;
+        std::string JointName;
         bool affectChild = true;
  
-        mutable int BoneIndex = -1;
+        mutable int JointIndex = -1;
         mutable Handle<SkeletonTag> CachedSkeletonHnd = Handle<SkeletonTag>::MakeInvalid();
         mutable glm::mat4 CachedBoneWorld = glm::mat4(1.0f);
  
         BoneAttachmentComponent() = default;
         BoneAttachmentComponent(const BoneAttachmentComponent&) = default;
-        BoneAttachmentComponent(Entity animatorEntity, std::string_view boneName)
+        BoneAttachmentComponent(Entity animatorEntity, std::string_view jointName)
             : AnimatorEntity(animatorEntity)
-            , BoneName(boneName)
+            , JointName(jointName)
         {}
  
-        void Invalidate() const { BoneIndex = -1; }
+        void Invalidate() const { JointIndex = -1; }
     };
 }

@@ -180,7 +180,7 @@ namespace Aether {
         auto* sk  = m_SkeletonPool.GetResource(skeleton);
         if (!it || !sk) return;
 
-        int root = GetBoneIndex(skeleton, boneName);
+        int root = GetJointIndex(skeleton, boneName);
         if (root == -1)
         {
             AE_CORE_ERROR("FillMaskSubtree: bone '{}' not found", boneName);
@@ -317,7 +317,7 @@ namespace Aether {
 
     // queries
 
-    int Ozz_RigModule::GetBoneIndex(Handle<SkeletonTag> skeleton, const std::string& name) const
+    int Ozz_RigModule::GetJointIndex(Handle<SkeletonTag> skeleton, const std::string& name) const
     {
         auto it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return -1;
@@ -327,6 +327,16 @@ namespace Aether {
         for (int i = 0; i < (int)names.size(); i++)
             if (names[i] == name) return i;
         return -1;
+    }
+
+    std::string Ozz_RigModule::GetJointName(Handle<SkeletonTag> skeleton, int index) const 
+    {
+        auto it = m_SkeletonPool.GetResource(skeleton);
+        if (!it) return "";
+
+        const auto names = it->data->joint_names();
+        if (index >= (int)names.size()) return "";
+        return std::string(names[index]);
     }
 
     float Ozz_RigModule::GetDuration(Handle<ClipTag> clip) const

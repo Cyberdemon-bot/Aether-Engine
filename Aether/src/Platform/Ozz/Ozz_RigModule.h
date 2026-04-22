@@ -35,7 +35,8 @@ namespace Aether {
         virtual void FillMaskSubtree(Handle<MaskTag> mask, Handle<SkeletonTag> skeleton, const std::string& boneName, float weight) override;
 
 
-        virtual int GetBoneIndex(Handle<SkeletonTag> skeleton, const std::string& name) const override;
+        virtual int GetJointIndex(Handle<SkeletonTag> skeleton, const std::string& name) const override;
+        virtual std::string GetJointName(Handle<SkeletonTag> skeleton, int index) const override;
         virtual float GetDuration(Handle<ClipTag> clip) const override;
         virtual int GetJointCount(Handle<SkeletonTag> skeleton) const override;
         virtual bool GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const override;
@@ -151,11 +152,6 @@ namespace Aether {
             Handle<SkeletonTag> skeleton;
             Handle<PoseTag> pose;
         };
-
-        void CalculateMatrices(
-            glm::mat4* out, glm::mat4* ibm, size_t size, 
-            ozz::animation::Skeleton* skeleton, ozz::animation::Animation* clip, 
-            ozz::animation::SamplingJob::Context* cache, float time);
         
         ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const SkeletonSpec& data);
         ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipSpec& data, int numJoints);

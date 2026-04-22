@@ -208,7 +208,7 @@ namespace Aether
             animEntityID = (uint64_t)scene.GetComponent<IDComponent>(c.AnimatorEntity).ID;
         out << YAML::Key << "BoneAttachmentComponent" << YAML::Value << YAML::BeginMap;
         out << YAML::Key << "AnimatorEntityID" << YAML::Value << animEntityID;
-        out << YAML::Key << "BoneName" << YAML::Value << c.BoneName;
+        out << YAML::Key << "JointName" << YAML::Value << c.JointName;
         out << YAML::Key << "AffectChild" << YAML::Value << c.affectChild;
         out << YAML::EndMap;
     }
@@ -359,7 +359,7 @@ namespace Aether
     {
         s.hasBoneAttachment = true;
         s.AnimatorEntityID = YGet<uint64_t>(n,    "AnimatorEntityID");
-        s.BoneName = YGet<std::string>(n, "BoneName");
+        s.JointName = YGet<std::string>(n, "JointName");
         s.AffectChild = YGet<bool>(n,        "AffectChild", true);
     }
 
@@ -531,7 +531,7 @@ namespace Aether
             if (s.hasBoneAttachment)
             {
                 auto& c = scene.AddComponent<BoneAttachmentComponent>(e);
-                c.BoneName = s.BoneName;
+                c.JointName = s.JointName;
                 c.affectChild = s.AffectChild;
             }
         }

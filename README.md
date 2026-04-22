@@ -1,7 +1,7 @@
 
 # Aether Engine
 
-A 3D game engine built from scratch in C++17, using OpenGL and Jolt Physics. Designed to be lightweight and flexible for developing 3D games ranging from simple to mid-complexity.
+A 3D game engine built from scratch in C++17. Designed to be lightweight and flexible for developing 3D games ranging from simple to mid-complexity.
 
 Built as a learning project to deeply understand the internals of a modern game engine — rendering pipeline, physics, skeletal animation, audio, and scene management — without relying on commercial engines like Unity or Unreal.
 
