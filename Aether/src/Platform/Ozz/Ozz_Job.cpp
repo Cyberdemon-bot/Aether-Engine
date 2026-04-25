@@ -31,7 +31,7 @@ namespace Aether {
         samplingJob.context = cache->data.get();
         samplingJob.ratio = ratio;
         samplingJob.output = ozz::make_span(pose->localTransforms);
-        samplingJob.Run()
+        samplingJob.Run();
     }
 
     void Ozz_RigModule::BlendPoses(const BlendTask& task)
