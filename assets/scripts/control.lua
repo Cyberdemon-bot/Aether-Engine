@@ -1,14 +1,20 @@
+_speed = 0.0
+_time = 0.0
+_script_b_id = 0
+
 function OnStart()
-    self._speed = 5.0
-    self._time = 0.0
+    _speed = 5.0
+    _script_b_id = scene:FindByName("Plane.001")
+    print(_script_b_id)
 end
 
 function OnUpdate(ts)
     local move = Math.Vec3(0.0, 0.0, 0.0)
-    self._time = self._time + ts
+    _time = _time + ts
 
     if Input.IsKeyPressed(Key.Up) then
         move = move + Math.Vec3(0.0, 0.0, -1.0)
+        self:Call(_script_b_id, "SayHello")
     end
     if Input.IsKeyPressed(Key.Down) then
         move = move + Math.Vec3(0.0, 0.0, 1.0)
@@ -27,7 +33,7 @@ function OnUpdate(ts)
     end
 
     local current = self.Transform.Translation
-    self.Transform.Translation = current + move * self._speed * ts
+    self.Transform.Translation = current + move * _speed * ts
 end
 
 function OnDestroy()
