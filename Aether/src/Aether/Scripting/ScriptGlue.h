@@ -4,6 +4,7 @@
 #include "Aether/Events/Event.h"
 #include "Aether/Scene/Component.h"
 #include "Aether/Core/Input.h"
+#include "Aether/Scripting/ScriptEngine.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -238,6 +239,137 @@ namespace Aether {
                 )
             );
         } 
+    };
+
+
+    struct ScriptSelf
+    {
+        Scene* scene = nullptr;
+        Entity entity = Null_Entity;
+        InstanceSlot* slot = nullptr;
+    };
+
+    struct ScriptSelfBinding
+    {
+        using Type = ScriptSelf;
+        static constexpr const char* get_name() { return "ScriptSelf"; }
+
+        static constexpr auto get_props()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Transform",
+                    AE_MAKE_LAMBDA((), (const Type& self), TransformComponent*,
+                        return &self.scene->GetComponent<TransformComponent>(self.entity);
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& self, const TransformComponent& val), void,
+                        self.scene->GetComponent<TransformComponent>(self.entity) = val;
+                    )
+                ),
+                AE_REFLECT("EntityId",
+                    AE_MAKE_LAMBDA((), (const Type& self), uint32_t,
+                        return static_cast<uint32_t>(self.entity);
+                    )
+                )
+            );
+        }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Expose",
+                    AE_MAKE_LAMBDA((), (Type& self, const std::string& name, sol::protected_function func), void,
+                        self.slot->exposed_funcs[name] = std::move(func);
+                    )
+                ),
+                AE_REFLECT("Call",
+                    AE_MAKE_LAMBDA((), (Type& self, uint32_t targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = static_cast<Entity>(targetId);
+                        if (!self.scene->IsValid(target)) return sol::lua_nil;
+                        if (!self.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
+                        auto& sc = self.scene->GetComponent<ScriptComponent>(target);
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        return ScriptEngine::CallInstanceAPI(sc.ScriptHandle, name, collected);
+                    )
+                )
+            );
+        }
+    };
+
+    struct SceneContext
+    {
+        Scene* scene;
+    };
+
+    struct SceneBinding
+    {
+        using Type = SceneContext;
+        static constexpr const char* get_name() { return "SceneContext"; }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("CreateEntity",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, const std::string& source_name), uint32_t,
+                        Entity e = ctx.scene->CreateEntity(name);
+                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, source_name);
+                        if (handle.IsValid())
+                        {
+                            ctx.scene->AddComponent<ScriptComponent>(e, handle);
+                            ScriptEngine::StartInstance(handle);
+                        }
+                        return static_cast<uint32_t>(e);
+                    ),
+
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, const std::string& source_name, uint32_t parentId), uint32_t,
+                        Entity parent = static_cast<Entity>(parentId);
+                        Entity e = ctx.scene->CreateEntity(name, parent);
+                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, source_name);
+                        if (handle.IsValid())
+                        {
+                            ctx.scene->AddComponent<ScriptComponent>(e, handle);
+                            ScriptEngine::StartInstance(handle);
+                        }
+                        return static_cast<uint32_t>(e);
+                    )
+                ),
+
+                AE_REFLECT("DestroyEntity",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), void,
+                        Entity e = static_cast<Entity>(id);
+                        if (!ctx.scene->IsValid(e)) return;
+                        if (ctx.scene->HasComponent<ScriptComponent>(e))
+                        {
+                            auto& sc = ctx.scene->GetComponent<ScriptComponent>(e);
+                            if (sc.ScriptHandle.IsValid())
+                                ScriptEngine::DestroyInstance(sc.ScriptHandle);
+                        }
+                        ctx.scene->DestroyEntity(e);
+                    )
+                ),
+
+                AE_REFLECT("DestroyHierarchy",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), void,
+                        Entity e = static_cast<Entity>(id);
+                        if (!ctx.scene->IsValid(e)) return;
+                        if (ctx.scene->HasComponent<ScriptComponent>(e))
+                        {
+                            auto& sc = ctx.scene->GetComponent<ScriptComponent>(e);
+                            if (sc.ScriptHandle.IsValid())
+                                ScriptEngine::DestroyInstance(sc.ScriptHandle);
+                        }
+                        ctx.scene->DestroyHierarchy(e);
+                    )
+                ),
+
+                AE_REFLECT("FindByName",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), uint32_t,
+                        auto results = ctx.scene->FindEntity(name);
+                        if (results.empty()) return static_cast<uint32_t>(Null_Entity);
+                        return static_cast<uint32_t>(results[0]);
+                    )
+                )
+            );
+        }
     };
 
     struct InputBinding

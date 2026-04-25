@@ -338,10 +338,7 @@ namespace Aether {
                 GetComponent<HierarchyComponent>(child).prevSibling = Null_Entity;
                 GetComponent<TransformComponent>(child).Dirty       = true;
 
-                if (parentHie.firstChild == Null_Entity)
-                {
-                    parentHie.firstChild = child;
-                }
+                if (parentHie.firstChild == Null_Entity) parentHie.firstChild = child;
                 else
                 {
                     Entity tail = parentHie.firstChild;
@@ -354,10 +351,10 @@ namespace Aether {
             }
         }
 
-        hierarchy.parent      = Null_Entity;
+        hierarchy.parent = Null_Entity;
         hierarchy.prevSibling = Null_Entity;
         hierarchy.nextSibling = Null_Entity;
-        hierarchy.firstChild  = Null_Entity;
+        hierarchy.firstChild = Null_Entity;
     }
 
     bool Scene::IsValid(Entity entity) const

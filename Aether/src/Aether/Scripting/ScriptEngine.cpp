@@ -1,3 +1,4 @@
+#include "aepch.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
@@ -47,23 +48,36 @@ namespace Aether {
         BindEnum<Mouse::MouseCode>("Mouse");
         BindType<Vec3Binding>("Math");
         BindType<QuatBinding>("Math");
-        BindType<TransformComponentBinding>();
         BindModule<MathBinding>("Math");
         BindModule<InputBinding>("Input"); 
+        BindType<TransformComponentBinding>();
+        BindType<ScriptSelfBinding>();
+        BindType<SceneBinding>();
     }
 
-    Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity)
+    Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity, const std::string& source_name)
     {
         auto& instance = GetInstance(); 
+        auto it = instance.m_Sources.find(source_name);
+        if (it == instance.m_Sources.end())
+        {
+            AE_CORE_ERROR("Source name {0} not found!", source_name);
+            return Handle<ScriptTag>::MakeInvalid();
+        }
 
+        sol::bytecode bytecode = it->second;
         auto env_handle = instance.LuaState.CreateEnvironment();
         sol::environment env = *instance.LuaState.env_pool.GetResource(env_handle);
-        sol::table self = instance.LuaState.lua.create_table();
-        self["Transform"] = &scene->GetComponent<TransformComponent>(entity);
-        env["self"] = self;
+        auto& lua = instance.LuaState.lua;
+        lua.script(bytecode.as_string_view(), env);
 
         auto handle = instance.m_Instances.CreateResource();
         auto slot = instance.m_Instances.GetResource(handle);
+
+        ScriptSelf self{ scene, entity, slot};
+        SceneContext sceneCtx{ scene };
+        env["self"] = self;
+        env["scene"] = sceneCtx;
 
         slot->env_hanle = env_handle;
         return handle; 
@@ -77,24 +91,24 @@ namespace Aether {
         CallMethod(*slot, "OnStart");
     }
 
-    void ScriptEngine::LoadScript(Handle<ScriptTag> handle, const std::string& path)
+    void ScriptEngine::LoadScript(const std::string& source_name, const std::string& path)
     {
         auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return;
-
         auto& lua = instance.LuaState.lua;
-        auto env = instance.LuaState.env_pool.GetResource(slot->env_hanle);
-        if (env == nullptr) return;
 
-        auto result = lua.script_file(path, *env);
-        if (!result.valid()) 
+        std::ifstream file(path);
+        std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+        sol::load_result res = lua.load(source);
+        if (!res.valid())
         {
-            sol::error err = result;
-            slot->has_error = true;
-            AE_CORE_ERROR("[Lua Error] {0}", err.what());
+            sol::error err = res;
+            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
             return;
         }
+
+        sol::bytecode bytecode = res.get<sol::function>().dump();
+        instance.m_Sources[source_name] = bytecode;
     }
 
     void ScriptEngine::DestroyInstance(Handle<ScriptTag> handle)
@@ -132,10 +146,5 @@ namespace Aether {
         auto slot = instance.m_Instances.GetResource(handle);
         if (slot == nullptr) return false;
         return slot->is_active;
-    }
-    
-    void ScriptEngine::Update()
-    {
-
     }
 }

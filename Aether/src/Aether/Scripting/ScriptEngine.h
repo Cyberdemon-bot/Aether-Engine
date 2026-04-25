@@ -5,6 +5,8 @@
 #include <sol/sol.hpp>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
+#include <unordered_map>
+#include <string>
 namespace Aether {
 
     template <typename T, typename = void> struct HasGetProps : std::false_type {};
@@ -28,6 +30,8 @@ namespace Aether {
         Handle<EnvTag> env_hanle = Handle<EnvTag>::MakeInvalid();
         bool has_error = false;
         bool is_active = true;
+
+        std::unordered_map<std::string, sol::protected_function> exposed_funcs;
     };
 
     struct LuaWorker 
@@ -59,15 +63,15 @@ namespace Aether {
     public:
         static void Init();
         static void Shutdown();
-        static void Update();
         static void RegisterTypes();
 
-        static Handle<ScriptTag> CreateInstance(Scene* scene, Entity entity);
+        static Handle<ScriptTag> CreateInstance(Scene* scene, Entity entity, const std::string& source_name);
         static void DestroyInstance(Handle<ScriptTag> handle);
         static void StartInstance(Handle<ScriptTag> handle);
         static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
-        static void PushEventToInstance(Handle<ScriptTag> handle, Event event);
-        static void LoadScript(Handle<ScriptTag> handle, const std::string& path);
+
+        static void LoadScript(const std::string& source_name, const std::string& path);
+
         static void SetActiveStage(Handle<ScriptTag> handle, bool active);
         static bool GetActiveStage(Handle<ScriptTag> handle);
 
@@ -77,6 +81,7 @@ namespace Aether {
         LuaWorker LuaState;
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
+        std::unordered_map<std::string, sol::bytecode> m_Sources;
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -178,7 +183,7 @@ namespace Aether {
         }
 
         template<typename... Args>
-        static void CallMethod(InstanceSlot slot, const std::string& name, Args&&... args) 
+        static void CallMethod(InstanceSlot& slot, const std::string& name, Args&&... args) 
         {
             auto& instance = GetInstance();
             auto env = instance.LuaState.env_pool.GetResource(slot.env_hanle);
@@ -196,5 +201,26 @@ namespace Aether {
                 }
             }
         }
+
+        static sol::object CallInstanceAPI(Handle<ScriptTag> handle, const std::string& name, const std::vector<sol::object>& args)
+        {
+            auto& instance = GetInstance();
+            auto slot = instance.m_Instances.GetResource(handle);
+            if (slot == nullptr) return sol::lua_nil;
+
+            auto it = slot->exposed_funcs.find(name);
+            if (it == slot->exposed_funcs.end()) return sol::lua_nil;
+
+            sol::protected_function_result result = it->second(sol::as_args(args));
+            if (!result.valid())
+            {
+                sol::error err = result;
+                AE_CORE_ERROR("[Script] CallInstanceAPI error in '{0}': {1}", name, err.what());
+                return sol::lua_nil;
+            }
+            return result;
+        }
+
+        friend struct ScriptSelfBinding;
     };
 } 
