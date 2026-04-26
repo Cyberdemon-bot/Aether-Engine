@@ -12,7 +12,7 @@ namespace Aether {
     void ResourceManager::Init()
     {
         auto& instance = GetInstance();
-        instance.m_Resources.reserve(128);
+        instance.m_Resources.reserve(64);
         AE_CORE_INFO("ResourceManager initialized");
     }
 

@@ -663,6 +663,9 @@ namespace Aether {
 
         {
             auto scriptView = View<ScriptComponent>();
+            if (ScriptEngine::IsExecOrderChanged())
+                Sort<ScriptComponent>([](const ScriptComponent& a, const ScriptComponent& b) 
+                {return ScriptEngine::GetExecOrder(a.ScriptHandle) <  ScriptEngine::GetExecOrder(b.ScriptHandle);});
 
             for (auto entity : scriptView)
             {

@@ -25,7 +25,7 @@ namespace Aether {
 
         void Init()
         {
-            m_Resources.reserve(128);
+            m_Resources.reserve(64);
         }
 
         void Shutdown()

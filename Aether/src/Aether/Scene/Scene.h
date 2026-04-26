@@ -99,6 +99,12 @@ namespace Aether {
             return m_Registry.group<Components...>();
         }
 
+        template<typename Component, typename Fn>
+        void Sort(Fn cmp)
+        {
+            m_Registry.sort<Component>(cmp);
+        } 
+
     private:
         uint64_t m_CurrentFrame = 0;
         uint32_t m_Threshold = 64;
