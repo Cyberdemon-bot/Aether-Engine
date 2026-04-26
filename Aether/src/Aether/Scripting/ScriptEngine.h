@@ -31,6 +31,7 @@ namespace Aether {
         Handle<EnvTag> env_hanle = Handle<EnvTag>::MakeInvalid();
         bool has_error = false;
         bool is_active = true;
+        int exec_order = 0;
 
         std::unordered_map<std::string, sol::protected_function> exposed_funcs;
     };
@@ -76,6 +77,9 @@ namespace Aether {
 
         static void SetActiveStage(Handle<ScriptTag> handle, bool active);
         static bool GetActiveStage(Handle<ScriptTag> handle);
+        static int GetExecOrder(Handle<ScriptTag> handle);
+
+        static bool IsExecOrderChanged();
 
     private:
         static ScriptEngine& GetInstance();
@@ -85,6 +89,7 @@ namespace Aether {
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
         std::unordered_map<std::string, sol::bytecode> m_Sources;
+        bool IsExecChanged = false;
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -223,6 +228,8 @@ namespace Aether {
             }
             return result;
         }
+
+        static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
 
         friend struct ScriptSelfBinding;
     };

@@ -85,6 +85,7 @@ namespace Aether {
         env["event"] = eventCtx;
 
         slot->env_hanle = env_handle;
+        MarkExecOrderChanged();
         return handle; 
     }
 
@@ -125,6 +126,7 @@ namespace Aether {
 
         instance.LuaState.RemoveEnvironment(slot->env_hanle);
         instance.m_Instances.DestroyResource(handle);
+        MarkExecOrderChanged();
     }
 
     void ScriptEngine::UpdateInstance(Handle<ScriptTag> handle, Timestep ts)
@@ -157,5 +159,24 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_EventManager->Flush();
+    }
+
+    int ScriptEngine::GetExecOrder(Handle<ScriptTag> handle)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return -1;
+        return slot->exec_order;
+    }
+
+    bool ScriptEngine::IsExecOrderChanged() 
+    { 
+        auto& instance = GetInstance();
+        if(instance.IsExecChanged)
+        {
+            instance.IsExecChanged = false;
+            return true;
+        }
+        return false;
     }
 }

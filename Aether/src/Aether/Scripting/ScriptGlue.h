@@ -269,6 +269,14 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (const Type& self), uint32_t,
                         return static_cast<uint32_t>(self.entity);
                     )
+                ), 
+                AE_REFLECT("ExecOrder",
+                    AE_MAKE_LAMBDA((), (const Type& self), int,
+                        ScriptEngine::MarkExecOrderChanged(); return self.slot->exec_order;
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& self, int val), void,
+                        self.slot->exec_order = val;
+                    )
                 )
             );
         }

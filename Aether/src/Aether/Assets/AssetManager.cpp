@@ -12,8 +12,8 @@ namespace Aether {
     void AssetManager::Init()
     {
         auto& instance = GetInstance();
-        instance.m_Handles.reserve(128);
-        instance.m_Assets.reserve(128);
+        instance.m_Handles.reserve(64);
+        instance.m_Assets.reserve(64);
         AE_CORE_INFO("AssetManager initialized");
     }
 
