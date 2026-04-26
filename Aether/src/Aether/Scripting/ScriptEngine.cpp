@@ -58,17 +58,13 @@ namespace Aether {
         BindType<EventManagerBinding>();
     }
 
-    Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity, const std::string& source_name)
+    Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<BytecodeTag> bh)
     {
         auto& instance = GetInstance(); 
-        auto it = instance.m_Sources.find(source_name);
-        if (it == instance.m_Sources.end())
-        {
-            AE_CORE_ERROR("Source name {0} not found!", source_name);
-            return Handle<ScriptTag>::MakeInvalid();
-        }
+        auto it = instance.m_Sources.GetResource(bh);
+        if (it == nullptr) return Handle<ScriptTag>::MakeInvalid();
 
-        sol::bytecode bytecode = it->second;
+        sol::bytecode bytecode = *it;
         auto env_handle = instance.LuaState.CreateEnvironment();
         sol::environment env = *instance.LuaState.env_pool.GetResource(env_handle);
         auto& lua = instance.LuaState.lua;
@@ -97,7 +93,7 @@ namespace Aether {
         CallMethod(*slot, "OnStart");
     }
 
-    void ScriptEngine::LoadScript(const std::string& source_name, const std::string& path)
+    Handle<BytecodeTag> ScriptEngine::LoadScript(const std::string& path)
     {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
@@ -110,11 +106,11 @@ namespace Aether {
         {
             sol::error err = res;
             AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
-            return;
+            return Handle<BytecodeTag>::MakeInvalid();
         }
 
         sol::bytecode bytecode = res.get<sol::function>().dump();
-        instance.m_Sources[source_name] = bytecode;
+        return instance.m_Sources.SaveResource(bytecode);
     }
 
     void ScriptEngine::DestroyInstance(Handle<ScriptTag> handle)

@@ -106,6 +106,11 @@ namespace Aether {
         return CreateEntity("default entity");
     }
 
+    Entity Scene::CreateEntity(std::string_view name, Entity parent)
+    {
+        return CreateEntity(name, UUID(), parent);
+    }
+
     Entity Scene::CreateEntity(std::string_view name, UUID id, Entity parent)
     {
         Entity e = m_Registry.create();
@@ -114,94 +119,11 @@ namespace Aether {
         m_Registry.emplace<TransformComponent>(e);
         auto& hierarchy = m_Registry.emplace<HierarchyComponent>(e);
         m_EntityLibrary[id] = e;
+        m_HierarchyDirty = true;
 
         if (parent != Null_Entity && IsValid(parent))
-        {
-            hierarchy.parent = parent;
-            auto& parentHie = GetComponent<HierarchyComponent>(parent);
-            if (parentHie.firstChild == Null_Entity) parentHie.firstChild = e;
-            else
-            {
-                Entity lastSib = parentHie.firstChild;
-                while (GetComponent<HierarchyComponent>(lastSib).nextSibling != Null_Entity)
-                    lastSib = GetComponent<HierarchyComponent>(lastSib).nextSibling;
-                
-                GetComponent<HierarchyComponent>(lastSib).nextSibling = e;
-                hierarchy.prevSibling = lastSib;
-            }
-        }
-        else
-        {
-            auto view = View<HierarchyComponent>();
-            Entity sib = Null_Entity; 
-            for (auto entity : view)
-            {
-                if (entity == e) continue;
-                if (GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
-                {
-                    sib = entity;
-                    break;
-                }
-            }
-            if (sib != Null_Entity) 
-            {
-                Entity oldNext = GetComponent<HierarchyComponent>(sib).nextSibling;
-                hierarchy.prevSibling = sib;
-                hierarchy.nextSibling = oldNext;
-                GetComponent<HierarchyComponent>(sib).nextSibling = e;
-                if (oldNext != Null_Entity) GetComponent<HierarchyComponent>(oldNext).prevSibling = e;
-            }
-        }
-        return e;
-    }
+            MakeParent(e, parent);
 
-    Entity Scene::CreateEntity(std::string_view name, Entity parent)
-    {
-        Entity e = m_Registry.create();
-        UUID id = UUID();
-        m_Registry.emplace<IDComponent>(e, id);
-        m_Registry.emplace<TagComponent>(e, std::string(name));
-        m_Registry.emplace<TransformComponent>(e);
-        auto& hierarchy = m_Registry.emplace<HierarchyComponent>(e);
-        m_EntityLibrary[id] = e;
-
-        if (parent != Null_Entity && IsValid(parent))
-        {
-            hierarchy.parent = parent;
-            auto& parentHie = GetComponent<HierarchyComponent>(parent);
-            if (parentHie.firstChild == Null_Entity) parentHie.firstChild = e;
-            else
-            {
-                Entity lastSib = parentHie.firstChild;
-                while (GetComponent<HierarchyComponent>(lastSib).nextSibling != Null_Entity)
-                    lastSib = GetComponent<HierarchyComponent>(lastSib).nextSibling;
-                
-                GetComponent<HierarchyComponent>(lastSib).nextSibling = e;
-                hierarchy.prevSibling = lastSib;
-            }
-        }
-        else
-        {
-            auto view = View<HierarchyComponent>();
-            Entity sib = Null_Entity; 
-            for (auto entity : view)
-            {
-                if (entity == e) continue;
-                if (GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
-                {
-                    sib = entity;
-                    break;
-                }
-            }
-            if (sib != Null_Entity) 
-            {
-                Entity oldNext = GetComponent<HierarchyComponent>(sib).nextSibling;
-                hierarchy.prevSibling = sib;
-                hierarchy.nextSibling = oldNext;
-                GetComponent<HierarchyComponent>(sib).nextSibling = e;
-                if (oldNext != Null_Entity) GetComponent<HierarchyComponent>(oldNext).prevSibling = e;
-            }
-        }
         return e;
     }
 
@@ -218,14 +140,8 @@ namespace Aether {
             currentChild = next;
         }
 
-        if (hierarchy.prevSibling != Null_Entity) GetComponent<HierarchyComponent>(hierarchy.prevSibling).nextSibling = hierarchy.nextSibling;
-        if (hierarchy.nextSibling != Null_Entity) GetComponent<HierarchyComponent>(hierarchy.nextSibling).prevSibling = hierarchy.prevSibling;
-
-        if (hierarchy.parent != Null_Entity)
-        {
-            auto& parentHie = GetComponent<HierarchyComponent>(hierarchy.parent);
-            if (parentHie.firstChild == entity) parentHie.firstChild = hierarchy.nextSibling;
-        }
+        GetComponent<HierarchyComponent>(entity).firstChild = Null_Entity;
+        BreakParent(entity);
 
         if (HasComponent<AnimatorComponent>(entity))
         {
@@ -241,6 +157,7 @@ namespace Aether {
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
+        m_HierarchyDirty = true;
     }
 
     void Scene::DestroyEntity(Entity entity)
@@ -262,6 +179,7 @@ namespace Aether {
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
+        m_HierarchyDirty = true;
     }
 
     void Scene::MakeParent(Entity child, Entity parent)
@@ -311,6 +229,7 @@ namespace Aether {
         }
 
         GetComponent<TransformComponent>(child).Dirty = true;
+        m_HierarchyDirty = true;
     }
 
     void Scene::BreakParent(Entity entity)
@@ -355,6 +274,7 @@ namespace Aether {
         hierarchy.prevSibling = Null_Entity;
         hierarchy.nextSibling = Null_Entity;
         hierarchy.firstChild = Null_Entity;
+        m_HierarchyDirty = true;
     }
 
     bool Scene::IsValid(Entity entity) const
@@ -367,12 +287,16 @@ namespace Aether {
         auto view = View<TransformComponent>();
         for (auto entity : view)
             if (GetComponent<TransformComponent>(entity).Dirty)
+            {
+                m_HierarchyDirty = true;
                 MarkDirty(entity);
+            }
     }
 
     void Scene::BreadthFirstSearch()
     {
         m_HierarchyLevels.clear();
+        m_HierarchyDirty = false;
         std::queue<std::pair<Entity, uint32_t>> Queue;
         auto view = View<HierarchyComponent>();
         for (auto entity : view)
@@ -434,11 +358,11 @@ namespace Aether {
     {
         const Node& node = reg.hierarchy->nodes[nodeIdx];
         Entity e = CreateEntity(node.name, parentEntity);
-        auto& t       = GetComponent<TransformComponent>(e);
+        auto& t = GetComponent<TransformComponent>(e);
         t.Translation = node.translation;
-        t.Rotation    = glm::normalize(node.rotation);
-        t.Scale       = node.scale;
-        MarkDirty(e);
+        t.Rotation = glm::normalize(node.rotation);
+        t.Scale = node.scale;
+        t.Dirty = true;
 
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
         {
@@ -654,7 +578,7 @@ namespace Aether {
         {
             m_CurrentFrame++;
             DirtyScan();
-            BreadthFirstSearch();
+            if(m_HierarchyDirty) BreadthFirstSearch();
             for (auto& level : m_HierarchyLevels) 
                 JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 

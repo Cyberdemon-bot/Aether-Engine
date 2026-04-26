@@ -317,9 +317,10 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("CreateEntity",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, const std::string& source_name), uint32_t,
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, uint64_t bh), uint32_t,
                         Entity e = ctx.scene->CreateEntity(name);
-                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, source_name);
+                        Handle<BytecodeTag> bytecode = Handle<BytecodeTag>::FromBlend(bh);
+                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, bytecode);
                         if (handle.IsValid())
                         {
                             ctx.scene->AddComponent<ScriptComponent>(e, handle);
@@ -328,10 +329,11 @@ namespace Aether {
                         return static_cast<uint32_t>(e);
                     ),
 
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, const std::string& source_name, uint32_t parentId), uint32_t,
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, uint64_t bh, uint32_t parentId), uint32_t,
                         Entity parent = static_cast<Entity>(parentId);
                         Entity e = ctx.scene->CreateEntity(name, parent);
-                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, source_name);
+                        Handle<BytecodeTag> bytecode = Handle<BytecodeTag>::FromBlend(bh);
+                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, bytecode);
                         if (handle.IsValid())
                         {
                             ctx.scene->AddComponent<ScriptComponent>(e, handle);
@@ -381,6 +383,12 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), bool,
                         Entity e = static_cast<Entity>(id);
                         return ctx.scene->IsValid(e);
+                    )
+                ),
+
+                AE_REFLECT("LoadScript",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& path), uint64_t,
+                        return ScriptEngine::LoadScript(path).Blend();
                     )
                 )
             );

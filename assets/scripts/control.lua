@@ -1,14 +1,13 @@
 _speed = 0.0
 _time = 0.0
-_script_b_id = 0
+_script = 0
 
 function OnStart()
     _speed = 5.0
-    _script_b_id = scene:FindByName("Plane.001")
     event:Listen("hello", function()
         print("hearded" .. _time)
     end)
-    print(_script_b_id)
+    _script = scene:LoadScript("assets/scripts/test.lua")
 end
 
 function OnUpdate(ts)
@@ -17,10 +16,11 @@ function OnUpdate(ts)
 
     if Input.IsKeyPressed(Key.Up) then
         move = move + Math.Vec3(0.0, 0.0, -1.0)
-        self:Call(_script_b_id, "SayHello")
     end
     if Input.IsKeyPressed(Key.Down) then
         move = move + Math.Vec3(0.0, 0.0, 1.0)
+        local _entity = scene:CreateEntity("bruh", _script)
+        self:Call(_entity, "SayHello")
     end
     if Input.IsKeyPressed(Key.Left) then
         move = move + Math.Vec3(-1.0, 0.0, 0.0)

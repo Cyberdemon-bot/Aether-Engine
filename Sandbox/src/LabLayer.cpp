@@ -100,8 +100,6 @@ void LabLayer::Attach()
     Aether::ConsoleLayer::RegisterCommand("loadcache", AE_BIND_CONSOLE_FN(LoadCacheModelAsync));
     Aether::ConsoleLayer::RegisterCommand("add",  AE_BIND_CONSOLE_FN(AddEntity));
 
-    Aether::ScriptEngine::LoadScript(m_DefaultScriptPath, m_DefaultScriptPath);
-
     AE_CORE_INFO("LabLayer initialized!");
 }
 
@@ -453,9 +451,9 @@ void LabLayer::DrawScriptingPanel()
                     m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 }
 
-                ScriptEngine::LoadScript(m_ScriptPath, m_ScriptPath);
+                auto script = ScriptEngine::LoadScript(m_ScriptPath);
                 Handle<ScriptTag> handle = ScriptEngine::CreateInstance(
-                    &m_Scene, m_ScriptTargetEntity, m_ScriptPath);
+                    &m_Scene, m_ScriptTargetEntity, script);
 
                 if (handle.IsValid())
                 {
