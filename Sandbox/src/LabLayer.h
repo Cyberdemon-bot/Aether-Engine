@@ -141,5 +141,4 @@ private:
 
     char m_SceneSavePath[256] = ".cache/untitled.yaml";
     char m_SceneLoadPath[256] = ".cache/untitled.yaml";
-    const char* m_DefaultScriptPath = "assets/scripts/control.lua";
 };

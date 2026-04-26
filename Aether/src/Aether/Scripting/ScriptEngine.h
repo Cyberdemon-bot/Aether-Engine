@@ -24,6 +24,7 @@ namespace Aether {
 
     struct ScriptTag;
     struct EnvTag;
+    struct BytecodeTag;
 
     struct InstanceSlot
     {
@@ -67,13 +68,13 @@ namespace Aether {
         static void Shutdown();
         static void RegisterTypes();
 
-        static Handle<ScriptTag> CreateInstance(Scene* scene, Entity entity, const std::string& source_name);
+        static Handle<ScriptTag> CreateInstance(Scene* scene, Entity entity, Handle<BytecodeTag> bh);
         static void DestroyInstance(Handle<ScriptTag> handle);
         static void StartInstance(Handle<ScriptTag> handle);
         static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
         static void FlushEvent();
 
-        static void LoadScript(const std::string& source_name, const std::string& path);
+        static Handle<BytecodeTag> LoadScript(const std::string& path);
 
         static void SetActiveStage(Handle<ScriptTag> handle, bool active);
         static bool GetActiveStage(Handle<ScriptTag> handle);
@@ -88,7 +89,7 @@ namespace Aether {
         std::optional<ScriptEventManager> m_EventManager;
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
-        std::unordered_map<std::string, sol::bytecode> m_Sources;
+        ResourcePool<Handle<BytecodeTag>, sol::bytecode> m_Sources;
         bool IsExecChanged = false;
 
         template<typename Binder>

@@ -21,6 +21,9 @@ namespace Aether {
             template<typename... Args>
             ResourceSlot(uint32_t gen, Args&&... args) 
                 : generation(gen), asset(std::forward<Args>(args)...) {}
+            
+            ResourceSlot(uint32_t gen, DataType& res)
+                : generation(gen), asset(std::move(res)) {}
         };
 
         void Init()
@@ -68,6 +71,27 @@ namespace Aether {
             {
                 index = m_Resources.size();
                 m_Resources.emplace_back(0, std::forward<Args>(args)...);
+            }
+
+            HandleType handle;
+            handle.index = index;
+            handle.generation = m_Resources[index].generation;
+            return handle;
+        }
+
+        HandleType SaveResource(DataType resource)
+        {
+            uint32_t index;
+            if (!FreeList.empty())
+            {
+                index = FreeList.back();
+                FreeList.pop_back();
+                m_Resources[index].asset = std::move(resource);
+            }
+            else
+            {
+                index = m_Resources.size();
+                m_Resources.emplace_back(0, resource);
             }
 
             HandleType handle;
