@@ -367,6 +367,47 @@ namespace Aether {
                         if (results.empty()) return static_cast<uint32_t>(Null_Entity);
                         return static_cast<uint32_t>(results[0]);
                     )
+                ),
+
+                AE_REFLECT("IsValid",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), bool,
+                        Entity e = static_cast<Entity>(id);
+                        return ctx.scene->IsValid(e);
+                    )
+                )
+            );
+        }
+    };
+
+    struct EventContext
+    {
+        Handle<ScriptTag> handle;
+        ScriptEventManager* event_manager = nullptr;
+    };
+
+    struct EventManagerBinding
+    {
+        using Type = EventContext;
+        static constexpr const char* get_name() { return "EventContext"; }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Fire",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::variadic_args args), void,
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        ctx.event_manager->FireEvent(name, std::move(collected));
+                    )
+                ),
+                AE_REFLECT("Listen",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::protected_function cb), void,
+                        ctx.event_manager->AddListener(ctx.handle, name, std::move(cb));
+                    )
+                ),
+                AE_REFLECT("Unlisten",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), void,
+                        ctx.event_manager->RemoveListener(ctx.handle, name);
+                    )
                 )
             );
         }

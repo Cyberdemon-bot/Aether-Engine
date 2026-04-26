@@ -5,6 +5,7 @@
 #include "Aether/Core/KeyCodes.h"
 
 namespace Aether {
+
     sol::meta_function ScriptEngine::OpNameToMeta(std::string_view name)
     {
         if (name == "ADD") return sol::meta_function::addition;
@@ -32,6 +33,7 @@ namespace Aether {
        auto& lua = instance.LuaState.lua;
        lua.open_libraries(sol::lib::base, sol::lib::math);
        instance.m_Instances.Init();
+       instance.m_EventManager.emplace(instance.LuaState.lua);
        RegisterTypes();
        AE_CORE_INFO("ScriptEngine initialized with {0}", LUA_VERSION);
     }
@@ -53,6 +55,7 @@ namespace Aether {
         BindType<TransformComponentBinding>();
         BindType<ScriptSelfBinding>();
         BindType<SceneBinding>();
+        BindType<EventManagerBinding>();
     }
 
     Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity, const std::string& source_name)
@@ -76,8 +79,10 @@ namespace Aether {
 
         ScriptSelf self{ scene, entity, slot};
         SceneContext sceneCtx{ scene };
+        EventContext eventCtx{ handle, &instance.m_EventManager.value() };
         env["self"] = self;
         env["scene"] = sceneCtx;
+        env["event"] = eventCtx;
 
         slot->env_hanle = env_handle;
         return handle; 
@@ -146,5 +151,11 @@ namespace Aether {
         auto slot = instance.m_Instances.GetResource(handle);
         if (slot == nullptr) return false;
         return slot->is_active;
+    }
+
+    void ScriptEngine::FlushEvent()
+    {
+        auto& instance = GetInstance();
+        instance.m_EventManager->Flush();
     }
 }
