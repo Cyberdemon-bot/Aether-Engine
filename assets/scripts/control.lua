@@ -5,6 +5,9 @@ _script_b_id = 0
 function OnStart()
     _speed = 5.0
     _script_b_id = scene:FindByName("Plane.001")
+    event:Listen("hello", function()
+        print("hearded" .. _time)
+    end)
     print(_script_b_id)
 end
 

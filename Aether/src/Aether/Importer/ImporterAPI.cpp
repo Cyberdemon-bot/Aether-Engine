@@ -102,7 +102,7 @@ namespace Aether {
             UUID rigID = AssetsRegister::Register(rigInfo.DebugName, rigInfo.AssetID);
             rigIDs.push_back(rigID);
             res.animators.push_back({});
-            auto rig = AssetManager::CreateAsset<Skeleton>(rigID, rigInfo.spec);
+            auto rig = AssetManager::CreateAsset<Skeleton>(rigID, std::move(rigInfo.spec));
             res.animators[rigIdx].skeleton = rig;
         }
 
@@ -115,7 +115,7 @@ namespace Aether {
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
                 auto skeletonHandle = AssetManager::GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->GetHandle();
-                auto clip = AssetManager::CreateAsset<Clip>(clipID, clipInfo.spec, skeletonHandle);
+                auto clip = AssetManager::CreateAsset<Clip>(clipID, std::move(clipInfo.spec), skeletonHandle);
                 res.animators[targetRigIdx].clips.push_back(clip);
             }
         }
@@ -183,7 +183,7 @@ namespace Aether {
             res.meshIDs.push_back(meshID);
         }
 
-        res.hierarchy = sceneData->Hierarchy;
+        res.hierarchy = std::move(sceneData->Hierarchy);
         return res;
     }
 }

@@ -2,6 +2,7 @@
 #include "Aether/Core/Base.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Container/ResourcePool.h"
+#include "Aether/Scripting/ScriptEventManager.h"
 #include <sol/sol.hpp>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
@@ -69,6 +70,7 @@ namespace Aether {
         static void DestroyInstance(Handle<ScriptTag> handle);
         static void StartInstance(Handle<ScriptTag> handle);
         static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
+        static void FlushEvent();
 
         static void LoadScript(const std::string& source_name, const std::string& path);
 
@@ -79,6 +81,7 @@ namespace Aether {
         static ScriptEngine& GetInstance();
 
         LuaWorker LuaState;
+        std::optional<ScriptEventManager> m_EventManager;
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
         std::unordered_map<std::string, sol::bytecode> m_Sources;

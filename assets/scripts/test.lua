@@ -5,6 +5,9 @@ function OnStart()
 end
 
 function OnUpdate(ts)
+    if Input.IsKeyPressed(Key.E) then
+        event:Fire("hello")
+    end
 end
 
 function OnDestroy()

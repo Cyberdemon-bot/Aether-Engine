@@ -104,7 +104,7 @@ namespace Aether {
         JPH::RegisterTypes();   
 
         m_TempAllocator = new JPH::TempAllocatorImpl(10 * 1024 * 1024); // 10MB
-        m_JobSystem     = new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 2);
+        m_JobSystem = new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 2);
 
         const JPH::uint maxBodies       = 1024;
         const JPH::uint numBodyMutexes = 0;

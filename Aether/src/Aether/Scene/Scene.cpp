@@ -669,6 +669,8 @@ namespace Aether {
                 auto& instance = GetComponent<ScriptComponent>(entity).ScriptHandle;
                 ScriptEngine::UpdateInstance(instance, ts);
             }
+
+            ScriptEngine::FlushEvent();
         }
 
         { // render
