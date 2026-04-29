@@ -25,6 +25,7 @@ namespace Aether {
     struct ScriptTag;
     struct EnvTag;
     struct BytecodeTag;
+    enum class CollisionType;
 
     struct InstanceSlot
     {
@@ -33,6 +34,7 @@ namespace Aether {
         bool has_error = false;
         bool is_active = true;
         int exec_order = 0;
+        Scene* ctx = nullptr;
 
         std::unordered_map<std::string, sol::protected_function> exposed_funcs;
     };
@@ -61,6 +63,15 @@ namespace Aether {
         ResourcePool<Handle<EnvTag>, sol::environment> env_pool;
     };
 
+    struct CollisionData
+    {
+        uint32_t entity;
+        CollisionType type;
+
+        glm::vec3 contactPoint;
+        glm::vec3 contactNormal;
+    };
+
     class AETHER_API ScriptEngine
     {
     public:
@@ -72,6 +83,7 @@ namespace Aether {
         static void DestroyInstance(Handle<ScriptTag> handle);
         static void StartInstance(Handle<ScriptTag> handle);
         static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
+        static void OnInstanceCollision(Handle<ScriptTag> handle, CollisionData data);
         static void FlushEvent();
 
         static Handle<BytecodeTag> LoadScript(const std::string& path);
@@ -90,6 +102,7 @@ namespace Aether {
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
         ResourcePool<Handle<BytecodeTag>, sol::bytecode> m_Sources;
+        std::vector<std::pair<Entity, Handle<ScriptTag>>> DestroyQueue;
         bool IsExecChanged = false;
 
         template<typename Binder>
@@ -231,7 +244,9 @@ namespace Aether {
         }
 
         static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
+        static void PushDestroyQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().DestroyQueue.push_back({ent, handle}); }
 
         friend struct ScriptSelfBinding;
+        friend struct SceneBinding;
     };
 } 

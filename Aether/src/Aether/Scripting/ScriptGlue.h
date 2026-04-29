@@ -155,6 +155,42 @@ namespace Aether {
         }
     }; 
 
+    struct CollisionBinding
+    {
+        using Type = CollisionData;
+        using VType = glm::vec3;
+        static constexpr const char* get_name() { return "CollisionData"; }
+
+        static constexpr auto get_props()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("EntityId", 
+                    AE_MAKE_LAMBDA((), (const Type& self), uint32_t,
+                        return static_cast<uint32_t>(self.entity);
+                    )
+                ),
+
+                AE_REFLECT("Type", 
+                    AE_MAKE_LAMBDA((), (const Type& self), CollisionType,
+                        return self.type;
+                    )
+                ),
+
+                AE_REFLECT("ContactPoint", 
+                    AE_MAKE_LAMBDA((), (const Type& self), VType,
+                        return self.contactPoint;
+                    )
+                ),
+
+                AE_REFLECT("ContactNormal", 
+                    AE_MAKE_LAMBDA((), (const Type& self), VType,
+                        return self.contactNormal;
+                    )
+                )
+            );
+        } 
+    };
+
     struct MathBinding
     {
         using VType = glm::vec3;
@@ -351,9 +387,8 @@ namespace Aether {
                         {
                             auto& sc = ctx.scene->GetComponent<ScriptComponent>(e);
                             if (sc.ScriptHandle.IsValid())
-                                ScriptEngine::DestroyInstance(sc.ScriptHandle);
+                                ScriptEngine::PushDestroyQueue(e, sc.ScriptHandle);
                         }
-                        ctx.scene->DestroyEntity(e);
                     )
                 ),
 

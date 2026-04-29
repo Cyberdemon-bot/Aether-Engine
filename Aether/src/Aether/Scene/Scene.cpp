@@ -119,7 +119,6 @@ namespace Aether {
         m_Registry.emplace<TransformComponent>(e);
         auto& hierarchy = m_Registry.emplace<HierarchyComponent>(e);
         m_EntityLibrary[id] = e;
-        m_HierarchyDirty = true;
 
         if (parent != Null_Entity && IsValid(parent))
             MakeParent(e, parent);
@@ -157,7 +156,6 @@ namespace Aether {
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
-        m_HierarchyDirty = true;
     }
 
     void Scene::DestroyEntity(Entity entity)
@@ -179,7 +177,6 @@ namespace Aether {
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
-        m_HierarchyDirty = true;
     }
 
     void Scene::MakeParent(Entity child, Entity parent)
@@ -229,7 +226,6 @@ namespace Aether {
         }
 
         GetComponent<TransformComponent>(child).Dirty = true;
-        m_HierarchyDirty = true;
     }
 
     void Scene::BreakParent(Entity entity)
@@ -274,7 +270,6 @@ namespace Aether {
         hierarchy.prevSibling = Null_Entity;
         hierarchy.nextSibling = Null_Entity;
         hierarchy.firstChild = Null_Entity;
-        m_HierarchyDirty = true;
     }
 
     bool Scene::IsValid(Entity entity) const
@@ -287,16 +282,12 @@ namespace Aether {
         auto view = View<TransformComponent>();
         for (auto entity : view)
             if (GetComponent<TransformComponent>(entity).Dirty)
-            {
-                m_HierarchyDirty = true;
                 MarkDirty(entity);
-            }
     }
 
     void Scene::BreadthFirstSearch()
     {
         m_HierarchyLevels.clear();
-        m_HierarchyDirty = false;
         std::queue<std::pair<Entity, uint32_t>> Queue;
         auto view = View<HierarchyComponent>();
         for (auto entity : view)
@@ -499,38 +490,93 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
-            Handle<BodyTag> handle = rbComp.ColliderHandle;
+            Handle<BodyTag>& handle = rbComp.ColliderHandle;
 
-            if (isWorldTransformDirty)
+            if (!handle.IsValid())
             {
-                transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
+                transform.WorldTransform = pTransform * transform.GetLocalTransform();
                 hasRecalculatedWorld = true;
 
+                glm::vec3 scale, translation, skew;
+                glm::quat rotation;
+                glm::vec4 perspective;
                 glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
+
                 glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
-                PhysicsSystem::SetPhysTransform(handle, {translation + worldOffset, rotation});
+
+                BodyConfig config;
+                config.motionType = rbComp.Type;
+                config.shape = rbComp.Shape;
+                config.size = glm::max(rbComp.Size * scale, glm::vec3(0.5f));
+                config.transform = { translation + worldOffset, rotation };
+                config.mass = rbComp.Mass;
+                config.friction = rbComp.Friction;
+                config.restitution = rbComp.Restitution;
+                config.isSensor = rbComp.IsSensor;
+
+                handle = PhysicsSystem::CreateBody(config);
+                if (rbComp.Type == MotionType::Dynamic)
+                    PhysicsSystem::SetActive(handle, true);
+
+                PhysicsSystem::SetUUID(handle, GetComponent<IDComponent>(entity).ID);
             }
-            else if (PhysicsSystem::GetBodyInfo(handle)->motionType == MotionType::Dynamic)
+            else 
             {
-                PhysTransform physTrans = PhysicsSystem::GetPhysTransform(handle);
-                glm::vec3 localOffset = rbComp.ColliderOffset;
-                glm::vec3 translation = physTrans.translation - (physTrans.rotation * localOffset);
-
-                if (hierarchy.parent == Null_Entity)
+                if (isWorldTransformDirty)
                 {
-                    transform.Translation = translation;
-                    transform.Rotation = physTrans.rotation;
-                }
-                else
-                {
-                    glm::mat4 invParent = glm::inverse(pTransform);
-                    glm::quat parentRot = glm::quat_cast(pTransform);
-                    transform.Translation = glm::vec3(invParent * glm::vec4(translation, 1.0f));
-                    transform.Rotation = glm::inverse(parentRot) * physTrans.rotation;
-                }
+                    transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
+                    hasRecalculatedWorld = true;
 
-                isWorldTransformDirty = true;
-                transform.Dirty = true;
+                    glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
+                    glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
+                    PhysTransform target = {translation + worldOffset, rotation};
+                    if (PhysicsSystem::GetBodyInfo(handle)->motionType == MotionType::Kinematic)
+                    {
+                        if (PhysicsSystem::CanMove(handle, target)) PhysicsSystem::SetPhysTransform(handle, target);
+                        else
+                        {
+                            PhysTransform physTrans = PhysicsSystem::GetPhysTransform(handle);
+                            glm::vec3 trans = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
+
+                            if (hierarchy.parent == Null_Entity)
+                            {
+                                transform.Translation = trans;
+                                transform.Rotation = physTrans.rotation;
+                            }
+                            else
+                            {
+                                glm::mat4 invParent = glm::inverse(pTransform);
+                                glm::quat parentRot = glm::quat_cast(pTransform);
+                                transform.Translation = glm::vec3(invParent * glm::vec4(trans, 1.0f));
+                                transform.Rotation = glm::inverse(parentRot) * physTrans.rotation;
+                            }
+                            transform.Dirty = true;
+                        }
+                    }
+                    else PhysicsSystem::SetPhysTransform(handle, target);
+                }
+                else if (PhysicsSystem::GetBodyInfo(handle)->motionType == MotionType::Dynamic)
+                {
+                    PhysTransform physTrans = PhysicsSystem::GetPhysTransform(handle);
+                    glm::vec3 localOffset = rbComp.ColliderOffset;
+                    glm::vec3 trans = physTrans.translation - (physTrans.rotation * localOffset);
+
+                    if (hierarchy.parent == Null_Entity)
+                    {
+                        transform.Translation = trans;
+                        transform.Rotation = physTrans.rotation;
+                    }
+                    else
+                    {
+                        glm::mat4 invParent = glm::inverse(pTransform);
+                        glm::quat parentRot = glm::quat_cast(pTransform);
+                        transform.Translation = glm::vec3(invParent * glm::vec4(trans, 1.0f));
+                        transform.Rotation = glm::inverse(parentRot) * physTrans.rotation;
+                    }
+
+                    isWorldTransformDirty = true;
+                    transform.Dirty = true;
+                }
             }
         }
 
@@ -539,15 +585,11 @@ namespace Aether {
             if (!hasRecalculatedWorld)
                 transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
 
-            bool needsDecompose = HasComponent<AudioSourceComponent>(entity) || HasComponent<LightComponent>(entity);
-            if (needsDecompose)
-                glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
-
             if (HasComponent<AudioSourceComponent>(entity))
-                AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, translation);
+                AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, glm::vec3(transform.WorldTransform[3]));
 
             if (HasComponent<LightComponent>(entity))
-                GetComponent<LightComponent>(entity).Config.position = translation;
+                GetComponent<LightComponent>(entity).Config.position = glm::vec3(transform.WorldTransform[3]);
 
             transform.LastUpdate = m_CurrentFrame;
         }
@@ -555,6 +597,8 @@ namespace Aether {
         transform.Dirty = false;
         transform.SubtreeDirty = false;
     }
+
+    
 
     void Scene::MarkDirty(Entity entity)
     {
@@ -572,13 +616,42 @@ namespace Aether {
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
         { 
-            PhysicsSystem::Update(ts);
+            PhysicsSystem::Update(ts, [this](const CollisionEvent& ev) 
+            {
+                if (ev.type == CollisionType::Enter) 
+                {
+                    Entity a = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyA));
+                    Entity b = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyB));
+
+                    if (HasComponent<ScriptComponent>(a)) 
+                    {
+                        CollisionData data;
+                        data.contactPoint = ev.contactPoint;
+                        data.contactNormal = ev.contactNormal;
+                        data.entity = static_cast<uint32_t>(b);
+
+                        Handle<ScriptTag> handle = GetComponent<ScriptComponent>(a).ScriptHandle;
+                        ScriptEngine::OnInstanceCollision(handle, data);
+                    }
+
+                    if (HasComponent<ScriptComponent>(b)) 
+                    {
+                        CollisionData data;
+                        data.contactPoint = ev.contactPoint;
+                        data.contactNormal = -ev.contactNormal; 
+                        data.entity = static_cast<uint32_t>(a);
+
+                        Handle<ScriptTag> handle = GetComponent<ScriptComponent>(b).ScriptHandle;
+                        ScriptEngine::OnInstanceCollision(handle, data);
+                    }
+                }
+            });
         }
 
         {
             m_CurrentFrame++;
             DirtyScan();
-            if(m_HierarchyDirty) BreadthFirstSearch();
+            BreadthFirstSearch();
             for (auto& level : m_HierarchyLevels) 
                 JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 
@@ -754,7 +827,7 @@ namespace Aether {
                 for (auto entity : rbView)
                 {
                     auto& component = GetComponent<ColliderComponent>(entity);
-                    if (!component.Visible) continue;
+                    if (!component.Visible || !component.ColliderHandle.IsValid()) continue;
                     Handle<BodyTag> handle = component.ColliderHandle;
                     PhysTransform pt = PhysicsSystem::GetPhysTransform(handle);
                     glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)

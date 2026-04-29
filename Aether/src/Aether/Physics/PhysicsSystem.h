@@ -15,9 +15,9 @@ namespace Aether {
             s_PhysicsAPI->Shutdown();
         }
 
-        static void Update(Timestep ts)
+        static void Update(Timestep ts, CollisionCallbackRef callback)
         {
-            s_PhysicsAPI->Update(ts);
+            s_PhysicsAPI->Update(ts, callback);
         }
 
         static Handle<BodyTag> CreateBody(const BodyConfig& config)

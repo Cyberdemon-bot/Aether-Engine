@@ -143,12 +143,16 @@ namespace Aether {
 
     struct ColliderComponent
     {
-        Handle<BodyTag> ColliderHandle;
+        Handle<BodyTag> ColliderHandle = Handle<BodyTag>::MakeInvalid();
         bool Visible = false;
-        glm::vec3 ColliderOffset;
-        ColliderShape Shape;
-        MotionType Type;
-        glm::vec3 Size; // box: halfx, halfy, halfz --- capsule: radius, height, __ --- sphere: radius, __, __
+        glm::vec3 ColliderOffset = glm::vec3(1.0f);
+        ColliderShape Shape = ColliderShape::Box;
+        MotionType Type = MotionType::Kinematic;
+        glm::vec3 Size = glm::vec3(0.5f); // box: halfx, halfy, halfz --- capsule: radius, height, __ --- sphere: radius, __, __
+        float Mass = 1.0f;
+        float Friction = 0.5f;
+        float Restitution = 0.0f;
+        bool IsSensor = false;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
         ColliderComponent(const Handle<BodyTag>& handle, bool visible = false)
@@ -161,6 +165,10 @@ namespace Aether {
             Shape = info.shape;
             Size = info.size;
             Type = info.motionType;
+            Mass = info.mass;
+            Friction = info.friction;
+            Restitution = info.restitution;
+            IsSensor = info.isSensor;
         }
     };
 

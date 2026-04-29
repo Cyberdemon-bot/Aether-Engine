@@ -25,27 +25,27 @@
 
 namespace JPH {
     namespace Layers {
-        static constexpr JPH::ObjectLayer STATIC  = 0;
-        static constexpr JPH::ObjectLayer DYNAMIC = 1;
-        static constexpr JPH::uint NUM_LAYERS     = 2;
+        static constexpr ObjectLayer STATIC  = 0;
+        static constexpr ObjectLayer DYNAMIC = 1;
+        static constexpr uint NUM_LAYERS     = 2;
     }
 
     namespace BPLayers {
-        static constexpr JPH::BroadPhaseLayer STATIC  { 0 };
-        static constexpr JPH::BroadPhaseLayer DYNAMIC { 1 };
-        static constexpr JPH::uint NUM_LAYERS          = 2;
+        static constexpr BroadPhaseLayer STATIC  { 0 };
+        static constexpr BroadPhaseLayer DYNAMIC { 1 };
+        static constexpr uint NUM_LAYERS          = 2;
     }
 
-    class BPLayerInterfaceImpl final : public JPH::BroadPhaseLayerInterface
+    class BPLayerInterfaceImpl final : public BroadPhaseLayerInterface
     {
     public:
-        JPH::uint GetNumBroadPhaseLayers() const override { return BPLayers::NUM_LAYERS; }
-        JPH::BroadPhaseLayer GetBroadPhaseLayer(JPH::ObjectLayer layer) const override
+        uint GetNumBroadPhaseLayers() const override { return BPLayers::NUM_LAYERS; }
+        BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer layer) const override
         {
             return layer == Layers::STATIC ? BPLayers::STATIC : BPLayers::DYNAMIC;
         }
     #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
-        const char* GetBroadPhaseLayerName(JPH::BroadPhaseLayer layer) const override
+        const char* GetBroadPhaseLayerName(BroadPhaseLayer layer) const override
         { return layer == BPLayers::STATIC ? "STATIC" : "DYNAMIC"; }
     #endif
     };
@@ -53,7 +53,7 @@ namespace JPH {
     class ObjVsBPFilter final : public ObjectVsBroadPhaseLayerFilter
     {
     public:
-        bool ShouldCollide(JPH::ObjectLayer obj, JPH::BroadPhaseLayer bp) const override
+        bool ShouldCollide(ObjectLayer obj, BroadPhaseLayer bp) const override
         {
             if (obj == Layers::STATIC)  return bp == BPLayers::DYNAMIC;
             if (obj == Layers::DYNAMIC) return true;
@@ -64,12 +64,87 @@ namespace JPH {
     class ObjVsObjFilter final : public ObjectLayerPairFilter
     {
     public:
-        bool ShouldCollide(JPH::ObjectLayer a, JPH::ObjectLayer b) const override
+        bool ShouldCollide(ObjectLayer a, ObjectLayer b) const override
         {
             if (a == Layers::STATIC)  return b == Layers::DYNAMIC;
             if (a == Layers::DYNAMIC) return true;
             return false;
         }
+    };
+    class Listener final : public ContactListener 
+    {
+    public:
+        Listener(JPH::BodyInterface* bodyInterface) : m_BodyInterface(bodyInterface)
+        {
+            m_QueueA.reserve(64);
+            m_QueueB.reserve(64);
+        }
+
+        virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override 
+        {
+            return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+        }
+
+        virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override 
+        {
+            JPH::RVec3 joltContactPoint = inManifold.GetWorldSpaceContactPointOn1(0);
+            JPH::Vec3 joltNormal = inManifold.mWorldSpaceNormal;
+            std::lock_guard<std::mutex> lock(m_Mutex);
+            m_WriteQueue->push_back({
+                Aether::CollisionType::Enter, 
+                Aether::Handle<Aether::BodyTag>::FromBlend(inBody1.GetUserData()), 
+                Aether::Handle<Aether::BodyTag>::FromBlend(inBody2.GetUserData()),
+                glm::vec3(joltContactPoint.GetX(), joltContactPoint.GetY(), joltContactPoint.GetZ()),
+                glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ())
+            });
+        }
+
+        virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override {
+            // LƯU Ý: Hàm Stay này bị gọi mỗi frame cho TẤT CẢ các vật đang chạm nhau.
+            // Chỉ nên mở comment nếu Script Engine của bạn thực sự cần thiết sự kiện OnTriggerStay, 
+            // nếu không sẽ làm phình to Event Queue rất nhanh.
+            
+            /*
+            std::lock_guard<std::mutex> lock(m_Mutex);
+            m_WriteQueue->push_back({
+                CollisionEventType::Stay, 
+                inBody1.GetID(), 
+                inBody2.GetID()
+            });
+            */
+        }
+
+        virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override {
+            std::lock_guard<std::mutex> lock(m_Mutex);
+            uint64_t userData1 = m_BodyInterface->GetUserData(inSubShapePair.GetBody1ID());
+            uint64_t userData2 = m_BodyInterface->GetUserData(inSubShapePair.GetBody2ID());
+
+            m_WriteQueue->push_back({
+                Aether::CollisionType::Exit, 
+                Aether::Handle<Aether::BodyTag>::FromBlend(userData1), 
+                Aether::Handle<Aether::BodyTag>::FromBlend(userData2),
+                glm::vec3(0.0f),
+                glm::vec3(0.0f)
+            });
+        }
+
+        void ProcessEvents(const Aether::CollisionCallbackRef& callback) 
+        {
+            std::vector<Aether::CollisionEvent>* readQueue;
+            {
+                std::lock_guard<std::mutex> lock(m_Mutex);
+                readQueue = m_WriteQueue;
+                m_WriteQueue = (m_WriteQueue == &m_QueueA) ? &m_QueueB : &m_QueueA;
+            } 
+            for (const auto& ev : *readQueue) callback(ev);
+            readQueue->clear();
+        }
+    private:
+        std::vector<Aether::CollisionEvent> m_QueueA;
+        std::vector<Aether::CollisionEvent> m_QueueB;
+        std::vector<Aether::CollisionEvent>* m_WriteQueue = &m_QueueA; 
+        JPH::BodyInterface* m_BodyInterface = nullptr;
+        std::mutex m_Mutex;
     };
 }
 
@@ -111,14 +186,18 @@ namespace Aether {
         const JPH::uint maxBodyPairs    = 1024;
         const JPH::uint maxContactConstraints = 1024;
 
+        m_PhysicsSystem = new JPH::PhysicsSystem();
+
         m_BPLayerInterface = new JPH::BPLayerInterfaceImpl();
         m_ObjVsBPFilter = new JPH::ObjVsBPFilter();
         m_ObjVsObjFilter = new JPH::ObjVsObjFilter();
 
-        m_PhysicsSystem = new JPH::PhysicsSystem();
         m_PhysicsSystem->Init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints, *m_BPLayerInterface, *m_ObjVsBPFilter, *m_ObjVsObjFilter);
-        m_PhysicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
+        m_ContactListener = new JPH::Listener(&m_PhysicsSystem->GetBodyInterface());
+
+        m_PhysicsSystem->SetContactListener(m_ContactListener);
+        m_PhysicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
         m_BodyPool.Init();
     }
 
@@ -126,6 +205,7 @@ namespace Aether {
     {
         if (m_PhysicsSystem) 
         {
+            m_PhysicsSystem->SetContactListener(nullptr);
             delete m_PhysicsSystem;
             m_PhysicsSystem = nullptr;
         }
@@ -146,6 +226,12 @@ namespace Aether {
         {
             delete m_BPLayerInterface;
             m_BPLayerInterface = nullptr;
+        }
+
+        if (m_ContactListener)
+        {
+            delete m_ContactListener;
+            m_ContactListener = nullptr;
         }
 
         if (m_JobSystem)
@@ -171,7 +257,7 @@ namespace Aether {
         m_BodyPool.Shutdown();
     }
 
-    void Jolt_PhysicsAPI::Update(Timestep ts)
+    void Jolt_PhysicsAPI::Update(Timestep ts, const CollisionCallbackRef& callback)
     {
         if (!m_PhysicsSystem) return;
 
@@ -179,6 +265,7 @@ namespace Aether {
         if (deltaTime > 1.0f / 30.0f) deltaTime = 1.0f / 30.0f;
         const int CollisionSteps = 1;
         m_PhysicsSystem->Update(deltaTime, CollisionSteps, m_TempAllocator, m_JobSystem);
+        m_ContactListener->ProcessEvents(callback);
     }
 
     Handle<BodyTag> Jolt_PhysicsAPI::CreateBody(const BodyConfig& config)
@@ -332,9 +419,7 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                uint32_t index = static_cast<uint32_t>(id >> 32);
-                uint32_t generation = static_cast<uint32_t>(id & 0xFFFFFFFF);
-                result.HitEntityHandle = {index, generation};
+                result.HitEntityHandle = {Handle<BodyTag>::FromBlend(id)};
 
                 JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
@@ -372,9 +457,7 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                uint32_t index = static_cast<uint32_t>(id >> 32);
-                uint32_t generation = static_cast<uint32_t>(id & 0xFFFFFFFF);
-                res.HitEntityHandle = {index, generation};
+                res.HitEntityHandle = {Handle<BodyTag>::FromBlend(id)};
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
                 res.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
@@ -430,7 +513,7 @@ namespace Aether {
         JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
 
         m_PhysicsSystem->GetNarrowPhaseQuery().CastShape(
-            shapeCast, settings, targetPos, collector,
+            shapeCast, settings, JPH::RVec3::sZero(), collector,
             JPH::BroadPhaseLayerFilter{},
             JPH::ObjectLayerFilter{},
             bodyFilter

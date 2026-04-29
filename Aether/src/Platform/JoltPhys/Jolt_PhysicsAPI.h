@@ -12,7 +12,7 @@ namespace JPH {
     class BroadPhaseLayerInterface;
     class ObjectVsBroadPhaseLayerFilter;
     class ObjectLayerPairFilter;
-    class ContactListener;
+    class Listener;
 }
 
 namespace Aether {
@@ -27,7 +27,7 @@ namespace Aether {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
-        virtual void Update(Timestep ts) override;
+        virtual void Update(Timestep ts, const CollisionCallbackRef& callback) override;
 
         virtual Handle<BodyTag> CreateBody(const BodyConfig& config) override;
         virtual void DestroyBody(Handle<BodyTag> handle) override;
@@ -57,6 +57,6 @@ namespace Aether {
         JPH::BroadPhaseLayerInterface* m_BPLayerInterface = nullptr;
         JPH::ObjectVsBroadPhaseLayerFilter* m_ObjVsBPFilter = nullptr;
         JPH::ObjectLayerPairFilter* m_ObjVsObjFilter = nullptr;
-        JPH::ContactListener* m_ContactListener = nullptr;
+        JPH::Listener* m_ContactListener = nullptr;
     };
 }
