@@ -206,8 +206,7 @@ namespace Aether::UI
         TextColored(Color::Green(), "%s", tag.Tag.c_str());
         Spacing();
 
-        TRS(t.Translation, t.Rotation, t.Scale, 0.01f);
-        scene.MarkDirty(selected);
+        if(TRS(t.Translation, t.Rotation, t.Scale, 0.01f)) t.Dirty = true;
 
         Spacing();
         if (Button("Reset Transform"))
@@ -215,7 +214,7 @@ namespace Aether::UI
             t.Translation = glm::vec3(0.f);
             t.Rotation    = glm::quat(1.f, 0.f, 0.f, 0.f);
             t.Scale       = glm::vec3(1.f);
-            scene.MarkDirty(selected);
+            t.Dirty = true;
         }
     }
 

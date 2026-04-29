@@ -213,70 +213,25 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID 
     auto* mesh = Aether::AssetManager::GetAsset<Aether::Mesh>(colliderMeshID);
     if (!mesh) return;
 
-    // Walk up hierarchy to compute world transform
-    std::vector<Aether::Entity> chain;
-    Aether::Entity cur = transformEntity;
-    while (cur != Aether::Null_Entity && m_Scene.IsValid(cur))
+    // Tear down existing body if any
+    if (m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
     {
-        chain.push_back(cur);
-        cur = m_Scene.GetComponent<Aether::HierarchyComponent>(cur).parent;
+        auto& col = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
+        if (col.ColliderHandle.IsValid())
+            Aether::PhysicsSystem::DestroyBody(col.ColliderHandle);
+        m_Scene.RemoveComponent<Aether::ColliderComponent>(transformEntity);
+        m_PhysicsBodies.erase(transformEntity);
     }
 
-    glm::mat4 worldTransform(1.0f);
-    for (int i = (int)chain.size() - 1; i >= 0; i--)
-        worldTransform *= m_Scene.GetComponent<Aether::TransformComponent>(chain[i]).GetLocalTransform();
+    // Write config — scene will create the body next frame in UpdateTransform
+    auto& col          = m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity);
+    col.ColliderOffset = mesh->GetBoundsCenter();
+    col.Shape          = Aether::ColliderShape::Box;
+    col.Size           = glm::max(mesh->GetBoundsExtents(), glm::vec3(0.5f));
+    col.Type           = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
+    col.Visible        = true;
 
-    auto& t          = m_Scene.GetComponent<Aether::TransformComponent>(transformEntity);
-    t.WorldTransform = worldTransform;
-    m_Scene.MarkDirty(transformEntity);
-
-    const glm::mat4& wt = worldTransform;
-    glm::vec3 worldScale(
-        glm::length(glm::vec3(wt[0])),
-        glm::length(glm::vec3(wt[1])),
-        glm::length(glm::vec3(wt[2])));
-
-    glm::mat3 rotMat(
-        glm::normalize(glm::vec3(wt[0])),
-        glm::normalize(glm::vec3(wt[1])),
-        glm::normalize(glm::vec3(wt[2])));
-    glm::quat worldRot = glm::quat_cast(rotMat);
-
-    glm::vec3 extents     = mesh->GetBoundsExtents() * worldScale;
-    glm::vec3 center      = glm::vec3(wt[3]) + rotMat * (mesh->GetBoundsCenter() * worldScale);
-    glm::vec3 localOffset = mesh->GetBoundsCenter() * worldScale;
-
-    Aether::BodyConfig config;
-    config.motionType  = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
-    config.shape       = Aether::ColliderShape::Box;
-    config.size        = glm::vec3(
-        std::max(std::abs(extents.x), 0.5f),
-        std::max(std::abs(extents.y), 0.5f),
-        std::max(std::abs(extents.z), 0.5f));
-    config.transform   = { center, worldRot };
-    config.friction    = 0.5f;
-    config.restitution = 0.3f;
-
-    const auto& handle = Aether::PhysicsSystem::CreateBody(config);
-
-    if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
-        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, handle, true);
-    else
-    {
-        auto& col          = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
-        col.ColliderHandle = handle;
-        col.ColliderOffset = localOffset;
-    }
-
-    PhysicsEntry entry;
-    entry.handle     = handle;
-    entry.enabled    = false;
-    entry.lastActive = false;
-    entry.isDynamic  = isDynamic;
-    m_PhysicsBodies[transformEntity] = entry;
-
-    if (isDynamic)
-        Aether::PhysicsSystem::SetActive(handle, false);
+    m_PhysicsBodies[transformEntity] = { Aether::Handle<Aether::BodyTag>::MakeInvalid(), false, false, isDynamic };
 }
 
 // =============================================================================
@@ -794,221 +749,6 @@ void LabLayer::DrawAnimationPanel()
         }
         if (!anyAnimators)
             UI::TextDisabled("No animators in scene.");
-
-        UI::Separator();
-
-        // =====================================================================
-        //  IK / Advanced section
-        //  All IK operations target a single selected animator entity.
-        // =====================================================================
-        if (auto h = UI::Header("IK & Advanced"))
-        {
-            // ---- Animator entity picker -------------------------------------
-            {
-                std::string preview = (m_IKAnimatorEntity != Null_Entity &&
-                                       m_Scene.IsValid(m_IKAnimatorEntity))
-                    ? m_Scene.GetComponent<TagComponent>(m_IKAnimatorEntity).Tag
-                    : "Select Animator";
-
-                if (ImGui::BeginCombo("Animator##ik", preview.c_str()))
-                {
-                    for (auto entity : m_Scene.View<AnimatorComponent, TagComponent>())
-                    {
-                        auto  g   = UI::ID((int)(uint64_t)entity);
-                        bool  sel = (m_IKAnimatorEntity == entity);
-                        auto& tag = m_Scene.GetComponent<TagComponent>(entity);
-                        if (ImGui::Selectable(tag.Tag.c_str(), sel))
-                        {
-                            m_IKAnimatorEntity = entity;
-                            // Invalidate joint cache so it rebuilds next frame
-                            m_JointBrowserEntity = Null_Entity;
-                            m_CachedJointNames.clear();
-                        }
-                        if (sel) ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-            }
-
-            // Rebuild joint name cache if entity changed
-            RefreshJointCache(m_IKAnimatorEntity, m_JointBrowserEntity,
-                              m_CachedJointNames, m_Scene, rigSystem.get());
-
-            bool hasAnimator = (m_IKAnimatorEntity != Null_Entity &&
-                                m_Scene.IsValid(m_IKAnimatorEntity) &&
-                                m_Scene.HasComponent<AnimatorComponent>(m_IKAnimatorEntity));
-
-            // ---- Joint browser (read-only list) -----------------------------
-            UI::Separator();
-            UI::SectionHeader("Joint Browser");
-            if (!hasAnimator)
-            {
-                UI::TextDisabled("Select an animator to browse joints.");
-            }
-            else if (m_CachedJointNames.empty())
-            {
-                UI::TextDisabled("Skeleton has no joints or is not loaded.");
-            }
-            else
-            {
-                // Scrollable child so it doesn't blow out the panel height
-                ImGui::BeginChild("##jointlist", ImVec2(0, 160), true);
-                for (int i = 0; i < (int)m_CachedJointNames.size(); i++)
-                    ImGui::TextUnformatted(m_CachedJointNames[i].c_str());
-                ImGui::EndChild();
-            }
-
-            // ---- Two-Bone IK ------------------------------------------------
-            UI::Separator();
-            UI::SectionHeader("Two-Bone IK");
-            {
-                auto d = UI::Disabled(!hasAnimator);
-
-                UI::Checkbox("Enable##tbik", m_TwoBoneIK.enabled);
-                JointCombo("Root Joint##tbik",  m_TwoBoneIK.rootIdx, m_CachedJointNames);
-                JointCombo("Mid Joint##tbik",   m_TwoBoneIK.midIdx,  m_CachedJointNames);
-                JointCombo("End Joint##tbik",   m_TwoBoneIK.endIdx,  m_CachedJointNames);
-                UI::DragXYZ("Target##tbik",  m_TwoBoneIK.target, 0.01f);
-                UI::DragXYZ("Pole##tbik",    m_TwoBoneIK.pole,   0.01f);
-                UI::SliderFloat("Weight##tbik", m_TwoBoneIK.weight, 0.f, 1.f);
-
-                bool canApply = hasAnimator &&
-                                m_TwoBoneIK.rootIdx >= 0 &&
-                                m_TwoBoneIK.midIdx  >= 0 &&
-                                m_TwoBoneIK.endIdx  >= 0 &&
-                                m_TwoBoneIK.rootIdx != m_TwoBoneIK.midIdx &&
-                                m_TwoBoneIK.midIdx  != m_TwoBoneIK.endIdx;
-                {
-                    auto d2 = UI::Disabled(!canApply);
-                    if (UI::Button("Apply Once##tbik") && canApply)
-                    {
-                        auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
-                        auto* skelAsset = AssetManager::GetAsset<Skeleton>(anim.Skeleton);
-                        if (skelAsset && anim.CurrentPose.IsValid())
-                        {
-                            TwoBoneIKSpec spec;
-                            spec.Skeleton = skelAsset->GetHandle();
-                            spec.Pose     = anim.CurrentPose;
-                            spec.Root     = m_TwoBoneIK.rootIdx;
-                            spec.Mid      = m_TwoBoneIK.midIdx;
-                            spec.End      = m_TwoBoneIK.endIdx;
-                            spec.Target   = m_TwoBoneIK.target;
-                            spec.Pole     = m_TwoBoneIK.pole;
-                            spec.Weight   = m_TwoBoneIK.weight;
-                            rigSystem->ScheduleTwoBoneIK(spec);
-                        }
-                    }
-                }
-                if (m_TwoBoneIK.enabled)
-                    UI::TextDisabled("IK will be injected each frame via Update.");
-            }
-
-            // ---- Look-At IK -------------------------------------------------
-            UI::Separator();
-            UI::SectionHeader("Look-At IK");
-            {
-                auto d = UI::Disabled(!hasAnimator);
-
-                UI::Checkbox("Enable##lookat", m_LookAt.enabled);
-                JointCombo("Bone##lookat", m_LookAt.boneIdx, m_CachedJointNames);
-                UI::DragXYZ("Target##lookat",  m_LookAt.target,  0.01f);
-                UI::DragXYZ("Forward##lookat", m_LookAt.forward, 0.01f);
-                UI::DragXYZ("Up##lookat",      m_LookAt.up,      0.01f);
-                UI::SliderFloat("Weight##lookat",     m_LookAt.weight,     0.f, 1.f);
-                UI::SliderFloat("Angle Limit (rad)##lookat", m_LookAt.angleLimit, 0.f, 3.14159f);
-
-                bool canApply = hasAnimator && m_LookAt.boneIdx >= 0;
-                {
-                    auto d2 = UI::Disabled(!canApply);
-                    if (UI::Button("Apply Once##lookat") && canApply)
-                    {
-                        auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
-                        auto* skelAsset = AssetManager::GetAsset<Skeleton>(anim.Skeleton);
-                        if (skelAsset && anim.CurrentPose.IsValid())
-                        {
-                            LookAtSpec spec;
-                            spec.Skeleton   = skelAsset->GetHandle();
-                            spec.Pose       = anim.CurrentPose;
-                            spec.Bone       = m_LookAt.boneIdx;
-                            spec.Target     = m_LookAt.target;
-                            spec.Forward    = m_LookAt.forward;
-                            spec.Up         = m_LookAt.up;
-                            spec.Weight     = m_LookAt.weight;
-                            spec.AngleLimit = m_LookAt.angleLimit;
-                            rigSystem->ScheduleLookAt(spec);
-                        }
-                    }
-                }
-            }
-
-            // ---- Blend ------------------------------------------------------
-            UI::Separator();
-            UI::SectionHeader("Clip Blend");
-            {
-                auto d = UI::Disabled(!hasAnimator);
-                UI::Checkbox("Enable##blend", m_Blend.enabled);
-                UI::Checkbox("Additive##blend", m_Blend.additive);
-
-                // Clip pickers — list clips on the selected animator
-                if (hasAnimator)
-                {
-                    auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
-                    std::vector<std::string> clipNames;
-                    for (int i = 0; i < (int)anim.Clips.size(); i++)
-                        clipNames.push_back("Clip " + std::to_string(i));
-
-                    UI::ComboList("Clip A##blend", clipNames, m_Blend.clipAIdx);
-                    UI::ComboList("Clip B##blend", clipNames, m_Blend.clipBIdx);
-                }
-
-                UI::SliderFloat("Alpha##blend", m_Blend.alpha, 0.f, 1.f);
-
-                bool canBlend = hasAnimator && [&]() -> bool {
-                    auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
-                    return m_Blend.clipAIdx >= 0 && m_Blend.clipAIdx < (int)anim.Clips.size() &&
-                           m_Blend.clipBIdx >= 0 && m_Blend.clipBIdx < (int)anim.Clips.size() &&
-                           m_Blend.clipAIdx != m_Blend.clipBIdx &&
-                           anim.CurrentPose.IsValid();
-                }();
-
-                {
-                    auto d2 = UI::Disabled(!canBlend);
-                    if (UI::Button("Apply Once##blend") && canBlend)
-                    {
-                        auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
-                        auto* skelAsset = AssetManager::GetAsset<Skeleton>(anim.Skeleton);
-                        auto* clipAAsset = AssetManager::GetAsset<Clip>(anim.Clips[m_Blend.clipAIdx]);
-                        auto* clipBAsset = AssetManager::GetAsset<Clip>(anim.Clips[m_Blend.clipBIdx]);
-                        if (skelAsset && clipAAsset && clipBAsset)
-                        {
-                            // We need two scratch poses for A and B, then blend into CurrentPose.
-                            // For a quick test we reuse CurrentPose as poseOut and sample A into
-                            // a temporary pose, B into another, then blend.
-                            auto skelHnd  = skelAsset->GetHandle();
-                            auto poseA    = rigSystem->CreatePose(skelHnd);
-                            auto poseB    = rigSystem->CreatePose(skelHnd);
-
-                            rigSystem->ScheduleSample(skelHnd, clipAAsset->GetHandle(),
-                                anim.Cache, poseA, anim.CurrentTime);
-                            rigSystem->ScheduleSample(skelHnd, clipBAsset->GetHandle(),
-                                anim.Cache, poseB, anim.CurrentTime);
-
-                            if (m_Blend.additive)
-                                rigSystem->ScheduleAdditive(poseA, poseB, anim.CurrentPose, m_Blend.alpha);
-                            else
-                                rigSystem->ScheduleBlend(poseA, poseB, anim.CurrentPose, m_Blend.alpha);
-
-                            rigSystem->ScheduleFinalize(skelHnd, anim.CurrentPose);
-                            rigSystem->ProcessTasks();
-                            rigSystem->ClearTasks();
-
-                            rigSystem->DestroyPose(poseA);
-                            rigSystem->DestroyPose(poseB);
-                        }
-                    }
-                }
-            }
-        } // end IK & Advanced header
     }
 }
 

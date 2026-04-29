@@ -117,6 +117,9 @@ void MainGameLayer::Attach()
         cfg.restitution = 0.0f;
         m_PlayerBodyHandle = Aether::PhysicsSystem::CreateBody(cfg);
         m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_PlayerBodyHandle);
+
+        Aether::UUID playerID = m_Scene.GetComponent<Aether::IDComponent>(m_Player).ID;
+        Aether::PhysicsSystem::SetUUID(m_PlayerBodyHandle, playerID);
     }
     m_Scene.GetComponent<Aether::AnimatorComponent>(FindAnimatorEntity(m_Scene, m_Player)).IsPlaying = false;
 
@@ -137,7 +140,6 @@ void MainGameLayer::Attach()
     auto uploadGun = Aether::Importer::Upload(Aether::Importer::Import("assets/models/gun.glb"));
     m_Scene.LoadHierarchy(uploadGun, m_Gun);
 
-    // Set gun animator to not loop
     if (!uploadGun.animators.empty())
     {
         Aether::Entity gunAnimEnt = FindAnimatorEntity(m_Scene, m_Gun);
@@ -152,7 +154,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // MISC
     // =========================================================================
-    m_PathGridSize       = m_ChunkSize / static_cast<float>(m_FlowFieldSubdivisions);
+    m_PathGridSize = m_ChunkSize / static_cast<float>(m_FlowFieldSubdivisions);
 
     Aether::PhysicsSystem::SetGravity({ 0.0f, 0.0f, 0.0f });
 
@@ -194,8 +196,6 @@ void MainGameLayer::Detach()
     Aether::AssetManager::Unload(m_ZombieBiteID);
 }
 
-// Helper: find the first child entity with an AnimatorComponent
-
 void MainGameLayer::Update(Aether::Timestep ts)
 {
     auto& window = Aether::Application::Get().GetWindow();
@@ -203,9 +203,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
 
     m_Camera.Update(ts);
 
-    float camDistance           = m_Camera.GetDistance();
-    m_CurrentRenderDistance     = m_BaseRenderDistance + static_cast<int>(camDistance / m_ZoomInfluence);
-    m_CurrentRenderDistance     = std::clamp(m_CurrentRenderDistance, 1, 30);
+    float camDistance       = m_Camera.GetDistance();
+    m_CurrentRenderDistance = m_BaseRenderDistance + static_cast<int>(camDistance / m_ZoomInfluence);
+    m_CurrentRenderDistance = std::clamp(m_CurrentRenderDistance, 1, 30);
 
     if (m_Scene.IsValid(m_Player))
     {
@@ -235,7 +235,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
 
         bool isMoving = glm::length(moveDir) > 0.0f;
 
-        // Find player animator entity once
         Aether::Entity playerAnimEnt = FindAnimatorEntity(m_Scene, m_Player);
 
         if (isMoving)
@@ -247,8 +246,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
             auto tryMove = [&](glm::vec3 delta) -> bool {
                 glm::vec3 candidate = pTransform.Translation + delta;
                 if (IsObstacleWithRadius(candidate)) return false;
-                Aether::PhysTransform pt{ candidate, pTransform.Rotation };
-                if (!m_FirstPerson && !Aether::PhysicsSystem::CanMove(m_PlayerBodyHandle, pt)) return false;
                 pTransform.Translation = candidate;
                 return true;
             };
@@ -257,7 +254,7 @@ void MainGameLayer::Update(Aether::Timestep ts)
             if (!didMove) didMove = tryMove(glm::vec3(moveDir.x, 0, 0) * stepLen);
             if (!didMove) didMove = tryMove(glm::vec3(0, 0, moveDir.z) * stepLen);
 
-            if (!m_FirstPerson) {
+            {
                 float     targetAngle = glm::atan(moveDir.x, moveDir.z);
                 glm::quat targetRot   = glm::quat(glm::vec3(0.0f, targetAngle, 0.0f));
                 if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
@@ -295,21 +292,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
             }
         }
 
-        float targetAmplitude = m_FirstPerson ? m_bobStrength : m_bobStrength / 2.0f;
-        float bobOffsetY      = glm::abs(glm::sin(s_HeadBobTimer)) * targetAmplitude * s_BobAmplitudeBlend;
-
+        float bobOffsetY    = glm::abs(glm::sin(s_HeadBobTimer)) * (m_bobStrength / 2.0f) * s_BobAmplitudeBlend;
         glm::vec3 playerTopPos = pTransform.Translation + glm::vec3(0.0f, 1.0f + bobOffsetY, 0.0f);
-        glm::vec3 playerEyePos = pTransform.Translation + glm::vec3(0.0f, 1.7f + bobOffsetY, 0.0f);
 
-        if (m_FirstPerson)
-        {
-            pTransform.Scale = { 0.001f, 0.001f, 0.001f };
-            m_Camera.SetDistance(0.0f);
-            m_Camera.SetFocalPoint(playerEyePos);
-            pTransform.Rotation = glm::quat(glm::vec3(0.0f, -m_Camera.GetYaw(), 0.0f));
-            pTransform.Dirty = true;
-        }
-        else
         {
             pTransform.Scale = { 1.0f, 1.0f, 1.0f };
             glm::vec3 shoulderOffset  = m_Camera.GetRightDirection() * 0.5f;
@@ -481,12 +466,9 @@ void MainGameLayer::Update(Aether::Timestep ts)
                     glm::vec3 newZombiePos = zT.Translation
                         + glm::normalize(facing) * (actualSpeed * zSpeedMult * (float)ts);
                     newZombiePos.y = yFloor;
-                    Aether::PhysTransform zombieTarget{ newZombiePos, zT.Rotation };
-                    auto& zRec = m_ZombieRegistry[zombie];
 
                     Aether::Entity zAnimEnt = FindAnimatorEntity(m_Scene, zombie);
-                    if (!IsObstacleWithRadius(newZombiePos) &&
-                        Aether::PhysicsSystem::CanMove(zRec.bodyHandle, zombieTarget)) {
+                    if (!IsObstacleWithRadius(newZombiePos)) {
                         zT.Translation = newZombiePos;
                         if (zAnimEnt != Aether::Null_Entity)
                             m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).IsPlaying = true;
@@ -516,31 +498,16 @@ void MainGameLayer::Update(Aether::Timestep ts)
         auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
         auto& gTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Gun);
 
-        if (m_FirstPerson)
-        {
-            glm::vec3 camPos  = m_Camera.GetPosition();
-            glm::vec3 forward = m_Camera.GetForwardDirection();
-            glm::vec3 right   = m_Camera.GetRightDirection();
-            glm::vec3 up      = m_Camera.GetUpDirection();
+        glm::quat pRot    = pTransform.Rotation;
+        glm::vec3 forward = pRot * glm::vec3(0.0f, 0.0f, -1.0f);
+        glm::vec3 right   = pRot * glm::vec3(1.0f, 0.0f,  0.0f);
+        glm::vec3 up      = pRot * glm::vec3(0.0f, 1.0f,  0.0f);
 
-            gTransform.Translation = camPos + (right * m_GunPosFP.x) + (up * m_GunPosFP.y) + (forward * m_GunPosFP.z);
-            glm::quat camQuat      = glm::quat(glm::vec3(-m_Camera.GetPitch(), -m_Camera.GetYaw(), 0.0f));
-            gTransform.Rotation    = camQuat * glm::quat(glm::radians(m_GunRotFP));
-            gTransform.Scale       = m_GunScaleFP;
-        }
-        else
-        {
-            glm::quat pRot    = pTransform.Rotation;
-            glm::vec3 forward = pRot * glm::vec3(0.0f, 0.0f, -1.0f);
-            glm::vec3 right   = pRot * glm::vec3(1.0f, 0.0f,  0.0f);
-            glm::vec3 up      = pRot * glm::vec3(0.0f, 1.0f,  0.0f);
-
-            gTransform.Translation = pTransform.Translation
-                + (right * m_GunPosTP.x) + (up * m_GunPosTP.y) + (forward * m_GunPosTP.z);
-            gTransform.Rotation    = pRot * glm::quat(glm::radians(m_GunRotTP));
-            gTransform.Scale       = m_GunScaleTP;
-        }
-        gTransform.Dirty = true;
+        gTransform.Translation = pTransform.Translation
+            + (right * m_GunPosTP.x) + (up * m_GunPosTP.y) + (forward * m_GunPosTP.z);
+        gTransform.Rotation    = pRot * glm::quat(glm::radians(m_GunRotTP));
+        gTransform.Scale       = m_GunScaleTP;
+        gTransform.Dirty       = true;
     }
 
     for (size_t i = 0; i < sources.size(); )
@@ -668,11 +635,10 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
 
     m_Scene.LoadHierarchy(m_ZombieSceneData, newZombie);
 
-    // Start playing immediately
     Aether::Entity zAnimEnt = FindAnimatorEntity(m_Scene, newZombie);
     if (zAnimEnt != Aether::Null_Entity)
     {
-        m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).IsPlaying = true;
+        m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).IsPlaying    = true;
         m_Scene.GetComponent<Aether::AnimatorComponent>(zAnimEnt).ActiveClipIdx = 4;
     }
 
@@ -1036,54 +1002,19 @@ void MainGameLayer::OnImGuiRender()
 void MainGameLayer::OnEvent(Aether::Event& event)
 {
     m_Camera.OnEvent(event);
-    auto& pTransform = m_Scene.GetComponent<Aether::TransformComponent>(m_Player);
-
-    if (event.GetEventType() == Aether::EventType::KeyPressed &&
-        Aether::Input::IsKeyPressed(Aether::Key::KeyCode::V))
-    {
-        m_FirstPerson    = !m_FirstPerson;
-        pTransform.Scale = m_FirstPerson ? glm::vec3(0.001f) : glm::vec3(1.0f);
-        pTransform.Dirty = true;
-        m_Camera.SetDistance(m_FirstPerson ? 0.5f : 6.0f);
-        event.Handled    = true;
-        return;
-    }
-
-    if (event.GetEventType() == Aether::EventType::MouseScrolled)
-    {
-        auto& e = (Aether::MouseScrolledEvent&)event;
-        if (!m_FirstPerson) {
-            if (e.GetYOffset() > 0 && m_Camera.GetDistance() < 1.3f) {
-                m_FirstPerson = true;
-                m_Camera.SetDistance(0.5f);
-                event.Handled = true;
-                return;
-            }
-            if (m_LockCamera) { event.Handled = true; return; }
-        }
-        else {
-            if (e.GetYOffset() < 0) {
-                m_FirstPerson = false;
-                m_Camera.SetDistance(6.0f);
-            }
-            event.Handled = true;
-            return;
-        }
-    }
 
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
         Aether::Input::IsMouseButtonPressed(Aether::Mouse::MouseCode::Button0) &&
         m_PlayerHealth > 0.0f)
     {
-        if (m_IsReloading)      { AE_WARN("Can't shoot while reloading!"); return; }
-        if (m_CurrentAmmo <= 0) { m_AmmoEmptyTimer = 1.0f; AE_WARN("Out of ammo! Press R"); return; }
+        if (m_IsReloading)       { AE_WARN("Can't shoot while reloading!"); return; }
+        if (m_CurrentAmmo <= 0)  { m_AmmoEmptyTimer = 1.0f; AE_WARN("Out of ammo! Press R"); return; }
         if (m_ShootTimer > 0.0f) return;
 
         m_CurrentAmmo--;
         m_ShootTimer = m_ShootDuration;
         if (m_CurrentAmmo == 0) m_AmmoEmptyTimer = 1.0f;
 
-        // Trigger gun shoot animation
         if (m_Scene.IsValid(m_Gun))
         {
             Aether::Entity gunAnimEnt = FindAnimatorEntity(m_Scene, m_Gun);

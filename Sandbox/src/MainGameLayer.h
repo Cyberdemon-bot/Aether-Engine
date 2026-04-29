@@ -63,8 +63,8 @@ private:
 
     float yFloor = -7.6f;
 
-    float m_PlayerHealth = 100.0f;
-    float m_MaxHealth    = 100.0f;
+    float m_PlayerHealth   = 100.0f;
+    float m_MaxHealth      = 100.0f;
     float m_DamageCooldown = 1.0f;
 
     // --- Zombies ---
@@ -72,19 +72,19 @@ private:
         Aether::Handle<Aether::BodyTag> bodyHandle{};
     };
 
-    Aether::RegisteredScene                    m_ZombieSceneData;
-    std::vector<Aether::Entity>                m_ActiveZombies;
-    std::map<Aether::Entity, ZombieRecord>     m_ZombieRegistry;
-    float          m_ZombieSpeed       = 4.5f;
+    Aether::RegisteredScene                m_ZombieSceneData;
+    std::vector<Aether::Entity>            m_ActiveZombies;
+    std::map<Aether::Entity, ZombieRecord> m_ZombieRegistry;
+    float          m_ZombieSpeed = 4.5f;
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
     int maxZombies = 100;
 
     // --- Flow Field ---
     std::map<std::pair<int, int>, FlowCell> m_FlowField;
-    float m_PathGridSize = 1.0f;
+    float m_PathGridSize      = 1.0f;
     int   m_FlowFieldSubdivisions = 16;
-    float m_FlowFieldTimer = 0.0f;
+    float m_FlowFieldTimer    = 0.0f;
     void UpdateFlowField(const glm::vec3& targetPos);
 
     float GetCellValue(int coordX, int coordZ) const;
@@ -96,13 +96,9 @@ private:
     // --- Gun ---
     Aether::Entity m_Gun = Aether::Null_Entity;
 
-    glm::vec3 m_GunPosFP   = {  0.38f, -0.25f,  1.2f };
-    glm::vec3 m_GunRotFP   = {  0.0f,   90.0f,  0.0f };
-    glm::vec3 m_GunScaleFP = {  0.2f,    0.2f,  0.2f };
-
     glm::vec3 m_GunPosTP   = { -0.25f,  1.37f, -0.45f };
     glm::vec3 m_GunRotTP   = {  0.0f,  -90.0f,  0.0f  };
-    glm::vec3 m_GunScaleTP = {  0.2f,    0.2f,  0.2f  };
+    glm::vec3 m_GunScaleTP = {  0.2f,    0.2f,   0.2f  };
 
     // --- Ammo ---
     int   m_CurrentAmmo    = 30;
@@ -126,13 +122,12 @@ private:
     };
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
-    Aether::AssetHandle m_BaseMapMesh;
+    Aether::AssetHandle              m_BaseMapMesh;
     std::vector<Aether::AssetHandle> m_BaseMapMaterials;
 
     // --- Rendering ---
-    float m_ShadowBias  = 0.00001f;
-    bool  m_LockCamera  = false;
-    bool  m_FirstPerson = false;
+    float m_ShadowBias = 0.00001f;
+    bool  m_LockCamera = false;
 
     std::shared_ptr<Aether::Texture2D> m_MuzzleFlashTexture;
     glm::vec3 m_MuzzleOffset = { 0.0f, -0.25f, 1.2f };

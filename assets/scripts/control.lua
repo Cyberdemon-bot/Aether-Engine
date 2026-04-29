@@ -19,8 +19,6 @@ function OnUpdate(ts)
     end
     if Input.IsKeyPressed(Key.Down) then
         move = move + Math.Vec3(0.0, 0.0, 1.0)
-        local _entity = scene:CreateEntity("bruh", _script)
-        self:Call(_entity, "SayHello")
     end
     if Input.IsKeyPressed(Key.Left) then
         move = move + Math.Vec3(-1.0, 0.0, 0.0)
@@ -37,6 +35,10 @@ function OnUpdate(ts)
 
     local current = self.Transform.Translation
     self.Transform.Translation = current + move * _speed * ts
+end
+
+function OnCollision(data)
+    print("hello i got the signal!")
 end
 
 function OnDestroy()

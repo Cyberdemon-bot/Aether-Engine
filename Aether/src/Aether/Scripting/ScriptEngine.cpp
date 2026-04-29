@@ -3,6 +3,7 @@
 #include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
 #include "Aether/Core/KeyCodes.h"
+#include "Aether/Physics/PhysicsAPI.h"
 
 namespace Aether {
 
@@ -33,6 +34,8 @@ namespace Aether {
        auto& lua = instance.LuaState.lua;
        lua.open_libraries(sol::lib::base, sol::lib::math);
        instance.m_Instances.Init();
+       instance.m_Sources.Init();
+       instance.DestroyQueue.reserve(32);
        instance.m_EventManager.emplace(instance.LuaState.lua);
        RegisterTypes();
        AE_CORE_INFO("ScriptEngine initialized with {0}", LUA_VERSION);
@@ -42,12 +45,15 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_Instances.Shutdown();
+        instance.m_Sources.Shutdown();
+        instance.DestroyQueue.clear();
     }
 
     void ScriptEngine::RegisterTypes()
     {
         BindEnum<Key::KeyCode>("Key");
         BindEnum<Mouse::MouseCode>("Mouse");
+        BindEnum<CollisionType>("CollisionType");
         BindType<Vec3Binding>("Math");
         BindType<QuatBinding>("Math");
         BindModule<MathBinding>("Math");
@@ -56,6 +62,7 @@ namespace Aether {
         BindType<ScriptSelfBinding>();
         BindType<SceneBinding>();
         BindType<EventManagerBinding>();
+        BindType<CollisionBinding>();
     }
 
     Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<BytecodeTag> bh)
@@ -81,6 +88,7 @@ namespace Aether {
         env["event"] = eventCtx;
 
         slot->env_hanle = env_handle;
+        slot->ctx = scene;
         MarkExecOrderChanged();
         return handle; 
     }
@@ -135,6 +143,16 @@ namespace Aether {
         CallMethod(*slot, "OnUpdate", (float)ts);
     }
 
+    void ScriptEngine::OnInstanceCollision(Handle<ScriptTag> handle, CollisionData data)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return;
+        if (slot->has_error) return;
+
+        CallMethod(*slot, "OnCollision", data);
+    }
+
     void ScriptEngine::SetActiveStage(Handle<ScriptTag> handle, bool active)
     {
         auto& instance = GetInstance();
@@ -155,6 +173,16 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_EventManager->Flush();
+
+        for (auto& [e, handle] : instance.DestroyQueue)
+        {
+            auto* it = instance.m_Instances.GetResource(handle);
+            if (it == nullptr) continue;
+
+            it->ctx->DestroyEntity(e);
+            DestroyInstance(handle);
+        }
+        instance.DestroyQueue.clear();
     }
 
     int ScriptEngine::GetExecOrder(Handle<ScriptTag> handle)
