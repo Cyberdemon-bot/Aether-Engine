@@ -229,6 +229,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID 
     col.Shape          = Aether::ColliderShape::Box;
     col.Size           = glm::max(mesh->GetBoundsExtents(), glm::vec3(0.5f));
     col.Type           = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
+    //col.IsSensor       = true;
     col.Visible        = true;
 
     m_PhysicsBodies[transformEntity] = { Aether::Handle<Aether::BodyTag>::MakeInvalid(), false, false, isDynamic };

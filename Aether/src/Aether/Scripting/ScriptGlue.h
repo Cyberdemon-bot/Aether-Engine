@@ -166,13 +166,13 @@ namespace Aether {
             return AE_REFLECT_LIST(
                 AE_REFLECT("EntityId", 
                     AE_MAKE_LAMBDA((), (const Type& self), uint32_t,
-                        return static_cast<uint32_t>(self.entity);
+                        return self.entity;
                     )
                 ),
 
                 AE_REFLECT("Type", 
-                    AE_MAKE_LAMBDA((), (const Type& self), CollisionType,
-                        return self.type;
+                    AE_MAKE_LAMBDA((), (const Type& self), int,
+                        return static_cast<int>(self.type);
                     )
                 ),
 

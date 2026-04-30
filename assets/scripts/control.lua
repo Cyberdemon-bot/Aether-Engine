@@ -34,11 +34,14 @@ function OnUpdate(ts)
     end
 
     local current = self.Transform.Translation
-    self.Transform.Translation = current + move * _speed * ts
+    --self.Transform.Translation = current + move * _speed * ts
 end
 
 function OnCollision(data)
     print("hello i got the signal!")
+    print(data.EntityId)
+    print(CollisionType.Name[data.Type])
+    print(data.ContactPoint.x, data.ContactPoint.y, data.ContactPoint.z)
 end
 
 function OnDestroy()
