@@ -186,9 +186,15 @@ namespace Aether {
             auto& instance = GetInstance();
             auto& lua = instance.LuaState.lua;
             sol::table dataTable = lua.create_table();
+            sol::table reverseTable = lua.create_table(); 
             auto entries = magic_enum::enum_entries<T>();
             for (const auto& [value, name] : entries)
-                dataTable[name] = static_cast<typename std::underlying_type<T>::type>(value);
+            {
+                auto intVal = static_cast<typename std::underlying_type<T>::type>(value);
+                dataTable[name] = intVal;
+                reverseTable[intVal] = name;  
+            }
+            dataTable["Name"] = reverseTable; 
 
             sol::table proxyTable = lua.create_table();
             sol::table mt = lua.create_table();

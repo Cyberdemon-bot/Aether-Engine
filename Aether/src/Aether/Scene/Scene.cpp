@@ -618,10 +618,12 @@ namespace Aether {
         { 
             PhysicsSystem::Update(ts, [this](const CollisionEvent& ev) 
             {
-                if (ev.type == CollisionType::Enter) 
+                if (ev.type == CollisionType::Enter || ev.type == CollisionType::Exit) 
                 {
                     Entity a = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyA));
                     Entity b = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyB));
+
+                    if (a == Null_Entity || b == Null_Entity) return;
 
                     if (HasComponent<ScriptComponent>(a)) 
                     {
@@ -629,6 +631,7 @@ namespace Aether {
                         data.contactPoint = ev.contactPoint;
                         data.contactNormal = ev.contactNormal;
                         data.entity = static_cast<uint32_t>(b);
+                        data.type = ev.type;
 
                         Handle<ScriptTag> handle = GetComponent<ScriptComponent>(a).ScriptHandle;
                         ScriptEngine::OnInstanceCollision(handle, data);
@@ -640,6 +643,7 @@ namespace Aether {
                         data.contactPoint = ev.contactPoint;
                         data.contactNormal = -ev.contactNormal; 
                         data.entity = static_cast<uint32_t>(a);
+                        data.type = ev.type;
 
                         Handle<ScriptTag> handle = GetComponent<ScriptComponent>(b).ScriptHandle;
                         ScriptEngine::OnInstanceCollision(handle, data);

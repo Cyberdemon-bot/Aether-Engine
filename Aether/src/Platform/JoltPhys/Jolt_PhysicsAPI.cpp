@@ -74,7 +74,7 @@ namespace JPH {
     class Listener final : public ContactListener 
     {
     public:
-        Listener(JPH::BodyInterface* bodyInterface) : m_BodyInterface(bodyInterface)
+        Listener()
         {
             m_QueueA.reserve(64);
             m_QueueB.reserve(64);
@@ -90,6 +90,8 @@ namespace JPH {
             JPH::RVec3 joltContactPoint = inManifold.GetWorldSpaceContactPointOn1(0);
             JPH::Vec3 joltNormal = inManifold.mWorldSpaceNormal;
             std::lock_guard<std::mutex> lock(m_Mutex);
+            m_UserDataCache[inBody1.GetID().GetIndexAndSequenceNumber()] = inBody1.GetUserData();
+            m_UserDataCache[inBody2.GetID().GetIndexAndSequenceNumber()] = inBody2.GetUserData();
             m_WriteQueue->push_back({
                 Aether::CollisionType::Enter, 
                 Aether::Handle<Aether::BodyTag>::FromBlend(inBody1.GetUserData()), 
@@ -100,29 +102,21 @@ namespace JPH {
         }
 
         virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override {
-            // LƯU Ý: Hàm Stay này bị gọi mỗi frame cho TẤT CẢ các vật đang chạm nhau.
-            // Chỉ nên mở comment nếu Script Engine của bạn thực sự cần thiết sự kiện OnTriggerStay, 
-            // nếu không sẽ làm phình to Event Queue rất nhanh.
-            
-            /*
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            m_WriteQueue->push_back({
-                CollisionEventType::Stay, 
-                inBody1.GetID(), 
-                inBody2.GetID()
-            });
-            */
         }
 
-        virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override {
+        virtual void OnContactRemoved(const JPH::SubShapeIDPair& inSubShapePair) override
+        {
             std::lock_guard<std::mutex> lock(m_Mutex);
-            uint64_t userData1 = m_BodyInterface->GetUserData(inSubShapePair.GetBody1ID());
-            uint64_t userData2 = m_BodyInterface->GetUserData(inSubShapePair.GetBody2ID());
+
+            auto it1 = m_UserDataCache.find(inSubShapePair.GetBody1ID().GetIndexAndSequenceNumber());
+            auto it2 = m_UserDataCache.find(inSubShapePair.GetBody2ID().GetIndexAndSequenceNumber());
+
+            if (it1 == m_UserDataCache.end() || it2 == m_UserDataCache.end()) return;
 
             m_WriteQueue->push_back({
-                Aether::CollisionType::Exit, 
-                Aether::Handle<Aether::BodyTag>::FromBlend(userData1), 
-                Aether::Handle<Aether::BodyTag>::FromBlend(userData2),
+                Aether::CollisionType::Exit,
+                Aether::Handle<Aether::BodyTag>::FromBlend(it1->second),
+                Aether::Handle<Aether::BodyTag>::FromBlend(it2->second),
                 glm::vec3(0.0f),
                 glm::vec3(0.0f)
             });
@@ -139,11 +133,17 @@ namespace JPH {
             for (const auto& ev : *readQueue) callback(ev);
             readQueue->clear();
         }
+
+        void EraseCache(uint32_t id)
+        {
+            std::lock_guard<std::mutex> lock(m_Mutex);
+            m_UserDataCache.erase(id);
+        }
     private:
         std::vector<Aether::CollisionEvent> m_QueueA;
         std::vector<Aether::CollisionEvent> m_QueueB;
         std::vector<Aether::CollisionEvent>* m_WriteQueue = &m_QueueA; 
-        JPH::BodyInterface* m_BodyInterface = nullptr;
+        std::unordered_map<uint32_t, uint64_t> m_UserDataCache;
         std::mutex m_Mutex;
     };
 }
@@ -191,11 +191,9 @@ namespace Aether {
         m_BPLayerInterface = new JPH::BPLayerInterfaceImpl();
         m_ObjVsBPFilter = new JPH::ObjVsBPFilter();
         m_ObjVsObjFilter = new JPH::ObjVsObjFilter();
+        m_ContactListener = new JPH::Listener();
 
         m_PhysicsSystem->Init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints, *m_BPLayerInterface, *m_ObjVsBPFilter, *m_ObjVsObjFilter);
-
-        m_ContactListener = new JPH::Listener(&m_PhysicsSystem->GetBodyInterface());
-
         m_PhysicsSystem->SetContactListener(m_ContactListener);
         m_PhysicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
         m_BodyPool.Init();
@@ -558,6 +556,7 @@ namespace Aether {
         if (!data) return;
 
         JPH::BodyID id = data->joltID;
+        m_ContactListener->EraseCache(id.GetIndexAndSequenceNumber());
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         bodyInterface.RemoveBody(id);
