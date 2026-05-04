@@ -111,6 +111,21 @@ namespace Aether {
         m_CachePool.DestroyResource(cache);
     }
 
+    void Ozz_RigModule::RepairCache(Handle<CacheTag> cache, Handle<ClipTag> clip)
+    {
+        auto* ce_it = m_CachePool.GetResource(cache);
+        auto* cp_it = m_ClipPool.GetResource(clip);
+
+        if (!ce_it || !cp_it)
+        {
+            AE_CORE_INFO("Cache not found or clip not found to repair!");
+            return;
+        }
+
+        ce_it->data->Invalidate();
+        ce_it->data->Resize(cp_it->data->num_tracks());
+    }
+
 
     Handle<PoseTag> Ozz_RigModule::CreatePose(Handle<SkeletonTag> skeleton)
     {

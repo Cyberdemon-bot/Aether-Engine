@@ -1,13 +1,16 @@
 #pragma once
-#include "Aether/Core/Base.h"
-#include "Aether/Scene/Scene.h"
-#include "Aether/Container/ResourcePool.h"
-#include "Aether/Scripting/ScriptEventManager.h"
+
 #include <sol/sol.hpp>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
 #include <unordered_map>
 #include <string>
+
+#include "Aether/Core/Base.h"
+#include "Aether/Scene/Entity.h"
+#include "Aether/Core/Timestep.h"
+#include "Aether/Container/ResourcePool.h"
+#include "Aether/Scripting/ScriptEventManager.h"
 namespace Aether {
 
     template <typename T, typename = void> struct HasGetProps : std::false_type {};
@@ -26,6 +29,7 @@ namespace Aether {
     struct EnvTag;
     struct BytecodeTag;
     enum class CollisionType;
+    class Scene;
 
     struct InstanceSlot
     {

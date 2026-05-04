@@ -239,7 +239,10 @@ namespace Aether::UI
                 clipNames.push_back("Clip " + std::to_string(i));
 
             if (ComboList("Clip", clipNames, anim.ActiveClipIdx))
+            {
                 anim.CurrentTime = 0.0f;
+                anim.CacheDirty = true;
+            }
         }
 
         Separator();

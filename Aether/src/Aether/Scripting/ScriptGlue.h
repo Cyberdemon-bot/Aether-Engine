@@ -5,6 +5,7 @@
 #include "Aether/Scene/Component.h"
 #include "Aether/Core/Input.h"
 #include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Scene/Scene.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 

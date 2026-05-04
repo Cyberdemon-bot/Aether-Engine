@@ -4,6 +4,7 @@
 #include "Aether/Core/Log.h"
 #include "Aether/Core/KeyCodes.h"
 #include "Aether/Physics/PhysicsAPI.h"
+#include "Aether/Scene/Scene.h"
 
 namespace Aether {
 

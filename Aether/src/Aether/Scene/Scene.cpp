@@ -95,10 +95,23 @@ namespace Aether {
 
     Scene::Scene() 
     {
+        m_EntityLibrary.reserve(32);
+        m_SceneLights.reserve(32);
     }
 
     Scene::~Scene() 
     {
+        std::vector<Entity> all;
+        all.reserve(m_EntityLibrary.size());
+        for (auto& [id, entity] : m_EntityLibrary)
+            all.push_back(entity);
+
+        for (auto entity : all)
+            DestroyEntity(entity, false);
+
+        m_EntityLibrary.clear();
+        m_SceneLights.clear();
+        m_HierarchyLevels.clear();
     }
     
     Entity Scene::CreateEntity()
@@ -124,6 +137,19 @@ namespace Aether {
             MakeParent(e, parent);
 
         return e;
+    }
+
+    void Scene::ImportPrefab(Entity entity, const Prefab& prefab, bool override)
+    {
+        LoadComponent(entity, prefab.tag, override);
+        LoadComponent(entity, prefab.transform, override);
+        LoadComponent(entity, prefab.hierarchy, override);
+        LoadComponent(entity, prefab.mesh, override);
+        LoadComponent(entity, prefab.light, override);
+        LoadComponent(entity, prefab.camera, override);
+        LoadComponent(entity, prefab.animator, override);
+        LoadComponent(entity, prefab.collider, override);
+        LoadComponent(entity, prefab.boneAttach, override);
     }
 
     void Scene::DestroyHierarchy(Entity entity)
@@ -153,15 +179,18 @@ namespace Aether {
             }
         }
 
+        if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
+            PhysicsSystem::DestroyBody(GetComponent<ColliderComponent>(entity).ColliderHandle);
+
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
     }
 
-    void Scene::DestroyEntity(Entity entity)
+    void Scene::DestroyEntity(Entity entity, bool repair_hie)
     {
         if (!m_Registry.valid(entity)) return;
-        BreakParent(entity);
+        if (repair_hie) BreakParent(entity);
 
         if (HasComponent<AnimatorComponent>(entity))
         {
@@ -173,6 +202,9 @@ namespace Aether {
                 if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
             }
         }
+
+        if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
+            PhysicsSystem::DestroyBody(GetComponent<ColliderComponent>(entity).ColliderHandle);
         
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
@@ -482,51 +514,19 @@ namespace Aether {
         bool isWorldTransformDirty = transform.Dirty || pDirty;
         bool hasRecalculatedWorld = false;
 
-        glm::vec3 scale, translation, skew;
-        glm::quat rotation;
-        glm::vec4 perspective;
-        glm::mat4 boneMat = glm::mat4(1.0f);
-
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
             Handle<BodyTag>& handle = rbComp.ColliderHandle;
 
-            if (!handle.IsValid())
-            {
-                transform.WorldTransform = pTransform * transform.GetLocalTransform();
-                hasRecalculatedWorld = true;
-
-                glm::vec3 scale, translation, skew;
-                glm::quat rotation;
-                glm::vec4 perspective;
-                glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
-
-                glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
-
-                BodyConfig config;
-                config.motionType = rbComp.Type;
-                config.shape = rbComp.Shape;
-                config.size = glm::max(rbComp.Size * scale, glm::vec3(0.5f));
-                config.transform = { translation + worldOffset, rotation };
-                config.mass = rbComp.Mass;
-                config.friction = rbComp.Friction;
-                config.restitution = rbComp.Restitution;
-                config.isSensor = rbComp.IsSensor;
-
-                handle = PhysicsSystem::CreateBody(config);
-                if (rbComp.Type == MotionType::Dynamic)
-                    PhysicsSystem::SetActive(handle, true);
-
-                PhysicsSystem::SetUUID(handle, GetComponent<IDComponent>(entity).ID);
-            }
-            else 
+            if (handle.IsValid()) 
             {
                 if (isWorldTransformDirty)
                 {
-                    transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
+                    transform.WorldTransform = pTransform * transform.GetLocalTransform();
                     hasRecalculatedWorld = true;
 
+                    glm::vec3 scale, translation, skew; glm::quat rotation; glm::vec4 perspective;
                     glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
                     glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
                     PhysTransform target = {translation + worldOffset, rotation};
@@ -583,7 +583,7 @@ namespace Aether {
         if (isWorldTransformDirty)
         {
             if (!hasRecalculatedWorld)
-                transform.WorldTransform = pTransform * boneMat * transform.GetLocalTransform();
+                transform.WorldTransform = pTransform * transform.GetLocalTransform();
 
             if (HasComponent<AudioSourceComponent>(entity))
                 AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, glm::vec3(transform.WorldTransform[3]));
@@ -660,6 +660,40 @@ namespace Aether {
                 JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 
                 ));
+        }
+
+        {
+            auto view = View<ColliderComponent>();
+            for (auto entity : view)
+            {
+                auto& rbComp = GetComponent<ColliderComponent>(entity);
+                Handle<BodyTag>& handle = rbComp.ColliderHandle;
+
+                if (!handle.IsValid())
+                {
+                    glm::vec3 scale, translation, skew;
+                    glm::quat rotation;
+                    glm::vec4 perspective;
+                    glm::decompose(GetComponent<TransformComponent>(entity).WorldTransform, scale, rotation, translation, skew, perspective);
+                    glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
+
+                    BodyConfig config;
+                    config.motionType = rbComp.Type;
+                    config.shape = rbComp.Shape;
+                    config.size = glm::max(rbComp.Size * scale, glm::vec3(0.5f));
+                    config.transform = { translation + worldOffset, rotation };
+                    config.mass = rbComp.Mass;
+                    config.friction = rbComp.Friction;
+                    config.restitution = rbComp.Restitution;
+                    config.isSensor = rbComp.IsSensor;
+
+                    handle = PhysicsSystem::CreateBody(config);
+                    if (rbComp.Type == MotionType::Dynamic)
+                        PhysicsSystem::SetActive(handle, true);
+
+                    PhysicsSystem::SetUUID(handle, GetComponent<IDComponent>(entity).ID);
+                }
+            }
         }
 
         {
@@ -758,11 +792,20 @@ namespace Aether {
                 for (auto entity : animView)
                 {
                     auto& comp = GetComponent<AnimatorComponent>(entity);
-                    if (comp.Clips.empty() || !comp.Cache.IsValid() || comp.Culled) continue;
+                    if (comp.Clips.empty() || comp.Culled) continue;
 
                     auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
                     auto* clipAsset = AssetManager::GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
+
+                    if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());
+                    if (!comp.CurrentPose.IsValid()) comp.CurrentPose = rigModule->CreatePose(skeletonAsset->GetHandle());
+
+                    if (comp.CacheDirty)
+                    {
+                        rigModule->RepairCache(comp.Cache, clipAsset->GetHandle());
+                        comp.CacheDirty = false;
+                    }
 
                     auto skelHandle = skeletonAsset->GetHandle();
                     auto clipHandle = clipAsset->GetHandle();

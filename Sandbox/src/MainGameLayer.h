@@ -68,13 +68,9 @@ private:
     float m_DamageCooldown = 1.0f;
 
     // --- Zombies ---
-    struct ZombieRecord {
-        Aether::Handle<Aether::BodyTag> bodyHandle{};
-    };
 
     Aether::RegisteredScene                m_ZombieSceneData;
     std::vector<Aether::Entity>            m_ActiveZombies;
-    std::map<Aether::Entity, ZombieRecord> m_ZombieRegistry;
     float          m_ZombieSpeed = 4.5f;
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
@@ -143,6 +139,9 @@ private:
     Aether::UUID m_GunReloadID;
     Aether::UUID m_ZombieBiteID;
     Aether::UUID m_BgmSoundID;
+
+    Aether::Prefab m_ZombiePrefab;
+    Aether::Prefab m_ChunkPrefab;
     std::vector<Aether::UUID> sources;
 
     float m_ShootTimer    = 0.0f;

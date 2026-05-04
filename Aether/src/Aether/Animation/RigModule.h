@@ -80,6 +80,7 @@ namespace Aether {
 
         virtual Handle<CacheTag> CreateCache(Handle<ClipTag> clip) = 0;
         virtual void DestroyCache(Handle<CacheTag> cache) = 0;
+        virtual void RepairCache(Handle<CacheTag> cache, Handle<ClipTag> clip) = 0;
 
         virtual Handle<PoseTag> CreatePose(Handle<SkeletonTag> skeleton) = 0;
         virtual void DestroyPose(Handle<PoseTag> pose) = 0;
