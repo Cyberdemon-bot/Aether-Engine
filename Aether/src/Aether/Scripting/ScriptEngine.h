@@ -102,7 +102,8 @@ namespace Aether {
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
         ResourcePool<Handle<BytecodeTag>, sol::bytecode> m_Sources;
-        std::vector<std::pair<Entity, Handle<ScriptTag>>> DestroyQueue;
+        std::vector<std::pair<Entity, Handle<ScriptTag>>> m_DestroyQueue;
+        std::vector<std::pair<Entity, Handle<ScriptTag>>> m_CreateQueue;
         bool IsExecChanged = false;
 
         template<typename Binder>
@@ -250,7 +251,8 @@ namespace Aether {
         }
 
         static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
-        static void PushDestroyQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().DestroyQueue.push_back({ent, handle}); }
+        static void PushDestroyQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
+        static void PushCreateQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().m_CreateQueue.push_back({ent, handle}); }
 
         friend struct ScriptSelfBinding;
         friend struct SceneBinding;
