@@ -9,13 +9,17 @@
 #include "Aether/Importer/ImporterAPI.h"
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/Renderer.h"
+#include "Aether/Scene/Component.h"
 
 namespace Aether {
 
     using Entity = entt::entity;
-    static constexpr Entity Null_Entity = entt::null;
     static const glm::vec4 GREEN = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
     static const glm::vec4 RED = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    
+    template<typename Component>
+    struct ComponentInfo;
+    struct Prefab;
     class AETHER_API Scene 
     {
     public:
@@ -25,11 +29,13 @@ namespace Aether {
         Entity CreateEntity();
         Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);
         Entity CreateEntity(std::string_view name, UUID id, Entity parent = Null_Entity);
-        void DestroyEntity(Entity entity);
+        void DestroyEntity(Entity entity, bool repair_hie = true);
         void DestroyHierarchy(Entity entity);
         void MakeParent(Entity child, Entity parent);
         void BreakParent(Entity entity);
         void MarkDirty(Entity entity);
+
+        void ImportPrefab(Entity entity, const Prefab& prefab, bool override = false);
 
         bool IsValid(Entity entity) const;
         void Update(Timestep ts, EditorCamera* camera = nullptr);
@@ -118,5 +124,19 @@ namespace Aether {
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
         void UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform);
         void ResolveBoneAttachments();
+
+        template<typename T>
+        void LoadComponent(Entity entity, const ComponentInfo<T>& info, bool override)
+        {
+            if (!info.IsExits) return;
+            if (m_Registry.any_of<T>(entity))
+            {
+                if (override) m_Registry.get<T>(entity) = info.data;
+            }
+            else
+            {
+                m_Registry.emplace<T>(entity) = info.data;
+            }
+        }
     };
 }

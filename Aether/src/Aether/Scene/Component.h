@@ -2,7 +2,7 @@
 
 #include "Aether/Core/UUID.h"
 #include "Aether/Assets/Mesh.h"
-#include "Aether/Scene/Scene.h"
+#include "Aether/Scene/Entity.h"
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Physics/PhysicsSystem.h"
@@ -96,10 +96,17 @@ namespace Aether {
         float Speed = 1.0f;
         bool IsPlaying = true;
         bool Loop = true;
+        bool CacheDirty = false;
         mutable bool Culled = false;
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
+
+        void SetClip(int idx)
+        {
+            ActiveClipIdx = idx;
+            CacheDirty = true;
+        }
     };
 
     struct AudioSourceComponent
@@ -190,5 +197,25 @@ namespace Aether {
         {}
  
         void Invalidate() const { JointIndex = -1; }
+    };
+
+    template<typename Component>
+    struct ComponentInfo
+    {
+        bool IsExits = false;
+        Component data;
+    };
+
+    struct Prefab
+    {
+        ComponentInfo<TagComponent> tag;
+        ComponentInfo<TransformComponent> transform;
+        ComponentInfo<HierarchyComponent> hierarchy;
+        ComponentInfo<MeshComponent> mesh;
+        ComponentInfo<LightComponent> light;
+        ComponentInfo<CameraComponent> camera;
+        ComponentInfo<AnimatorComponent> animator;
+        ComponentInfo<ColliderComponent> collider;
+        ComponentInfo<BoneAttachmentComponent> boneAttach;
     };
 }

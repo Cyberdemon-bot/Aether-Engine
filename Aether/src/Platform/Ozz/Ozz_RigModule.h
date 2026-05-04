@@ -26,6 +26,7 @@ namespace Aether {
 
         virtual Handle<CacheTag> CreateCache(Handle<ClipTag> clip) override;
         virtual void DestroyCache(Handle<CacheTag> cache) override;
+        virtual void RepairCache(Handle<CacheTag> cache, Handle<ClipTag> clip) override;
 
         virtual Handle<PoseTag> CreatePose(Handle<SkeletonTag> skeleton) override;
         virtual void DestroyPose(Handle<PoseTag> pose) override;

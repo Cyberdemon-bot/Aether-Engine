@@ -269,61 +269,6 @@ void LabLayer::Update(Aether::Timestep ts)
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
 
     m_Scene.Update(ts, &m_Camera);
-
-    // Inject persistent IK tasks AFTER the scene has run its own animation pass
-    // (scene calls ClearTasks+ProcessTasks internally; these go in the next frame's
-    // pre-render window if you wire them before scene update, but for a test panel
-    // "apply next frame" is fine — just schedule here and they'll fire next Update)
-    {
-        auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
-        if (rigSystem && m_IKAnimatorEntity != Aether::Null_Entity &&
-            m_Scene.IsValid(m_IKAnimatorEntity) &&
-            m_Scene.HasComponent<Aether::AnimatorComponent>(m_IKAnimatorEntity))
-        {
-            auto& anim = m_Scene.GetComponent<Aether::AnimatorComponent>(m_IKAnimatorEntity);
-            auto* skelAsset = Aether::AssetManager::GetAsset<Aether::Skeleton>(anim.Skeleton);
-
-            if (skelAsset && anim.CurrentPose.IsValid())
-            {
-                auto skelHnd = skelAsset->GetHandle();
-
-                if (m_TwoBoneIK.enabled &&
-                    m_TwoBoneIK.rootIdx >= 0 && m_TwoBoneIK.midIdx >= 0 && m_TwoBoneIK.endIdx >= 0)
-                {
-                    Aether::TwoBoneIKSpec spec;
-                    spec.Skeleton = skelHnd;
-                    spec.Pose     = anim.CurrentPose;
-                    spec.Root     = m_TwoBoneIK.rootIdx;
-                    spec.Mid      = m_TwoBoneIK.midIdx;
-                    spec.End      = m_TwoBoneIK.endIdx;
-                    spec.Target   = m_TwoBoneIK.target;
-                    spec.Pole     = m_TwoBoneIK.pole;
-                    spec.Weight   = m_TwoBoneIK.weight;
-                    rigSystem->ScheduleTwoBoneIK(spec);
-                    rigSystem->ScheduleFinalize(skelHnd, anim.CurrentPose);
-                    rigSystem->ProcessTasks();
-                    rigSystem->ClearTasks();
-                }
-
-                if (m_LookAt.enabled && m_LookAt.boneIdx >= 0)
-                {
-                    Aether::LookAtSpec spec;
-                    spec.Skeleton   = skelHnd;
-                    spec.Pose       = anim.CurrentPose;
-                    spec.Bone       = m_LookAt.boneIdx;
-                    spec.Target     = m_LookAt.target;
-                    spec.Forward    = m_LookAt.forward;
-                    spec.Up         = m_LookAt.up;
-                    spec.Weight     = m_LookAt.weight;
-                    spec.AngleLimit = m_LookAt.angleLimit;
-                    rigSystem->ScheduleLookAt(spec);
-                    rigSystem->ScheduleFinalize(skelHnd, anim.CurrentPose);
-                    rigSystem->ProcessTasks();
-                    rigSystem->ClearTasks();
-                }
-            }
-        }
-    }
 }
 
 void LabLayer::OnEvent(Aether::Event& event)
