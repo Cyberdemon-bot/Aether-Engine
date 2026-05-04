@@ -359,10 +359,11 @@ namespace Aether {
                         Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, bytecode);
                         if (handle.IsValid())
                         {
-                            ctx.scene->AddComponent<ScriptComponent>(e, handle);
-                            ScriptEngine::StartInstance(handle);
+                            ScriptEngine::PushCreateQueue(e, handle);
+                            return static_cast<uint32_t>(e);
                         }
-                        return static_cast<uint32_t>(e);
+                        ctx.scene->DestroyEntity(e);
+                        return 0;
                     ),
 
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, uint64_t bh, uint32_t parentId), uint32_t,
@@ -372,10 +373,11 @@ namespace Aether {
                         Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, bytecode);
                         if (handle.IsValid())
                         {
-                            ctx.scene->AddComponent<ScriptComponent>(e, handle);
-                            ScriptEngine::StartInstance(handle);
+                            ScriptEngine::PushCreateQueue(e, handle);
+                            return static_cast<uint32_t>(e);
                         }
-                        return static_cast<uint32_t>(e);
+                        ctx.scene->DestroyEntity(e);
+                        return 0;
                     )
                 ),
 
@@ -389,20 +391,6 @@ namespace Aether {
                             if (sc.ScriptHandle.IsValid())
                                 ScriptEngine::PushDestroyQueue(e, sc.ScriptHandle);
                         }
-                    )
-                ),
-
-                AE_REFLECT("DestroyHierarchy",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), void,
-                        Entity e = static_cast<Entity>(id);
-                        if (!ctx.scene->IsValid(e)) return;
-                        if (ctx.scene->HasComponent<ScriptComponent>(e))
-                        {
-                            auto& sc = ctx.scene->GetComponent<ScriptComponent>(e);
-                            if (sc.ScriptHandle.IsValid())
-                                ScriptEngine::DestroyInstance(sc.ScriptHandle);
-                        }
-                        ctx.scene->DestroyHierarchy(e);
                     )
                 ),
 

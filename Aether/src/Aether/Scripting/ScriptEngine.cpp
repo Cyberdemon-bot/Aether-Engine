@@ -35,7 +35,8 @@ namespace Aether {
        lua.open_libraries(sol::lib::base, sol::lib::math);
        instance.m_Instances.Init();
        instance.m_Sources.Init();
-       instance.DestroyQueue.reserve(32);
+       instance.m_DestroyQueue.reserve(32);
+       instance.m_CreateQueue.reserve(32);
        instance.m_EventManager.emplace(instance.LuaState.lua);
        RegisterTypes();
        AE_CORE_INFO("ScriptEngine initialized with {0}", LUA_VERSION);
@@ -46,7 +47,8 @@ namespace Aether {
         auto& instance = GetInstance();
         instance.m_Instances.Shutdown();
         instance.m_Sources.Shutdown();
-        instance.DestroyQueue.clear();
+        instance.m_DestroyQueue.clear();
+        instance.m_CreateQueue.clear();
     }
 
     void ScriptEngine::RegisterTypes()
@@ -174,7 +176,7 @@ namespace Aether {
         auto& instance = GetInstance();
         instance.m_EventManager->Flush();
 
-        for (auto& [e, handle] : instance.DestroyQueue)
+        for (auto& [e, handle] : instance.m_DestroyQueue)
         {
             auto* it = instance.m_Instances.GetResource(handle);
             if (it == nullptr) continue;
@@ -182,7 +184,18 @@ namespace Aether {
             it->ctx->DestroyEntity(e);
             DestroyInstance(handle);
         }
-        instance.DestroyQueue.clear();
+        instance.m_DestroyQueue.clear();
+
+        for (auto& [e, handle] : instance.m_CreateQueue)
+        {
+            auto* it = instance.m_Instances.GetResource(handle);
+            if (it == nullptr) continue;
+
+            it->ctx->AddComponent<ScriptComponent>(e, handle);
+            StartInstance(handle);
+        }
+        instance.m_CreateQueue.clear();
+
     }
 
     int ScriptEngine::GetExecOrder(Handle<ScriptTag> handle)
