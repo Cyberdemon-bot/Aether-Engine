@@ -7,7 +7,6 @@ function OnStart()
     event:Listen("hello", function()
         print("hearded" .. _time)
     end)
-    _script = scene:LoadScript("assets/scripts/test.lua")
 end
 
 function OnUpdate(ts)
