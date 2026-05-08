@@ -627,26 +627,34 @@ namespace Aether {
 
                     if (HasComponent<ScriptComponent>(a)) 
                     {
-                        CollisionData data;
-                        data.contactPoint = ev.contactPoint;
-                        data.contactNormal = ev.contactNormal;
-                        data.entity = static_cast<uint32_t>(b);
-                        data.type = ev.type;
+                        auto& cmp = GetComponent<ScriptComponent>(a);
+                        if (cmp.IsActive)
+                        {
+                            CollisionData data;
+                            data.contactPoint = ev.contactPoint;
+                            data.contactNormal = ev.contactNormal;
+                            data.entity = static_cast<uint32_t>(b);
+                            data.type = ev.type;
 
-                        Handle<ScriptTag> handle = GetComponent<ScriptComponent>(a).ScriptHandle;
-                        ScriptEngine::OnInstanceCollision(handle, data);
+                            Handle<ScriptTag> handle = cmp.ScriptHandle;
+                            ScriptEngine::OnInstanceCollision(handle, data);
+                        }
                     }
 
                     if (HasComponent<ScriptComponent>(b)) 
                     {
-                        CollisionData data;
-                        data.contactPoint = ev.contactPoint;
-                        data.contactNormal = -ev.contactNormal; 
-                        data.entity = static_cast<uint32_t>(a);
-                        data.type = ev.type;
+                        auto& cmp = GetComponent<ScriptComponent>(b);
+                        if (cmp.IsActive)
+                        {
+                            CollisionData data;
+                            data.contactPoint = ev.contactPoint;
+                            data.contactNormal = -ev.contactNormal; 
+                            data.entity = static_cast<uint32_t>(a);
+                            data.type = ev.type;
 
-                        Handle<ScriptTag> handle = GetComponent<ScriptComponent>(b).ScriptHandle;
-                        ScriptEngine::OnInstanceCollision(handle, data);
+                            Handle<ScriptTag> handle = cmp.ScriptHandle;
+                            ScriptEngine::OnInstanceCollision(handle, data);
+                        }
                     }
                 }
             });
@@ -704,8 +712,10 @@ namespace Aether {
 
             for (auto entity : scriptView)
             {
-                auto& instance = GetComponent<ScriptComponent>(entity).ScriptHandle;
-                ScriptEngine::UpdateInstance(instance, ts);
+                auto& cmp = GetComponent<ScriptComponent>(entity);
+                auto& instance = cmp.ScriptHandle;
+                if (cmp.IsActive)
+                    ScriptEngine::UpdateInstance(instance, ts);
             }
 
             ScriptEngine::FlushEvent();

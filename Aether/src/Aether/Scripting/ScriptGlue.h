@@ -335,6 +335,13 @@ namespace Aether {
                         std::vector<sol::object> collected(args.begin(), args.end());
                         return ScriptEngine::CallInstanceAPI(sc.ScriptHandle, name, collected);
                     )
+                ),
+                AE_REFLECT("DestroyMyself",
+                    AE_MAKE_LAMBDA((), (Type& self), void,
+                        Entity e = static_cast<Entity>(self.entity);
+                        auto& sc = self.scene->GetComponent<ScriptComponent>(e);
+                        ScriptEngine::PushDestroyQueue(e, sc.ScriptHandle);
+                    )
                 )
             );
         }
@@ -353,48 +360,6 @@ namespace Aether {
         static constexpr auto get_methods()
         {
             return AE_REFLECT_LIST(
-                AE_REFLECT("CreateEntity",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, uint64_t bh), uint32_t,
-                        Entity e = ctx.scene->CreateEntity(name);
-                        Handle<BytecodeTag> bytecode = Handle<BytecodeTag>::FromBlend(bh);
-                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, bytecode);
-                        if (handle.IsValid())
-                        {
-                            ScriptEngine::PushCreateQueue(e, handle);
-                            return static_cast<uint32_t>(e);
-                        }
-                        ctx.scene->DestroyEntity(e);
-                        return 0;
-                    ),
-
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, uint64_t bh, uint32_t parentId), uint32_t,
-                        Entity parent = static_cast<Entity>(parentId);
-                        Entity e = ctx.scene->CreateEntity(name, parent);
-                        Handle<BytecodeTag> bytecode = Handle<BytecodeTag>::FromBlend(bh);
-                        Handle<ScriptTag> handle = ScriptEngine::CreateInstance(ctx.scene, e, bytecode);
-                        if (handle.IsValid())
-                        {
-                            ScriptEngine::PushCreateQueue(e, handle);
-                            return static_cast<uint32_t>(e);
-                        }
-                        ctx.scene->DestroyEntity(e);
-                        return 0;
-                    )
-                ),
-
-                AE_REFLECT("DestroyEntity",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), void,
-                        Entity e = static_cast<Entity>(id);
-                        if (!ctx.scene->IsValid(e)) return;
-                        if (ctx.scene->HasComponent<ScriptComponent>(e))
-                        {
-                            auto& sc = ctx.scene->GetComponent<ScriptComponent>(e);
-                            if (sc.ScriptHandle.IsValid())
-                                ScriptEngine::PushDestroyQueue(e, sc.ScriptHandle);
-                        }
-                    )
-                ),
-
                 AE_REFLECT("FindByName",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), uint32_t,
                         auto results = ctx.scene->FindEntity(name);
@@ -407,12 +372,6 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), bool,
                         Entity e = static_cast<Entity>(id);
                         return ctx.scene->IsValid(e);
-                    )
-                ),
-
-                AE_REFLECT("LoadScript",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& path), uint64_t,
-                        return ScriptEngine::LoadScript(path).Blend();
                     )
                 )
             );

@@ -86,17 +86,12 @@ namespace Aether {
         static Handle<ScriptTag> CreateInstance(Scene* scene, Entity entity, Handle<BytecodeTag> bh);
         static void DestroyInstance(Handle<ScriptTag> handle);
         static void StartInstance(Handle<ScriptTag> handle);
-        static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
-        static void OnInstanceCollision(Handle<ScriptTag> handle, CollisionData data);
-        static void FlushEvent();
+        static void FireEvent(const std::string& event_name);
 
         static Handle<BytecodeTag> LoadScript(const std::string& path);
 
         static void SetActiveStage(Handle<ScriptTag> handle, bool active);
         static bool GetActiveStage(Handle<ScriptTag> handle);
-        static int GetExecOrder(Handle<ScriptTag> handle);
-
-        static bool IsExecOrderChanged();
 
     private:
         static ScriptEngine& GetInstance();
@@ -107,8 +102,13 @@ namespace Aether {
         ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
         ResourcePool<Handle<BytecodeTag>, sol::bytecode> m_Sources;
         std::vector<std::pair<Entity, Handle<ScriptTag>>> m_DestroyQueue;
-        std::vector<std::pair<Entity, Handle<ScriptTag>>> m_CreateQueue;
         bool IsExecChanged = false;
+
+        static void FlushEvent();
+        static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
+        static void OnInstanceCollision(Handle<ScriptTag> handle, CollisionData data);
+        static bool IsExecOrderChanged();
+        static int GetExecOrder(Handle<ScriptTag> handle);
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -256,9 +256,9 @@ namespace Aether {
 
         static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
         static void PushDestroyQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
-        static void PushCreateQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().m_CreateQueue.push_back({ent, handle}); }
 
         friend struct ScriptSelfBinding;
         friend struct SceneBinding;
+        friend class Scene;
     };
 } 

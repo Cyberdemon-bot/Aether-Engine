@@ -121,6 +121,7 @@ namespace Aether {
     struct ScriptComponent
     {
         Handle<ScriptTag> ScriptHandle;
+        bool IsActive = true;
 
         ScriptComponent() = default;
         ScriptComponent(const ScriptComponent&) = default;
