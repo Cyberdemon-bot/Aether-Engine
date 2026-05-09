@@ -26,6 +26,11 @@ private:
     void DrainParseQueue();
     void RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic = true);
 
+    // Rebuilds (or clears) the onPostEvaluate callback on m_IKAnimatorEntity
+    // based on the current IK/blend enabled flags.  Call this whenever any
+    // IK/blend toggle or parameter changes in the UI.
+    void RebuildPostEvaluate();
+
     void DrawHierarchyPanel();
     void DrawScenePanel();
     void DrawAnimationPanel();
@@ -97,15 +102,15 @@ private:
     //  Animation panel — IK / advanced state
     // -------------------------------------------------------------------------
 
-    // Entity whose AnimatorComponent is being inspected in the IK section
+    // Entity whose AnimatorComponent carries the onPostEvaluate callback
     Aether::Entity m_IKAnimatorEntity = Aether::Null_Entity;
 
     // Two-bone IK
     struct TwoBoneIKState
     {
-        int  rootIdx   = -1;
-        int  midIdx    = -1;
-        int  endIdx    = -1;
+        int       rootIdx  = -1;
+        int       midIdx   = -1;
+        int       endIdx   = -1;
         glm::vec3 target   = { 0.f, 0.f, 0.f };
         glm::vec3 pole     = { 0.f, 1.f, 0.f };
         float     weight   = 1.f;
@@ -120,22 +125,21 @@ private:
         glm::vec3 forward    = { 0.f, 0.f, 1.f };
         glm::vec3 up         = { 0.f, 1.f, 0.f };
         float     weight     = 1.f;
-        float     angleLimit = 1.5708f; // π/2 rad
+        float     angleLimit = glm::half_pi<float>();
         bool      enabled    = false;
     } m_LookAt;
 
     // Blend
     struct BlendState
     {
-        int   clipAIdx  = 0;
-        int   clipBIdx  = 1;
-        float alpha     = 0.5f;
-        bool  additive  = false;
-        bool  enabled   = false;
+        int   clipAIdx = 0;
+        int   clipBIdx = 1;
+        float alpha    = 0.5f;
+        bool  additive = false;
+        bool  enabled  = false;
     } m_Blend;
 
     // Joint browser (shared between IK pickers and bone attachment)
-    // Cached per selected animator entity to avoid querying every frame
     Aether::Entity              m_JointBrowserEntity = Aether::Null_Entity;
     std::vector<std::string>    m_CachedJointNames;
 
