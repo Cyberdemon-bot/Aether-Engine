@@ -35,14 +35,14 @@ void LabLayer::Attach()
     m_MainShader->SetUBOSlot("Lights", 2);
 
     Aether::RenderPass mainPass;
-    mainPass.TargetFBO   = m_MainFbo.get();
-    mainPass.Shader      = m_MainShader.get();
-    mainPass.ClearColor  = true;
-    mainPass.ClearDepth  = true;
-    mainPass.UsingSkybox = true;
-    mainPass.ClearValue  = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
-    mainPass.CullFace    = Aether::State::BACK_CULL;
-    mainPass.OnScreen    = false;
+    mainPass.TargetFBO      = m_MainFbo.get();
+    mainPass.Shader         = m_MainShader.get();
+    mainPass.ClearColor     = true;
+    mainPass.ClearDepth     = true;
+    mainPass.UsingSkybox    = true;
+    mainPass.ClearValue     = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    mainPass.CullFace       = Aether::State::BACK_CULL;
+    mainPass.OnScreen       = false;
     mainPass.UsingShadowmap = true;
 
     // --- VOLUMETRIC PASS ---
@@ -58,17 +58,17 @@ void LabLayer::Attach()
     m_VolShader->SetUBOSlot("Lights", 2);
 
     Aether::RenderPass volPass;
-    volPass.TargetFBO     = m_VolFbo.get();
-    volPass.Shader        = m_VolShader.get();
-    volPass.ClearColor    = true;
-    volPass.ClearDepth    = true;
-    volPass.CullFace      = Aether::State::None;
-    volPass.OnScreen      = true;
-    volPass.UsingGeometry = false;
+    volPass.TargetFBO      = m_VolFbo.get();
+    volPass.Shader         = m_VolShader.get();
+    volPass.ClearColor     = true;
+    volPass.ClearDepth     = true;
+    volPass.CullFace       = Aether::State::None;
+    volPass.OnScreen       = true;
+    volPass.UsingGeometry  = false;
     volPass.UsingShadowmap = true;
-    volPass.readList      = {
-        { "u_SceneColor", m_MainFbo->GetColorAttachment()  },
-        { "u_SceneDepth", m_MainFbo->GetDepthAttachment()  }
+    volPass.readList       = {
+        { "u_SceneColor", m_MainFbo->GetColorAttachment() },
+        { "u_SceneDepth", m_MainFbo->GetDepthAttachment() }
     };
 
     m_Pipeline = { mainPass, volPass };
@@ -96,9 +96,9 @@ void LabLayer::Attach()
     lightTransform.Dirty       = true;
 
     // --- CONSOLE COMMANDS ---
-    Aether::ConsoleLayer::RegisterCommand("load", AE_BIND_CONSOLE_FN(LoadModelAsync)); 
+    Aether::ConsoleLayer::RegisterCommand("load",      AE_BIND_CONSOLE_FN(LoadModelAsync));
     Aether::ConsoleLayer::RegisterCommand("loadcache", AE_BIND_CONSOLE_FN(LoadCacheModelAsync));
-    Aether::ConsoleLayer::RegisterCommand("add",  AE_BIND_CONSOLE_FN(AddEntity));
+    Aether::ConsoleLayer::RegisterCommand("add",       AE_BIND_CONSOLE_FN(AddEntity));
 
     AE_CORE_INFO("LabLayer initialized!");
 }
@@ -115,7 +115,6 @@ void LabLayer::Detach()
     m_VolFbo.reset();
 
     m_MeshIDs.clear();
-    // NOTE: m_AnimatorIDs removed — no longer tracked as a separate list.
 }
 
 // =============================================================================
@@ -146,7 +145,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
             AE_CORE_INFO("Worker: Parsing complete for {0}", path);
         });
     }
-    if (args.size() == 2)
+    else if (args.size() == 2)
     {
         std::string name = args[1];
         Aether::JobSystem::SubmitJob([this, path, name]()
@@ -206,33 +205,189 @@ void LabLayer::DrainParseQueue()
 //  Physics
 // =============================================================================
 
-void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity, Aether::UUID colliderMeshID, bool isDynamic)
+void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
+                                   Aether::UUID    colliderMeshID,
+                                   bool            isDynamic)
 {
     if (!m_Scene.IsValid(transformEntity)) return;
 
     auto* mesh = Aether::AssetManager::GetAsset<Aether::Mesh>(colliderMeshID);
     if (!mesh) return;
 
-    // Tear down existing body if any
-    if (m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
+    // Walk up hierarchy to compute world transform
+    std::vector<Aether::Entity> chain;
+    Aether::Entity cur = transformEntity;
+    while (cur != Aether::Null_Entity && m_Scene.IsValid(cur))
     {
-        auto& col = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
-        if (col.ColliderHandle.IsValid())
-            Aether::PhysicsSystem::DestroyBody(col.ColliderHandle);
-        m_Scene.RemoveComponent<Aether::ColliderComponent>(transformEntity);
-        m_PhysicsBodies.erase(transformEntity);
+        chain.push_back(cur);
+        cur = m_Scene.GetComponent<Aether::HierarchyComponent>(cur).parent;
     }
 
-    // Write config — scene will create the body next frame in UpdateTransform
-    auto& col          = m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity);
-    col.ColliderOffset = mesh->GetBoundsCenter();
-    col.Shape          = Aether::ColliderShape::Box;
-    col.Size           = glm::max(mesh->GetBoundsExtents(), glm::vec3(0.5f));
-    col.Type           = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
-    //col.IsSensor       = true;
-    col.Visible        = true;
+    glm::mat4 worldTransform(1.0f);
+    for (int i = (int)chain.size() - 1; i >= 0; i--)
+        worldTransform *= m_Scene.GetComponent<Aether::TransformComponent>(chain[i]).GetLocalTransform();
 
-    m_PhysicsBodies[transformEntity] = { Aether::Handle<Aether::BodyTag>::MakeInvalid(), false, false, isDynamic };
+    auto& t          = m_Scene.GetComponent<Aether::TransformComponent>(transformEntity);
+    t.WorldTransform = worldTransform;
+    m_Scene.MarkDirty(transformEntity);
+
+    const glm::mat4& wt = worldTransform;
+    glm::vec3 worldScale(
+        glm::length(glm::vec3(wt[0])),
+        glm::length(glm::vec3(wt[1])),
+        glm::length(glm::vec3(wt[2])));
+
+    glm::mat3 rotMat(
+        glm::normalize(glm::vec3(wt[0])),
+        glm::normalize(glm::vec3(wt[1])),
+        glm::normalize(glm::vec3(wt[2])));
+    glm::quat worldRot = glm::quat_cast(rotMat);
+
+    glm::vec3 extents     = mesh->GetBoundsExtents() * worldScale;
+    glm::vec3 center      = glm::vec3(wt[3]) + rotMat * (mesh->GetBoundsCenter() * worldScale);
+    glm::vec3 localOffset = mesh->GetBoundsCenter() * worldScale;
+
+    Aether::BodyConfig config;
+    config.motionType  = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
+    config.shape       = Aether::ColliderShape::Box;
+    config.size        = glm::vec3(
+        std::max(std::abs(extents.x), 0.5f),
+        std::max(std::abs(extents.y), 0.5f),
+        std::max(std::abs(extents.z), 0.5f));
+    config.transform   = { center, worldRot };
+    config.friction    = 0.5f;
+    config.restitution = 0.3f;
+
+    const auto& handle = Aether::PhysicsSystem::CreateBody(config);
+
+    if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
+        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, handle, true);
+    else
+    {
+        auto& col          = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
+        col.ColliderHandle = handle;
+        col.ColliderOffset = localOffset;
+    }
+
+    PhysicsEntry entry;
+    entry.handle     = handle;
+    entry.enabled    = false;
+    entry.lastActive = false;
+    entry.isDynamic  = isDynamic;
+    m_PhysicsBodies[transformEntity] = entry;
+
+    if (isDynamic)
+        Aether::PhysicsSystem::SetActive(handle, false);
+}
+
+// =============================================================================
+//  IK callback — rebuilds the onPostEvaluate on the selected animator entity
+// =============================================================================
+
+void LabLayer::RebuildPostEvaluate()
+{
+    // Nothing to wire up if no entity is selected
+    if (m_IKAnimatorEntity == Aether::Null_Entity ||
+        !m_Scene.IsValid(m_IKAnimatorEntity) ||
+        !m_Scene.HasComponent<Aether::AnimatorComponent>(m_IKAnimatorEntity))
+        return;
+
+    auto& anim = m_Scene.GetComponent<Aether::AnimatorComponent>(m_IKAnimatorEntity);
+
+    // If nothing is enabled, clear the callback so the scene pays zero cost
+    const bool anyEnabled = m_TwoBoneIK.enabled || m_LookAt.enabled || m_Blend.enabled;
+    if (!anyEnabled)
+    {
+        anim.onPostEvaluate = nullptr;
+        return;
+    }
+
+    // Capture all IK state by value so the lambda is self-contained and
+    // survives UI changes until the next RebuildPostEvaluate() call.
+    TwoBoneIKState ikState   = m_TwoBoneIK;
+    LookAtState    laState   = m_LookAt;
+    BlendState     blState   = m_Blend;
+
+    anim.onPostEvaluate = [ikState, laState, blState, this]
+        (Aether::Entity entity, Aether::RigModule* rig, float /*dt*/)
+    {
+        // Retrieve the component fresh inside the callback (the scene passes us
+        // the entity so we can look it up safely)
+        auto& scene = m_Scene;
+        if (!scene.IsValid(entity)) return;
+        if (!scene.HasComponent<Aether::AnimatorComponent>(entity)) return;
+
+        auto& comp      = scene.GetComponent<Aether::AnimatorComponent>(entity);
+        auto* skelAsset = Aether::AssetManager::GetAsset<Aether::Skeleton>(comp.Skeleton);
+        if (!skelAsset || !comp.CurrentPose.IsValid()) return;
+
+        auto skelHnd = skelAsset->GetHandle();
+
+        // ---- Two-Bone IK ------------------------------------------------
+        if (ikState.enabled &&
+            ikState.rootIdx >= 0 && ikState.midIdx >= 0 && ikState.endIdx >= 0)
+        {
+            Aether::TwoBoneIKSpec spec;
+            spec.Skeleton = skelHnd;
+            spec.Pose     = comp.CurrentPose;
+            spec.Root     = ikState.rootIdx;
+            spec.Mid      = ikState.midIdx;
+            spec.End      = ikState.endIdx;
+            spec.Target   = ikState.target;
+            spec.Pole     = ikState.pole;
+            spec.Weight   = ikState.weight;
+            rig->ScheduleTwoBoneIK(spec);
+            rig->ScheduleFinalize(skelHnd, comp.CurrentPose);
+        }
+
+        // ---- Look-At IK -------------------------------------------------
+        if (laState.enabled && laState.boneIdx >= 0)
+        {
+            Aether::LookAtSpec spec;
+            spec.Skeleton   = skelHnd;
+            spec.Pose       = comp.CurrentPose;
+            spec.Bone       = laState.boneIdx;
+            spec.Target     = laState.target;
+            spec.Forward    = laState.forward;
+            spec.Up         = laState.up;
+            spec.Weight     = laState.weight;
+            spec.AngleLimit = laState.angleLimit;
+            rig->ScheduleLookAt(spec);
+            rig->ScheduleFinalize(skelHnd, comp.CurrentPose);
+        }
+
+        // ---- Clip Blend -------------------------------------------------
+        if (blState.enabled)
+        {
+            auto* clipAAsset = Aether::AssetManager::GetAsset<Aether::Clip>(
+                comp.Clips[blState.clipAIdx]);
+            auto* clipBAsset = Aether::AssetManager::GetAsset<Aether::Clip>(
+                comp.Clips[blState.clipBIdx]);
+
+            if (clipAAsset && clipBAsset)
+            {
+                auto poseA = rig->CreatePose(skelHnd);
+                auto poseB = rig->CreatePose(skelHnd);
+
+                rig->ScheduleSample(skelHnd, clipAAsset->GetHandle(),
+                    comp.Cache, poseA, comp.CurrentTime);
+                rig->ScheduleSample(skelHnd, clipBAsset->GetHandle(),
+                    comp.Cache, poseB, comp.CurrentTime);
+
+                if (blState.additive)
+                    rig->ScheduleAdditive(poseA, poseB, comp.CurrentPose, blState.alpha);
+                else
+                    rig->ScheduleBlend(poseA, poseB, comp.CurrentPose, blState.alpha);
+
+                rig->ScheduleFinalize(skelHnd, comp.CurrentPose);
+
+                // Tasks will be flushed by the scene's second ProcessTasks() call.
+                // Destroy temp poses after scheduling (handles are ref-counted).
+                rig->DestroyPose(poseA);
+                rig->DestroyPose(poseB);
+            }
+        }
+    };
 }
 
 // =============================================================================
@@ -268,6 +423,9 @@ void LabLayer::Update(Aether::Timestep ts)
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
 
+    // IK/blend now runs inside the AnimatorComponent::onPostEvaluate callback,
+    // which the scene invokes between its two ProcessTasks() calls.
+    // Nothing extra needed here.
     m_Scene.Update(ts, &m_Camera);
 }
 
@@ -290,7 +448,7 @@ void LabLayer::OnImGuiRender()
     DrawAnimationPanel();
     DrawLightingPanel();
     DrawScriptingPanel();
-    DrawBoneAttachmentPanel();   // <-- NEW
+    DrawBoneAttachmentPanel();
 }
 
 void LabLayer::DrawScriptingPanel()
@@ -343,7 +501,6 @@ void LabLayer::DrawScriptingPanel()
             auto d = UI::Disabled(!canAttach);
             if (UI::Button("Attach Script"))
             {
-                // Destroy old instance if one exists
                 if (m_Scene.HasComponent<ScriptComponent>(m_ScriptTargetEntity))
                 {
                     auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
@@ -392,9 +549,9 @@ void LabLayer::DrawScriptingPanel()
 
         for (auto entity : m_Scene.View<TagComponent, ScriptComponent>())
         {
-            auto  g      = UI::ID((int)(uint64_t)entity);
-            auto& tag    = m_Scene.GetComponent<TagComponent>(entity);
-            auto& sc     = m_Scene.GetComponent<ScriptComponent>(entity);
+            auto  g   = UI::ID((int)(uint64_t)entity);
+            auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+            auto& sc  = m_Scene.GetComponent<ScriptComponent>(entity);
             UI::Text("%s  (slot %d)", tag.Tag.c_str(), sc.ScriptHandle.index);
         }
     }
@@ -406,12 +563,8 @@ void LabLayer::DrawScriptingPanel()
 
 void LabLayer::DrawHierarchyPanel()
 {
-    // UI::SceneHierarchy opens the window, iterates roots, and handles
-    // deselect-on-empty-click and per-node context menus internally.
     Aether::UI::SceneHierarchy("Hierarchy", m_Scene, m_SelectedEntity);
 }
-
-// DrawEntityNode removed — UI::SceneHierarchy handles hierarchy traversal.
 
 // =============================================================================
 //  Scene panel
@@ -423,8 +576,6 @@ void LabLayer::DrawScenePanel()
 
     if (auto w = UI::Window("Scene"))
     {
-        // BUG FIX: derive animator count live from the ECS view instead of
-        // m_AnimatorIDs which was never populated and always showed 0.
         int animatorCount = 0;
         for (auto e : m_Scene.View<AnimatorComponent>()) { (void)e; animatorCount++; }
 
@@ -435,7 +586,6 @@ void LabLayer::DrawScenePanel()
         // ---- Physics --------------------------------------------------------
         if (auto h = UI::Header("Physics"))
         {
-            // Node picker — entities aren't strings, so manual combo loop
             std::string nodePreview = (m_PhysSelectedEntity != Null_Entity &&
                                        m_Scene.IsValid(m_PhysSelectedEntity))
                 ? m_Scene.GetComponent<TagComponent>(m_PhysSelectedEntity).Tag
@@ -453,7 +603,6 @@ void LabLayer::DrawScenePanel()
                 }
             }
 
-            // Mesh picker
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
             for (auto& id : m_MeshIDs)
@@ -483,7 +632,6 @@ void LabLayer::DrawScenePanel()
 
             UI::Separator();
 
-            // Force / velocity applicator for the selected entity
             auto physIt = (m_SelectedEntity != Null_Entity)
                 ? m_PhysicsBodies.find(m_SelectedEntity)
                 : m_PhysicsBodies.end();
@@ -562,7 +710,6 @@ void LabLayer::DrawScenePanel()
 //  Animation panel
 // =============================================================================
 
-// Helper: (re)populate m_CachedJointNames when the selected animator changes
 static void RefreshJointCache(
     Aether::Entity entity,
     Aether::Entity& cachedEntity,
@@ -587,8 +734,6 @@ static void RefreshJointCache(
         cache.push_back(std::to_string(i) + "  " + rig->GetJointName(skelHnd, i));
 }
 
-// Small helper: draw a combo that lets the user pick a joint index.
-// Returns true when the selection changed.
 static bool JointCombo(const char* label, int& selectedIdx,
                        const std::vector<std::string>& names)
 {
@@ -695,6 +840,149 @@ void LabLayer::DrawAnimationPanel()
         }
         if (!anyAnimators)
             UI::TextDisabled("No animators in scene.");
+
+        UI::Separator();
+
+        // =====================================================================
+        //  IK / Advanced section
+        // =====================================================================
+        if (auto h = UI::Header("IK & Advanced"))
+        {
+            // ---- Animator entity picker -------------------------------------
+            {
+                std::string preview = (m_IKAnimatorEntity != Null_Entity &&
+                                       m_Scene.IsValid(m_IKAnimatorEntity))
+                    ? m_Scene.GetComponent<TagComponent>(m_IKAnimatorEntity).Tag
+                    : "Select Animator";
+
+                if (ImGui::BeginCombo("Animator##ik", preview.c_str()))
+                {
+                    for (auto entity : m_Scene.View<AnimatorComponent, TagComponent>())
+                    {
+                        auto  g   = UI::ID((int)(uint64_t)entity);
+                        bool  sel = (m_IKAnimatorEntity == entity);
+                        auto& tag = m_Scene.GetComponent<TagComponent>(entity);
+                        if (ImGui::Selectable(tag.Tag.c_str(), sel))
+                        {
+                            // Clear the old entity's callback before switching
+                            if (m_IKAnimatorEntity != Null_Entity &&
+                                m_Scene.IsValid(m_IKAnimatorEntity) &&
+                                m_Scene.HasComponent<AnimatorComponent>(m_IKAnimatorEntity))
+                            {
+                                m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity)
+                                    .onPostEvaluate = nullptr;
+                            }
+
+                            m_IKAnimatorEntity   = entity;
+                            m_JointBrowserEntity = Null_Entity; // invalidate joint cache
+                            m_CachedJointNames.clear();
+
+                            // Immediately wire up the callback on the new entity
+                            RebuildPostEvaluate();
+                        }
+                        if (sel) ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+
+            RefreshJointCache(m_IKAnimatorEntity, m_JointBrowserEntity,
+                              m_CachedJointNames, m_Scene, rigSystem.get());
+
+            bool hasAnimator = (m_IKAnimatorEntity != Null_Entity &&
+                                m_Scene.IsValid(m_IKAnimatorEntity) &&
+                                m_Scene.HasComponent<AnimatorComponent>(m_IKAnimatorEntity));
+
+            // ---- Joint browser (read-only list) -----------------------------
+            UI::Separator();
+            UI::SectionHeader("Joint Browser");
+            if (!hasAnimator)
+            {
+                UI::TextDisabled("Select an animator to browse joints.");
+            }
+            else if (m_CachedJointNames.empty())
+            {
+                UI::TextDisabled("Skeleton has no joints or is not loaded.");
+            }
+            else
+            {
+                ImGui::BeginChild("##jointlist", ImVec2(0, 160), true);
+                for (int i = 0; i < (int)m_CachedJointNames.size(); i++)
+                    ImGui::TextUnformatted(m_CachedJointNames[i].c_str());
+                ImGui::EndChild();
+            }
+
+            // ---- Two-Bone IK ------------------------------------------------
+            UI::Separator();
+            UI::SectionHeader("Two-Bone IK");
+            {
+                auto d = UI::Disabled(!hasAnimator);
+
+                bool changed = false;
+                changed |= UI::Checkbox("Enable##tbik", m_TwoBoneIK.enabled);
+                changed |= JointCombo("Root Joint##tbik", m_TwoBoneIK.rootIdx, m_CachedJointNames);
+                changed |= JointCombo("Mid Joint##tbik",  m_TwoBoneIK.midIdx,  m_CachedJointNames);
+                changed |= JointCombo("End Joint##tbik",  m_TwoBoneIK.endIdx,  m_CachedJointNames);
+                changed |= UI::DragXYZ("Target##tbik", m_TwoBoneIK.target, 0.01f);
+                changed |= UI::DragXYZ("Pole##tbik",   m_TwoBoneIK.pole,   0.01f);
+                changed |= UI::SliderFloat("Weight##tbik", m_TwoBoneIK.weight, 0.f, 1.f);
+
+                if (changed) RebuildPostEvaluate();
+
+                if (m_TwoBoneIK.enabled)
+                    UI::TextDisabled("IK runs every frame via onPostEvaluate.");
+            }
+
+            // ---- Look-At IK -------------------------------------------------
+            UI::Separator();
+            UI::SectionHeader("Look-At IK");
+            {
+                auto d = UI::Disabled(!hasAnimator);
+
+                bool changed = false;
+                changed |= UI::Checkbox("Enable##lookat", m_LookAt.enabled);
+                changed |= JointCombo("Bone##lookat",       m_LookAt.boneIdx,    m_CachedJointNames);
+                changed |= UI::DragXYZ("Target##lookat",  m_LookAt.target,  0.01f);
+                changed |= UI::DragXYZ("Forward##lookat", m_LookAt.forward, 0.01f);
+                changed |= UI::DragXYZ("Up##lookat",      m_LookAt.up,      0.01f);
+                changed |= UI::SliderFloat("Weight##lookat",          m_LookAt.weight,     0.f, 1.f);
+                changed |= UI::SliderFloat("Angle Limit (rad)##lookat", m_LookAt.angleLimit, 0.f, glm::pi<float>());
+
+                if (changed) RebuildPostEvaluate();
+
+                if (m_LookAt.enabled)
+                    UI::TextDisabled("Look-At runs every frame via onPostEvaluate.");
+            }
+
+            // ---- Blend ------------------------------------------------------
+            UI::Separator();
+            UI::SectionHeader("Clip Blend");
+            {
+                auto d = UI::Disabled(!hasAnimator);
+
+                bool changed = false;
+                changed |= UI::Checkbox("Enable##blend",   m_Blend.enabled);
+                changed |= UI::Checkbox("Additive##blend", m_Blend.additive);
+
+                if (hasAnimator)
+                {
+                    auto& anim = m_Scene.GetComponent<AnimatorComponent>(m_IKAnimatorEntity);
+                    std::vector<std::string> clipNames;
+                    for (int i = 0; i < (int)anim.Clips.size(); i++)
+                        clipNames.push_back("Clip " + std::to_string(i));
+
+                    changed |= UI::ComboList("Clip A##blend", clipNames, m_Blend.clipAIdx);
+                    changed |= UI::ComboList("Clip B##blend", clipNames, m_Blend.clipBIdx);
+                }
+
+                changed |= UI::SliderFloat("Alpha##blend", m_Blend.alpha, 0.f, 1.f);
+
+                if (changed) RebuildPostEvaluate();
+
+                if (m_Blend.enabled)
+                    UI::TextDisabled("Blend runs every frame via onPostEvaluate.");
+            }
+        } // end IK & Advanced header
     }
 }
 
@@ -739,10 +1027,9 @@ void LabLayer::DrawBoneAttachmentPanel()
 
     if (auto w = UI::Window("Bone Attachment"))
     {
-        // ---- Setup section --------------------------------------------------
         if (auto h = UI::Header("Attach"))
         {
-            // --- Child entity picker (the object that will follow the bone) ---
+            // --- Child entity picker -----------------------------------------
             std::string childPreview = (m_BoneAttachChildEntity != Null_Entity &&
                                         m_Scene.IsValid(m_BoneAttachChildEntity))
                 ? m_Scene.GetComponent<TagComponent>(m_BoneAttachChildEntity).Tag
@@ -761,7 +1048,7 @@ void LabLayer::DrawBoneAttachmentPanel()
                 }
             }
 
-            // --- Animator entity picker (the entity that owns the skeleton) --
+            // --- Animator entity picker --------------------------------------
             std::string animPreview = (m_BoneAttachAnimatorEntity != Null_Entity &&
                                        m_Scene.IsValid(m_BoneAttachAnimatorEntity))
                 ? m_Scene.GetComponent<TagComponent>(m_BoneAttachAnimatorEntity).Tag
@@ -769,7 +1056,6 @@ void LabLayer::DrawBoneAttachmentPanel()
 
             if (auto c = UI::Combo("Animator Entity##boneattach", animPreview.c_str()))
             {
-                // Only show entities that actually have an AnimatorComponent
                 for (auto entity : m_Scene.View<AnimatorComponent, TagComponent>())
                 {
                     auto  g   = UI::ID((int)(uint64_t)entity);
@@ -781,7 +1067,7 @@ void LabLayer::DrawBoneAttachmentPanel()
                 }
             }
 
-            // --- Joint picker (uses shared joint name cache) -----------------
+            // --- Joint picker ------------------------------------------------
             {
                 auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
                 if (rigSystem)
@@ -794,7 +1080,6 @@ void LabLayer::DrawBoneAttachmentPanel()
                 {
                     for (int i = 0; i < (int)m_CachedJointNames.size(); i++)
                     {
-                        // Entry format is "N  jointName" — strip prefix for comparison/storage
                         auto& entry = m_CachedJointNames[i];
                         auto sep = entry.find("  ");
                         std::string name = (sep != std::string::npos) ? entry.substr(sep + 2) : entry;
@@ -809,29 +1094,25 @@ void LabLayer::DrawBoneAttachmentPanel()
                     ImGui::EndCombo();
                 }
             }
-            // Manual fallback if skeleton isn't loaded yet
             ImGui::InputText("Joint Name (manual)##boneattach", m_BoneNameBuf, sizeof(m_BoneNameBuf));
 
             UI::Separator();
 
             // --- Attach button -----------------------------------------------
-            bool boneName    = (m_BoneNameBuf[0] != '\0');
-            bool childValid  = (m_BoneAttachChildEntity    != Null_Entity &&
-                                m_Scene.IsValid(m_BoneAttachChildEntity));
-            bool animValid   = (m_BoneAttachAnimatorEntity != Null_Entity &&
-                                m_Scene.IsValid(m_BoneAttachAnimatorEntity));
-            // Guard: child must not be the same entity as the animator
-            bool notSelf     = (m_BoneAttachChildEntity != m_BoneAttachAnimatorEntity);
-            bool canAttach   = boneName && childValid && animValid && notSelf;
+            bool boneName   = (m_BoneNameBuf[0] != '\0');
+            bool childValid = (m_BoneAttachChildEntity != Null_Entity &&
+                               m_Scene.IsValid(m_BoneAttachChildEntity));
+            bool animValid  = (m_BoneAttachAnimatorEntity != Null_Entity &&
+                               m_Scene.IsValid(m_BoneAttachAnimatorEntity));
+            bool notSelf    = (m_BoneAttachChildEntity != m_BoneAttachAnimatorEntity);
+            bool canAttach  = boneName && childValid && animValid && notSelf;
 
             {
                 auto d = UI::Disabled(!canAttach);
                 if (UI::Button("Attach##boneattach"))
                 {
-
                     if (m_Scene.HasComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity))
                     {
-                        // Update in place so the scene's cached bone index is invalidated properly
                         auto& existing = m_Scene.GetComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
                         existing.Invalidate();
                         existing.AnimatorEntity = m_BoneAttachAnimatorEntity;
@@ -845,7 +1126,6 @@ void LabLayer::DrawBoneAttachmentPanel()
                             std::string_view(m_BoneNameBuf));
                     }
 
-                    // Mark the child's transform dirty so the scene picks it up next frame
                     m_Scene.GetComponent<TransformComponent>(m_BoneAttachChildEntity).Dirty = true;
 
                     AE_CORE_INFO("[BoneAttach] '{}' -> bone '{}' on '{}'",
@@ -855,7 +1135,7 @@ void LabLayer::DrawBoneAttachmentPanel()
                 }
             }
 
-            // --- Detach button (only shown when the child already has one) ---
+            // --- Detach button -----------------------------------------------
             bool hasAttach = childValid &&
                              m_Scene.HasComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
             ImGui::SameLine();
@@ -864,7 +1144,6 @@ void LabLayer::DrawBoneAttachmentPanel()
                 if (UI::Button("Detach##boneattach"))
                 {
                     m_Scene.RemoveComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
-                    // Restore Dirty so normal transform propagation takes back over
                     m_Scene.GetComponent<TransformComponent>(m_BoneAttachChildEntity).Dirty = true;
 
                     AE_CORE_INFO("[BoneAttach] Detached '{}' from bone.",
@@ -872,17 +1151,13 @@ void LabLayer::DrawBoneAttachmentPanel()
                 }
             }
 
-            // Helper: if child already has a BoneAttachmentComponent, populate
-            // the panel fields from it so the user can inspect / edit live.
             if (hasAttach)
             {
                 auto& existing = m_Scene.GetComponent<BoneAttachmentComponent>(m_BoneAttachChildEntity);
 
-                // Sync animator picker to match the component
                 if (m_BoneAttachAnimatorEntity != existing.AnimatorEntity)
                     m_BoneAttachAnimatorEntity = existing.AnimatorEntity;
 
-                // Show current bone index as a read-only hint
                 if (existing.JointIndex >= 0)
                     UI::Text("Resolved joint index: %d", existing.JointIndex);
                 else
@@ -903,7 +1178,6 @@ void LabLayer::DrawBoneAttachmentPanel()
                 auto& tag    = m_Scene.GetComponent<TagComponent>(entity);
                 auto& attach = m_Scene.GetComponent<BoneAttachmentComponent>(entity);
 
-                // Resolve animator tag safely
                 std::string animTag = "(invalid)";
                 if (attach.AnimatorEntity != Null_Entity &&
                     m_Scene.IsValid(attach.AnimatorEntity))
@@ -914,13 +1188,10 @@ void LabLayer::DrawBoneAttachmentPanel()
                     attach.JointName.c_str(),
                     animTag.c_str());
 
-                // Quick-select this child entity for editing
                 ImGui::SameLine();
                 if (UI::SmallButton("Select##bonerow"))
                 {
                     m_BoneAttachChildEntity = entity;
-
-                    // Populate edit fields from the component
                     std::strncpy(m_BoneNameBuf, attach.JointName.c_str(), sizeof(m_BoneNameBuf));
                     m_BoneNameBuf[sizeof(m_BoneNameBuf) - 1] = '\0';
                     m_BoneAttachAnimatorEntity = attach.AnimatorEntity;

@@ -795,14 +795,14 @@ namespace Aether {
                             this->GetComponent<AnimatorComponent>(entity).Culled = true;
                 ));
 
-                auto rigModule = AnimationSystem::GetModule<RigModule>();
+                auto rigModule = AnimationSystem::GetModule<RigModule>().get();
                 auto animView  = View<AnimatorComponent>();
-                rigModule->ClearTasks();
 
+                rigModule->ClearTasks();
                 for (auto entity : animView)
                 {
                     auto& comp = GetComponent<AnimatorComponent>(entity);
-                    if (comp.Clips.empty() || comp.Culled) continue;
+                    if (comp.Clips.empty() || comp.Culled || !comp.RunSampling) continue;
 
                     auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
                     auto* clipAsset = AssetManager::GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
@@ -839,7 +839,16 @@ namespace Aether {
                     rigModule->ScheduleSample(skelHandle, clipHandle, comp.Cache, comp.CurrentPose, comp.CurrentTime);
                     rigModule->ScheduleFinalize(skelHandle, comp.CurrentPose);
                 }
+                rigModule->ProcessTasks();
 
+                rigModule->ClearTasks();
+                for (auto entity : animView)
+                {
+                    auto& comp = GetComponent<AnimatorComponent>(entity);
+                    if (comp.Clips.empty() || comp.Culled || !comp.RunPostEval) continue;
+                    if (comp.onPostEvaluate)
+                        comp.onPostEvaluate(entity, rigModule, float(ts));
+                }
                 rigModule->ProcessTasks();
 
                 ResolveBoneAttachments();

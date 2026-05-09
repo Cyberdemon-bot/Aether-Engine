@@ -87,7 +87,6 @@ namespace Aether {
 
             for (Layer* layer : m_LayerStack) layer->Update(timestep);
             
-
             m_ImGuiLayer->Begin(); 
             {
                 for (Layer* layer : m_LayerStack)

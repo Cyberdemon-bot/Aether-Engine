@@ -11,6 +11,7 @@
 #include "Aether/Animation/RigModule.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <functional>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
@@ -91,6 +92,9 @@ namespace Aether {
         Handle<CacheTag> Cache;
         Handle<PoseTag> CurrentPose;
 
+        bool RunSampling = true;
+        bool RunPostEval = true;
+
         int ActiveClipIdx = 0;
         float CurrentTime = 0.0f;
         float Speed = 1.0f;
@@ -98,6 +102,8 @@ namespace Aether {
         bool Loop = true;
         bool CacheDirty = false;
         mutable bool Culled = false;
+
+        std::function<void(Entity, RigModule* rig, float dt)> onPostEvaluate;
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
