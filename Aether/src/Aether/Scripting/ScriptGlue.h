@@ -463,9 +463,9 @@ namespace Aether {
                 AE_REFLECT("Distance",
                     AE_MAKE_LAMBDA((), (const Type& self), float, return self.Distance;)
                 ),
-                AE_REFLECT("HitEntityId",
+                AE_REFLECT("HitEntity",
                     AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
-                        return (uint64_t)PhysicsSystem::GetUUID(self.HitEntityHandle);
+                        return self.HitEntityHandle.Blend();
                     )
                 )
             );
@@ -491,7 +491,7 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& self, const VType& force), void,
                         if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
                         auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        PhysicsSystem::AddForce(handle, force);
+                        PhysicsSystem::AddForce(self.scene->GetPhysicsInstance(), handle, force);
                     )
                 ),
 
@@ -499,13 +499,13 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& self, const VType& velocity), void,
                         if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
                         auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        PhysicsSystem::SetVelocity(handle, velocity);
+                        PhysicsSystem::SetVelocity(self.scene->GetPhysicsInstance(), handle, velocity);
                     )
                 ),
 
                 AE_REFLECT("SetGravity",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& gravity), void,
-                        PhysicsSystem::SetGravity(gravity);
+                        PhysicsSystem::SetGravity(self.scene->GetPhysicsInstance(), gravity);
                     )
                 ),
 
@@ -513,19 +513,25 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& self, const PhysTransform& target), bool,
                         if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return false;
                         auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        return PhysicsSystem::CanMove(handle, target);
+                        return PhysicsSystem::CanMove(self.scene->GetPhysicsInstance(), handle, target);
                     )
                 ),
 
                 AE_REFLECT("CastRay",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), RaycastHit,
-                        return PhysicsSystem::CastRay(origin, direction, distance);
+                        return PhysicsSystem::CastRay(self.scene->GetPhysicsInstance(), origin, direction, distance);
                     )
                 ),
 
                 AE_REFLECT("CastRayAll",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastHit>,
-                        return PhysicsSystem::CastRayAll(origin, direction, distance);
+                        return PhysicsSystem::CastRayAll(self.scene->GetPhysicsInstance(), origin, direction, distance);
+                    )
+                ),
+
+                AE_REFLECT("GetId",
+                    AE_MAKE_LAMBDA((), (Type& self, uint64_t handle), uint64_t, 
+                        return PhysicsSystem::GetUUID(self.scene->GetPhysicsInstance(), Handle<RigidBody>::FromBlend(handle));
                     )
                 )
             );

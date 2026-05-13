@@ -11,7 +11,7 @@ namespace Aether {
         static Handle FromBlend(uint64_t blend)
         {
             Handle h;
-            h.index      = (uint32_t)(blend >> 32);
+            h.index = (uint32_t)(blend >> 32);
             h.generation = (uint32_t)(blend & 0xFFFFFFFF);
             return h;
         }

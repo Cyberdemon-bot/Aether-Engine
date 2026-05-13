@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Assets/Asset.h"
+#include "Aether/Container/Handle.h"
 #include "Aether/Renderer/Resource.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
@@ -28,7 +29,7 @@ namespace Aether {
 
         void UploadMaterial(Shader* shader, uint32_t startSlot = 0);
 
-        void AddTexture(const std::string& name, ResourceHandle handle) { m_Textures.push_back({name, handle}); }
+        void AddTexture(const std::string& name, Handle<Resource> handle) { m_Textures.push_back({name, handle}); }
         void AddFloat(const std::string& name, float value) { m_FloatUniforms.push_back({name, value}); }
         void AddInt(const std::string& name, int value) { m_IntUniforms.push_back({name, value}); }
         void AddIntArray(const std::string& name, int* values, uint32_t count)
@@ -54,7 +55,7 @@ namespace Aether {
         std::vector<std::pair<std::string, glm::vec4>> m_Vec4Uniforms;
         std::vector<std::pair<std::string, glm::vec3>> m_Vec3Uniforms;
         std::vector<std::pair<std::string, std::vector<int>>> m_IntArrayUniforms;
-        std::vector<std::pair<std::string, ResourceHandle>> m_Textures;
+        std::vector<std::pair<std::string, Handle<Resource>>> m_Textures;
         std::vector<std::pair<std::string, int>> m_IntUniforms;
         std::vector<std::pair<std::string, float>> m_FloatUniforms;
 
@@ -67,8 +68,8 @@ namespace Aether {
     struct AETHER_API MaterialTable
     {
         std::vector<Material*> CachedPtr;
-        std::vector<AssetHandle> BaseHandles;
-        std::vector<AssetHandle> OverrideHandles;
+        std::vector<Handle<Asset>> BaseHandles;
+        std::vector<Handle<Asset>> OverrideHandles;
 
         void Resize(uint32_t size)
         {
@@ -77,14 +78,14 @@ namespace Aether {
             OverrideHandles.resize(size);
         }
 
-        void CopyDefaultList(const std::vector<AssetHandle>& handleList);
-        void CopyOverrideList(const std::vector<AssetHandle>& handleList);
-        void MoveDefaultList(std::vector<AssetHandle>&& handleList);
-        void MoveOverrideList(std::vector<AssetHandle>&& handleList);
+        void CopyDefaultList(const std::vector<Handle<Asset>>& handleList);
+        void CopyOverrideList(const std::vector<Handle<Asset>>& handleList);
+        void MoveDefaultList(std::vector<Handle<Asset>>&& handleList);
+        void MoveOverrideList(std::vector<Handle<Asset>>&& handleList);
 
         void Reset();
-        void SetOverride(uint32_t index, AssetHandle handle);
-        void SetDefault(uint32_t index, AssetHandle handle);
+        void SetOverride(uint32_t index, Handle<Asset> handle);
+        void SetDefault(uint32_t index, Handle<Asset> handle);
         void Revert(uint32_t index);
         void SwitchOverride(uint32_t index);
     };

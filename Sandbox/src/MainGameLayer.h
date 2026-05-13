@@ -118,8 +118,8 @@ private:
     };
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
-    Aether::AssetHandle              m_BaseMapMesh;
-    std::vector<Aether::AssetHandle> m_BaseMapMaterials;
+    Aether::Handle<Aether::Asset>              m_BaseMapMesh;
+    std::vector<Aether::Handle<Aether::Asset>> m_BaseMapMaterials;
 
     // --- Rendering ---
     float m_ShadowBias = 0.00001f;

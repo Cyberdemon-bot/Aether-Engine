@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Aether/Renderer/Resource.h"
+#include "Aether/Container/Handle.h"
 #include "Aether/Core/Base.h"
 #include <vector>
 
@@ -17,10 +18,10 @@ namespace Aether {
     public:
         static void Init();
         static void Shutdown();
-        static void Unload(ResourceHandle handle);
+        static void Unload(Handle<Resource> handle);
 
         template<typename T, typename... Args>
-        static ResourceHandle CreateResource(Args&&... args)
+        static Handle<Resource> CreateResource(Args&&... args)
         {
             auto& instance = GetInstance(); int index;
             static_assert(std::is_base_of_v<Resource, T>, "T must derive from Resource");
@@ -37,14 +38,14 @@ namespace Aether {
             }
             ResourceSlot& slot = instance.m_Resources[index];
             slot.asset = T::CreateImpl(std::forward<Args>(args)...);
-            ResourceHandle handle;
+            Handle<Resource> handle;
             handle.index = index;
             handle.generation = slot.generation;
             return handle;
         }
 
         template<typename T>
-        static T* GetResource(ResourceHandle handle)
+        static T* GetResource(Handle<Resource> handle)
         {
             auto& instance = GetInstance();
             if (handle.index >= instance.m_Resources.size()) return nullptr;

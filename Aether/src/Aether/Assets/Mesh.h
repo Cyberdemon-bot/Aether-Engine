@@ -100,7 +100,7 @@ namespace Aether {
         Mesh(const MeshSpec& spec);
         ~Mesh();
 
-        ResourceHandle GetVertexArray() const { return m_VertexArray; }
+        Handle<Resource> GetVertexArray() const { return m_VertexArray; }
         const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
         const BufferLayout& GetLayout() const { return m_Layout; }
 
@@ -117,13 +117,13 @@ namespace Aether {
         bool HasInstanceBuffer() { return m_HasInstanceBuffer; }
 
         void UploadMesh();
-        void AddInstanceBuffer(ResourceHandle handle);
+        void AddInstanceBuffer(Handle<Resource> handle);
         static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
 
     private:
-        ResourceHandle m_VertexArray;
-        ResourceHandle m_IndexBuffer;
-        std::vector<ResourceHandle> m_VertexBuffers;
+        Handle<Resource> m_VertexArray;
+        Handle<Resource> m_IndexBuffer;
+        std::vector<Handle<Resource>> m_VertexBuffers;
 
         BufferLayout m_Layout;
         std::vector<SubMesh> m_SubMeshes;

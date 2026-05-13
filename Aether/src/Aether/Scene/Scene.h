@@ -20,6 +20,7 @@ namespace Aether {
     template<typename Component>
     struct ComponentInfo;
     struct Prefab;
+    struct PhysicsInstance;
     class AETHER_API Scene 
     {
     public:
@@ -48,6 +49,7 @@ namespace Aether {
         UUID GetUUID(Entity entity) const;
 
         void LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
+        Handle<PhysicsInstance> GetPhysicsInstance() { return m_PhysicsInstance; }
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
@@ -117,6 +119,7 @@ namespace Aether {
     private:
         uint64_t m_CurrentFrame = 0;
         uint32_t m_Threshold = 64;
+        Handle<PhysicsInstance> m_PhysicsInstance;
         entt::registry m_Registry;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;

@@ -27,7 +27,7 @@ namespace Aether {
             uint32_t stride   = vbuffer.Layout.GetStride();
             uint32_t byteSize = vbuffer.VertexCount * stride;
 
-            ResourceHandle vboHandle = ResourceManager::CreateResource<VertexBuffer>((float*)vbuffer.Data, byteSize);
+            Handle<Resource> vboHandle = ResourceManager::CreateResource<VertexBuffer>((float*)vbuffer.Data, byteSize);
             auto* vbo = ResourceManager::GetResource<VertexBuffer>(vboHandle);
             vbo->SetLayout(vbuffer.Layout);
             vao->AddVertexBuffer(vbo);
@@ -89,7 +89,7 @@ namespace Aether {
         vao->Bind();
     }
 
-    void Mesh::AddInstanceBuffer(ResourceHandle handle)
+    void Mesh::AddInstanceBuffer(Handle<Resource> handle)
     {
         auto* vao = ResourceManager::GetResource<VertexArray>(m_VertexArray);
         auto* vbo = ResourceManager::GetResource<VertexBuffer>(handle);

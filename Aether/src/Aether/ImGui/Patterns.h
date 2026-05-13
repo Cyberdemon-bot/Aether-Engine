@@ -339,17 +339,6 @@ namespace Aether::UI
         Handle<RigidBody>  bodyHandle;
     };
 
-    inline void PhysicsBodyList(std::vector<PhysBodyEntry>& entries)
-    {
-        SectionHeader("Active Bodies");
-        for (auto& e : entries)
-        {
-            auto guard = ID(e.label.c_str());
-            if (Checkbox(e.label.c_str(), e.enabled))
-                PhysicsSystem::SetActive(e.bodyHandle, e.enabled);
-        }
-    }
-
     // =========================================================================
     //  PerformanceOverlay  —  FPS + frame time pinned to a screen corner
     //

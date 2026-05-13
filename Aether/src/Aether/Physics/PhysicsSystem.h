@@ -1,106 +1,63 @@
 #pragma once
 #include "Aether/Physics/PhysicsAPI.h"
+#include "Aether/Core/Log.h"
+#include "Aether/Core/Assert.h"
+#include <vector>
 
 namespace Aether {
+
+    struct PhysicsInstance;
+    struct PhysicsWorldSlot
+    {
+        Scope<PhysicsAPI> api = nullptr;
+        bool active = false;
+        uint32_t generation = 0;
+    };
+
     class AETHER_API PhysicsSystem
     {
     public:
-        static void Init()
-        {
-            s_PhysicsAPI->Init();
-        }
+        static void Init();
+        static void Shutdown();
 
-        static void Shutdown()
-        {
-            s_PhysicsAPI->Shutdown();
-        }
+        static Handle<PhysicsInstance> CreateInstance();
+        static void DestroyInstance(Handle<PhysicsInstance> handle);
+        static void UpdateInstance(Handle<PhysicsInstance> handle, Timestep ts);
 
-        static void Update(Timestep ts)
-        {
-            s_PhysicsAPI->Update(ts);
-        }
+        static Handle<RigidBody> CreateBody(Handle<PhysicsInstance> world, const BodyConfig& config);
+        static void DestroyBody(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
-        static Handle<RigidBody> CreateBody(const BodyConfig& config)
-        {
-            return s_PhysicsAPI->CreateBody(config);
-        }
+        static Handle<CollisionCallback> RegisterCallback(Handle<PhysicsInstance> world, const CollisionCallbackRef& callback);
+        static void RemoveCallback(Handle<PhysicsInstance> world, Handle<CollisionCallback> handle);
 
-        static void DestroyBody(Handle<RigidBody> handle)
-        {
-            s_PhysicsAPI->DestroyBody(handle);
-        }
+        static RaycastHit CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
+        static std::vector<RaycastHit> CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
 
-        static Handle<CollisionCallback> RegisterCallback(const CollisionCallbackRef& callback)
-        {
-            return s_PhysicsAPI->RegisterCallback(callback);
-        }
+        static void SetActive(Handle<PhysicsInstance> world, Handle<RigidBody> handle, bool active);
+        static void SetUUID(Handle<PhysicsInstance> world, Handle<RigidBody> handle, UUID id);
+        static UUID GetUUID(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
-        static void RemoveCallback(Handle<CollisionCallback> handle) 
-        {
-            s_PhysicsAPI->RemoveCallback(handle);
-        }
+        static void SetPhysTransform(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const PhysTransform& transform);
+        static PhysTransform GetPhysTransform(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
-        static RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
-        {
-            return s_PhysicsAPI->CastRay(origin, direction, distance);
-        }
+        static void AddForce(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const glm::vec3& force);
+        static void SetVelocity(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const glm::vec3& velocity);
+        static void SetGravity(Handle<PhysicsInstance> world, const glm::vec3& gravity);
 
-        static std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) 
-        {
-            return s_PhysicsAPI->CastRayAll(origin, direction, distance);
-        }
+        static bool CanMove(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const PhysTransform& target);
+        static const BodyConfig* GetBodyInfo(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
-        static void SetActive(Handle<RigidBody> handle, bool active)
-        {
-            s_PhysicsAPI->SetActive(handle, active);
-        }
-
-        static void SetUUID(Handle<RigidBody> handle, UUID id)
-        {
-            s_PhysicsAPI->SetUUID(handle, id);
-        }
-
-        static UUID GetUUID(Handle<RigidBody> handle)
-        {
-            return s_PhysicsAPI->GetUUID(handle);
-        }
-        
-        static void SetPhysTransform(Handle<RigidBody> handle, const PhysTransform& transform)
-        {
-            s_PhysicsAPI->SetPhysTransform(handle, transform);
-        }
-
-        static PhysTransform GetPhysTransform(Handle<RigidBody> handle)
-        {
-            return s_PhysicsAPI->GetPhysTransform(handle);
-        }
-
-        static void AddForce(Handle<RigidBody> handle, const glm::vec3& force)
-        {
-            s_PhysicsAPI->AddForce(handle, force);
-        }
-
-        static void SetVelocity(Handle<RigidBody> handle, const glm::vec3& velocity)
-        {
-            s_PhysicsAPI->SetVelocity(handle, velocity);
-        }
-
-        static void SetGravity(const glm::vec3& gravity)
-        {
-            s_PhysicsAPI->SetGravity(gravity);
-        }
-
-        static bool CanMove(Handle<RigidBody> handle, const PhysTransform& target)
-        {
-            return s_PhysicsAPI->CanMove(handle, target);
-        }
-
-        static const BodyConfig* GetBodyInfo(Handle<RigidBody> handle)
-        {
-            return s_PhysicsAPI->GetBodyInfo(handle);
-        }
-    
     private:
-        static Scope<PhysicsAPI> s_PhysicsAPI;
+        PhysicsSystem() = default;
+        PhysicsSystem(const PhysicsSystem&) = delete;
+        PhysicsSystem& operator=(const PhysicsSystem&) = delete;
+        PhysicsSystem(PhysicsSystem&&) = delete;
+        PhysicsSystem& operator=(PhysicsSystem&&) = delete;
+
+        static PhysicsSystem& GetInstance();
+        PhysicsAPI* GetAPI(Handle<PhysicsInstance> world);
+
+        std::vector<PhysicsWorldSlot> m_Worlds;
+        std::vector<uint32_t> m_FreeList;
     };
 }

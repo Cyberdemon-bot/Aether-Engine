@@ -28,7 +28,7 @@ namespace Aether {
             CachedPtr[i] = AssetManager::GetAsset<Material>(BaseHandles[i]);
     }
 
-    void MaterialTable::SetDefault(uint32_t index, AssetHandle handle)
+    void MaterialTable::SetDefault(uint32_t index, Handle<Asset> handle)
     {
         if (index >= BaseHandles.size())
         {
@@ -39,7 +39,7 @@ namespace Aether {
         CachedPtr[index] = AssetManager::GetAsset<Material>(BaseHandles[index]);
     }
 
-    void MaterialTable::SetOverride(uint32_t index, AssetHandle handle)
+    void MaterialTable::SetOverride(uint32_t index, Handle<Asset> handle)
     {
         if (index >= OverrideHandles.size())
         {
@@ -70,13 +70,13 @@ namespace Aether {
         CachedPtr[index] = AssetManager::GetAsset<Material>(OverrideHandles[index]);
     }
 
-    void MaterialTable::CopyDefaultList(const std::vector<AssetHandle>& handleList)
+    void MaterialTable::CopyDefaultList(const std::vector<Handle<Asset>>& handleList)
     {
         Resize((uint32_t)handleList.size()); 
         BaseHandles = handleList;           
     }
 
-    void MaterialTable::MoveDefaultList(std::vector<AssetHandle>&& handleList)
+    void MaterialTable::MoveDefaultList(std::vector<Handle<Asset>>&& handleList)
     {
         uint32_t newSize = (uint32_t)handleList.size();
         BaseHandles = std::move(handleList); 
@@ -84,7 +84,7 @@ namespace Aether {
         OverrideHandles.resize(newSize);
     }
 
-    void MaterialTable::CopyOverrideList(const std::vector<AssetHandle>& handleList)
+    void MaterialTable::CopyOverrideList(const std::vector<Handle<Asset>>& handleList)
     {
         uint32_t targetSize = (uint32_t)BaseHandles.size();
         OverrideHandles.resize(targetSize); 
@@ -93,7 +93,7 @@ namespace Aether {
         for (uint32_t i = copyCount; i < targetSize; ++i) OverrideHandles[i].MakeInvalid(); 
     }
 
-    void MaterialTable::MoveOverrideList(std::vector<AssetHandle>&& handleList)
+    void MaterialTable::MoveOverrideList(std::vector<Handle<Asset>>&& handleList)
     {
         uint32_t targetSize = (uint32_t)BaseHandles.size();
 

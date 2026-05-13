@@ -467,7 +467,7 @@ namespace Aether {
 
 	void Renderer::RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color)
 	{
-		static ResourceHandle s_VAO, s_VBO, s_IBO;
+		static Handle<Resource> s_VAO, s_VBO, s_IBO;
 		static glm::vec3 s_LastMin(FLT_MAX), s_LastMax(FLT_MAX);
 
 		glm::vec3 center  = (boundMin + boundMax) * 0.5f;
@@ -521,7 +521,7 @@ namespace Aether {
 		constexpr int hemiSegments = segments / 2;
 		constexpr int maxVertices  = segments * 2 + (hemiSegments + 1) * 2 * 2;
 
-		static ResourceHandle s_VAO, s_VBO, s_IBO_Cylinder, s_IBO_Hemisphere;
+		static Handle<Resource> s_VAO, s_VBO, s_IBO_Cylinder, s_IBO_Hemisphere;
 		static glm::vec3 s_Vertices[maxVertices];
 		static float s_LastRadius = -1.f, s_LastHalfHeight = -1.f;
 
@@ -619,7 +619,7 @@ namespace Aether {
 		constexpr int segments    = 32;
 		constexpr int maxVertices = segments * 3;
 
-		static ResourceHandle s_VAO, s_VBO, s_IBO;
+		static Handle<Resource> s_VAO, s_VBO, s_IBO;
 
 		if (!s_VAO.IsValid())
 		{
