@@ -93,13 +93,54 @@ namespace Aether {
         }
     }
 
-    Scene::Scene() 
+    void Scene::Init()
     {
         m_EntityLibrary.reserve(32);
         m_SceneLights.reserve(32);
+        PhysicsSystem::RegisterCallback([this](const CollisionEvent& ev) 
+        {
+            if (ev.type == CollisionType::Enter || ev.type == CollisionType::Exit) 
+            {
+                Entity a = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyA));
+                Entity b = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyB));
+
+                if (a == Null_Entity || b == Null_Entity) return;
+                if (HasComponent<ScriptComponent>(a)) 
+                {
+                    auto& cmp = GetComponent<ScriptComponent>(a);
+                    if (cmp.IsActive)
+                    {
+                        CollisionData data;
+                        data.contactPoint = ev.contactPoint;
+                        data.contactNormal = ev.contactNormal;
+                        data.entity = static_cast<uint32_t>(b);
+                        data.type = ev.type;
+
+                        Handle<ScriptTag> handle = cmp.ScriptHandle;
+                        ScriptEngine::OnInstanceCollision(handle, data);
+                    }
+                }
+
+                if (HasComponent<ScriptComponent>(b)) 
+                {
+                    auto& cmp = GetComponent<ScriptComponent>(b);
+                    if (cmp.IsActive)
+                    {
+                        CollisionData data;
+                        data.contactPoint = ev.contactPoint;
+                        data.contactNormal = -ev.contactNormal; 
+                        data.entity = static_cast<uint32_t>(a);
+                        data.type = ev.type;
+
+                        Handle<ScriptTag> handle = cmp.ScriptHandle;
+                        ScriptEngine::OnInstanceCollision(handle, data);
+                    }
+                }
+            }
+        });
     }
 
-    Scene::~Scene() 
+    void Scene::Shutdown()
     {
         std::vector<Entity> all;
         all.reserve(m_EntityLibrary.size());
@@ -356,6 +397,7 @@ namespace Aether {
     {
         auto it = m_EntityLibrary.find(id);
         if(it != m_EntityLibrary.end()) return it->second;
+        AE_CORE_INFO("Find: null");
         return Null_Entity;
     }
 
@@ -615,51 +657,6 @@ namespace Aether {
 
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
-        { 
-            PhysicsSystem::Update(ts, [this](const CollisionEvent& ev) 
-            {
-                if (ev.type == CollisionType::Enter || ev.type == CollisionType::Exit) 
-                {
-                    Entity a = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyA));
-                    Entity b = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyB));
-
-                    if (a == Null_Entity || b == Null_Entity) return;
-
-                    if (HasComponent<ScriptComponent>(a)) 
-                    {
-                        auto& cmp = GetComponent<ScriptComponent>(a);
-                        if (cmp.IsActive)
-                        {
-                            CollisionData data;
-                            data.contactPoint = ev.contactPoint;
-                            data.contactNormal = ev.contactNormal;
-                            data.entity = static_cast<uint32_t>(b);
-                            data.type = ev.type;
-
-                            Handle<ScriptTag> handle = cmp.ScriptHandle;
-                            ScriptEngine::OnInstanceCollision(handle, data);
-                        }
-                    }
-
-                    if (HasComponent<ScriptComponent>(b)) 
-                    {
-                        auto& cmp = GetComponent<ScriptComponent>(b);
-                        if (cmp.IsActive)
-                        {
-                            CollisionData data;
-                            data.contactPoint = ev.contactPoint;
-                            data.contactNormal = -ev.contactNormal; 
-                            data.entity = static_cast<uint32_t>(a);
-                            data.type = ev.type;
-
-                            Handle<ScriptTag> handle = cmp.ScriptHandle;
-                            ScriptEngine::OnInstanceCollision(handle, data);
-                        }
-                    }
-                }
-            });
-        }
-
         {
             m_CurrentFrame++;
             DirtyScan();
@@ -702,6 +699,7 @@ namespace Aether {
                     PhysicsSystem::SetUUID(handle, GetComponent<IDComponent>(entity).ID);
                 }
             }
+            PhysicsSystem::Update(ts);
         }
 
         {

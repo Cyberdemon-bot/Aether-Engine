@@ -61,6 +61,7 @@ void MainGameLayer::Attach()
     m_Pipeline.push_back(mainPass);
 
     Aether::Renderer::SetPipeline(m_Pipeline);
+    m_Scene.Init();
 
     // =========================================================================
     // SUN LIGHT
@@ -180,6 +181,7 @@ void MainGameLayer::Detach()
     m_ShadowShader.reset();
     m_MainShader.reset();
     m_ActiveChunks.clear();
+    m_Scene.Shutdown();
 
     Aether::AssetManager::Unload(m_BgmSoundID);
     Aether::AssetManager::Unload(m_GunSoundID);

@@ -27,10 +27,13 @@ namespace Aether {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
-        virtual void Update(Timestep ts, const CollisionCallbackRef& callback) override;
+        virtual void Update(Timestep ts) override;
 
         virtual Handle<BodyTag> CreateBody(const BodyConfig& config) override;
         virtual void DestroyBody(Handle<BodyTag> handle) override;
+
+        virtual Handle<CallbackTag> RegisterCallback(const CollisionCallbackRef& callback) override;
+        virtual void RemoveCallback(Handle<CallbackTag> handle) override;
 
         virtual const BodyConfig* GetBodyInfo(Handle<BodyTag> handle) const override;
 
@@ -51,6 +54,7 @@ namespace Aether {
     private:
         std::vector<UUID> m_IDList;
         ResourcePool<Handle<BodyTag>, JoltBodyData> m_BodyPool;
+        ResourcePool<Handle<CallbackTag>, CollisionCallbackRef> m_CallbackPool;
         JPH::PhysicsSystem* m_PhysicsSystem = nullptr;
         JPH::TempAllocatorImpl* m_TempAllocator = nullptr;
         JPH::JobSystemThreadPool* m_JobSystem = nullptr;

@@ -15,9 +15,9 @@ namespace Aether {
             s_PhysicsAPI->Shutdown();
         }
 
-        static void Update(Timestep ts, CollisionCallbackRef callback)
+        static void Update(Timestep ts)
         {
-            s_PhysicsAPI->Update(ts, callback);
+            s_PhysicsAPI->Update(ts);
         }
 
         static Handle<BodyTag> CreateBody(const BodyConfig& config)
@@ -28,6 +28,16 @@ namespace Aether {
         static void DestroyBody(Handle<BodyTag> handle)
         {
             s_PhysicsAPI->DestroyBody(handle);
+        }
+
+        static Handle<CallbackTag> RegisterCallback(const CollisionCallbackRef& callback)
+        {
+            return s_PhysicsAPI->RegisterCallback(callback);
+        }
+
+        static void RemoveCallback(Handle<CallbackTag> handle) 
+        {
+            s_PhysicsAPI->RemoveCallback(handle);
         }
 
         static RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)

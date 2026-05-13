@@ -23,8 +23,11 @@ namespace Aether {
     class AETHER_API Scene 
     {
     public:
-        Scene();
-        ~Scene();
+        Scene() = default;
+        ~Scene() = default;
+
+        void Init();
+        void Shutdown();
 
         Entity CreateEntity();
         Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);

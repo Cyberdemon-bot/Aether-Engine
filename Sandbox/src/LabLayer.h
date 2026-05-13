@@ -66,15 +66,6 @@ private:
     int m_BindMeshIndex     = -1;
     int m_BindAnimatorIndex = -1;
 
-    struct PhysicsEntry
-    {
-        Aether::Handle<Aether::BodyTag> handle;
-        bool         enabled    = false;
-        bool         lastActive = false;
-        bool         isDynamic  = true;
-    };
-    std::unordered_map<Aether::Entity, PhysicsEntry> m_PhysicsBodies;
-
     Aether::Entity m_PhysSelectedEntity = Aether::Null_Entity;
     int            m_PhysMeshIdx        = -1;
     bool           m_PhysDynamic        = true;

@@ -10,6 +10,7 @@
 
 namespace Aether {
     struct BodyTag;
+    struct CallbackTag;
     enum class ColliderShape
     {
         None = 0, // point
@@ -69,36 +70,7 @@ namespace Aether {
         glm::vec3 contactNormal;
     };
 
-    class CollisionCallbackRef 
-    {
-    public:
-        CollisionCallbackRef() = default;
-        CollisionCallbackRef(std::nullptr_t) {}
-
-        template <typename Lambda, 
-              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Lambda>, std::nullptr_t>>>
-        CollisionCallbackRef(Lambda&& lambda) 
-        {
-            m_Instance = reinterpret_cast<void*>(&lambda); 
-            m_Invoke = [](void* inst, const CollisionEvent& ev) {
-                using RealType = std::remove_reference_t<Lambda>;
-                (*static_cast<RealType*>(inst))(ev);
-            };
-        }
-
-        explicit operator bool() const
-        {
-            return m_Invoke != nullptr;
-        }
-
-        void operator()(const CollisionEvent& ev) const 
-        {
-            if (m_Invoke) m_Invoke(m_Instance, ev);
-        }
-    private:
-        void* m_Instance = nullptr;
-        void (*m_Invoke)(void*, const CollisionEvent&) = nullptr;
-    };
+    using CollisionCallbackRef = Delegate<void(const CollisionEvent&)>;
 
     class PhysicsAPI
     {
@@ -111,10 +83,13 @@ namespace Aether {
 
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
-        virtual void Update(Timestep ts, const CollisionCallbackRef& callback) = 0;
+        virtual void Update(Timestep ts) = 0;
 
         virtual Handle<BodyTag> CreateBody(const BodyConfig& config) = 0;
         virtual void DestroyBody(Handle<BodyTag> handle) = 0;
+
+        virtual Handle<CallbackTag> RegisterCallback(const CollisionCallbackRef& callback) = 0;
+        virtual void RemoveCallback(Handle<CallbackTag> handle) = 0;
 
         virtual const BodyConfig* GetBodyInfo(Handle<BodyTag> handle) const = 0;
 

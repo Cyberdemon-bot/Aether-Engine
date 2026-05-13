@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Scene/Entity.h"
@@ -11,7 +12,6 @@
 #include "Aether/Animation/RigModule.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <functional>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
@@ -103,7 +103,7 @@ namespace Aether {
         bool CacheDirty = false;
         mutable bool Culled = false;
 
-        std::function<void(Entity, RigModule* rig, float dt)> onPostEvaluate;
+        Delegate<void(Entity, RigModule* rig, float dt)> onPostEvaluate;
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
