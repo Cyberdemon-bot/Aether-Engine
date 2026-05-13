@@ -62,7 +62,7 @@ namespace Aether {
 		Mesh* mesh;
 		Material* material;
 		uint32_t subIdx;
-		Handle<PoseTag> pose;
+		Handle<Pose> pose;
 		glm::mat4 transform;
 
 		bool operator<(const Command& other) const
@@ -124,7 +124,7 @@ namespace Aether {
 		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
 		static void EndScene();
 
-		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<PoseTag> pose, const glm::mat4& transform);
+		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<Pose> pose, const glm::mat4& transform);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);

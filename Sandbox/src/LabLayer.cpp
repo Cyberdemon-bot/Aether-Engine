@@ -264,7 +264,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
     col.Size = config.size;
     col.Friction = 0.5;
     col.Restitution = 0.3f;
-    col.ColliderHandle = Aether::Handle<Aether::BodyTag>::MakeInvalid();
+    col.ColliderHandle = Aether::Handle<Aether::RigidBody>::MakeInvalid();
     col.Visible = true;
 }
 
@@ -489,7 +489,7 @@ void LabLayer::DrawScriptingPanel()
                 }
 
                 auto script = ScriptEngine::LoadScript(m_ScriptPath);
-                Handle<ScriptTag> handle = ScriptEngine::CreateInstance(
+                Handle<ScriptInstance> handle = ScriptEngine::CreateInstance(
                     &m_Scene, m_ScriptTargetEntity, script);
 
                 if (handle.IsValid())
@@ -587,6 +587,7 @@ void LabLayer::DrawScenePanel()
             for (auto& id : m_MeshIDs)
                 meshNames.push_back(AssetsRegister::Get(id));
             UI::ComboList("Mesh##phys", meshNames, m_PhysMeshIdx);
+            UI::Checkbox("Is Dynamic", m_PhysDynamic);
 
             bool canAdd = (m_PhysSelectedEntity != Null_Entity &&
                            m_Scene.IsValid(m_PhysSelectedEntity) &&

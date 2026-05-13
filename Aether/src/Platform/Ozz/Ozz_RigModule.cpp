@@ -26,7 +26,7 @@ namespace Aether {
 
     //resource management
 
-    Handle<SkeletonTag> Ozz_RigModule::CreateSkeleton(const SkeletonSpec& data)
+    Handle<Skeleton> Ozz_RigModule::CreateSkeleton(const SkeletonSpec& data)
     {
         auto handle = m_SkeletonPool.CreateResource();
         auto* skeleton = m_SkeletonPool.GetResource(handle);
@@ -35,7 +35,7 @@ namespace Aether {
         {
             AE_CORE_ERROR("Failed to build ozz skeleton!");
             m_SkeletonPool.DestroyResource(handle);
-            return Handle<SkeletonTag>::MakeInvalid();
+            return Handle<Skeleton>::MakeInvalid();
         }
 
         const auto& names = skeleton->data->joint_names();
@@ -57,13 +57,13 @@ namespace Aether {
         return handle;
     }
 
-    Handle<ClipTag> Ozz_RigModule::CreateClip(const ClipSpec& data, Handle<SkeletonTag> skeleton) 
+    Handle<Clip> Ozz_RigModule::CreateClip(const ClipSpec& data, Handle<Skeleton> skeleton) 
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
         {
             AE_CORE_ERROR("Skeleton not found for clip");
-            return Handle<ClipTag>::MakeInvalid();
+            return Handle<Clip>::MakeInvalid();
         }
 
         int num = it->data->num_joints();
@@ -75,19 +75,19 @@ namespace Aether {
         {
             AE_CORE_ERROR("Failed to create ozz clip!");
             m_ClipPool.DestroyResource(handle);
-            return Handle<ClipTag>::MakeInvalid();
+            return Handle<Clip>::MakeInvalid();
         }
 
         return handle;
     }
 
-    Handle<CacheTag> Ozz_RigModule::CreateCache(Handle<ClipTag> clip) 
+    Handle<SkeletonCache> Ozz_RigModule::CreateCache(Handle<Clip> clip) 
     {
         auto* it = m_ClipPool.GetResource(clip);
         if (!it)
         {
             AE_CORE_ERROR("Clip not found for cache");
-            return Handle<CacheTag>::MakeInvalid();
+            return Handle<SkeletonCache>::MakeInvalid();
         }
 
         int num = it->data->num_tracks();
@@ -98,7 +98,7 @@ namespace Aether {
         return handle;
     }
 
-    void Ozz_RigModule::DestroyCache(Handle<CacheTag> cache) 
+    void Ozz_RigModule::DestroyCache(Handle<SkeletonCache> cache) 
     {
         auto* it = m_CachePool.GetResource(cache);
         if(!it)
@@ -111,7 +111,7 @@ namespace Aether {
         m_CachePool.DestroyResource(cache);
     }
 
-    void Ozz_RigModule::RepairCache(Handle<CacheTag> cache, Handle<ClipTag> clip)
+    void Ozz_RigModule::RepairCache(Handle<SkeletonCache> cache, Handle<Clip> clip)
     {
         auto* ce_it = m_CachePool.GetResource(cache);
         auto* cp_it = m_ClipPool.GetResource(clip);
@@ -127,13 +127,13 @@ namespace Aether {
     }
 
 
-    Handle<PoseTag> Ozz_RigModule::CreatePose(Handle<SkeletonTag> skeleton)
+    Handle<Pose> Ozz_RigModule::CreatePose(Handle<Skeleton> skeleton)
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
         {
             AE_CORE_ERROR("Skeleton not found for pose creation");
-            return Handle<PoseTag>::MakeInvalid();
+            return Handle<Pose>::MakeInvalid();
         }
 
         auto handle = m_PosePool.CreateResource();
@@ -143,7 +143,7 @@ namespace Aether {
         return handle;
     }
 
-    void Ozz_RigModule::DestroyPose(Handle<PoseTag> pose)
+    void Ozz_RigModule::DestroyPose(Handle<Pose> pose)
     {
         auto* it = m_PosePool.GetResource(pose);
         if (!it)
@@ -155,20 +155,20 @@ namespace Aether {
         m_PosePool.DestroyResource(pose);
     }
 
-    Handle<MaskTag> Ozz_RigModule::CreateMask(Handle<SkeletonTag> skeleton, float* weights, size_t size)
+    Handle<Mask> Ozz_RigModule::CreateMask(Handle<Skeleton> skeleton, float* weights, size_t size)
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
         {
             AE_CORE_ERROR("Skeleton not found for mask");
-            return Handle<MaskTag>::MakeInvalid();
+            return Handle<Mask>::MakeInvalid();
         }
 
         int num = it->data->num_joints();
         if (size != num)
         {
             AE_CORE_ERROR("Mask weight count doesn't match skeleton joint count");
-            return Handle<MaskTag>::MakeInvalid();
+            return Handle<Mask>::MakeInvalid();
         }
 
         auto handle = m_MaskPool.CreateResource();
@@ -177,7 +177,7 @@ namespace Aether {
         return handle;
     }
 
-    void Ozz_RigModule::DestroyMask(Handle<MaskTag> mask)
+    void Ozz_RigModule::DestroyMask(Handle<Mask> mask)
     {
         auto* it = m_MaskPool.GetResource(mask);
         if (!it)
@@ -189,7 +189,7 @@ namespace Aether {
         m_MaskPool.DestroyResource(mask);
     }
 
-    void Ozz_RigModule::FillMaskSubtree(Handle<MaskTag> mask, Handle<SkeletonTag> skeleton, const std::string& boneName, float weight)
+    void Ozz_RigModule::FillMaskSubtree(Handle<Mask> mask, Handle<Skeleton> skeleton, const std::string& boneName, float weight)
     {
         auto* it  = m_MaskPool.GetResource(mask);
         auto* sk  = m_SkeletonPool.GetResource(skeleton);
@@ -219,31 +219,31 @@ namespace Aether {
 
 
     void Ozz_RigModule::ScheduleSample(  
-            Handle<SkeletonTag> skeleton,
-            Handle<ClipTag> clip, 
-            Handle<CacheTag> cache, 
-            Handle<PoseTag> poseOut,
+            Handle<Skeleton> skeleton,
+            Handle<Clip> clip, 
+            Handle<SkeletonCache> cache, 
+            Handle<Pose> poseOut,
             float time) { m_SampleTasks.push_back({ skeleton, clip, cache, time, poseOut }); }
 
     void Ozz_RigModule::ScheduleBlend(
-        Handle<PoseTag> poseA,
-        Handle<PoseTag> poseB,
-        Handle<PoseTag> poseOut,
-        float alpha) { m_BlendTasks.push_back({ BlendMode::Lerp, poseA, poseB, Handle<MaskTag>::MakeInvalid(), alpha, poseOut }); }
+        Handle<Pose> poseA,
+        Handle<Pose> poseB,
+        Handle<Pose> poseOut,
+        float alpha) { m_BlendTasks.push_back({ BlendMode::Lerp, poseA, poseB, Handle<Mask>::MakeInvalid(), alpha, poseOut }); }
     
     
     void Ozz_RigModule::ScheduleAdditive(
-        Handle<PoseTag> poseBase,
-        Handle<PoseTag> poseAdditive,
-        Handle<PoseTag> poseOut,
-        float weight) { m_BlendTasks.push_back({ BlendMode::Additive, poseBase, poseAdditive, Handle<MaskTag>::MakeInvalid(), weight, poseOut }); }
+        Handle<Pose> poseBase,
+        Handle<Pose> poseAdditive,
+        Handle<Pose> poseOut,
+        float weight) { m_BlendTasks.push_back({ BlendMode::Additive, poseBase, poseAdditive, Handle<Mask>::MakeInvalid(), weight, poseOut }); }
     
 
     void Ozz_RigModule::ScheduleLayeredBlend(
-        Handle<PoseTag> poseA,
-        Handle<PoseTag> poseB,
-        Handle<MaskTag> mask,
-        Handle<PoseTag> poseOut) { m_BlendTasks.push_back({ BlendMode::Layered, poseA, poseB, mask, 0.0f, poseOut }); }
+        Handle<Pose> poseA,
+        Handle<Pose> poseB,
+        Handle<Mask> mask,
+        Handle<Pose> poseOut) { m_BlendTasks.push_back({ BlendMode::Layered, poseA, poseB, mask, 0.0f, poseOut }); }
     
 
     void Ozz_RigModule::ScheduleTwoBoneIK(const TwoBoneIKSpec& spec)
@@ -264,8 +264,8 @@ namespace Aether {
 
 
     void Ozz_RigModule::ScheduleFinalize(
-        Handle<SkeletonTag> skeleton,
-        Handle<PoseTag> pose) { m_FinalizeTasks.push_back({ skeleton, pose }); }
+        Handle<Skeleton> skeleton,
+        Handle<Pose> pose) { m_FinalizeTasks.push_back({ skeleton, pose }); }
     
 
 
@@ -332,7 +332,7 @@ namespace Aether {
 
     // queries
 
-    int Ozz_RigModule::GetJointIndex(Handle<SkeletonTag> skeleton, const std::string& name) const
+    int Ozz_RigModule::GetJointIndex(Handle<Skeleton> skeleton, const std::string& name) const
     {
         auto it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return -1;
@@ -344,7 +344,7 @@ namespace Aether {
         return -1;
     }
 
-    std::string Ozz_RigModule::GetJointName(Handle<SkeletonTag> skeleton, int index) const 
+    std::string Ozz_RigModule::GetJointName(Handle<Skeleton> skeleton, int index) const 
     {
         auto it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return "";
@@ -354,7 +354,7 @@ namespace Aether {
         return std::string(names[index]);
     }
 
-    float Ozz_RigModule::GetDuration(Handle<ClipTag> clip) const
+    float Ozz_RigModule::GetDuration(Handle<Clip> clip) const
     {
         auto* it = m_ClipPool.GetResource(clip);
         if (!it) return 0.0f;
@@ -362,7 +362,7 @@ namespace Aether {
         return it->data->duration();
     }
 
-    int Ozz_RigModule::GetJointCount(Handle<SkeletonTag> skeleton) const
+    int Ozz_RigModule::GetJointCount(Handle<Skeleton> skeleton) const
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return 0;
@@ -370,7 +370,7 @@ namespace Aether {
         return it->data->num_joints();
     }
 
-    void Ozz_RigModule::GetRestPoseMatrices(Handle<SkeletonTag> skeleton, glm::mat4* arr, size_t size) const
+    void Ozz_RigModule::GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return;
@@ -389,7 +389,7 @@ namespace Aether {
             ConvertOzzMatrixToGlm(modelMats[i], arr[i]);
     }
 
-    bool Ozz_RigModule::GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const
+    bool Ozz_RigModule::GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const
     {
         const auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return false;
@@ -398,7 +398,7 @@ namespace Aether {
         return true;
     }
 
-    std::tuple<const glm::mat4*, size_t> Ozz_RigModule::GetPose(Handle<PoseTag> pose)
+    std::tuple<const glm::mat4*, size_t> Ozz_RigModule::GetPose(Handle<Pose> pose)
     {
         auto* it = m_PosePool.GetResource(pose);
         if (!it || it->finalMats.empty())

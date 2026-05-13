@@ -333,7 +333,7 @@ namespace Aether {
 			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray()));
 	}
 
-	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<PoseTag> pose, const glm::mat4& transform)
+	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<Pose> pose, const glm::mat4& transform)
 	{
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();

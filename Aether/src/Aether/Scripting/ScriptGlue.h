@@ -6,6 +6,7 @@
 #include "Aether/Core/Input.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Scene/Scene.h"
+#include "Aether/Physics/PhysicsSystem.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -380,7 +381,7 @@ namespace Aether {
 
     struct EventContext
     {
-        Handle<ScriptTag> handle;
+        Handle<ScriptInstance> handle;
         ScriptEventManager* event_manager = nullptr;
     };
 
@@ -436,6 +437,96 @@ namespace Aether {
                 ),
                 AE_REFLECT("GetMouseY",
                     AE_MAKE_LAMBDA((), (), float, return Input::GetMouseY();)
+                )
+            );
+        }
+    };
+
+    struct RaycastHitBinding
+    {
+        using Type = RaycastHit;
+        using VType = glm::vec3;
+        static constexpr const char* get_name() { return "RaycastHit"; }
+
+        static constexpr auto get_props()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Hit",
+                    AE_MAKE_LAMBDA((), (const Type& self), bool, return self.Hit;)
+                ),
+                AE_REFLECT("Position",
+                    AE_MAKE_LAMBDA((), (const Type& self), VType, return self.Position;)
+                ),
+                AE_REFLECT("Normal",
+                    AE_MAKE_LAMBDA((), (const Type& self), VType, return self.Normal;)
+                ),
+                AE_REFLECT("Distance",
+                    AE_MAKE_LAMBDA((), (const Type& self), float, return self.Distance;)
+                ),
+                AE_REFLECT("HitEntityId",
+                    AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
+                        return (uint64_t)PhysicsSystem::GetUUID(self.HitEntityHandle);
+                    )
+                )
+            );
+        }
+    };
+
+    struct PhysicsContext
+    {
+        Scene* scene  = nullptr;
+        Entity entity = Null_Entity;
+    };
+
+    struct PhysicsBinding
+    {
+        using Type = PhysicsContext;
+        using VType = glm::vec3;
+        static constexpr const char* get_name() { return "PhysicsContext"; }
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+
+                AE_REFLECT("AddForce",
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& force), void,
+                        if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
+                        auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
+                        PhysicsSystem::AddForce(handle, force);
+                    )
+                ),
+
+                AE_REFLECT("SetVelocity",
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& velocity), void,
+                        if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
+                        auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
+                        PhysicsSystem::SetVelocity(handle, velocity);
+                    )
+                ),
+
+                AE_REFLECT("SetGravity",
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& gravity), void,
+                        PhysicsSystem::SetGravity(gravity);
+                    )
+                ),
+
+                AE_REFLECT("CanMove",
+                    AE_MAKE_LAMBDA((), (Type& self, const PhysTransform& target), bool,
+                        if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return false;
+                        auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
+                        return PhysicsSystem::CanMove(handle, target);
+                    )
+                ),
+
+                AE_REFLECT("CastRay",
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), RaycastHit,
+                        return PhysicsSystem::CastRay(origin, direction, distance);
+                    )
+                ),
+
+                AE_REFLECT("CastRayAll",
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastHit>,
+                        return PhysicsSystem::CastRayAll(origin, direction, distance);
+                    )
                 )
             );
         }

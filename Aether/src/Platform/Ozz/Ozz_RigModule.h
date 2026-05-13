@@ -21,60 +21,60 @@ namespace Aether {
         Ozz_RigModule();
         virtual ~Ozz_RigModule() override;
 
-        virtual Handle<SkeletonTag> CreateSkeleton(const SkeletonSpec& data) override;
-        virtual Handle<ClipTag> CreateClip(const ClipSpec& data, Handle<SkeletonTag> skeleton) override;
+        virtual Handle<Skeleton> CreateSkeleton(const SkeletonSpec& data) override;
+        virtual Handle<Clip> CreateClip(const ClipSpec& data, Handle<Skeleton> skeleton) override;
 
-        virtual Handle<CacheTag> CreateCache(Handle<ClipTag> clip) override;
-        virtual void DestroyCache(Handle<CacheTag> cache) override;
-        virtual void RepairCache(Handle<CacheTag> cache, Handle<ClipTag> clip) override;
+        virtual Handle<SkeletonCache> CreateCache(Handle<Clip> clip) override;
+        virtual void DestroyCache(Handle<SkeletonCache> cache) override;
+        virtual void RepairCache(Handle<SkeletonCache> cache, Handle<Clip> clip) override;
 
-        virtual Handle<PoseTag> CreatePose(Handle<SkeletonTag> skeleton) override;
-        virtual void DestroyPose(Handle<PoseTag> pose) override;
+        virtual Handle<Pose> CreatePose(Handle<Skeleton> skeleton) override;
+        virtual void DestroyPose(Handle<Pose> pose) override;
 
-        virtual Handle<MaskTag> CreateMask(Handle<SkeletonTag> skeleton, float* weights, size_t size) override;
-        virtual void DestroyMask(Handle<MaskTag> mask) override;
-        virtual void FillMaskSubtree(Handle<MaskTag> mask, Handle<SkeletonTag> skeleton, const std::string& boneName, float weight) override;
+        virtual Handle<Mask> CreateMask(Handle<Skeleton> skeleton, float* weights, size_t size) override;
+        virtual void DestroyMask(Handle<Mask> mask) override;
+        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<Skeleton> skeleton, const std::string& boneName, float weight) override;
 
 
-        virtual int GetJointIndex(Handle<SkeletonTag> skeleton, const std::string& name) const override;
-        virtual std::string GetJointName(Handle<SkeletonTag> skeleton, int index) const override;
-        virtual float GetDuration(Handle<ClipTag> clip) const override;
-        virtual int GetJointCount(Handle<SkeletonTag> skeleton) const override;
-        virtual bool GetIBM(Handle<SkeletonTag> skeleton, int boneIndex, glm::mat4& out) const override;
-        virtual void GetRestPoseMatrices(Handle<SkeletonTag> skeleton, glm::mat4* arr, size_t size) const override;
-        virtual std::tuple<const glm::mat4*, size_t> GetPose(Handle<PoseTag> pose) override;
+        virtual int GetJointIndex(Handle<Skeleton> skeleton, const std::string& name) const override;
+        virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const override;
+        virtual float GetDuration(Handle<Clip> clip) const override;
+        virtual int GetJointCount(Handle<Skeleton> skeleton) const override;
+        virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const override;
+        virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const override;
+        virtual std::tuple<const glm::mat4*, size_t> GetPose(Handle<Pose> pose) override;
 
         virtual void ScheduleSample(  
-            Handle<SkeletonTag> skeleton,
-            Handle<ClipTag> clip, 
-            Handle<CacheTag> cache, 
-            Handle<PoseTag> poseOut,
+            Handle<Skeleton> skeleton,
+            Handle<Clip> clip, 
+            Handle<SkeletonCache> cache, 
+            Handle<Pose> poseOut,
             float time) override;
 
         virtual void ScheduleBlend(
-            Handle<PoseTag> poseA,
-            Handle<PoseTag> poseB,
-            Handle<PoseTag> poseOut,
+            Handle<Pose> poseA,
+            Handle<Pose> poseB,
+            Handle<Pose> poseOut,
             float alpha) override;
         
         virtual void ScheduleAdditive(
-            Handle<PoseTag> poseBase,
-            Handle<PoseTag> poseAdditive,
-            Handle<PoseTag> poseOut,
+            Handle<Pose> poseBase,
+            Handle<Pose> poseAdditive,
+            Handle<Pose> poseOut,
             float weight) override;
 
         virtual void ScheduleLayeredBlend(
-            Handle<PoseTag> poseA,
-            Handle<PoseTag> poseB,
-            Handle<MaskTag> mask,
-            Handle<PoseTag> poseOut) override;
+            Handle<Pose> poseA,
+            Handle<Pose> poseB,
+            Handle<Mask> mask,
+            Handle<Pose> poseOut) override;
 
         virtual void ScheduleTwoBoneIK(const TwoBoneIKSpec& spec) override;
         virtual void ScheduleLookAt(const LookAtSpec& spec) override;
 
         virtual void ScheduleFinalize(
-            Handle<SkeletonTag> skeleton,
-            Handle<PoseTag> pose) override;
+            Handle<Skeleton> skeleton,
+            Handle<Pose> pose) override;
 
         virtual void ProcessTasks() override;
         virtual void ClearTasks() override;
@@ -121,22 +121,22 @@ namespace Aether {
 
         struct SampleTask
         {
-            Handle<SkeletonTag> skeleton;
-            Handle<ClipTag> clip;
-            Handle<CacheTag> cache;
+            Handle<Skeleton> skeleton;
+            Handle<Clip> clip;
+            Handle<SkeletonCache> cache;
             float time;
-            Handle<PoseTag> poseOut;
+            Handle<Pose> poseOut;
         };
 
         enum class BlendMode { Lerp, Additive, Layered };
         struct BlendTask
         {
             BlendMode mode;
-            Handle<PoseTag> poseA;
-            Handle<PoseTag> poseB;
-            Handle<MaskTag> mask;   
+            Handle<Pose> poseA;
+            Handle<Pose> poseB;
+            Handle<Mask> mask;   
             float alpha; 
-            Handle<PoseTag> poseOut;
+            Handle<Pose> poseOut;
         };
 
         enum class IKMode { TwoBone, LookAt };
@@ -150,8 +150,8 @@ namespace Aether {
 
         struct FinalizeTask
         {
-            Handle<SkeletonTag> skeleton;
-            Handle<PoseTag> pose;
+            Handle<Skeleton> skeleton;
+            Handle<Pose> pose;
         };
         
         ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const SkeletonSpec& data);
@@ -170,11 +170,11 @@ namespace Aether {
         void ApplyLookAt(const IKTask& task);
         void FinalizePose(const FinalizeTask& task);
     private:
-        ResourcePool<Handle<SkeletonTag>, OzzSkeleton> m_SkeletonPool;
-        ResourcePool<Handle<ClipTag>, OzzClip> m_ClipPool;
-        ResourcePool<Handle<CacheTag>, OzzCache> m_CachePool;
-        ResourcePool<Handle<PoseTag>, OzzPose> m_PosePool;
-        ResourcePool<Handle<MaskTag>, OzzMask> m_MaskPool;
+        ResourcePool<Handle<Skeleton>, OzzSkeleton> m_SkeletonPool;
+        ResourcePool<Handle<Clip>, OzzClip> m_ClipPool;
+        ResourcePool<Handle<SkeletonCache>, OzzCache> m_CachePool;
+        ResourcePool<Handle<Pose>, OzzPose> m_PosePool;
+        ResourcePool<Handle<Mask>, OzzMask> m_MaskPool;
 
         std::vector<SampleTask> m_SampleTasks;
         std::vector<BlendTask> m_BlendTasks;

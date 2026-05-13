@@ -15,6 +15,7 @@ function OnUpdate(ts)
 
     if Input.IsKeyPressed(Key.Up) then
         move = move + Math.Vec3(0.0, 0.0, -1.0)
+        physics:AddForce(Math.Vec3(0.0, 100000.0, 0.0))
     end
     if Input.IsKeyPressed(Key.Down) then
         move = move + Math.Vec3(0.0, 0.0, 1.0)

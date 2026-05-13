@@ -94,8 +94,8 @@ namespace JPH {
             m_UserDataCache[inBody2.GetID().GetIndexAndSequenceNumber()] = inBody2.GetUserData();
             m_WriteQueue->push_back({
                 Aether::CollisionType::Enter, 
-                Aether::Handle<Aether::BodyTag>::FromBlend(inBody1.GetUserData()), 
-                Aether::Handle<Aether::BodyTag>::FromBlend(inBody2.GetUserData()),
+                Aether::Handle<Aether::RigidBody>::FromBlend(inBody1.GetUserData()), 
+                Aether::Handle<Aether::RigidBody>::FromBlend(inBody2.GetUserData()),
                 glm::vec3(joltContactPoint.GetX(), joltContactPoint.GetY(), joltContactPoint.GetZ()),
                 glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ())
             });
@@ -115,8 +115,8 @@ namespace JPH {
 
             m_WriteQueue->push_back({
                 Aether::CollisionType::Exit,
-                Aether::Handle<Aether::BodyTag>::FromBlend(it1->second),
-                Aether::Handle<Aether::BodyTag>::FromBlend(it2->second),
+                Aether::Handle<Aether::RigidBody>::FromBlend(it1->second),
+                Aether::Handle<Aether::RigidBody>::FromBlend(it2->second),
                 glm::vec3(0.0f),
                 glm::vec3(0.0f)
             });
@@ -274,9 +274,9 @@ namespace Aether {
         });
     }
 
-    Handle<BodyTag> Jolt_PhysicsAPI::CreateBody(const BodyConfig& config)
+    Handle<RigidBody> Jolt_PhysicsAPI::CreateBody(const BodyConfig& config)
     {
-        if (!m_PhysicsSystem) return Handle<BodyTag>::MakeInvalid();
+        if (!m_PhysicsSystem) return Handle<RigidBody>::MakeInvalid();
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
         JPH::ShapeRefC shape;
         JPH::ShapeSettings::ShapeResult result;
@@ -309,13 +309,13 @@ namespace Aether {
             case ColliderShape::None:
             {
                 AE_CORE_ERROR("Cannot create body with no shape");
-                return Handle<BodyTag>::MakeInvalid();
+                return Handle<RigidBody>::MakeInvalid();
             }
         }
         if (result.HasError())
         {
             AE_CORE_ERROR("Jolt Physics Error: {0}", result.GetError().c_str());
-            return Handle<BodyTag>::MakeInvalid();
+            return Handle<RigidBody>::MakeInvalid();
         }
 
         shape = result.Get();
@@ -323,7 +323,7 @@ namespace Aether {
         if (!shape) 
         {
             AE_CORE_ERROR("Fail to identify shape for body");
-            return Handle<BodyTag>::MakeInvalid();
+            return Handle<RigidBody>::MakeInvalid();
         }
 
         auto& trans = config.transform.translation;
@@ -362,7 +362,7 @@ namespace Aether {
             case MotionType::None:
             {
                 AE_CORE_ERROR("Cannot create body with no motion type");
-                return Handle<BodyTag>::MakeInvalid();
+                return Handle<RigidBody>::MakeInvalid();
             }
         }
         JPH::BodyCreationSettings bodyInfo(shape, translation, rotation, motionType, objectLayer);
@@ -379,7 +379,7 @@ namespace Aether {
         if (!body)
         {
             AE_CORE_ERROR("Fail to create body");
-            return Handle<BodyTag>::MakeInvalid();
+            return Handle<RigidBody>::MakeInvalid();
         }
         bodyInterface.AddBody(body->GetID(), JPH::EActivation::Activate);
 
@@ -392,7 +392,7 @@ namespace Aether {
         return handle;
     }
 
-    void Jolt_PhysicsAPI::DestroyBody(Handle<BodyTag> handle)
+    void Jolt_PhysicsAPI::DestroyBody(Handle<RigidBody> handle)
     {
         if (!m_PhysicsSystem) return;   
         auto data = m_BodyPool.GetResource(handle);
@@ -407,19 +407,19 @@ namespace Aether {
         m_BodyPool.DestroyResource(handle);
     }
 
-    Handle<CallbackTag> Jolt_PhysicsAPI::RegisterCallback(const CollisionCallbackRef& callback)
+    Handle<CollisionCallback> Jolt_PhysicsAPI::RegisterCallback(const CollisionCallbackRef& callback)
     {
-        if (!m_PhysicsSystem) return Handle<CallbackTag>::MakeInvalid();   
+        if (!m_PhysicsSystem) return Handle<CollisionCallback>::MakeInvalid();   
         return m_CallbackPool.SaveResource(callback);
     }
 
-    void Jolt_PhysicsAPI::RemoveCallback(Handle<CallbackTag> handle) 
+    void Jolt_PhysicsAPI::RemoveCallback(Handle<CollisionCallback> handle) 
     {
         if (!m_PhysicsSystem) return; 
         m_CallbackPool.DestroyResource(handle);
     }
 
-    const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(Handle<BodyTag> handle) const
+    const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(Handle<RigidBody> handle) const
     {
         if (!m_PhysicsSystem) return nullptr;
         auto data = m_BodyPool.GetResource(handle);
@@ -452,7 +452,7 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                result.HitEntityHandle = {Handle<BodyTag>::FromBlend(id)};
+                result.HitEntityHandle = {Handle<RigidBody>::FromBlend(id)};
 
                 JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
@@ -490,7 +490,7 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                res.HitEntityHandle = {Handle<BodyTag>::FromBlend(id)};
+                res.HitEntityHandle = {Handle<RigidBody>::FromBlend(id)};
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
                 res.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
@@ -503,7 +503,7 @@ namespace Aether {
         return results;
     }
 
-    bool Jolt_PhysicsAPI::CanMove(Handle<BodyTag> handle, const PhysTransform& target)
+    bool Jolt_PhysicsAPI::CanMove(Handle<RigidBody> handle, const PhysTransform& target)
     {
         if (!m_PhysicsSystem) return false;
         auto data = m_BodyPool.GetResource(handle);
@@ -555,7 +555,7 @@ namespace Aether {
         return !collector.HadHit();
     }
     
-    void Jolt_PhysicsAPI::SetActive(Handle<BodyTag> handle, bool active)
+    void Jolt_PhysicsAPI::SetActive(Handle<RigidBody> handle, bool active)
     {
         if (!m_PhysicsSystem) return;
         auto data = m_BodyPool.GetResource(handle);
@@ -569,7 +569,7 @@ namespace Aether {
         else bodyInterface.DeactivateBody(id);
     }
 
-    void Jolt_PhysicsAPI::SetUUID(Handle<BodyTag> handle, UUID id)
+    void Jolt_PhysicsAPI::SetUUID(Handle<RigidBody> handle, UUID id)
     {
         if (!m_PhysicsSystem) return;
         if (!m_BodyPool.GetResource(handle)) return;
@@ -577,14 +577,14 @@ namespace Aether {
     }
 
 
-    UUID Jolt_PhysicsAPI::GetUUID(Handle<BodyTag> handle) 
+    UUID Jolt_PhysicsAPI::GetUUID(Handle<RigidBody> handle) 
     {
         if (!m_PhysicsSystem) return 0;
         if (!m_BodyPool.GetResource(handle)) return 0;
         return m_IDList[handle.index];
     }
 
-    void Jolt_PhysicsAPI::SetPhysTransform(Handle<BodyTag> handle, const PhysTransform& transform)
+    void Jolt_PhysicsAPI::SetPhysTransform(Handle<RigidBody> handle, const PhysTransform& transform)
     {
         if (!m_PhysicsSystem) return;
         auto data = m_BodyPool.GetResource(handle);
@@ -599,7 +599,7 @@ namespace Aether {
         bodyInterface.SetPositionAndRotation(id, pos, rot, JPH::EActivation::Activate);
     }
 
-    PhysTransform Jolt_PhysicsAPI::GetPhysTransform(Handle<BodyTag> handle) const
+    PhysTransform Jolt_PhysicsAPI::GetPhysTransform(Handle<RigidBody> handle) const
     {
         PhysTransform transform{};
         if (!m_PhysicsSystem) return transform;
@@ -618,7 +618,7 @@ namespace Aether {
         return transform;
     }
 
-    void Jolt_PhysicsAPI::AddForce(Handle<BodyTag> handle, const glm::vec3& force)
+    void Jolt_PhysicsAPI::AddForce(Handle<RigidBody> handle, const glm::vec3& force)
     {
         if (!m_PhysicsSystem) return;
         auto data = m_BodyPool.GetResource(handle);
@@ -631,7 +631,7 @@ namespace Aether {
         bodyInterface.AddForce(id, joltForce, JPH::EActivation::Activate);
     }
 
-    void Jolt_PhysicsAPI::SetVelocity(Handle<BodyTag> handle, const glm::vec3& velocity)
+    void Jolt_PhysicsAPI::SetVelocity(Handle<RigidBody> handle, const glm::vec3& velocity)
     {
         if (!m_PhysicsSystem) return;
         auto data = m_BodyPool.GetResource(handle);

@@ -64,13 +64,15 @@ namespace Aether {
         BindType<SceneBinding>();
         BindType<EventManagerBinding>();
         BindType<CollisionBinding>();
+        BindType<RaycastHitBinding>();
+        BindType<PhysicsBinding>();
     }
 
-    Handle<ScriptTag> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<BytecodeTag> bh)
+    Handle<ScriptInstance> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh)
     {
         auto& instance = GetInstance(); 
         auto it = instance.m_Sources.GetResource(bh);
-        if (it == nullptr) return Handle<ScriptTag>::MakeInvalid();
+        if (it == nullptr) return Handle<ScriptInstance>::MakeInvalid();
 
         sol::bytecode bytecode = *it;
         auto env_handle = instance.LuaState.CreateEnvironment();
@@ -84,9 +86,11 @@ namespace Aether {
         ScriptSelf self{ scene, entity, slot};
         SceneContext sceneCtx{ scene };
         EventContext eventCtx{ handle, &instance.m_EventManager.value() };
+        PhysicsContext physicsCtx{ scene, entity };
         env["self"] = self;
         env["scene"] = sceneCtx;
         env["event"] = eventCtx;
+        env["physics"] = physicsCtx;
 
         slot->env_hanle = env_handle;
         slot->ctx = scene;
@@ -94,7 +98,7 @@ namespace Aether {
         return handle; 
     }
 
-    void ScriptEngine::StartInstance(Handle<ScriptTag> handle)
+    void ScriptEngine::StartInstance(Handle<ScriptInstance> handle)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
@@ -102,7 +106,7 @@ namespace Aether {
         CallMethod(*slot, "OnStart");
     }
 
-    Handle<BytecodeTag> ScriptEngine::LoadScript(const std::string& path)
+    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path)
     {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
@@ -115,14 +119,14 @@ namespace Aether {
         {
             sol::error err = res;
             AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
-            return Handle<BytecodeTag>::MakeInvalid();
+            return Handle<Bytecode>::MakeInvalid();
         }
 
         sol::bytecode bytecode = res.get<sol::function>().dump();
         return instance.m_Sources.SaveResource(bytecode);
     }
 
-    void ScriptEngine::DestroyInstance(Handle<ScriptTag> handle)
+    void ScriptEngine::DestroyInstance(Handle<ScriptInstance> handle)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
@@ -134,7 +138,7 @@ namespace Aether {
         MarkExecOrderChanged();
     }
 
-    void ScriptEngine::UpdateInstance(Handle<ScriptTag> handle, Timestep ts)
+    void ScriptEngine::UpdateInstance(Handle<ScriptInstance> handle, Timestep ts)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
@@ -144,7 +148,7 @@ namespace Aether {
         CallMethod(*slot, "OnUpdate", (float)ts);
     }
 
-    void ScriptEngine::OnInstanceCollision(Handle<ScriptTag> handle, CollisionData data)
+    void ScriptEngine::OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
@@ -154,7 +158,7 @@ namespace Aether {
         CallMethod(*slot, "OnCollision", data);
     }
 
-    void ScriptEngine::SetActiveStage(Handle<ScriptTag> handle, bool active)
+    void ScriptEngine::SetActiveStage(Handle<ScriptInstance> handle, bool active)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
@@ -162,7 +166,7 @@ namespace Aether {
         slot->is_active = active;
     }
 
-    bool ScriptEngine::GetActiveStage(Handle<ScriptTag> handle)
+    bool ScriptEngine::GetActiveStage(Handle<ScriptInstance> handle)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
@@ -186,7 +190,7 @@ namespace Aether {
         instance.m_DestroyQueue.clear();
     }
 
-    int ScriptEngine::GetExecOrder(Handle<ScriptTag> handle)
+    int ScriptEngine::GetExecOrder(Handle<ScriptInstance> handle)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);

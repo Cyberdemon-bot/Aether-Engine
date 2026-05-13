@@ -9,8 +9,8 @@
 #include <vector>
 
 namespace Aether {
-    struct BodyTag;
-    struct CallbackTag;
+    struct RigidBody;
+    struct CollisionCallback;
     enum class ColliderShape
     {
         None = 0, // point
@@ -43,7 +43,7 @@ namespace Aether {
         glm::vec3 Position{0.0f}; 
         glm::vec3 Normal{0.0f};  
         float Distance = 0.0f;    
-        Handle<BodyTag> HitEntityHandle;
+        Handle<RigidBody> HitEntityHandle;
     };
 
     struct BodyConfig
@@ -63,8 +63,8 @@ namespace Aether {
     struct CollisionEvent 
     {
         CollisionType type;
-        Handle<BodyTag> bodyA;
-        Handle<BodyTag> bodyB;
+        Handle<RigidBody> bodyA;
+        Handle<RigidBody> bodyB;
 
         glm::vec3 contactPoint;
         glm::vec3 contactNormal;
@@ -85,27 +85,27 @@ namespace Aether {
         virtual void Shutdown() = 0;
         virtual void Update(Timestep ts) = 0;
 
-        virtual Handle<BodyTag> CreateBody(const BodyConfig& config) = 0;
-        virtual void DestroyBody(Handle<BodyTag> handle) = 0;
+        virtual Handle<RigidBody> CreateBody(const BodyConfig& config) = 0;
+        virtual void DestroyBody(Handle<RigidBody> handle) = 0;
 
-        virtual Handle<CallbackTag> RegisterCallback(const CollisionCallbackRef& callback) = 0;
-        virtual void RemoveCallback(Handle<CallbackTag> handle) = 0;
+        virtual Handle<CollisionCallback> RegisterCallback(const CollisionCallbackRef& callback) = 0;
+        virtual void RemoveCallback(Handle<CollisionCallback> handle) = 0;
 
-        virtual const BodyConfig* GetBodyInfo(Handle<BodyTag> handle) const = 0;
+        virtual const BodyConfig* GetBodyInfo(Handle<RigidBody> handle) const = 0;
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
-        virtual bool CanMove(Handle<BodyTag> handle, const PhysTransform& target) = 0;
+        virtual bool CanMove(Handle<RigidBody> handle, const PhysTransform& target) = 0;
 
-        virtual void SetActive(Handle<BodyTag> handle, bool active) = 0;
-        virtual void SetUUID(Handle<BodyTag> handle, UUID id) = 0;
-        virtual UUID GetUUID(Handle<BodyTag> handle) = 0;
+        virtual void SetActive(Handle<RigidBody> handle, bool active) = 0;
+        virtual void SetUUID(Handle<RigidBody> handle, UUID id) = 0;
+        virtual UUID GetUUID(Handle<RigidBody> handle) = 0;
         
-        virtual void SetPhysTransform(Handle<BodyTag> handle, const PhysTransform& transform) = 0;
-        virtual PhysTransform GetPhysTransform(Handle<BodyTag> handle) const = 0;
+        virtual void SetPhysTransform(Handle<RigidBody> handle, const PhysTransform& transform) = 0;
+        virtual PhysTransform GetPhysTransform(Handle<RigidBody> handle) const = 0;
 
-        virtual void AddForce(Handle<BodyTag> handle, const glm::vec3& force) = 0;
-        virtual void SetVelocity(Handle<BodyTag> handle, const glm::vec3& velocity) = 0;
+        virtual void AddForce(Handle<RigidBody> handle, const glm::vec3& force) = 0;
+        virtual void SetVelocity(Handle<RigidBody> handle, const glm::vec3& velocity) = 0;
         virtual void SetGravity(const glm::vec3& gravity) = 0;
 
         static Scope<PhysicsAPI> Create();
