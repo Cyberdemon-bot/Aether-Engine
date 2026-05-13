@@ -100,7 +100,9 @@ namespace Aether {
 		Delegate(std::nullptr_t) {}
 
 		template<typename Lambda,
-				typename = std::enable_if_t<!std::is_same_v<std::decay_t<Lambda>, std::nullptr_t>>>
+         typename = std::enable_if_t<
+             !std::is_same_v<std::decay_t<Lambda>, Delegate>
+         >>
 		Delegate(Lambda&& lambda)
 		{
 			using RealType = std::decay_t<Lambda>;

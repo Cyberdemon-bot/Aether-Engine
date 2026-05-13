@@ -86,7 +86,29 @@ namespace Aether {
         static Handle<ScriptInstance> CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh);
         static void DestroyInstance(Handle<ScriptInstance> handle);
         static void StartInstance(Handle<ScriptInstance> handle);
-        static void FireEvent(const std::string& event_name);
+
+        template<typename... Args>
+        static void FireEvent(const std::string& event_name, Args&&... args)
+        {
+            auto& instance = GetInstance();
+            auto& lua = instance.LuaState.lua;
+            std::vector<sol::object> sol_args = {
+                sol::make_object(lua, std::forward<Args>(args))...
+            };
+            instance.m_EventManager->FireEvent(event_name, sol_args);
+        }
+
+        static Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
+        {
+            auto& instance = GetInstance();
+            return instance.m_EventManager->AddNativeListener(event_name, callback);
+        }
+
+        static void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name)
+        {
+            auto& instance = GetInstance();
+            instance.m_EventManager->RemoveNativeListener(handle, event_name);
+        }
 
         static Handle<Bytecode> LoadScript(const std::string& path);
 
