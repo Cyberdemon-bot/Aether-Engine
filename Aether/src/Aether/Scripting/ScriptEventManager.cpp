@@ -3,11 +3,19 @@
 #include "Aether/Core/Log.h"
 
 namespace Aether {
+    template<> bool ScriptValue::As() const { return b; }
+    template<> int ScriptValue::As() const { return i; }
+    template<> float ScriptValue::As() const { return f; }
+    template<> std::string ScriptValue::As() const { return str; }
+    template<> glm::vec3 ScriptValue::As() const { return vec; }
+
+
     ScriptEventManager::ScriptEventManager(sol::state& lua)
         : m_lua(lua)
     {
-        m_Listeners.reserve(64);
-        m_Queue.reserve(64);
+        m_Listeners.reserve(32);
+        m_NativeListeners.reserve(32);
+        m_Queue.reserve(32);
     }  
 
     void ScriptEventManager::FireEvent(const std::string& event_name, const std::vector<sol::object>& args)
@@ -29,6 +37,12 @@ namespace Aether {
         listeners.push_back({script, callback});
     }
 
+    Handle<ScriptCallback> ScriptEventManager::AddNativeListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
+    {
+        auto& listeners = m_NativeListeners[event_name];
+        return listeners.SaveResource({callback});
+    }
+
     void ScriptEventManager::RemoveListener(Handle<ScriptInstance> script, const std::string& event_name)
     {
         auto& listeners = m_Listeners[event_name];
@@ -42,6 +56,12 @@ namespace Aether {
                 break;
             }
         }
+    }
+
+    void ScriptEventManager::RemoveNativeListener(Handle<ScriptCallback> handle, const std::string& event_name)
+    {
+        auto& listeners = m_NativeListeners[event_name];
+        listeners.DestroyResource(handle);
     }
 
     void ScriptEventManager::Flush()
@@ -62,6 +82,32 @@ namespace Aether {
             }
         }
 
+        for (auto& event : m_Queue)
+        {
+            auto it = m_NativeListeners.find(event.name);
+            if (it == m_NativeListeners.end()) continue;
+            ScriptArgs converted;
+            converted.args.reserve(event.args.size());
+            for (const auto& arg : event.args)
+                converted.args.push_back(ScriptValue::FromSolObject(arg));
+            it->second.Loop([converted](const NativeListener& listener){
+                listener.callback(converted);
+            });
+        }
+
         m_Queue.clear();
+    }
+
+    ScriptValue ScriptValue::FromSolObject(const sol::object& obj)
+    {
+        ScriptValue v;
+        if (!obj.valid()) { v.type = Type::Nil; return v; }
+        if (obj.is<bool>()) { v.type = Type::Bool; v.b = obj.as<bool>(); return v; }
+        if (obj.is<int>()) { v.type = Type::Int; v.i = obj.as<int>(); return v; }
+        if (obj.is<float>()) { v.type = Type::Float; v.f = obj.as<float>(); return v; }
+        if (obj.is<std::string>()) { v.type = Type::String; v.str = obj.as<std::string>(); return v; }
+        if (obj.is<glm::vec3>()) { v.type = Type::Vec3; v.vec = obj.as<glm::vec3>(); return v; }
+        AE_CORE_WARN("[ScriptValue] Unknown sol::object type, defaulting to Nil");
+        return v;
     }
 }

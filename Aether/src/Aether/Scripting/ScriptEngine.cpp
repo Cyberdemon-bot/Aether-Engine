@@ -208,10 +208,4 @@ namespace Aether {
         }
         return false;
     }
-
-    void ScriptEngine::FireEvent(const std::string& event_name)
-    {
-        auto& instance = GetInstance();
-        instance.m_EventManager->FireEvent(event_name, {});
-    }
 }
