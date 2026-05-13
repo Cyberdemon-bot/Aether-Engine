@@ -89,6 +89,8 @@ void LabLayer::Attach()
     spotLight.outerCone   = glm::cos(glm::radians(25.0f));
     spotLight.castShadows = true;
 
+    m_Scene.Init();
+
     m_LightEntity = m_Scene.CreateEntity("Spotlight");
     m_Scene.AddComponent<Aether::LightComponent>(m_LightEntity).Config = spotLight;
     auto& lightTransform       = m_Scene.GetComponent<Aether::TransformComponent>(m_LightEntity);
@@ -105,16 +107,12 @@ void LabLayer::Attach()
 
 void LabLayer::Detach()
 {
-    for (auto& [entity, entry] : m_PhysicsBodies)
-        Aether::PhysicsSystem::DestroyBody(entry.handle);
-    m_PhysicsBodies.clear();
-
     m_MainShader.reset();
     m_VolShader.reset();
     m_MainFbo.reset();
     m_VolFbo.reset();
-
     m_MeshIDs.clear();
+    m_Scene.Shutdown();
 }
 
 // =============================================================================
@@ -258,26 +256,16 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
     config.friction    = 0.5f;
     config.restitution = 0.3f;
 
-    const auto& handle = Aether::PhysicsSystem::CreateBody(config);
-
-    if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity))
-        m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity, handle, true);
-    else
-    {
-        auto& col          = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
-        col.ColliderHandle = handle;
-        col.ColliderOffset = localOffset;
-    }
-
-    PhysicsEntry entry;
-    entry.handle     = handle;
-    entry.enabled    = false;
-    entry.lastActive = false;
-    entry.isDynamic  = isDynamic;
-    m_PhysicsBodies[transformEntity] = entry;
-
-    if (isDynamic)
-        Aether::PhysicsSystem::SetActive(handle, false);
+    if (!m_Scene.HasComponent<Aether::ColliderComponent>(transformEntity)) m_Scene.AddComponent<Aether::ColliderComponent>(transformEntity);
+    auto& col = m_Scene.GetComponent<Aether::ColliderComponent>(transformEntity);
+    col.ColliderOffset = localOffset;
+    col.Type = config.motionType;
+    col.Shape = config.shape;
+    col.Size = config.size;
+    col.Friction = 0.5;
+    col.Restitution = 0.3f;
+    col.ColliderHandle = Aether::Handle<Aether::BodyTag>::MakeInvalid();
+    col.Visible = true;
 }
 
 // =============================================================================
@@ -403,15 +391,6 @@ void LabLayer::Update(Aether::Timestep ts)
 
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
-
-    for (auto& [entity, entry] : m_PhysicsBodies)
-    {
-        if (entry.enabled != entry.lastActive)
-        {
-            Aether::PhysicsSystem::SetActive(entry.handle, entry.enabled);
-            entry.lastActive = entry.enabled;
-        }
-    }
 
     m_VolShader->Bind();
     m_VolShader->SetFloat("u_Density",    m_VolDensity);
@@ -609,8 +588,6 @@ void LabLayer::DrawScenePanel()
                 meshNames.push_back(AssetsRegister::Get(id));
             UI::ComboList("Mesh##phys", meshNames, m_PhysMeshIdx);
 
-            UI::Checkbox("Is Dynamic", m_PhysDynamic);
-
             bool canAdd = (m_PhysSelectedEntity != Null_Entity &&
                            m_Scene.IsValid(m_PhysSelectedEntity) &&
                            m_PhysMeshIdx >= 0 && m_PhysMeshIdx < (int)m_MeshIDs.size());
@@ -620,48 +597,7 @@ void LabLayer::DrawScenePanel()
                     RegisterPhysicsBody(m_PhysSelectedEntity, m_MeshIDs[m_PhysMeshIdx], m_PhysDynamic);
             }
 
-            UI::SectionHeader("Active Bodies");
-            for (auto& [entity, entry] : m_PhysicsBodies)
-            {
-                if (!m_Scene.IsValid(entity)) continue;
-                auto  g   = UI::ID((int)(uint64_t)entity);
-                auto& tag = m_Scene.GetComponent<TagComponent>(entity);
-                if (UI::Checkbox(tag.Tag.c_str(), entry.enabled))
-                    PhysicsSystem::SetActive(entry.handle, entry.enabled);
-            }
-
             UI::Separator();
-
-            auto physIt = (m_SelectedEntity != Null_Entity)
-                ? m_PhysicsBodies.find(m_SelectedEntity)
-                : m_PhysicsBodies.end();
-
-            UI::Text("Apply to Selected Entity:");
-
-            if (physIt == m_PhysicsBodies.end())
-            {
-                UI::TextDisabled("(select an entity with a physics body)");
-            }
-            else if (!physIt->second.isDynamic)
-            {
-                UI::TextDisabled("(static body — forces not applicable)");
-            }
-            else
-            {
-                UI::DragXYZ("Force",    m_ForceInput,    0.5f);
-                UI::SameLine();
-                if (UI::Button("Apply Force"))
-                    PhysicsSystem::AddForce(physIt->second.handle, m_ForceInput);
-                UI::SameLine();
-                if (UI::SmallButton("X##force")) m_ForceInput = glm::vec3(0.0f);
-
-                UI::DragXYZ("Velocity", m_VelocityInput, 0.5f);
-                UI::SameLine();
-                if (UI::Button("Set Velocity"))
-                    PhysicsSystem::SetVelocity(physIt->second.handle, m_VelocityInput);
-                UI::SameLine();
-                if (UI::SmallButton("X##vel")) m_VelocityInput = glm::vec3(0.0f);
-            }
         }
 
         // ---- Camera ---------------------------------------------------------

@@ -17,6 +17,7 @@ namespace Aether {
         {
             DataType asset;
             uint32_t generation = 0;
+            bool valid = true;
 
             template<typename... Args>
             ResourceSlot(uint32_t gen, Args&&... args) 
@@ -28,7 +29,8 @@ namespace Aether {
 
         void Init()
         {
-            m_Resources.reserve(64);
+            m_Resources.reserve(32);
+            m_FreeList.reserve(32);
         }
 
         void Shutdown()
@@ -42,30 +44,30 @@ namespace Aether {
             ResourceSlot& slot = m_Resources[handle.index];
             if (slot.generation != handle.generation) return;
 
-            slot.generation++;
-            FreeList.push_back(handle.index);
+            slot.generation++; m_Size--; slot.valid = false;
+            m_FreeList.push_back(handle.index); 
         }
 
         void Clear()
         {
+            m_Size = 0;
             m_Resources.clear();
-            FreeList.clear();
+            m_FreeList.clear();
         }
 
-        uint32_t GetSize() { return m_Resources.size(); }
-
-        typename std::vector<ResourceSlot>::iterator Begin() { return m_Resources.begin(); }
-        typename std::vector<ResourceSlot>::iterator End() { return m_Resources.end(); }
+        uint32_t GetSize() { return m_Size; }
+        uint32_t GetLen() { return m_Resources.size(); }
 
         template<typename... Args>
         HandleType CreateResource(Args&&... args)
         { 
             uint32_t index;
-            if (!FreeList.empty())
+            if (!m_FreeList.empty())
             {
-                index = FreeList.back();
-                FreeList.pop_back();
+                index = m_FreeList.back();
+                m_FreeList.pop_back();
                 m_Resources[index].asset = std::move(DataType(std::forward<Args>(args)...));
+                m_Resources[index].valid = true;
             }
             else
             {
@@ -73,6 +75,7 @@ namespace Aether {
                 m_Resources.emplace_back(0, std::forward<Args>(args)...);
             }
 
+            m_Size++;
             HandleType handle;
             handle.index = index;
             handle.generation = m_Resources[index].generation;
@@ -82,11 +85,12 @@ namespace Aether {
         HandleType SaveResource(DataType resource)
         {
             uint32_t index;
-            if (!FreeList.empty())
+            if (!m_FreeList.empty())
             {
-                index = FreeList.back();
-                FreeList.pop_back();
+                index = m_FreeList.back();
+                m_FreeList.pop_back();
                 m_Resources[index].asset = std::move(resource);
+                m_Resources[index].valid = true;
             }
             else
             {
@@ -94,6 +98,7 @@ namespace Aether {
                 m_Resources.emplace_back(0, resource);
             }
 
+            m_Size++;
             HandleType handle;
             handle.index = index;
             handle.generation = m_Resources[index].generation;
@@ -103,9 +108,7 @@ namespace Aether {
         DataType* GetResource(HandleType handle)
         {
             if (handle.index >= m_Resources.size()) return nullptr;
-            
             ResourceSlot& slot = m_Resources[handle.index]; 
-            
             if (slot.generation != handle.generation) return nullptr;
             return &slot.asset;
         }
@@ -117,12 +120,24 @@ namespace Aether {
             if (slot.generation != handle.generation) return nullptr;
             return &slot.asset;
         }
+
+        template<typename Fn>
+        void Loop(Fn action)
+        {
+            for (int i = 0; i < m_Resources.size(); i++)
+            {
+                auto& slot = m_Resources[i];
+                if (!slot.valid) continue;
+                action(slot.asset);
+            }
+        }
         
     private:
         ResourcePool& operator=(const ResourcePool&) = delete;
         ResourcePool(const ResourcePool&) = delete;
 
         std::vector<ResourceSlot> m_Resources;
-        std::vector<uint32_t> FreeList;
+        std::vector<uint32_t> m_FreeList;
+        uint32_t m_Size = 0;
     };
 }

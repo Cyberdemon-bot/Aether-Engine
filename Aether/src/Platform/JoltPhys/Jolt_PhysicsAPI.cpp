@@ -196,7 +196,10 @@ namespace Aether {
         m_PhysicsSystem->Init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints, *m_BPLayerInterface, *m_ObjVsBPFilter, *m_ObjVsObjFilter);
         m_PhysicsSystem->SetContactListener(m_ContactListener);
         m_PhysicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
+
+        m_IDList.reserve(32);
         m_BodyPool.Init();
+        m_CallbackPool.Init();
     }
 
     void Jolt_PhysicsAPI::Shutdown()
@@ -252,10 +255,12 @@ namespace Aether {
             JPH::Factory::sInstance = nullptr;
         }
 
+        m_IDList.clear();
         m_BodyPool.Shutdown();
+        m_CallbackPool.Shutdown();
     }
 
-    void Jolt_PhysicsAPI::Update(Timestep ts, const CollisionCallbackRef& callback)
+    void Jolt_PhysicsAPI::Update(Timestep ts)
     {
         if (!m_PhysicsSystem) return;
 
@@ -263,7 +268,10 @@ namespace Aether {
         if (deltaTime > 1.0f / 30.0f) deltaTime = 1.0f / 30.0f;
         const int CollisionSteps = 1;
         m_PhysicsSystem->Update(deltaTime, CollisionSteps, m_TempAllocator, m_JobSystem);
-        m_ContactListener->ProcessEvents(callback);
+        m_CallbackPool.Loop([this](const CollisionCallbackRef& callback) 
+        {
+            this->m_ContactListener->ProcessEvents(callback);
+        });
     }
 
     Handle<BodyTag> Jolt_PhysicsAPI::CreateBody(const BodyConfig& config)
@@ -379,9 +387,36 @@ namespace Aether {
         m_BodyPool.GetResource(handle)->joltID = body->GetID();
         m_BodyPool.GetResource(handle)->bodyInfo = config;
         body->SetUserData(handle.Blend());
-        m_IDList.resize(m_BodyPool.GetSize());
+        m_IDList.resize(m_BodyPool.GetLen());
         m_IDList[handle.index] = UUID(0);
         return handle;
+    }
+
+    void Jolt_PhysicsAPI::DestroyBody(Handle<BodyTag> handle)
+    {
+        if (!m_PhysicsSystem) return;   
+        auto data = m_BodyPool.GetResource(handle);
+        if (!data) return;
+
+        JPH::BodyID id = data->joltID;
+        m_ContactListener->EraseCache(id.GetIndexAndSequenceNumber());
+        JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
+
+        bodyInterface.RemoveBody(id);
+        bodyInterface.DestroyBody(id);
+        m_BodyPool.DestroyResource(handle);
+    }
+
+    Handle<CallbackTag> Jolt_PhysicsAPI::RegisterCallback(const CollisionCallbackRef& callback)
+    {
+        if (!m_PhysicsSystem) return Handle<CallbackTag>::MakeInvalid();   
+        return m_CallbackPool.SaveResource(callback);
+    }
+
+    void Jolt_PhysicsAPI::RemoveCallback(Handle<CallbackTag> handle) 
+    {
+        if (!m_PhysicsSystem) return; 
+        m_CallbackPool.DestroyResource(handle);
     }
 
     const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(Handle<BodyTag> handle) const
@@ -547,21 +582,6 @@ namespace Aether {
         if (!m_PhysicsSystem) return 0;
         if (!m_BodyPool.GetResource(handle)) return 0;
         return m_IDList[handle.index];
-    }
-
-    void Jolt_PhysicsAPI::DestroyBody(Handle<BodyTag> handle)
-    {
-        if (!m_PhysicsSystem) return;   
-        auto data = m_BodyPool.GetResource(handle);
-        if (!data) return;
-
-        JPH::BodyID id = data->joltID;
-        m_ContactListener->EraseCache(id.GetIndexAndSequenceNumber());
-        JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
-
-        bodyInterface.RemoveBody(id);
-        bodyInterface.DestroyBody(id);
-        m_BodyPool.DestroyResource(handle);
     }
 
     void Jolt_PhysicsAPI::SetPhysTransform(Handle<BodyTag> handle, const PhysTransform& transform)
