@@ -56,7 +56,7 @@ private:
     Aether::Entity m_Player         = Aether::Null_Entity;
     float          m_PlayerSpeed    = 10.0f;
     bool           m_IsPlayerMoving = false;
-    Aether::Handle<Aether::BodyTag>   m_PlayerBodyHandle{};
+    Aether::Handle<Aether::RigidBody>   m_PlayerBodyHandle{};
 
     float m_bobSpeed    = 6.0f;
     float m_bobStrength = 0.1f;

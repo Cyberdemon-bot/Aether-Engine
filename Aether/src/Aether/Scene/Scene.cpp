@@ -116,7 +116,7 @@ namespace Aether {
                         data.entity = static_cast<uint32_t>(b);
                         data.type = ev.type;
 
-                        Handle<ScriptTag> handle = cmp.ScriptHandle;
+                        Handle<ScriptInstance> handle = cmp.ScriptHandle;
                         ScriptEngine::OnInstanceCollision(handle, data);
                     }
                 }
@@ -132,7 +132,7 @@ namespace Aether {
                         data.entity = static_cast<uint32_t>(a);
                         data.type = ev.type;
 
-                        Handle<ScriptTag> handle = cmp.ScriptHandle;
+                        Handle<ScriptInstance> handle = cmp.ScriptHandle;
                         ScriptEngine::OnInstanceCollision(handle, data);
                     }
                 }
@@ -488,7 +488,7 @@ namespace Aether {
             auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(animComp.Skeleton);
             if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
-                Handle<SkeletonTag> skelHnd = skeletonAsset->GetHandle();
+                Handle<Skeleton> skelHnd = skeletonAsset->GetHandle();
                 if (attach.JointIndex < 0) 
                     attach.JointIndex = rigModule->GetJointIndex(skelHnd, attach.JointName);
                 
@@ -559,7 +559,7 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity))
         {
             auto& rbComp = GetComponent<ColliderComponent>(entity);
-            Handle<BodyTag>& handle = rbComp.ColliderHandle;
+            Handle<RigidBody>& handle = rbComp.ColliderHandle;
 
             if (handle.IsValid()) 
             {
@@ -672,7 +672,7 @@ namespace Aether {
             for (auto entity : view)
             {
                 auto& rbComp = GetComponent<ColliderComponent>(entity);
-                Handle<BodyTag>& handle = rbComp.ColliderHandle;
+                Handle<RigidBody>& handle = rbComp.ColliderHandle;
 
                 if (!handle.IsValid())
                 {
@@ -861,7 +861,7 @@ namespace Aether {
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
                     Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
                     UUID animatorID = UUID(0);
-                    Handle<PoseTag> pose = Handle<PoseTag>::MakeInvalid();
+                    Handle<Pose> pose = Handle<Pose>::MakeInvalid();
                     if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
                         Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, pose, transform.WorldTransform);
@@ -892,7 +892,7 @@ namespace Aether {
                 {
                     auto& component = GetComponent<ColliderComponent>(entity);
                     if (!component.Visible || !component.ColliderHandle.IsValid()) continue;
-                    Handle<BodyTag> handle = component.ColliderHandle;
+                    Handle<RigidBody> handle = component.ColliderHandle;
                     PhysTransform pt = PhysicsSystem::GetPhysTransform(handle);
                     glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                 * glm::toMat4(pt.rotation);

@@ -17,7 +17,7 @@ namespace Aether {
         }
         virtual ~Skeleton() = default;
 
-        Handle<SkeletonTag> GetHandle() { return handle; }
+        Handle<Skeleton> GetHandle() { return handle; }
 
         template<typename... Args>
         static Ref<Skeleton> Create(Args&&... args)
@@ -25,7 +25,7 @@ namespace Aether {
             return CreateRef<Skeleton>(std::forward<Args>(args)...);
         }
     private:
-        Handle<SkeletonTag> handle;
+        Handle<Skeleton> handle;
 
         static Scope<Skeleton> CreateImpl(const SkeletonSpec& spec) { return CreateScope<Skeleton>(spec);}
         friend class AssetManager;

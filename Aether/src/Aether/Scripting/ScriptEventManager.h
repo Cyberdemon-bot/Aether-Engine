@@ -8,7 +8,7 @@
 #include <tuple>
 
 namespace Aether {
-    struct ScriptTag;
+    struct ScriptInstance;
 
     struct ScriptEvent 
     {
@@ -18,7 +18,7 @@ namespace Aether {
 
     struct EventListener 
     {
-        Handle<ScriptTag> script;
+        Handle<ScriptInstance> script;
         sol::protected_function callback;
     };
 
@@ -31,8 +31,8 @@ namespace Aether {
 
         void FireEvent(const std::string& event_name, const std::vector<sol::object>& args);
 
-        void AddListener(Handle<ScriptTag> script, const std::string& event_name, sol::protected_function callback);
-        void RemoveListener(Handle<ScriptTag> script, const std::string& event_name);
+        void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::protected_function callback);
+        void RemoveListener(Handle<ScriptInstance> script, const std::string& event_name);
 
         void Flush();
     private:

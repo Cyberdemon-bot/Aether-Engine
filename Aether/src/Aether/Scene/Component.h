@@ -89,8 +89,8 @@ namespace Aether {
         AssetHandle Skeleton;
         std::vector<AssetHandle> Clips;
         
-        Handle<CacheTag> Cache;
-        Handle<PoseTag> CurrentPose;
+        Handle<SkeletonCache> Cache;
+        Handle<Pose> CurrentPose;
 
         bool RunSampling = true;
         bool RunPostEval = true;
@@ -126,12 +126,12 @@ namespace Aether {
 
     struct ScriptComponent
     {
-        Handle<ScriptTag> ScriptHandle;
+        Handle<ScriptInstance> ScriptHandle;
         bool IsActive = true;
 
         ScriptComponent() = default;
         ScriptComponent(const ScriptComponent&) = default;
-        ScriptComponent(const Handle<ScriptTag>& handle) : ScriptHandle(handle) {};
+        ScriptComponent(const Handle<ScriptInstance>& handle) : ScriptHandle(handle) {};
     };
 
     struct HierarchyComponent 
@@ -157,7 +157,7 @@ namespace Aether {
 
     struct ColliderComponent
     {
-        Handle<BodyTag> ColliderHandle = Handle<BodyTag>::MakeInvalid();
+        Handle<RigidBody> ColliderHandle = Handle<RigidBody>::MakeInvalid();
         bool Visible = false;
         glm::vec3 ColliderOffset = glm::vec3(1.0f);
         ColliderShape Shape = ColliderShape::Box;
@@ -169,7 +169,7 @@ namespace Aether {
         bool IsSensor = false;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
-        ColliderComponent(const Handle<BodyTag>& handle, bool visible = false)
+        ColliderComponent(const Handle<RigidBody>& handle, bool visible = false)
             : ColliderHandle(handle), Visible(visible)
         {
             auto it = PhysicsSystem::GetBodyInfo(ColliderHandle);
@@ -193,7 +193,7 @@ namespace Aether {
         bool affectChild = true;
  
         mutable int JointIndex = -1;
-        mutable Handle<SkeletonTag> CachedSkeletonHnd = Handle<SkeletonTag>::MakeInvalid();
+        mutable Handle<Skeleton> CachedSkeletonHnd = Handle<Skeleton>::MakeInvalid();
         mutable glm::mat4 CachedBoneWorld = glm::mat4(1.0f);
  
         BoneAttachmentComponent() = default;

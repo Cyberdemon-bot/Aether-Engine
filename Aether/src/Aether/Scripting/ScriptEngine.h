@@ -25,16 +25,16 @@ namespace Aether {
     template <typename T, typename = void> struct HasGetFuncs : std::false_type {};
     template <typename T> struct HasGetFuncs<T, std::void_t<decltype(T::get_funcs())>> : std::true_type {};
 
-    struct ScriptTag;
-    struct EnvTag;
-    struct BytecodeTag;
+    struct ScriptInstance;
+    struct Enviroment;
+    struct Bytecode;
     enum class CollisionType;
     class Scene;
 
     struct InstanceSlot
     {
         int generation = 0;
-        Handle<EnvTag> env_hanle = Handle<EnvTag>::MakeInvalid();
+        Handle<Enviroment> env_hanle = Handle<Enviroment>::MakeInvalid();
         bool has_error = false;
         bool is_active = true;
         int exec_order = 0;
@@ -48,14 +48,14 @@ namespace Aether {
         sol::state lua;
         size_t env_count = 0;
         
-        Handle<EnvTag> CreateEnvironment() 
+        Handle<Enviroment> CreateEnvironment() 
         {
-            Handle<EnvTag> handle = env_pool.CreateResource(lua, sol::create, lua.globals());
+            Handle<Enviroment> handle = env_pool.CreateResource(lua, sol::create, lua.globals());
             env_count++;
             return handle;
         }
         
-        void RemoveEnvironment(Handle<EnvTag> handle) 
+        void RemoveEnvironment(Handle<Enviroment> handle) 
         {
             if (env_count > 0) env_count--;
             auto env = env_pool.GetResource(handle);
@@ -64,7 +64,7 @@ namespace Aether {
             env_pool.DestroyResource(handle);
         }
 
-        ResourcePool<Handle<EnvTag>, sol::environment> env_pool;
+        ResourcePool<Handle<Enviroment>, sol::environment> env_pool;
     };
 
     struct CollisionData
@@ -83,15 +83,15 @@ namespace Aether {
         static void Shutdown();
         static void RegisterTypes();
 
-        static Handle<ScriptTag> CreateInstance(Scene* scene, Entity entity, Handle<BytecodeTag> bh);
-        static void DestroyInstance(Handle<ScriptTag> handle);
-        static void StartInstance(Handle<ScriptTag> handle);
+        static Handle<ScriptInstance> CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh);
+        static void DestroyInstance(Handle<ScriptInstance> handle);
+        static void StartInstance(Handle<ScriptInstance> handle);
         static void FireEvent(const std::string& event_name);
 
-        static Handle<BytecodeTag> LoadScript(const std::string& path);
+        static Handle<Bytecode> LoadScript(const std::string& path);
 
-        static void SetActiveStage(Handle<ScriptTag> handle, bool active);
-        static bool GetActiveStage(Handle<ScriptTag> handle);
+        static void SetActiveStage(Handle<ScriptInstance> handle, bool active);
+        static bool GetActiveStage(Handle<ScriptInstance> handle);
 
     private:
         static ScriptEngine& GetInstance();
@@ -99,16 +99,16 @@ namespace Aether {
         LuaWorker LuaState;
         std::optional<ScriptEventManager> m_EventManager;
         static sol::meta_function OpNameToMeta(std::string_view name);
-        ResourcePool<Handle<ScriptTag>, InstanceSlot> m_Instances;
-        ResourcePool<Handle<BytecodeTag>, sol::bytecode> m_Sources;
-        std::vector<std::pair<Entity, Handle<ScriptTag>>> m_DestroyQueue;
+        ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
+        ResourcePool<Handle<Bytecode>, sol::bytecode> m_Sources;
+        std::vector<std::pair<Entity, Handle<ScriptInstance>>> m_DestroyQueue;
         bool IsExecChanged = false;
 
         static void FlushEvent();
-        static void UpdateInstance(Handle<ScriptTag> handle, Timestep ts);
-        static void OnInstanceCollision(Handle<ScriptTag> handle, CollisionData data);
+        static void UpdateInstance(Handle<ScriptInstance> handle, Timestep ts);
+        static void OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data);
         static bool IsExecOrderChanged();
-        static int GetExecOrder(Handle<ScriptTag> handle);
+        static int GetExecOrder(Handle<ScriptInstance> handle);
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -235,7 +235,7 @@ namespace Aether {
             }
         }
 
-        static sol::object CallInstanceAPI(Handle<ScriptTag> handle, const std::string& name, const std::vector<sol::object>& args)
+        static sol::object CallInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
         {
             auto& instance = GetInstance();
             auto slot = instance.m_Instances.GetResource(handle);
@@ -255,7 +255,7 @@ namespace Aether {
         }
 
         static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
-        static void PushDestroyQueue(Entity ent, Handle<ScriptTag> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
+        static void PushDestroyQueue(Entity ent, Handle<ScriptInstance> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
 
         friend struct ScriptSelfBinding;
         friend struct SceneBinding;

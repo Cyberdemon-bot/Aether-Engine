@@ -336,7 +336,7 @@ namespace Aether::UI
         std::string      label;
         bool&            enabled;
         bool             isDynamic;
-        Handle<BodyTag>  bodyHandle;
+        Handle<RigidBody>  bodyHandle;
     };
 
     inline void PhysicsBodyList(std::vector<PhysBodyEntry>& entries)

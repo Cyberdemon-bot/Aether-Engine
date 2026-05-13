@@ -11,13 +11,13 @@ namespace Aether {
     class Clip : public Asset
     {
     public:
-        Clip(const ClipSpec& spec, Handle<SkeletonTag> skeleton)
+        Clip(const ClipSpec& spec, Handle<Skeleton> skeleton)
         {
             handle = AnimationSystem::GetModule<RigModule>()->CreateClip(spec, skeleton);
         }
         virtual ~Clip() = default;
 
-        Handle<ClipTag> GetHandle() { return handle; }
+        Handle<Clip> GetHandle() { return handle; }
 
         template<typename... Args>
         static Ref<Clip> Create(Args&&... args)
@@ -25,9 +25,9 @@ namespace Aether {
             return CreateRef<Clip>(std::forward<Args>(args)...);
         }
     private:
-        Handle<ClipTag> handle;
+        Handle<Clip> handle;
 
-        static Scope<Clip> CreateImpl(const ClipSpec& spec, Handle<SkeletonTag> skeleton) { return CreateScope<Clip>(spec, skeleton);}
+        static Scope<Clip> CreateImpl(const ClipSpec& spec, Handle<Skeleton> skeleton) { return CreateScope<Clip>(spec, skeleton);}
         friend class AssetManager;
     };
 }

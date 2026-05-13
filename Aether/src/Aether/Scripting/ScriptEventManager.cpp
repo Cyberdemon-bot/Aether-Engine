@@ -15,7 +15,7 @@ namespace Aether {
         m_Queue.push_back({event_name, args});
     }
 
-    void ScriptEventManager::AddListener(Handle<ScriptTag> script, const std::string& event_name, sol::protected_function callback)
+    void ScriptEventManager::AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::protected_function callback)
     {
         auto& listeners = m_Listeners[event_name];
         for (size_t i = 0; i < listeners.size(); i++)
@@ -29,7 +29,7 @@ namespace Aether {
         listeners.push_back({script, callback});
     }
 
-    void ScriptEventManager::RemoveListener(Handle<ScriptTag> script, const std::string& event_name)
+    void ScriptEventManager::RemoveListener(Handle<ScriptInstance> script, const std::string& event_name)
     {
         auto& listeners = m_Listeners[event_name];
         for (size_t i = 0; i < listeners.size(); i++)
