@@ -76,7 +76,7 @@ namespace Aether
     { out << YAML::Flow << YAML::BeginSeq << q.x << q.y << q.z << q.w << YAML::EndSeq; return out; }
 
     template<typename TAsset>
-    static std::string AssetUUID(AssetHandle handle)
+    static std::string AssetUUID(Handle<Asset> handle)
     {
         if (!handle.IsValid()) return "0";
         auto* asset = AssetManager::GetAsset<TAsset>(handle);

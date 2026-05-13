@@ -97,12 +97,13 @@ namespace Aether {
     {
         m_EntityLibrary.reserve(32);
         m_SceneLights.reserve(32);
-        PhysicsSystem::RegisterCallback([this](const CollisionEvent& ev) 
+        m_PhysicsInstance = PhysicsSystem::CreateInstance();
+        PhysicsSystem::RegisterCallback(m_PhysicsInstance, [this](const CollisionEvent& ev) 
         {
             if (ev.type == CollisionType::Enter || ev.type == CollisionType::Exit) 
             {
-                Entity a = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyA));
-                Entity b = this->FindEntity(PhysicsSystem::GetUUID(ev.bodyB));
+                Entity a = this->FindEntity(PhysicsSystem::GetUUID(m_PhysicsInstance, ev.bodyA));
+                Entity b = this->FindEntity(PhysicsSystem::GetUUID(m_PhysicsInstance, ev.bodyB));
 
                 if (a == Null_Entity || b == Null_Entity) return;
                 if (HasComponent<ScriptComponent>(a)) 
@@ -221,7 +222,7 @@ namespace Aether {
         }
 
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            PhysicsSystem::DestroyBody(GetComponent<ColliderComponent>(entity).ColliderHandle);
+            PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
@@ -245,7 +246,7 @@ namespace Aether {
         }
 
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            PhysicsSystem::DestroyBody(GetComponent<ColliderComponent>(entity).ColliderHandle);
+            PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
         
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
@@ -572,12 +573,12 @@ namespace Aether {
                     glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
                     glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
                     PhysTransform target = {translation + worldOffset, rotation};
-                    if (PhysicsSystem::GetBodyInfo(handle)->motionType == MotionType::Kinematic)
+                    if (PhysicsSystem::GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Kinematic)
                     {
-                        if (PhysicsSystem::CanMove(handle, target)) PhysicsSystem::SetPhysTransform(handle, target);
+                        if (PhysicsSystem::CanMove(m_PhysicsInstance, handle, target)) PhysicsSystem::SetPhysTransform(m_PhysicsInstance, handle, target);
                         else
                         {
-                            PhysTransform physTrans = PhysicsSystem::GetPhysTransform(handle);
+                            PhysTransform physTrans = PhysicsSystem::GetPhysTransform(m_PhysicsInstance, handle);
                             glm::vec3 trans = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
 
                             if (hierarchy.parent == Null_Entity)
@@ -595,11 +596,11 @@ namespace Aether {
                             transform.Dirty = true;
                         }
                     }
-                    else PhysicsSystem::SetPhysTransform(handle, target);
+                    else PhysicsSystem::SetPhysTransform(m_PhysicsInstance, handle, target);
                 }
-                else if (PhysicsSystem::GetBodyInfo(handle)->motionType == MotionType::Dynamic)
+                else if (PhysicsSystem::GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Dynamic)
                 {
-                    PhysTransform physTrans = PhysicsSystem::GetPhysTransform(handle);
+                    PhysTransform physTrans = PhysicsSystem::GetPhysTransform(m_PhysicsInstance, handle);
                     glm::vec3 localOffset = rbComp.ColliderOffset;
                     glm::vec3 trans = physTrans.translation - (physTrans.rotation * localOffset);
 
@@ -692,14 +693,14 @@ namespace Aether {
                     config.restitution = rbComp.Restitution;
                     config.isSensor = rbComp.IsSensor;
 
-                    handle = PhysicsSystem::CreateBody(config);
+                    handle = PhysicsSystem::CreateBody(m_PhysicsInstance, config);
                     if (rbComp.Type == MotionType::Dynamic)
-                        PhysicsSystem::SetActive(handle, true);
+                        PhysicsSystem::SetActive(m_PhysicsInstance, handle, true);
 
-                    PhysicsSystem::SetUUID(handle, GetComponent<IDComponent>(entity).ID);
+                    PhysicsSystem::SetUUID(m_PhysicsInstance, handle, GetComponent<IDComponent>(entity).ID);
                 }
             }
-            PhysicsSystem::Update(ts);
+            PhysicsSystem::UpdateInstance(m_PhysicsInstance, ts);
         }
 
         {
@@ -893,7 +894,7 @@ namespace Aether {
                     auto& component = GetComponent<ColliderComponent>(entity);
                     if (!component.Visible || !component.ColliderHandle.IsValid()) continue;
                     Handle<RigidBody> handle = component.ColliderHandle;
-                    PhysTransform pt = PhysicsSystem::GetPhysTransform(handle);
+                    PhysTransform pt = PhysicsSystem::GetPhysTransform(m_PhysicsInstance, handle);
                     glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                 * glm::toMat4(pt.rotation);
                     if (component.Shape == ColliderShape::Sphere)

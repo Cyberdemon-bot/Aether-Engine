@@ -54,7 +54,7 @@ namespace Aether {
     RegisteredScene ImporterAPI::Upload(const Ref<ParsedScene>& sceneData)
     {
         RegisteredScene res;
-        std::vector<ResourceHandle> texHandle;
+        std::vector<Handle<Resource>> texHandle;
         std::vector<UUID> rigIDs;     
         std::vector<UUID> clipIDs; 
         // Upload textures

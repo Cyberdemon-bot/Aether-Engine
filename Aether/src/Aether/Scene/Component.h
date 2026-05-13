@@ -75,7 +75,7 @@ namespace Aether {
 
     struct MeshComponent
     {
-        AssetHandle Mesh;
+        Handle<Asset> Mesh;
         MaterialTable Materials;
         bool ShowBounds = false;
         mutable bool Culled = false;
@@ -86,8 +86,8 @@ namespace Aether {
 
     struct AnimatorComponent
     {
-        AssetHandle Skeleton;
-        std::vector<AssetHandle> Clips;
+        Handle<Asset> Skeleton;
+        std::vector<Handle<Asset>> Clips;
         
         Handle<SkeletonCache> Cache;
         Handle<Pose> CurrentPose;
@@ -169,10 +169,10 @@ namespace Aether {
         bool IsSensor = false;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
-        ColliderComponent(const Handle<RigidBody>& handle, bool visible = false)
+        ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false)
             : ColliderHandle(handle), Visible(visible)
         {
-            auto it = PhysicsSystem::GetBodyInfo(ColliderHandle);
+            auto it = PhysicsSystem::GetBodyInfo(instance, ColliderHandle);
             if (it == nullptr) return;
             auto& info = *it;
             ColliderOffset = info.offset;

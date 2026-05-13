@@ -24,7 +24,7 @@ namespace Aether {
         instance.m_Assets.clear();
     }
 
-    AssetHandle AssetManager::GetHandle(UUID id)
+    Handle<Asset> AssetManager::GetHandle(UUID id)
     {
         auto& instance = GetInstance();
         auto it = instance.m_Handles.find(id);
@@ -39,7 +39,7 @@ namespace Aether {
         auto& instance = GetInstance();
         auto it = instance.m_Handles.find(id);
         if (it == instance.m_Handles.end()) return;
-        AssetHandle handle = it->second;
+        Handle<Asset> handle = it->second;
         if (handle.index >= instance.m_Assets.size()) return;
         AssetSlot& slot = instance.m_Assets[handle.index];
         if (slot.generation != handle.generation) return;
@@ -51,7 +51,7 @@ namespace Aether {
         instance.m_Handles.erase(it);
     }
 
-    AssetHandle AssetManager::RequestAssetSlot(UUID id)
+    Handle<Asset> AssetManager::RequestAssetSlot(UUID id)
     {
         auto& instance = GetInstance();
         auto it = instance.m_Handles.find(id); int index;
@@ -72,7 +72,7 @@ namespace Aether {
             instance.m_Assets.emplace_back();
         }
         AssetSlot& slot = instance.m_Assets[index]; slot.id = id;
-        AssetHandle handle;
+        Handle<Asset> handle;
         handle.index = index;
         handle.generation = slot.generation;
         instance.m_Handles[id] = handle;

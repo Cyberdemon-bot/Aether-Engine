@@ -22,7 +22,7 @@ namespace Aether {
         instance.m_Resources.clear();
     }
 
-    void ResourceManager::Unload(ResourceHandle handle)
+    void ResourceManager::Unload(Handle<Resource> handle)
     {
         auto& instance = GetInstance();
         if (handle.index >= instance.m_Resources.size()) return;

@@ -161,19 +161,19 @@ namespace Aether {
 
 		struct RenderData
 		{
-			ResourceHandle CameraUB;
-			ResourceHandle BoneUB;
-			ResourceHandle LightUB;
-			ResourceHandle s_InstanceVBO;
-			ResourceHandle s_ScreenShader;
-			ResourceHandle s_SkyboxShader;
-			ResourceHandle s_ShadowmapShader;
-			ResourceHandle lineShader;
-			ResourceHandle s_LutMap;
-			ResourceHandle s_Skybox;
-			ResourceHandle s_ShadowFBO[MaxShadowCaster]; 
-			ResourceHandle BoneStorage;
-			ResourceHandle OffsetStorage;
+			Handle<Resource> CameraUB;
+			Handle<Resource> BoneUB;
+			Handle<Resource> LightUB;
+			Handle<Resource> s_InstanceVBO;
+			Handle<Resource> s_ScreenShader;
+			Handle<Resource> s_SkyboxShader;
+			Handle<Resource> s_ShadowmapShader;
+			Handle<Resource> lineShader;
+			Handle<Resource> s_LutMap;
+			Handle<Resource> s_Skybox;
+			Handle<Resource> s_ShadowFBO[MaxShadowCaster]; 
+			Handle<Resource> BoneStorage;
+			Handle<Resource> OffsetStorage;
 			Mesh* s_Screen   = nullptr;
 			Mesh* s_SkyMesh  = nullptr;
 

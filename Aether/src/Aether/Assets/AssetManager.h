@@ -5,6 +5,7 @@
 #include "Aether/Core/Base.h"
 #include "Aether/Core/Log.h"
 #include "Aether/Core/Assert.h"
+#include "Aether/Container/Handle.h"
 #include <unordered_map>
 #include <vector>
 
@@ -24,15 +25,15 @@ namespace Aether {
         static void Init();
         static void Shutdown();
         static void Unload(UUID id);
-        static AssetHandle GetHandle(UUID id);
-        static AssetHandle RequestAssetSlot(UUID id);
+        static Handle<Asset> GetHandle(UUID id);
+        static Handle<Asset> RequestAssetSlot(UUID id);
 
         template<typename T, typename... Args>
-        static AssetHandle CreateAsset(UUID id, Args&&... args)
+        static Handle<Asset> CreateAsset(UUID id, Args&&... args)
         {
             auto& instance = GetInstance();
             AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
-            AssetHandle handle = RequestAssetSlot(id);
+            Handle<Asset> handle = RequestAssetSlot(id);
             AssetSlot& slot = instance.m_Assets[handle.index];
             slot.asset = T::CreateImpl(std::forward<Args>(args)...);
             slot.asset->id = id;
@@ -41,7 +42,7 @@ namespace Aether {
         }
 
         template<typename T, typename... Args>
-        static void CommitAsset(AssetHandle handle, Args&&... args)
+        static void CommitAsset(Handle<Asset> handle, Args&&... args)
         {
             auto& instance = GetInstance();
             AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
@@ -55,7 +56,7 @@ namespace Aether {
         }
 
         template<typename T>
-        static T* GetAsset(AssetHandle handle)
+        static T* GetAsset(Handle<Asset> handle)
         {
             auto& instance = GetInstance();
             if (handle.index >= instance.m_Assets.size()) return nullptr;
@@ -78,7 +79,7 @@ namespace Aether {
         AssetManager& operator=(AssetManager&&) = delete;
         
         static AssetManager& GetInstance();
-        std::unordered_map<UUID, AssetHandle> m_Handles;
+        std::unordered_map<UUID, Handle<Asset>> m_Handles;
         std::vector<AssetSlot> m_Assets;
         std::vector<uint32_t> FreeList;
     };

@@ -13,8 +13,8 @@ namespace Aether {
 
     struct Animator
     {
-        AssetHandle skeleton;
-        std::vector<AssetHandle> clips;
+        Handle<Asset> skeleton;
+        std::vector<Handle<Asset>> clips;
     };
 
     struct ParsedScene
