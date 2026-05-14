@@ -135,6 +135,7 @@ namespace Aether {
 
         instance.LuaState.RemoveEnvironment(slot->env_hanle);
         instance.m_Instances.DestroyResource(handle);
+        instance.m_EventManager->RemoveListener(handle);
         MarkExecOrderChanged();
     }
 

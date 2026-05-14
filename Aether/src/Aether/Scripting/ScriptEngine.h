@@ -7,6 +7,7 @@
 #include <string>
 
 #include "Aether/Core/Base.h"
+#include "Aether/Core/UUID.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Core/Timestep.h"
 #include "Aether/Container/ResourcePool.h"
@@ -69,7 +70,7 @@ namespace Aether {
 
     struct CollisionData
     {
-        uint32_t entity;
+        UUID entityID;
         CollisionType type;
 
         glm::vec3 contactPoint;
@@ -108,6 +109,12 @@ namespace Aether {
         {
             auto& instance = GetInstance();
             instance.m_EventManager->RemoveNativeListener(handle, event_name);
+        }
+
+        template<typename module>
+        static void ImportNativeModule()
+        {
+            BindModule<module>(Native);
         }
 
         static Handle<Bytecode> LoadScript(const std::string& path);

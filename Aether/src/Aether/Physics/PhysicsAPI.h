@@ -44,6 +44,7 @@ namespace Aether {
         glm::vec3 Normal{0.0f};  
         float Distance = 0.0f;    
         Handle<RigidBody> HitEntityHandle;
+        UUID HitEntityID;
     };
 
     struct BodyConfig

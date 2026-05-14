@@ -103,7 +103,7 @@ void LabLayer::Attach()
     Aether::ConsoleLayer::RegisterCommand("add",       AE_BIND_CONSOLE_FN(AddEntity));
 
     Aether::ScriptEngine::AddListener("test func", [](const Aether::ScriptArgs& args){
-        AE_WARN("Tested successfully {0}", args.Get<int>(0));
+        AE_WARN("Tested successfully {0}", args.GetElement<int>(0));
     });
 
     AE_CORE_INFO("LabLayer initialized!");

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <tuple>
 
 namespace Aether {
     struct ScriptInstance;
@@ -27,11 +28,12 @@ namespace Aether {
 
     struct ScriptValue
     {
-        enum class Type { Nil, Bool, Int, Float, String, Vec3 };
+        enum class Type { Nil, Bool, Int, Float, String, Vec3, List };
         Type type = Type::Nil;
         union { bool b; int i; float f; };
         std::string str;
         glm::vec3 vec;
+        std::vector<ScriptValue> list;
 
         template<typename T> T As() const;
         static ScriptValue FromSolObject(const sol::object& obj);
@@ -41,15 +43,13 @@ namespace Aether {
     {
     public:
         template<typename T>
-        T Get(uint32_t index) const
+        T GetElement(uint32_t index) const
         {
-            if (index >= args.size()) 
-            {
-                AE_CORE_WARN("[ScriptArgs] Index {0} out of range", index);
-                return T{};
-            }
+            if (index >= args.size()) return T{};
             return args[index].As<T>();
         }
+
+        uint32_t GetSize() const { return args.size(); }
     private:
         std::vector<ScriptValue> args;
         friend class ScriptEventManager;
@@ -70,7 +70,9 @@ namespace Aether {
 
         void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::protected_function callback);
         Handle<ScriptCallback> AddNativeListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
+        void RemoveListener(Handle<ScriptInstance> script);
         void RemoveListener(Handle<ScriptInstance> script, const std::string& event_name);
+        void RemoveNativeListener(Handle<ScriptCallback> handle);
         void RemoveNativeListener(Handle<ScriptCallback> handle, const std::string& event_name);
 
         void Flush();
@@ -81,9 +83,12 @@ namespace Aether {
         sol::state& m_lua;
     };
 
+    typedef std::tuple<const ScriptValue*, size_t> ScriptList;
+
     template<> bool ScriptValue::As() const;
     template<> int ScriptValue::As() const;
     template<> float ScriptValue::As() const;
     template<> std::string ScriptValue::As() const;
     template<> glm::vec3 ScriptValue::As() const;
+    template<> ScriptList ScriptValue::As() const;
 }
