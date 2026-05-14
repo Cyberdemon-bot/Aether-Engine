@@ -166,9 +166,9 @@ namespace Aether {
         static constexpr auto get_props()
         {
             return AE_REFLECT_LIST(
-                AE_REFLECT("EntityId", 
-                    AE_MAKE_LAMBDA((), (const Type& self), uint32_t,
-                        return self.entity;
+                AE_REFLECT("EntityID", 
+                    AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
+                        return uint64_t(self.entityID);
                     )
                 ),
 
@@ -303,9 +303,9 @@ namespace Aether {
                         self.scene->GetComponent<TransformComponent>(self.entity) = val;
                     )
                 ),
-                AE_REFLECT("EntityId",
-                    AE_MAKE_LAMBDA((), (const Type& self), uint32_t,
-                        return static_cast<uint32_t>(self.entity);
+                AE_REFLECT("EntityID",
+                    AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
+                        return uint64_t(self.scene->GetComponent<IDComponent>(self.entity).ID);
                     )
                 ), 
                 AE_REFLECT("ExecOrder",
@@ -328,8 +328,8 @@ namespace Aether {
                     )
                 ),
                 AE_REFLECT("Call",
-                    AE_MAKE_LAMBDA((), (Type& self, uint32_t targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = static_cast<Entity>(targetId);
+                    AE_MAKE_LAMBDA((), (Type& self, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = self.scene->FindEntity((UUID(targetId)));
                         if (!self.scene->IsValid(target)) return sol::lua_nil;
                         if (!self.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = self.scene->GetComponent<ScriptComponent>(target);
@@ -362,16 +362,20 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("FindByName",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), uint32_t,
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), std::vector<uint64_t>,
                         auto results = ctx.scene->FindEntity(name);
-                        if (results.empty()) return static_cast<uint32_t>(Null_Entity);
-                        return static_cast<uint32_t>(results[0]);
+                        std::vector<uint64_t> ids;
+                        ids.reserve(results.size());
+                        for (auto& e : results)
+                            if (ctx.scene->HasComponent<ScriptComponent>(e))
+                                ids.push_back(uint64_t(ctx.scene->GetComponent<IDComponent>(e).ID));
+                        return ids;
                     )
                 ),
 
                 AE_REFLECT("IsValid",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t id), bool,
-                        Entity e = static_cast<Entity>(id);
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t id), bool,
+                        Entity e = ctx.scene->FindEntity(UUID(id));
                         return ctx.scene->IsValid(e);
                     )
                 )
@@ -465,7 +469,7 @@ namespace Aether {
                 ),
                 AE_REFLECT("HitEntity",
                     AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
-                        return self.HitEntityHandle.Blend();
+                        return self.HitEntityID;
                     )
                 )
             );
@@ -526,12 +530,6 @@ namespace Aether {
                 AE_REFLECT("CastRayAll",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastHit>,
                         return PhysicsSystem::CastRayAll(self.scene->GetPhysicsInstance(), origin, direction, distance);
-                    )
-                ),
-
-                AE_REFLECT("GetId",
-                    AE_MAKE_LAMBDA((), (Type& self, uint64_t handle), uint64_t, 
-                        return PhysicsSystem::GetUUID(self.scene->GetPhysicsInstance(), Handle<RigidBody>::FromBlend(handle));
                     )
                 )
             );

@@ -490,7 +490,8 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                res.HitEntityHandle = {Handle<RigidBody>::FromBlend(id)};
+                res.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
+                res.HitEntityID = GetUUID(res.HitEntityHandle);
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
                 JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
                 res.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
