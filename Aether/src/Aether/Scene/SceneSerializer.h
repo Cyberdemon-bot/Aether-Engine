@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -62,7 +61,11 @@ namespace Aether
         int ColliderShape = 0;
         glm::vec3 ColliderSize = glm::vec3(0.0f);
         glm::vec3 ColliderOffset = glm::vec3(0.0f);
-
+        int ColliderType = 0;
+        float ColliderMass = 1.0f;
+        float ColliderFriction = 0.5f;
+        float ColliderRestitution = 0.0f;
+        bool ColliderIsSensor = false;
 
         bool hasAudio = false;
         uint64_t SourceID = 0;
@@ -71,19 +74,36 @@ namespace Aether
         uint64_t AnimatorEntityID = 0;
         std::string JointName;
         bool AffectChild = true;
+
+        // Script component.
+        // ScriptIndex is an index into SceneSnapshot::ScriptSources (-1 = none).
+        // Multiple entities sharing identical source code share the same index.
+        bool hasScript = false;
+        bool ScriptActive = true;
+        int  ScriptIndex = -1;
     };
 
     struct SceneSnapshot
     {
         std::string                  SceneName;
         std::vector<EntitySnapshot>  Entities;
+
+        // Deduplicated raw Lua source strings.
+        // Each entry maps to one .script file slot written by the serializer.
+        std::vector<std::string>     ScriptSources;
     };
 
     class AETHER_API SceneSerializer
     {
     public:
-        static bool Serialize(Scene& scene, const std::string& path);
+        // Serialize scene to <path> (YAML) and <path>.script (script bundle).
+        // sceneName is embedded in the YAML header.
+        static bool Serialize(Scene& scene, const std::string& path, const std::string& sceneName = "Untitled");
+
+        // Deserialize YAML at <path> (and its companion .script file) into snapshot.
         static bool Deserialize(const std::string& path, SceneSnapshot& snapshot);
+
+        // Deserialize directly into a live Scene.
         static bool DeserializeInto(const std::string& path, Scene& scene);
     };
 }

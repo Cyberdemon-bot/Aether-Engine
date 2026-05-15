@@ -193,7 +193,66 @@ namespace Aether {
         LoadComponent(entity, prefab.camera, override);
         LoadComponent(entity, prefab.animator, override);
         LoadComponent(entity, prefab.collider, override);
+        LoadComponent(entity, prefab.script, override);
         LoadComponent(entity, prefab.boneAttach, override);
+    }
+
+    Prefab Scene::ExportPrefab(Entity entity) const
+    {
+        Prefab prefab;
+
+        if (HasComponent<TagComponent>(entity))
+        {
+            prefab.tag.IsExits = true;
+            prefab.tag.data    = GetComponent<TagComponent>(entity);
+        }
+        if (HasComponent<TransformComponent>(entity))
+        {
+            prefab.transform.IsExits = true;
+            prefab.transform.data    = GetComponent<TransformComponent>(entity);
+        }
+        if (HasComponent<HierarchyComponent>(entity))
+        {
+            prefab.hierarchy.IsExits = true;
+            prefab.hierarchy.data    = GetComponent<HierarchyComponent>(entity);
+        }
+        if (HasComponent<MeshComponent>(entity))
+        {
+            prefab.mesh.IsExits = true;
+            prefab.mesh.data    = GetComponent<MeshComponent>(entity);
+        }
+        if (HasComponent<LightComponent>(entity))
+        {
+            prefab.light.IsExits = true;
+            prefab.light.data    = GetComponent<LightComponent>(entity);
+        }
+        if (HasComponent<CameraComponent>(entity))
+        {
+            prefab.camera.IsExits = true;
+            prefab.camera.data    = GetComponent<CameraComponent>(entity);
+        }
+        if (HasComponent<AnimatorComponent>(entity))
+        {
+            prefab.animator.IsExits = true;
+            prefab.animator.data    = GetComponent<AnimatorComponent>(entity);
+        }
+        if (HasComponent<ColliderComponent>(entity))
+        {
+            prefab.collider.IsExits = true;
+            prefab.collider.data    = GetComponent<ColliderComponent>(entity);
+        }
+        if (HasComponent<ScriptComponent>(entity))
+        {
+            prefab.script.IsExits = true;
+            prefab.script.data    = GetComponent<ScriptComponent>(entity);
+        }
+        if (HasComponent<BoneAttachmentComponent>(entity))
+        {
+            prefab.boneAttach.IsExits = true;
+            prefab.boneAttach.data    = GetComponent<BoneAttachmentComponent>(entity);
+        }
+
+        return prefab;
     }
 
     void Scene::DestroyHierarchy(Entity entity)
@@ -715,7 +774,12 @@ namespace Aether {
             {
                 auto& cmp = GetComponent<ScriptComponent>(entity);
                 auto& instance = cmp.ScriptHandle;
-                if (cmp.IsActive)
+                if (cmp.PendingStart)
+                {
+                    cmp.PendingStart = false;
+                    ScriptEngine::StartInstance(cmp.ScriptHandle);
+                }
+                else if (cmp.IsActive)
                     ScriptEngine::UpdateInstance(instance, ts);
             }
 

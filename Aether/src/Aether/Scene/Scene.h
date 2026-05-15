@@ -40,6 +40,7 @@ namespace Aether {
         void MarkDirty(Entity entity);
 
         void ImportPrefab(Entity entity, const Prefab& prefab, bool override = false);
+        Prefab ExportPrefab(Entity entity) const;
 
         bool IsValid(Entity entity) const;
         void Update(Timestep ts, EditorCamera* camera = nullptr);

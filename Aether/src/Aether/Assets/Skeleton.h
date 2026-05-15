@@ -2,7 +2,7 @@
 
 #include "Aether/Assets/Asset.h"
 #include "Aether/Assets/AssetManager.h"
-#include "Aether/Container/ResourcePool.h"
+#include "Aether/Container/Handle.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 

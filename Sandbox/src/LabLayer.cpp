@@ -139,7 +139,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
         Aether::JobSystem::SubmitJob([this, path]()
         {
             AE_CORE_INFO("Worker: Parsing {0}", path);
-            auto parsed = Aether::Importer::Import(path);
+            auto parsed = Aether::Importer::Import(path, true, "bruh");
             {
                 std::lock_guard<std::mutex> lock(m_ParseMutex);
                 m_CompletedParses.push(parsed);
@@ -492,7 +492,7 @@ void LabLayer::DrawScriptingPanel()
                     m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 }
 
-                auto script = ScriptEngine::LoadScript(m_ScriptPath);
+                auto script = ScriptEngine::LoadScript(m_ScriptPath, true);
                 Handle<ScriptInstance> handle = ScriptEngine::CreateInstance(
                     &m_Scene, m_ScriptTargetEntity, script);
 
