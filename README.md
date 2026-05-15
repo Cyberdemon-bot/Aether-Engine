@@ -1,7 +1,7 @@
 
 # Aether Engine
 
-A 3D game engine built from scratch in C++17. Designed to be lightweight and flexible for developing 3D games ranging from simple to mid-complexity.
+A 3D game engine built from scratch. Designed to be lightweight and flexible for developing 3D games ranging from simple to mid-complexity.
 
 Built as a learning project to deeply understand the internals of a modern game engine — rendering pipeline, physics, skeletal animation, audio, and scene management — without relying on commercial engines like Unity or Unreal.
 
@@ -31,7 +31,7 @@ Multi-pass rendering pipeline built directly on OpenGL 4.1.
 - **Shadow Mapping** — real-time shadows for directional and spot lights, up to 4 simultaneous shadow casters
 - **Volumetric Lighting** — god rays / light scattering with adjustable density, intensity, and ray march steps
 - **PBR Shading** — Physically Based Rendering for materials
-- **Skinned Mesh Rendering** — skeletal deformation on animated meshes
+- **Skinned Mesh in Instanced Rendering** — skeletal deformation on animated meshes
 - **Fog System** — linear and exponential fog modes, configurable color and density
 - **LUT Color Grading** — post-process color grading via lookup texture
 - **Skybox** — panoramic skybox support
@@ -49,6 +49,7 @@ Multi-pass rendering pipeline built directly on OpenGL 4.1.
 - **Multiple Animators** — multiple simultaneous animators per scene, each entity has its own
 - **Animation Controls** — play, pause, loop toggle per animator
 - **Bone Attachment** — attach any entity to a named bone on a skeleton; the entity follows the bone transform automatically during animation
+- **PostEvalCallback** - allow developer can activate advanced feature such as inverse kinematic, ...
 
 ### ECS & Scene (EnTT)
 - **Entity-Component-System** — data-oriented architecture, cache-friendly
@@ -71,6 +72,7 @@ Multi-pass rendering pipeline built directly on OpenGL 4.1.
 - **Script Engine** — attach script instances to entities at runtime
 - **Hot Reload** — load/reload a script from file path without restarting
 - **Per-entity Scripts** — each entity can have an independent script instance
+- **Linking** - fully funtional event manager and direct api call protocol for both script - script and engine - script sides
 
 ### Editor UI (ImGui)
 - **Hierarchy Panel** — scene entity tree view
@@ -118,7 +120,7 @@ Aether is built around a **Layer system** combined with **ECS (EnTT)**. Systems 
 | SoLoud | 3D audio system |
 | spdlog + fmt | Logging |
 | stb | Image reading/writing (PNG, JPG) |
-| yaml-cpp | Scene serialize |
+| yaml-cpp | Scene serializing |
 
 ---
 
@@ -132,7 +134,7 @@ Note: MSVC compiler is highly recommended on Windows
 git clone https://github.com/Cyberdemon-bot/Aether-Engine
 cd Aether-Engine
 xmake
-xmake run
+xmake run Sandbox
 ```
 
 ---
