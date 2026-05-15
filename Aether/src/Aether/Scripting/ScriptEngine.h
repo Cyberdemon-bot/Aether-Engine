@@ -36,6 +36,7 @@ namespace Aether {
     {
         int generation = 0;
         Handle<Enviroment> env_hanle = Handle<Enviroment>::MakeInvalid();
+        Handle<Bytecode> code_handle = Handle<Bytecode>::MakeInvalid();
         bool has_error = false;
         bool is_active = true;
         int exec_order = 0;
@@ -77,6 +78,12 @@ namespace Aether {
         glm::vec3 contactNormal;
     };
 
+    struct ScriptSource
+    {
+        sol::bytecode bytecode;
+        std::string rawcode;
+    };
+
     class AETHER_API ScriptEngine
     {
     public:
@@ -114,10 +121,13 @@ namespace Aether {
         template<typename module>
         static void ImportNativeModule()
         {
-            BindModule<module>(Native);
+            BindModule<module>("Native");
         }
 
-        static Handle<Bytecode> LoadScript(const std::string& path);
+        static Handle<Bytecode> LoadScript(const std::string& path, bool saveRaw = false);
+        static Handle<Bytecode> LoadScriptSource(const std::string& source);
+        static std::string GetRaw(Handle<Bytecode> handle);
+        static std::string GetRaw(Handle<ScriptInstance> handle);
 
         static void SetActiveStage(Handle<ScriptInstance> handle, bool active);
         static bool GetActiveStage(Handle<ScriptInstance> handle);
@@ -129,7 +139,7 @@ namespace Aether {
         std::optional<ScriptEventManager> m_EventManager;
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
-        ResourcePool<Handle<Bytecode>, sol::bytecode> m_Sources;
+        ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
         std::vector<std::pair<Entity, Handle<ScriptInstance>>> m_DestroyQueue;
         bool IsExecChanged = false;
 

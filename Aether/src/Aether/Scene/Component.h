@@ -127,6 +127,7 @@ namespace Aether {
     struct ScriptComponent
     {
         Handle<ScriptInstance> ScriptHandle;
+        bool PendingStart = false;
         bool IsActive = true;
 
         ScriptComponent() = default;
@@ -223,6 +224,7 @@ namespace Aether {
         ComponentInfo<CameraComponent> camera;
         ComponentInfo<AnimatorComponent> animator;
         ComponentInfo<ColliderComponent> collider;
+        ComponentInfo<ScriptComponent> script;
         ComponentInfo<BoneAttachmentComponent> boneAttach;
     };
 }

@@ -5,6 +5,8 @@
 #include "Aether/Core/KeyCodes.h"
 #include "Aether/Physics/PhysicsAPI.h"
 #include "Aether/Scene/Scene.h"
+#include "Aether/Assets/Script.h"
+#include "Aether/Assets/AssetManager.h"
 
 namespace Aether {
 
@@ -74,7 +76,7 @@ namespace Aether {
         auto it = instance.m_Sources.GetResource(bh);
         if (it == nullptr) return Handle<ScriptInstance>::MakeInvalid();
 
-        sol::bytecode bytecode = *it;
+        sol::bytecode bytecode = it->bytecode;
         auto env_handle = instance.LuaState.CreateEnvironment();
         sol::environment env = *instance.LuaState.env_pool.GetResource(env_handle);
         auto& lua = instance.LuaState.lua;
@@ -94,6 +96,7 @@ namespace Aether {
 
         slot->env_hanle = env_handle;
         slot->ctx = scene;
+        slot->code_handle = bh;
         MarkExecOrderChanged();
         return handle; 
     }
@@ -106,7 +109,7 @@ namespace Aether {
         CallMethod(*slot, "OnStart");
     }
 
-    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path)
+    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path, bool saveRaw)
     {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
@@ -123,7 +126,42 @@ namespace Aether {
         }
 
         sol::bytecode bytecode = res.get<sol::function>().dump();
-        return instance.m_Sources.SaveResource(bytecode);
+        if (!saveRaw) source.clear();
+        auto handle = instance.m_Sources.SaveResource({bytecode, source});
+        return handle;
+    }
+
+    Handle<Bytecode> ScriptEngine::LoadScriptSource(const std::string& source)
+    {
+        auto& instance = GetInstance();
+        auto& lua = instance.LuaState.lua;
+
+        sol::load_result res = lua.load(source);
+        if (!res.valid())
+        {
+            sol::error err = res;
+            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
+            return Handle<Bytecode>::MakeInvalid();
+        }
+
+        sol::bytecode bytecode = res.get<sol::function>().dump();
+        return instance.m_Sources.SaveResource({bytecode, source});
+    }
+
+    std::string ScriptEngine::GetRaw(Handle<Bytecode> handle)
+    {
+        auto& instance = GetInstance();
+        auto source = instance.m_Sources.GetResource(handle);
+        if (source == nullptr) return {};
+        return source->rawcode;
+    }
+
+    std::string ScriptEngine::GetRaw(Handle<ScriptInstance> handle)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return {};
+        return GetRaw(slot->code_handle);
     }
 
     void ScriptEngine::DestroyInstance(Handle<ScriptInstance> handle)
