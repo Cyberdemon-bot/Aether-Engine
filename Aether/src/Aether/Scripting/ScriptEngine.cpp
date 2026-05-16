@@ -57,11 +57,15 @@ namespace Aether {
         BindEnum<Key::KeyCode>("Key");
         BindEnum<Mouse::MouseCode>("Mouse");
         BindEnum<CollisionType>("CollisionType");
+        BindEnum<LightType>("LightType"); 
+        BindEnum<SceneCamera::ProjectionType>("CameraProjection");
         BindType<Vec3Binding>("Math");
         BindType<QuatBinding>("Math");
         BindModule<MathBinding>("Math");
         BindModule<InputBinding>("Input"); 
         BindType<TransformComponentBinding>();
+        BindType<LightParamBinding>();   
+        BindType<SceneCameraBinding>();
         BindType<ScriptSelfBinding>();
         BindType<SceneBinding>();
         BindType<EventManagerBinding>();
