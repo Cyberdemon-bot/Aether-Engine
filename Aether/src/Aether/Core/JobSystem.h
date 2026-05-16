@@ -9,7 +9,7 @@
 
 namespace Aether {
 
-    using Job = std::function<void()>;
+    using Job = Delegate<void()>;
 
     class AETHER_API JobSystem
     {

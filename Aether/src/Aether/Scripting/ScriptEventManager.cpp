@@ -3,14 +3,6 @@
 #include "Aether/Core/Log.h"
 
 namespace Aether {
-    template<> bool ScriptValue::As() const { return b; }
-    template<> int ScriptValue::As() const { return i; }
-    template<> float ScriptValue::As() const { return f; }
-    template<> std::string ScriptValue::As() const { return str; }
-    template<> glm::vec3 ScriptValue::As() const { return vec; }
-    template<> ScriptList ScriptValue::As() const { return {list.data(), list.size()}; }
-
-
     ScriptEventManager::ScriptEventManager(sol::state& lua)
         : m_lua(lua)
     {
@@ -121,35 +113,14 @@ namespace Aether {
             auto it = m_NativeListeners.find(event.name);
             if (it == m_NativeListeners.end()) continue;
             ScriptArgs converted;
-            converted.args.reserve(event.args.size());
             for (const auto& arg : event.args)
-                converted.args.push_back(ScriptValue::FromSolObject(arg));
-            it->second.Loop([converted](const NativeListener& listener){
-                listener.callback(converted);
+                converted.Pushback(FromSolObject(arg));
+                it->second.Loop([converted](const NativeListener& listener){
+                    listener.callback(converted);
             });
         }
 
         m_Queue.clear();
     }
 
-    ScriptValue ScriptValue::FromSolObject(const sol::object& obj)
-    {
-        ScriptValue v;
-        if (!obj.valid()) { v.type = Type::Nil; return v; }
-        if (obj.is<bool>()) { v.type = Type::Bool; v.b = obj.as<bool>(); return v; }
-        if (obj.is<int>()) { v.type = Type::Int; v.i = obj.as<int>(); return v; }
-        if (obj.is<float>()) { v.type = Type::Float; v.f = obj.as<float>(); return v; }
-        if (obj.is<std::string>()) { v.type = Type::String; v.str = obj.as<std::string>(); return v; }
-        if (obj.is<glm::vec3>()) { v.type = Type::Vec3; v.vec = obj.as<glm::vec3>(); return v; }
-        if (obj.is<sol::table>())
-        {
-            v.type = Type::List;
-            sol::table t = obj.as<sol::table>();
-            for (size_t i = 1; i <= t.size(); i++)
-                v.list.push_back(FromSolObject(t[i]));
-            return v;
-        }
-        AE_CORE_WARN("[ScriptValue] Unknown sol::object type, defaulting to Nil");
-        return v;
-    }
 }

@@ -31,7 +31,6 @@ namespace Aether {
     struct Bytecode;
     enum class CollisionType;
     class Scene;
-
     struct InstanceSlot
     {
         int generation = 0;
@@ -84,12 +83,12 @@ namespace Aether {
         std::string rawcode;
     };
 
+
     class AETHER_API ScriptEngine
     {
     public:
         static void Init();
         static void Shutdown();
-        static void RegisterTypes();
 
         static Handle<ScriptInstance> CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh);
         static void DestroyInstance(Handle<ScriptInstance> handle);
@@ -118,10 +117,21 @@ namespace Aether {
             instance.m_EventManager->RemoveNativeListener(handle, event_name);
         }
 
-        template<typename module>
-        static void ImportNativeModule()
+        static void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> callback)
         {
-            BindModule<module>("Native");
+            auto& instance = GetInstance();
+            auto& lua = instance.LuaState.lua;
+            sol::table native = lua["Native"];
+
+            native.set_function(name, [callback, &lua](sol::variadic_args va) -> sol::object
+            {
+                ScriptArgs args;
+                for (const auto& v : va)
+                    args.Pushback(FromSolObject(v));
+                
+                ScriptValue result = callback(args);
+                return ToSolObject(lua, result);
+            });
         }
 
         static Handle<Bytecode> LoadScript(const std::string& path, bool saveRaw = false);
@@ -148,6 +158,10 @@ namespace Aether {
         static void OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data);
         static bool IsExecOrderChanged();
         static int GetExecOrder(Handle<ScriptInstance> handle);
+        static void RegisterBinding();
+        static sol::object CallInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args);
+        static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
+        static void PushDestroyQueue(Entity ent, Handle<ScriptInstance> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -273,28 +287,6 @@ namespace Aether {
                 }
             }
         }
-
-        static sol::object CallInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
-        {
-            auto& instance = GetInstance();
-            auto slot = instance.m_Instances.GetResource(handle);
-            if (slot == nullptr) return sol::lua_nil;
-
-            auto it = slot->exposed_funcs.find(name);
-            if (it == slot->exposed_funcs.end()) return sol::lua_nil;
-
-            sol::protected_function_result result = it->second(sol::as_args(args));
-            if (!result.valid())
-            {
-                sol::error err = result;
-                AE_CORE_ERROR("[Script] CallInstanceAPI error in '{0}': {1}", name, err.what());
-                return sol::lua_nil;
-            }
-            return result;
-        }
-
-        static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
-        static void PushDestroyQueue(Entity ent, Handle<ScriptInstance> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
 
         friend struct ScriptSelfBinding;
         friend struct SceneBinding;

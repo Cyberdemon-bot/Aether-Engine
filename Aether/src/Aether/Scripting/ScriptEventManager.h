@@ -3,6 +3,7 @@
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
 #include "Aether/Core/Base.h"
+#include "Aether/Scripting/ScriptValue.h"
 #include <sol/sol.hpp>
 #include <glm/glm.hpp>
 #include <unordered_map>
@@ -24,35 +25,6 @@ namespace Aether {
     {
         Handle<ScriptInstance> script;
         sol::protected_function callback;
-    };
-
-    struct ScriptValue
-    {
-        enum class Type { Nil, Bool, Int, Float, String, Vec3, List };
-        Type type = Type::Nil;
-        union { bool b; int i; float f; };
-        std::string str;
-        glm::vec3 vec;
-        std::vector<ScriptValue> list;
-
-        template<typename T> T As() const;
-        static ScriptValue FromSolObject(const sol::object& obj);
-    };
-
-    class ScriptArgs
-    {
-    public:
-        template<typename T>
-        T GetElement(uint32_t index) const
-        {
-            if (index >= args.size()) return T{};
-            return args[index].As<T>();
-        }
-
-        uint32_t GetSize() const { return args.size(); }
-    private:
-        std::vector<ScriptValue> args;
-        friend class ScriptEventManager;
     };
 
     struct NativeListener
@@ -82,13 +54,4 @@ namespace Aether {
         std::vector<ScriptEvent> m_Queue;
         sol::state& m_lua;
     };
-
-    typedef std::tuple<const ScriptValue*, size_t> ScriptList;
-
-    template<> bool ScriptValue::As() const;
-    template<> int ScriptValue::As() const;
-    template<> float ScriptValue::As() const;
-    template<> std::string ScriptValue::As() const;
-    template<> glm::vec3 ScriptValue::As() const;
-    template<> ScriptList ScriptValue::As() const;
 }
