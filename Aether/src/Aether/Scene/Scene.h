@@ -52,6 +52,9 @@ namespace Aether {
         void LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
         Handle<PhysicsInstance> GetPhysicsInstance() { return m_PhysicsInstance; }
 
+        void SortHierarchyCache();
+        uint32_t GetHierarchyDriftCount() const { return m_SortDirtyCount; }
+
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
 
@@ -120,13 +123,14 @@ namespace Aether {
     private:
         uint64_t m_CurrentFrame = 0;
         uint32_t m_Threshold = 64;
+        uint32_t m_SortDirtyCount = 0;
         Handle<PhysicsInstance> m_PhysicsInstance;
         entt::registry m_Registry;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
         void DirtyScan();
-        void BreadthFirstSearch();
+        void BreadthFirstSearch(bool usingFilter = true);
         void UpdateTransform(Entity entity);
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
         void UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform);

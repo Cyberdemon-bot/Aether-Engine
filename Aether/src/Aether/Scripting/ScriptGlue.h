@@ -523,7 +523,7 @@ namespace Aether {
         static constexpr auto get_methods()
         {
             return AE_REFLECT_LIST(
-                AE_REFLECT("FindByName",
+                AE_REFLECT("FindByTag",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), std::vector<uint64_t>,
                         auto results = ctx.scene->FindEntity(name);
                         std::vector<uint64_t> ids;
