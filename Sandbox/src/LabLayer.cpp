@@ -106,6 +106,11 @@ void LabLayer::Attach()
         AE_WARN("Tested successfully {0}", args.GetElement<int>(0));
     });
 
+    Aether::ScriptEngine::ImportNativeFunc("PrintTest", [](const Aether::ScriptArgs& args) -> Aether::ScriptValue{
+        AE_WARN("printTested successfully");
+        return Aether::ScriptValue{};
+    });
+
     AE_CORE_INFO("LabLayer initialized!");
 }
 

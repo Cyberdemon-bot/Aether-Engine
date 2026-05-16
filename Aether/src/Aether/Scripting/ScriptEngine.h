@@ -83,6 +83,12 @@ namespace Aether {
         std::string rawcode;
     };
 
+    struct PendingCallback
+    {
+        sol::protected_function callback;
+        ScriptValue result;
+    };
+
 
     class AETHER_API ScriptEngine
     {
@@ -105,35 +111,9 @@ namespace Aether {
             instance.m_EventManager->FireEvent(event_name, sol_args);
         }
 
-        static Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
-        {
-            auto& instance = GetInstance();
-            return instance.m_EventManager->AddNativeListener(event_name, callback);
-        }
-
-        static void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name)
-        {
-            auto& instance = GetInstance();
-            instance.m_EventManager->RemoveNativeListener(handle, event_name);
-        }
-
-        static void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> callback)
-        {
-            auto& instance = GetInstance();
-            auto& lua = instance.LuaState.lua;
-            sol::table native = lua["Native"];
-
-            native.set_function(name, [callback, &lua](sol::variadic_args va) -> sol::object
-            {
-                ScriptArgs args;
-                for (const auto& v : va)
-                    args.Pushback(FromSolObject(v));
-                
-                ScriptValue result = callback(args);
-                return ToSolObject(lua, result);
-            });
-        }
-
+        static Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
+        static void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name);
+        static void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func);
         static Handle<Bytecode> LoadScript(const std::string& path, bool saveRaw = false);
         static Handle<Bytecode> LoadScriptSource(const std::string& source);
         static std::string GetRaw(Handle<Bytecode> handle);
@@ -151,6 +131,9 @@ namespace Aether {
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
         std::vector<std::pair<Entity, Handle<ScriptInstance>>> m_DestroyQueue;
+        std::unordered_map<std::string, Delegate<ScriptValue(const ScriptArgs&)>> m_NativeFuncs;
+        std::vector<PendingCallback> m_PendingCallbacks;
+        std::mutex m_PendingMutex;
         bool IsExecChanged = false;
 
         static void FlushEvent();
