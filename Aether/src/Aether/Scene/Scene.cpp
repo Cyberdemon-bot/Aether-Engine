@@ -180,6 +180,7 @@ namespace Aether {
         if (parent != Null_Entity && IsValid(parent))
             MakeParent(e, parent);
 
+        m_SortDirtyCount++; 
         return e;
     }
 
@@ -420,39 +421,76 @@ namespace Aether {
                 MarkDirty(entity);
     }
 
-    void Scene::BreadthFirstSearch()
+    void Scene::BreadthFirstSearch(bool usingFilter)
     {
         m_HierarchyLevels.clear();
         std::queue<std::pair<Entity, uint32_t>> Queue;
         auto view = View<HierarchyComponent>();
+    
         for (auto entity : view)
         {
             if (GetComponent<HierarchyComponent>(entity).parent != Null_Entity) continue;
-            auto& t = GetComponent<TransformComponent>(entity);
-            if (t.Dirty || t.SubtreeDirty || (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).Type != MotionType::Static)) Queue.push({entity, 0});
+    
+            if (usingFilter)
+            {
+                auto& t = GetComponent<TransformComponent>(entity);
+                if (t.Dirty || t.SubtreeDirty ||
+                (HasComponent<ColliderComponent>(entity) &&
+                    GetComponent<ColliderComponent>(entity).Type != MotionType::Static))
+                    Queue.push({entity, 0});
+            }
+            else Queue.push({entity, 0});
         }
-
+    
         while (!Queue.empty())
         {
             auto [entity, depth] = Queue.front(); Queue.pop();
             if (m_HierarchyLevels.size() <= depth) m_HierarchyLevels.push_back({});
             m_HierarchyLevels[depth].push_back(entity);
-
-            auto& parentT = GetComponent<TransformComponent>(entity);
-            bool parentDirty = parentT.Dirty || parentT.SubtreeDirty;
-
+    
+            auto& parentT     = GetComponent<TransformComponent>(entity);
+            bool  parentDirty = parentT.Dirty || parentT.SubtreeDirty;
+    
             Entity child = GetComponent<HierarchyComponent>(entity).firstChild;
             while (child != Null_Entity)
             {
-                auto& childT = GetComponent<TransformComponent>(child);
-                if (parentDirty || childT.Dirty || childT.SubtreeDirty || HasComponent<ColliderComponent>(entity))
+                if (!usingFilter) Queue.push({child, depth + 1});
+                else
                 {
-                    if (parentDirty) childT.Dirty = true; 
-                    Queue.push({child, depth + 1});
+                    auto& childT = GetComponent<TransformComponent>(child);
+                    if (parentDirty || childT.Dirty || childT.SubtreeDirty || HasComponent<ColliderComponent>(entity))
+                    {
+                        if (parentDirty) childT.Dirty = true;
+                        Queue.push({child, depth + 1});
+                    }
                 }
                 child = GetComponent<HierarchyComponent>(child).nextSibling;
             }
         }
+    }
+    void Scene::SortHierarchyCache()
+    {
+        BreadthFirstSearch(false);
+        std::vector<Entity> topoOrder;
+        topoOrder.reserve(m_EntityLibrary.size());
+        for (auto& level : m_HierarchyLevels)
+            for (auto e : level)
+                topoOrder.push_back(e);
+    
+        std::unordered_map<Entity, uint32_t> rank;
+        rank.reserve(topoOrder.size());
+        for (uint32_t i = 0; i < (uint32_t)topoOrder.size(); ++i)
+            rank[topoOrder[i]] = i;
+
+        m_Registry.sort<TransformComponent>(AE_MAKE_LAMBDA((&rank), (const entt::entity a, const entt::entity b), bool, 
+            auto ia = rank.find(a);
+            auto ib = rank.find(b);
+            uint32_t ra = (ia != rank.end()) ? ia->second : UINT32_MAX;
+            uint32_t rb = (ib != rank.end()) ? ib->second : UINT32_MAX;
+            return ra < rb;
+        ));
+        m_Registry.sort<HierarchyComponent, TransformComponent>();
+        m_SortDirtyCount = 0;
     }
 
     Entity Scene::FindEntity(UUID id) const
@@ -760,6 +798,7 @@ namespace Aether {
 
                     PhysicsSystem::SetUUID(m_PhysicsInstance, handle, GetComponent<IDComponent>(entity).ID);
                 }
+                else PhysicsSystem::SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }
             PhysicsSystem::UpdateInstance(m_PhysicsInstance, ts);
         }
