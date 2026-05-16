@@ -6,6 +6,7 @@
 #include "Aether/Core/Input.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Scene/Scene.h"
+#include "Aether/Scene/SceneCamera.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -279,6 +280,136 @@ namespace Aether {
         } 
     };
 
+    struct LightParamBinding
+    {
+        using Type = LightParam;
+        static constexpr const char* get_name() { return "LightParam"; }
+
+        static constexpr auto get_props()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("type",
+                    AE_MAKE_LAMBDA((), (const Type& c), int, return static_cast<int>(c.type);),
+                    AE_MAKE_LAMBDA((), (Type& c, int val), void, c.type = static_cast<LightType>(val);)
+                ),
+
+                AE_REFLECT("position",
+                    AE_MAKE_LAMBDA((), (const Type& c), glm::vec3, return c.position;),
+                    AE_MAKE_LAMBDA((), (Type& c, const glm::vec3& val), void, c.position = val;)
+                ),
+
+                AE_REFLECT("direction",
+                    AE_MAKE_LAMBDA((), (const Type& c), glm::vec3, return c.direction;),
+                    AE_MAKE_LAMBDA((), (Type& c, const glm::vec3& val), void, c.direction = val;)
+                ),
+
+                AE_REFLECT("color",
+                    AE_MAKE_LAMBDA((), (const Type& c), glm::vec3, return c.color;),
+                    AE_MAKE_LAMBDA((), (Type& c, const glm::vec3& val), void, c.color = val;)
+                ),
+
+                AE_REFLECT("intensity",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.intensity;),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.intensity = val;)
+                ),
+
+                AE_REFLECT("range",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.range;),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.range = val;)
+                ),
+
+                AE_REFLECT("innerCone",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.innerCone;),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.innerCone = val;)
+                ),
+
+                AE_REFLECT("outerCone",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.outerCone;),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.outerCone = val;)
+                ),
+
+                AE_REFLECT("castShadows",
+                    AE_MAKE_LAMBDA((), (const Type& c), bool, return c.castShadows;),
+                    AE_MAKE_LAMBDA((), (Type& c, bool val), void, c.castShadows = val;)
+                )
+            );
+        }
+    };
+
+    struct SceneCameraBinding
+    {
+        using Type = SceneCamera;
+        static constexpr const char* get_name() { return "SceneCamera"; }
+
+        static constexpr auto get_props()
+        {
+            return AE_REFLECT_LIST(
+
+                AE_REFLECT("projectionType",
+                    AE_MAKE_LAMBDA((), (const Type& c), int,
+                        return static_cast<int>(c.GetProjectionType());
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& c, int val), void,
+                        c.SetProjectionType(static_cast<SceneCamera::ProjectionType>(val));
+                    )
+                ),
+                AE_REFLECT("fov",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveVerticalFOV();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveVerticalFOV(val);)
+                ),
+                AE_REFLECT("perspNear",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveNearClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveNearClip(val);)
+                ),
+                AE_REFLECT("perspFar",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveFarClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveFarClip(val);)
+                ),
+                AE_REFLECT("orthoSize",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicSize();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicSize(val);)
+                ),
+                AE_REFLECT("orthoNear",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicNearClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicNearClip(val);)
+                ),
+                AE_REFLECT("orthoFar",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicFarClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicFarClip(val);)
+                ),
+
+                AE_REFLECT("aspectRatio",
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetAspectRatio();)
+                )
+            );
+        }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("SetPerspective",
+                    AE_MAKE_LAMBDA((), (Type& c, float fov, float nearClip, float farClip), void,
+                        c.SetPerspective(fov, nearClip, farClip);
+                    )
+                ),
+                AE_REFLECT("SetOrthographic",
+                    AE_MAKE_LAMBDA((), (Type& c, float size, float nearClip, float farClip), void,
+                        c.SetOrthographic(size, nearClip, farClip);
+                    )
+                ),
+                AE_REFLECT("SetViewportSize",
+                    AE_MAKE_LAMBDA((), (Type& c, int width, int height), void,
+                        c.SetViewportSize((uint32_t)width, (uint32_t)height);
+                    )
+                ),
+                AE_REFLECT("SetView",
+                    AE_MAKE_LAMBDA((), (Type& c, const glm::vec3& pos, const glm::vec3& target, const glm::vec3& up), void,
+                        c.SetView(glm::inverse(glm::lookAt(pos, target, up)));
+                    )
+                )
+            );
+        }
+    };
 
     struct ScriptSelf
     {
@@ -301,6 +432,37 @@ namespace Aether {
                     ),
                     AE_MAKE_LAMBDA((), (Type& self, const TransformComponent& val), void,
                         self.scene->GetComponent<TransformComponent>(self.entity) = val;
+                    )
+                ),
+                AE_REFLECT("LightConfig",
+                    AE_MAKE_LAMBDA((), (const Type& self), LightParam*,
+                        if (!self.scene->HasComponent<LightComponent>(self.entity)) return nullptr;
+                        return &self.scene->GetComponent<LightComponent>(self.entity).Config;
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& self, const LightParam& val), void,
+                        if (!self.scene->HasComponent<LightComponent>(self.entity)) return;
+                        self.scene->GetComponent<LightComponent>(self.entity).Config = val;
+                    )
+                ),
+                AE_REFLECT("Camera",
+                    AE_MAKE_LAMBDA((), (const Type& self), SceneCamera*,
+                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return nullptr;
+                        return &self.scene->GetComponent<CameraComponent>(self.entity).Camera;
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& self, const SceneCamera& val), void,
+                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return;
+                        self.scene->GetComponent<CameraComponent>(self.entity).Camera = val;
+                    )
+                ),
+
+                AE_REFLECT("IsPrimaryCamera",
+                    AE_MAKE_LAMBDA((), (const Type& self), bool,
+                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return false;
+                        return self.scene->GetComponent<CameraComponent>(self.entity).Primary;
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& self, bool val), void,
+                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return;
+                        self.scene->GetComponent<CameraComponent>(self.entity).Primary = val;
                     )
                 ),
                 AE_REFLECT("EntityID",

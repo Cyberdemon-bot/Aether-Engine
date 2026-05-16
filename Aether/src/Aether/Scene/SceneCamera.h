@@ -33,6 +33,9 @@ namespace Aether {
 
 		ProjectionType GetProjectionType() const { return m_ProjectionType; }
 		void SetProjectionType(ProjectionType type) { m_ProjectionType = type; RecalculateProjection(); }
+
+		void SetView(const glm::mat4& view);
+		float GetAspectRatio() const { return m_AspectRatio; }
 	private:
 		void RecalculateProjection();
 	private:

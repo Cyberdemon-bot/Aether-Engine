@@ -52,7 +52,12 @@ namespace Aether {
 			m_Projection = glm::ortho(orthoLeft, orthoRight,
 				orthoBottom, orthoTop, m_OrthographicNear, m_OrthographicFar);
 		}
-		
+		m_ViewProjection = m_Projection * m_View;
 	}
 
+	void SceneCamera::SetView(const glm::mat4& view)
+	{
+		m_View = view;
+		m_ViewProjection = m_Projection * m_View;
+	}
 }
