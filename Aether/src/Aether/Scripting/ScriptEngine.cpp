@@ -35,12 +35,12 @@ namespace Aether {
     {   
        auto& instance = GetInstance();
        auto& lua = instance.LuaState.lua;
-       lua.open_libraries(sol::lib::base, sol::lib::math);
+       lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
        instance.m_Instances.Init();
        instance.m_Sources.Init();
        instance.m_DestroyQueue.reserve(32);
        instance.m_EventManager.emplace(instance.LuaState.lua);
-       RegisterTypes();
+       RegisterBinding();
        AE_CORE_INFO("ScriptEngine initialized with {0}", LUA_VERSION);
     }
 
@@ -52,7 +52,7 @@ namespace Aether {
         instance.m_DestroyQueue.clear();
     }
 
-    void ScriptEngine::RegisterTypes()
+    void ScriptEngine::RegisterBinding()
     {
         BindEnum<Key::KeyCode>("Key");
         BindEnum<Mouse::MouseCode>("Mouse");
@@ -72,6 +72,10 @@ namespace Aether {
         BindType<CollisionBinding>();
         BindType<RaycastHitBinding>();
         BindType<PhysicsBinding>();
+
+        auto& instance = GetInstance();
+        auto& lua = instance.LuaState.lua;
+        lua["Native"] = lua.create_table();
     }
 
     Handle<ScriptInstance> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh)
@@ -250,5 +254,24 @@ namespace Aether {
             return true;
         }
         return false;
+    }
+
+    sol::object ScriptEngine::CallInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return sol::lua_nil;
+
+        auto it = slot->exposed_funcs.find(name);
+        if (it == slot->exposed_funcs.end()) return sol::lua_nil;
+
+        sol::protected_function_result result = it->second(sol::as_args(args));
+        if (!result.valid())
+        {
+            sol::error err = result;
+            AE_CORE_ERROR("[Script] CallInstanceAPI error in '{0}': {1}", name, err.what());
+            return sol::lua_nil;
+        }
+        return result;
     }
 }
