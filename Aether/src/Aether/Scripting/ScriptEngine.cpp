@@ -7,6 +7,7 @@
 #include "Aether/Scene/Scene.h"
 #include "Aether/Assets/Script.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Core/JobSystem.h"
 
 namespace Aether {
 
@@ -76,6 +77,28 @@ namespace Aether {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
         lua["Native"] = lua.create_table();
+        sol::table native = lua["Native"];
+        native.set_function("Async", [](std::string name, sol::table args, sol::protected_function callback)
+        {
+            auto& engine = GetInstance();
+            auto it = engine.m_NativeFuncs.find(name);
+            if (it == engine.m_NativeFuncs.end())
+            {
+                AE_CORE_WARN("[ScriptEngine] Native.Async: func '{0}' not found", name);
+                return;
+            }
+            auto delegate = it->second;
+            ScriptArgs scriptArgs;
+            for (size_t i = 1; i <= args.size(); i++)
+                scriptArgs.Pushback(FromSolObject(args[i]));
+
+            JobSystem::SubmitJob([delegate, scriptArgs, callback, &engine]()
+            {
+                ScriptValue result = delegate(scriptArgs);
+                std::lock_guard<std::mutex> lock(engine.m_PendingMutex);
+                engine.m_PendingCallbacks.push_back({callback, result});
+            });
+        });
     }
 
     Handle<ScriptInstance> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh)
@@ -224,6 +247,21 @@ namespace Aether {
     void ScriptEngine::FlushEvent()
     {
         auto& instance = GetInstance();
+        auto& lua = instance.LuaState.lua;
+        std::vector<PendingCallback> pending;
+        {
+            std::lock_guard<std::mutex> lock(instance.m_PendingMutex);
+            std::swap(pending, instance.m_PendingCallbacks);
+        }
+        for (auto& p : pending)
+        {
+            auto result = p.callback(ToSolObject(lua, p.result));
+            if (!result.valid())
+            {
+                sol::error err = result;
+                AE_CORE_ERROR("[ScriptEngine] Async callback error: {0}", err.what());
+            }
+        }
         instance.m_EventManager->Flush();
 
         for (auto& [e, handle] : instance.m_DestroyQueue)
@@ -273,5 +311,34 @@ namespace Aether {
             return sol::lua_nil;
         }
         return result;
+    }
+
+    Handle<ScriptCallback> ScriptEngine::AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
+    {
+        auto& instance = GetInstance();
+        return instance.m_EventManager->AddNativeListener(event_name, callback);
+    }
+
+    void ScriptEngine::RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name)
+    {
+        auto& instance = GetInstance();
+        instance.m_EventManager->RemoveNativeListener(handle, event_name);
+    }
+
+    void ScriptEngine::ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func)
+    {
+        auto& instance = GetInstance();
+        auto& lua = instance.LuaState.lua;
+        sol::table native = lua["Native"];
+        instance.m_NativeFuncs[name] = func;
+        native.set_function(name, [func, &lua](sol::variadic_args va) -> sol::object
+        {
+            ScriptArgs args;
+            for (const auto& v : va)
+                args.Pushback(FromSolObject(v));
+            
+            ScriptValue result = func(args);
+            return ToSolObject(lua, result);
+        });
     }
 }
