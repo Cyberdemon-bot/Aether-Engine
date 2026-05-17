@@ -486,17 +486,27 @@ namespace Aether {
             return AE_REFLECT_LIST(
                 AE_REFLECT("Expose",
                     AE_MAKE_LAMBDA((), (Type& self, const std::string& name, sol::protected_function func), void,
-                        self.slot->exposed_funcs[name] = std::move(func);
+                        self.slot->exposed_funcs.push_back({name, func});
                     )
                 ),
-                AE_REFLECT("Call",
+                AE_REFLECT("SafeCall",
                     AE_MAKE_LAMBDA((), (Type& self, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
                         Entity target = self.scene->FindEntity((UUID(targetId)));
                         if (!self.scene->IsValid(target)) return sol::lua_nil;
                         if (!self.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = self.scene->GetComponent<ScriptComponent>(target);
                         std::vector<sol::object> collected(args.begin(), args.end());
-                        return ScriptEngine::CallInstanceAPI(sc.ScriptHandle, name, collected);
+                        return ScriptEngine::CallSafeInstanceAPI(sc.ScriptHandle, name, collected);
+                    )
+                ),
+                AE_REFLECT("DirectCall",
+                    AE_MAKE_LAMBDA((), (Type& self, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = self.scene->FindEntity((UUID(targetId)));
+                        if (!self.scene->IsValid(target)) return sol::lua_nil;
+                        if (!self.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
+                        auto& sc = self.scene->GetComponent<ScriptComponent>(target);
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        return ScriptEngine::CallDirectInstanceAPI(sc.ScriptHandle, name, collected);
                     )
                 ),
                 AE_REFLECT("DestroyMyself",

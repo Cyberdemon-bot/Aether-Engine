@@ -81,13 +81,13 @@ namespace Aether {
         native.set_function("Async", [](std::string name, sol::table args, sol::protected_function callback)
         {
             auto& engine = GetInstance();
-            auto it = engine.m_NativeFuncs.find(name);
+            auto it = std::find_if(engine.m_NativeFuncs.begin(), engine.m_NativeFuncs.end(), [name](const NativeFunc& func) { return func.name == name; });
             if (it == engine.m_NativeFuncs.end())
             {
                 AE_CORE_WARN("[ScriptEngine] Native.Async: func '{0}' not found", name);
                 return;
             }
-            auto delegate = it->second;
+            auto delegate = it->native;
             ScriptArgs scriptArgs;
             for (size_t i = 1; i <= args.size(); i++)
                 scriptArgs.Pushback(FromSolObject(args[i]));
@@ -294,16 +294,38 @@ namespace Aether {
         return false;
     }
 
-    sol::object ScriptEngine::CallInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
+    sol::object ScriptEngine::CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
     {
         auto& instance = GetInstance();
         auto slot = instance.m_Instances.GetResource(handle);
         if (slot == nullptr) return sol::lua_nil;
 
-        auto it = slot->exposed_funcs.find(name);
+        auto it = std::find_if(slot->exposed_funcs.begin(), slot->exposed_funcs.end(), [name](const Exposed& data) { return data.name == name; });
         if (it == slot->exposed_funcs.end()) return sol::lua_nil;
 
-        sol::protected_function_result result = it->second(sol::as_args(args));
+        sol::protected_function_result result = it->func(sol::as_args(args));
+        if (!result.valid())
+        {
+            sol::error err = result;
+            AE_CORE_ERROR("[Script] CallSafeInstanceAPI error in '{0}': {1}", name, err.what());
+            return sol::lua_nil;
+        }
+        return result;
+    }
+
+    sol::object ScriptEngine::CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
+    {
+        auto& instance = GetInstance();
+        auto slot = instance.m_Instances.GetResource(handle);
+        if (slot == nullptr) return sol::lua_nil;
+
+        auto env = instance.LuaState.env_pool.GetResource(slot->env_hanle);
+        if (env == nullptr) return sol::lua_nil;
+
+        sol::protected_function func = (*env)[name];
+        if (!func.valid()) return sol::lua_nil;
+
+        sol::protected_function_result result = func(sol::as_args(args));
         if (!result.valid())
         {
             sol::error err = result;
@@ -330,7 +352,7 @@ namespace Aether {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
         sol::table native = lua["Native"];
-        instance.m_NativeFuncs[name] = func;
+        instance.m_NativeFuncs.push_back({name, func});
         native.set_function(name, [func, &lua](sol::variadic_args va) -> sol::object
         {
             ScriptArgs args;
