@@ -10,6 +10,7 @@
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Animation/RigModule.h"
+#include "Aether/Audio/AudioSystem.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -117,11 +118,22 @@ namespace Aether {
 
     struct AudioSourceComponent
     {
-        UUID SourceID;
-
+        Handle<AudioSource> SourceHandle = Handle<AudioSource>::MakeInvalid();
+ 
+        std::string Path;
+        AudioType Type = AudioType::Audio2D;
+        float Volume = 1.0f;
+        float Pan = 0.0f;
+        float PlaybackSpeed = 1.0f;
+        bool Looping = false;
+        bool PlayOnStart = false;
+        bool IsPlaying = false;
+        Audio3DConfig Config3D;
+ 
         AudioSourceComponent() = default;
         AudioSourceComponent(const AudioSourceComponent&) = default;
-        AudioSourceComponent(const UUID& id) : SourceID(id) {};
+        AudioSourceComponent(const std::string& path, AudioType type = AudioType::Audio2D)
+            : Path(path), Type(type) {}
     };
 
     struct ScriptComponent

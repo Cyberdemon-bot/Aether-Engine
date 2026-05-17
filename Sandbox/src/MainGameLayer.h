@@ -135,14 +135,13 @@ private:
     float     m_FogStart   = 10.0f;
     float     m_FogEnd     = 80.0f;
 
-    Aether::UUID m_GunSoundID;
-    Aether::UUID m_GunReloadID;
-    Aether::UUID m_ZombieBiteID;
-    Aether::UUID m_BgmSoundID;
+    Aether::Handle<Aether::AudioSource> m_BgmSource;
+    Aether::Handle<Aether::AudioSource> m_GunSource;
+    Aether::Handle<Aether::AudioSource> m_ReloadSource;
+    Aether::Handle<Aether::AudioSource> m_BiteSource;
 
     Aether::Prefab m_ZombiePrefab;
     Aether::Prefab m_ChunkPrefab;
-    std::vector<Aether::UUID> sources;
 
     float m_ShootTimer    = 0.0f;
     float m_ShootDuration = 0.3f;

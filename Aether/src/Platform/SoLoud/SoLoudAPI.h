@@ -1,24 +1,24 @@
 #pragma once
 
 #include "Aether/Audio/AudioAPI.h"
+#include "Aether/Container/ResourcePool.h"
 #include "soloud.h"
 #include "soloud_wav.h"
-#include <unordered_map>
 
 namespace Aether {
 
     struct AudioSource
     {
-        UUID soundID;
+        SoLoud::Wav wav; 
         AudioType type = AudioType::Audio2D;
         Audio3DConfig config;
         AudioState state;
-        int handle = 0;
+        int voiceHandle = 0; 
 
         AudioSource() = default;
-        AudioSource(const AudioSource&) = delete;
+        AudioSource(const AudioSource&)            = delete;
         AudioSource& operator=(const AudioSource&) = delete;
-        AudioSource(AudioSource&&) noexcept = default;
+        AudioSource(AudioSource&&) noexcept        = default;
         AudioSource& operator=(AudioSource&&) noexcept = default;
     };
 
@@ -27,38 +27,38 @@ namespace Aether {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
+        virtual void Update() override; 
 
-        virtual void CreateSource(UUID sourceID, UUID soundID, AudioType type) override;
-        virtual void DestroySource(UUID sourceID) override;
-        virtual bool IsActive(UUID sourceID) override;
+        virtual Handle<AudioSource> CreateSource(const std::string& path, AudioType type) override;
+        virtual void DestroySource(Handle<AudioSource> handle) override;
+        virtual bool IsActive(Handle<AudioSource> handle) override;
 
-        virtual void Play(UUID sourceID) override;
-        virtual void Pause(UUID sourceID) override;
-        virtual void Stop(UUID sourceID) override;
+        virtual void Play(Handle<AudioSource> handle) override;
+        virtual void Pause(Handle<AudioSource> handle) override;
+        virtual void Stop(Handle<AudioSource> handle) override;
 
-        virtual void SetGlobalVolume(float value) override       { soloud.setGlobalVolume(value); }
+        virtual void SetGlobalVolume(float value) override { soloud.setGlobalVolume(value); }
         virtual void SetMaxActiveSource(uint32_t value) override { soloud.setMaxActiveVoiceCount(value); }
 
-        virtual void SetVolume(UUID sourceID, float value) override;
-        virtual void SetPan(UUID sourceID, float value) override;
-        virtual void SetLooping(UUID sourceID, bool value) override;
-        virtual void SetPlaybackSpeed(UUID sourceID, float value) override;
-        virtual void Seek(UUID sourceID, float value) override;
+        virtual void SetVolume(Handle<AudioSource> handle, float value) override;
+        virtual void SetPan(Handle<AudioSource> handle, float value) override;
+        virtual void SetLooping(Handle<AudioSource> handle, bool value) override;
+        virtual void SetPlaybackSpeed(Handle<AudioSource> handle, float value) override;
+        virtual void Seek(Handle<AudioSource> handle, float value) override;
 
         // 3D only
         virtual void SetSpeedSound(float value) override { soloud.set3dSoundSpeed(value); }
-        virtual void SetPosition(UUID sourceID, const glm::vec3& position) override;
-        virtual void SetVelocity(UUID sourceID, const glm::vec3& velocity) override;
-        virtual void SetDistance(UUID sourceID, float minDist, float maxDist) override;
-        virtual void SetAttenuation(UUID sourceID, AudioAttenuation attenuation) override;
+        virtual void SetPosition(Handle<AudioSource> handle, const glm::vec3& position) override;
+        virtual void SetVelocity(Handle<AudioSource> handle, const glm::vec3& velocity) override;
+        virtual void SetDistance(Handle<AudioSource> handle, float minDist, float maxDist) override;
+        virtual void SetAttenuation(Handle<AudioSource> handle, AudioAttenuation attenuation) override;
 
         virtual void UpdateListener(const AudioListener& listener) override;
 
     private:
-        SoLoud::Wav* GetWav(UUID soundID);
+        void UpdateSource(AudioSource& source); 
         static SoLoud::AudioSource::ATTENUATION_MODELS ToSoLoudAttenuation(AudioAttenuation attenuation);
-
         SoLoud::Soloud soloud;
-        std::unordered_map<UUID, AudioSource> m_Sources;
+        ResourcePool<Handle<AudioSource>, AudioSource> m_Pool;
     };
 }

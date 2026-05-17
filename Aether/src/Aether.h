@@ -22,7 +22,6 @@
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
-#include "Aether/Assets/Sound.h"
 
 #include "Aether/Scene/Component.h"
 #include "Aether/Scene/Scene.h"

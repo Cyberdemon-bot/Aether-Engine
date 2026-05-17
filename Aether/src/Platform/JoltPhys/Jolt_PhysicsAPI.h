@@ -20,6 +20,9 @@ namespace Aether {
     {
         JPH::BodyID joltID;
         BodyConfig bodyInfo;
+
+        PhysTransform transform;
+        bool IsDirty = false;
     };
 
     class Jolt_PhysicsAPI : public PhysicsAPI
@@ -62,5 +65,7 @@ namespace Aether {
         JPH::ObjectVsBroadPhaseLayerFilter* m_ObjVsBPFilter = nullptr;
         JPH::ObjectLayerPairFilter* m_ObjVsObjFilter = nullptr;
         JPH::Listener* m_ContactListener = nullptr;
+
+        void ExcSetPhysTranform(JoltBodyData& data, const PhysTransform& transform);
     };
 }

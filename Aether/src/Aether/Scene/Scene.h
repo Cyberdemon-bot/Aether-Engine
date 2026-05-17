@@ -21,6 +21,13 @@ namespace Aether {
     struct ComponentInfo;
     struct Prefab;
     struct PhysicsInstance;
+
+    struct DestroyInfo
+    {
+        Entity entity;
+        bool clearHierarchy;
+        bool repairHie;
+    };
     class AETHER_API Scene 
     {
     public:
@@ -129,12 +136,16 @@ namespace Aether {
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
+        std::vector<DestroyInfo> m_DestroyQueue;
         void DirtyScan();
         void BreadthFirstSearch(bool usingFilter = true);
         void UpdateTransform(Entity entity);
         void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
         void UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform);
         void ResolveBoneAttachments();
+
+        void ExcDestroyEntity(Entity entity, bool repair_hie);
+        void ExcDestroyHierarchy(Entity entity);
 
         template<typename T>
         void LoadComponent(Entity entity, const ComponentInfo<T>& info, bool override)
