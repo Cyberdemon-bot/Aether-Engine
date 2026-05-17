@@ -31,6 +31,12 @@ namespace Aether {
     struct Bytecode;
     enum class CollisionType;
     class Scene;
+
+    struct Exposed
+    {
+        std::string name;
+        sol::protected_function func;
+    };
     struct InstanceSlot
     {
         int generation = 0;
@@ -40,8 +46,7 @@ namespace Aether {
         bool is_active = true;
         int exec_order = 0;
         Scene* ctx = nullptr;
-
-        std::unordered_map<std::string, sol::protected_function> exposed_funcs;
+        std::vector<Exposed> exposed_funcs;
     };
 
     struct LuaWorker 
@@ -89,6 +94,12 @@ namespace Aether {
         ScriptValue result;
     };
 
+    struct NativeFunc
+    {
+        std::string name;
+        Delegate<ScriptValue(const ScriptArgs&)> native;
+    };
+
 
     class AETHER_API ScriptEngine
     {
@@ -131,7 +142,7 @@ namespace Aether {
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
         std::vector<std::pair<Entity, Handle<ScriptInstance>>> m_DestroyQueue;
-        std::unordered_map<std::string, Delegate<ScriptValue(const ScriptArgs&)>> m_NativeFuncs;
+        std::vector<NativeFunc> m_NativeFuncs;
         std::vector<PendingCallback> m_PendingCallbacks;
         std::mutex m_PendingMutex;
         bool IsExecChanged = false;
@@ -142,7 +153,8 @@ namespace Aether {
         static bool IsExecOrderChanged();
         static int GetExecOrder(Handle<ScriptInstance> handle);
         static void RegisterBinding();
-        static sol::object CallInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args);
+        static sol::object CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args);
+        static sol::object CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args);
         static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
         static void PushDestroyQueue(Entity ent, Handle<ScriptInstance> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
 
