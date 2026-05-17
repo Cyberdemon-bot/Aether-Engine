@@ -7,7 +7,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Scripting/ScriptEngine.h"
+// #include "Aether/Scripting/ScriptEngine.h"
 
 #include <yaml-cpp/yaml.h>
 #include <glm/gtx/quaternion.hpp>
@@ -201,11 +201,11 @@ static EntitySnapshot PrefabToSnapshot(
         s.ColliderIsSensor = c.IsSensor; 
     }
 
-    if (scene.HasComponent<AudioSourceComponent>(entity))
-    {
-        s.hasAudio  = true;
-        s.SourceID  = (uint64_t)scene.GetComponent<AudioSourceComponent>(entity).SourceID;
-    }
+    // if (scene.HasComponent<AudioSourceComponent>(entity))
+    // {
+    //     s.hasAudio  = true;
+    //     // s.SourceID  = (uint64_t)scene.GetComponent<AudioSourceComponent>(entity).SourceID;
+    // }
 
     if (prefab.boneAttach.IsExits)
     {
@@ -217,12 +217,12 @@ static EntitySnapshot PrefabToSnapshot(
             s.AnimatorEntityID = (uint64_t)scene.GetComponent<IDComponent>(b.AnimatorEntity).ID;
     }
 
-    if (prefab.script.IsExits)
-    {
-        s.hasScript    = true;
-        s.ScriptActive = prefab.script.data.IsActive;
-        s.ScriptIndex  = scriptIndex;
-    }
+    // if (prefab.script.IsExits)
+    // {
+    //     s.hasScript    = true;
+    //     s.ScriptActive = prefab.script.data.IsActive;
+    //     s.ScriptIndex  = scriptIndex;
+    // }
 
     return s;
 }
@@ -319,12 +319,12 @@ static void EmitEntitySnapshot(YAML::Emitter& out, const EntitySnapshot& s)
         out << YAML::EndMap;
     }
 
-    if (s.hasAudio)
-    {
-        out << YAML::Key << "AudioSourceComponent" << YAML::Value << YAML::BeginMap;
-        out << YAML::Key << "SourceID" << YAML::Value << s.SourceID;
-        out << YAML::EndMap;
-    }
+    // if (s.hasAudio)
+    // {
+    //     out << YAML::Key << "AudioSourceComponent" << YAML::Value << YAML::BeginMap;
+    //     out << YAML::Key << "SourceID" << YAML::Value << s.SourceID;
+    //     out << YAML::EndMap;
+    // }
 
     if (s.hasBoneAttachment)
     {
@@ -335,37 +335,37 @@ static void EmitEntitySnapshot(YAML::Emitter& out, const EntitySnapshot& s)
         out << YAML::EndMap;
     }
 
-    if (s.hasScript)
-    {
-        out << YAML::Key << "ScriptComponent" << YAML::Value << YAML::BeginMap;
-        out << YAML::Key << "ScriptIndex"  << YAML::Value << s.ScriptIndex;
-        out << YAML::Key << "IsActive"     << YAML::Value << s.ScriptActive;
-        out << YAML::EndMap;
-    }
+    // if (s.hasScript)
+    // {
+    //     out << YAML::Key << "ScriptComponent" << YAML::Value << YAML::BeginMap;
+    //     out << YAML::Key << "ScriptIndex"  << YAML::Value << s.ScriptIndex;
+    //     out << YAML::Key << "IsActive"     << YAML::Value << s.ScriptActive;
+    //     out << YAML::EndMap;
+    // }
 
     out << YAML::EndMap;
 }
 
 bool SceneSerializer::Serialize(Scene& scene, const std::string& path, const std::string& sceneName)
 {
-    std::vector<std::string> scriptSources;
-    std::unordered_map<std::string, int> scriptDedup;
+    // std::vector<std::string> scriptSources;
+    // std::unordered_map<std::string, int> scriptDedup;
 
-    auto scriptView = scene.View<ScriptComponent>();
-    for (auto entity : scriptView)
-    {
-        auto& sc  = scene.GetComponent<ScriptComponent>(entity);
-        if (!sc.ScriptHandle.IsValid()) continue;
-
-        std::string raw = ScriptEngine::GetRaw(sc.ScriptHandle);
-        if (raw.empty()) continue;
-
-        if (scriptDedup.find(raw) == scriptDedup.end())
-        {
-            scriptDedup[raw] = (int)scriptSources.size();
-            scriptSources.push_back(raw);
-        }
-    }
+    // auto scriptView = scene.View<ScriptComponent>();
+    // for (auto entity : scriptView)
+    // {
+    //     auto& sc  = scene.GetComponent<ScriptComponent>(entity);
+    //     if (!sc.ScriptHandle.IsValid()) continue;
+    //
+    //     std::string raw = ScriptEngine::GetRaw(sc.ScriptHandle);
+    //     if (raw.empty()) continue;
+    //
+    //     if (scriptDedup.find(raw) == scriptDedup.end())
+    //     {
+    //         scriptDedup[raw] = (int)scriptSources.size();
+    //         scriptSources.push_back(raw);
+    //     }
+    // }
 
     std::vector<EntitySnapshot> snapshots;
 
@@ -376,12 +376,12 @@ bool SceneSerializer::Serialize(Scene& scene, const std::string& path, const std
         Prefab prefab = scene.ExportPrefab(e);
 
         int scriptIndex = -1;
-        if (prefab.script.IsExits && prefab.script.data.ScriptHandle.IsValid())
-        {
-            std::string raw = ScriptEngine::GetRaw(prefab.script.data.ScriptHandle);
-            auto it = scriptDedup.find(raw);
-            if (it != scriptDedup.end()) scriptIndex = it->second;
-        }
+        // if (prefab.script.IsExits && prefab.script.data.ScriptHandle.IsValid())
+        // {
+        //     std::string raw = ScriptEngine::GetRaw(prefab.script.data.ScriptHandle);
+        //     auto it = scriptDedup.find(raw);
+        //     if (it != scriptDedup.end()) scriptIndex = it->second;
+        // }
 
         snapshots.push_back(PrefabToSnapshot(prefab, scene, e, scriptIndex));
 
@@ -401,9 +401,9 @@ bool SceneSerializer::Serialize(Scene& scene, const std::string& path, const std
     out << YAML::BeginMap;
     out << YAML::Key << "Scene" << YAML::Value << sceneName;
 
-    std::string scriptPath = path + ".script";
-    out << YAML::Key << "ScriptBundle" << YAML::Value << scriptPath;
-    out << YAML::Key << "ScriptCount"  << YAML::Value << (int)scriptSources.size();
+    // std::string scriptPath = path + ".script";
+    // out << YAML::Key << "ScriptBundle" << YAML::Value << scriptPath;
+    // out << YAML::Key << "ScriptCount"  << YAML::Value << (int)scriptSources.size();
 
     out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
     for (const auto& s : snapshots)
@@ -428,31 +428,31 @@ bool SceneSerializer::Serialize(Scene& scene, const std::string& path, const std
         if (!file.good()) return false;
     }
 
-    {
-        std::ofstream sf(scriptPath, std::ios::binary);
-        if (!sf)
-        {
-            AE_CORE_ERROR("SceneSerializer::Serialize: cannot open script bundle '{0}'", scriptPath);
-            return false;
-        }
+    // {
+    //     std::ofstream sf(scriptPath, std::ios::binary);
+    //     if (!sf)
+    //     {
+    //         AE_CORE_ERROR("SceneSerializer::Serialize: cannot open script bundle '{0}'", scriptPath);
+    //         return false;
+    //     }
+    //
+    //     sf << scriptSources.size() << "\n";
+    //     for (const auto& src : scriptSources)
+    //     {
+    //         sf << src.size() << "\n";
+    //         sf.write(src.data(), (std::streamsize)src.size());
+    //         sf << "\n";
+    //     }
+    //
+    //     if (!sf.good())
+    //     {
+    //         AE_CORE_ERROR("SceneSerializer::Serialize: write error on script bundle '{0}'", scriptPath);
+    //         return false;
+    //     }
+    // }
 
-        sf << scriptSources.size() << "\n";
-        for (const auto& src : scriptSources)
-        {
-            sf << src.size() << "\n";
-            sf.write(src.data(), (std::streamsize)src.size());
-            sf << "\n";
-        }
-
-        if (!sf.good())
-        {
-            AE_CORE_ERROR("SceneSerializer::Serialize: write error on script bundle '{0}'", scriptPath);
-            return false;
-        }
-    }
-
-    AE_CORE_INFO("SceneSerializer: saved '{0}' — {1} entities, {2} unique scripts",
-                 path, snapshots.size(), scriptSources.size());
+    AE_CORE_INFO("SceneSerializer: saved '{0}' — {1} entities",
+                 path, snapshots.size());
     return true;
 }
 
@@ -528,11 +528,11 @@ static void ReadCollider(const YAML::Node& n, EntitySnapshot& s)
     s.ColliderIsSensor  = YGet<bool>(n, "ColliderIsSensor", false);
 }
 
-static void ReadAudio(const YAML::Node& n, EntitySnapshot& s)
-{
-    s.hasAudio = true;
-    s.SourceID = YGet<uint64_t>(n, "SourceID");
-}
+// static void ReadAudio(const YAML::Node& n, EntitySnapshot& s)
+// {
+//     s.hasAudio = true;
+//     s.SourceID = YGet<uint64_t>(n, "SourceID");
+// }
 
 static void ReadBoneAttachment(const YAML::Node& n, EntitySnapshot& s)
 {
@@ -542,12 +542,12 @@ static void ReadBoneAttachment(const YAML::Node& n, EntitySnapshot& s)
     s.AffectChild       = YGet<bool>(n, "AffectChild", true);
 }
 
-static void ReadScript(const YAML::Node& n, EntitySnapshot& s)
-{
-    s.hasScript    = true;
-    s.ScriptIndex  = YGet<int>(n, "ScriptIndex", -1);
-    s.ScriptActive = YGet<bool>(n, "IsActive", true);
-}
+// static void ReadScript(const YAML::Node& n, EntitySnapshot& s)
+// {
+//     s.hasScript    = true;
+//     s.ScriptIndex  = YGet<int>(n, "ScriptIndex", -1);
+//     s.ScriptActive = YGet<bool>(n, "IsActive", true);
+// }
 
 bool SceneSerializer::Deserialize(const std::string& path, SceneSnapshot& snapshot)
 {
@@ -569,48 +569,48 @@ bool SceneSerializer::Deserialize(const std::string& path, SceneSnapshot& snapsh
     snapshot.Entities.clear();
     snapshot.ScriptSources.clear();
 
-    if (auto scriptBundleNode = root["ScriptBundle"])
-    {
-        std::string scriptPath = scriptBundleNode.as<std::string>("");
-        int expectedCount = YGet<int>(root, "ScriptCount", 0);
-
-        if (!scriptPath.empty() && expectedCount > 0)
-        {
-            std::ifstream sf(scriptPath, std::ios::binary);
-            if (!sf)
-            {
-                AE_CORE_WARN("SceneSerializer::Deserialize: cannot open script bundle '{0}' — scripts will be missing", scriptPath);
-            }
-            else
-            {
-                int count = 0;
-                sf >> count;
-                sf.ignore(1); 
-
-                snapshot.ScriptSources.reserve(count);
-                for (int i = 0; i < count; ++i)
-                {
-                    size_t len = 0;
-                    sf >> len;
-                    sf.ignore(1); 
-
-                    std::string src(len, '\0');
-                    sf.read(src.data(), (std::streamsize)len);
-                    sf.ignore(1); 
-
-                    if (!sf)
-                    {
-                        AE_CORE_ERROR("SceneSerializer::Deserialize: read error in script bundle at index {0}", i);
-                        break;
-                    }
-                    snapshot.ScriptSources.push_back(std::move(src));
-                }
-
-                if ((int)snapshot.ScriptSources.size() != expectedCount)
-                    AE_CORE_WARN("SceneSerializer::Deserialize: expected {0} scripts, got {1}", expectedCount, snapshot.ScriptSources.size());
-            }
-        }
-    }
+    // if (auto scriptBundleNode = root["ScriptBundle"])
+    // {
+    //     std::string scriptPath = scriptBundleNode.as<std::string>("");
+    //     int expectedCount = YGet<int>(root, "ScriptCount", 0);
+    //
+    //     if (!scriptPath.empty() && expectedCount > 0)
+    //     {
+    //         std::ifstream sf(scriptPath, std::ios::binary);
+    //         if (!sf)
+    //         {
+    //             AE_CORE_WARN("SceneSerializer::Deserialize: cannot open script bundle '{0}' — scripts will be missing", scriptPath);
+    //         }
+    //         else
+    //         {
+    //             int count = 0;
+    //             sf >> count;
+    //             sf.ignore(1);
+    //
+    //             snapshot.ScriptSources.reserve(count);
+    //             for (int i = 0; i < count; ++i)
+    //             {
+    //                 size_t len = 0;
+    //                 sf >> len;
+    //                 sf.ignore(1);
+    //
+    //                 std::string src(len, '\0');
+    //                 sf.read(src.data(), (std::streamsize)len);
+    //                 sf.ignore(1);
+    //
+    //                 if (!sf)
+    //                 {
+    //                     AE_CORE_ERROR("SceneSerializer::Deserialize: read error in script bundle at index {0}", i);
+    //                     break;
+    //                 }
+    //                 snapshot.ScriptSources.push_back(std::move(src));
+    //             }
+    //
+    //             if ((int)snapshot.ScriptSources.size() != expectedCount)
+    //                 AE_CORE_WARN("SceneSerializer::Deserialize: expected {0} scripts, got {1}", expectedCount, snapshot.ScriptSources.size());
+    //         }
+    //     }
+    // }
 
     auto entities = root["Entities"];
     if (!entities || !entities.IsSequence()) return true; 
@@ -632,15 +632,15 @@ bool SceneSerializer::Deserialize(const std::string& path, SceneSnapshot& snapsh
         if (auto n = node["LightComponent"])         ReadLight(n, s);
         if (auto n = node["CameraComponent"])        ReadCamera(n, s);
         if (auto n = node["ColliderComponent"])      ReadCollider(n, s);
-        if (auto n = node["AudioSourceComponent"])   ReadAudio(n, s);
+        // if (auto n = node["AudioSourceComponent"])   ReadAudio(n, s);
         if (auto n = node["BoneAttachmentComponent"]) ReadBoneAttachment(n, s);
-        if (auto n = node["ScriptComponent"])        ReadScript(n, s);
+        // if (auto n = node["ScriptComponent"])        ReadScript(n, s);
 
         snapshot.Entities.push_back(std::move(s));
     }
 
-    AE_CORE_INFO("SceneSerializer: loaded '{0}' — {1} entities, {2} scripts",
-                 path, snapshot.Entities.size(), snapshot.ScriptSources.size());
+    AE_CORE_INFO("SceneSerializer: loaded '{0}' — {1} entities",
+                 path, snapshot.Entities.size());
     return true;
 }
 
@@ -649,13 +649,13 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
     SceneSnapshot snapshot;
     if (!Deserialize(path, snapshot)) return false;
 
-    std::vector<Handle<Bytecode>> compiledScripts;
-    compiledScripts.reserve(snapshot.ScriptSources.size());
-    for (const auto& src : snapshot.ScriptSources)
-    {
-        Handle<Bytecode> bh = ScriptEngine::LoadScriptSource(src);
-        compiledScripts.push_back(bh);
-    }
+    // std::vector<Handle<Bytecode>> compiledScripts;
+    // compiledScripts.reserve(snapshot.ScriptSources.size());
+    // for (const auto& src : snapshot.ScriptSources)
+    // {
+    //     Handle<Bytecode> bh = ScriptEngine::LoadScriptSource(src);
+    //     compiledScripts.push_back(bh);
+    // }
 
     std::unordered_map<uint64_t, Entity> idMap;
     idMap.reserve(snapshot.Entities.size());
@@ -767,11 +767,11 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
         }
 
         // Audio
-        if (s.hasAudio)
-        {
-            auto& c   = scene.AddComponent<AudioSourceComponent>(e);
-            c.SourceID = UUID(s.SourceID);
-        }
+        // if (s.hasAudio)
+        // {
+        //     auto& c   = scene.AddComponent<AudioSourceComponent>(e);
+        //     //c.SourceID = UUID(s.SourceID);
+        // }
 
         // Bone attachment — AnimatorEntity resolved in pass 3.
         if (s.hasBoneAttachment)
@@ -782,21 +782,21 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
         }
 
         // Script
-        if (s.hasScript && s.ScriptIndex >= 0 && s.ScriptIndex < (int)compiledScripts.size())
-        {
-            Handle<Bytecode> bh = compiledScripts[s.ScriptIndex];
-            if (bh.IsValid())
-            {
-                Handle<ScriptInstance> instance = ScriptEngine::CreateInstance(&scene, e, bh);
-                auto& sc        = scene.AddComponent<ScriptComponent>(e, instance);
-                sc.IsActive     = s.ScriptActive;
-                ScriptEngine::SetActiveStage(instance, s.ScriptActive);
-            }
-            else
-            {
-                AE_CORE_WARN("SceneSerializer: invalid bytecode for entity {0} (ScriptIndex={1})", s.ID, s.ScriptIndex);
-            }
-        }
+        // if (s.hasScript && s.ScriptIndex >= 0 && s.ScriptIndex < (int)compiledScripts.size())
+        // {
+        //     Handle<Bytecode> bh = compiledScripts[s.ScriptIndex];
+        //     if (bh.IsValid())
+        //     {
+        //         Handle<ScriptInstance> instance = ScriptEngine::CreateInstance(&scene, e, bh);
+        //         auto& sc        = scene.AddComponent<ScriptComponent>(e, instance);
+        //         sc.IsActive     = s.ScriptActive;
+        //         ScriptEngine::SetActiveStage(instance, s.ScriptActive);
+        //     }
+        //     else
+        //     {
+        //         AE_CORE_WARN("SceneSerializer: invalid bytecode for entity {0} (ScriptIndex={1})", s.ID, s.ScriptIndex);
+        //     }
+        // }
     }
 
     for (const auto& s : snapshot.Entities)
@@ -813,4 +813,4 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
     return true;
 }
 
-} // namespace Aether
+} 

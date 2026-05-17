@@ -267,6 +267,16 @@ namespace Aether {
         float deltaTime = ts.GetSeconds();
         if (deltaTime > 1.0f / 30.0f) deltaTime = 1.0f / 30.0f;
         const int CollisionSteps = 1;
+
+        m_BodyPool.Loop([this](JoltBodyData& data)
+        {
+            if (data.IsDirty)
+            {
+                this->ExcSetPhysTranform(data, data.transform);
+                data.IsDirty = false;
+            }
+        });
+
         m_PhysicsSystem->Update(deltaTime, CollisionSteps, m_TempAllocator, m_JobSystem);
         m_CallbackPool.Loop([this](const CollisionCallbackRef& callback) 
         {
@@ -591,7 +601,15 @@ namespace Aether {
         auto data = m_BodyPool.GetResource(handle);
         if (!data) return;
 
-        JPH::BodyID id = data->joltID;
+        data->transform = transform;
+        data->IsDirty = true;
+    }
+
+    void Jolt_PhysicsAPI::ExcSetPhysTranform(JoltBodyData& data, const PhysTransform& transform)
+    {
+        if (!m_PhysicsSystem) return;
+
+        JPH::BodyID id = data.joltID;
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         JPH::Vec3 pos(transform.translation.x, transform.translation.y, transform.translation.z);

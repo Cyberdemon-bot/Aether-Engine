@@ -97,6 +97,7 @@ namespace Aether {
     {
         m_EntityLibrary.reserve(32);
         m_SceneLights.reserve(32);
+        m_DestroyQueue.reserve(32);
         m_PhysicsInstance = PhysicsSystem::CreateInstance();
         PhysicsSystem::RegisterCallback(m_PhysicsInstance, [this](const CollisionEvent& ev) 
         {
@@ -145,17 +146,16 @@ namespace Aether {
 
     void Scene::Shutdown()
     {
-        std::vector<Entity> all;
-        all.reserve(m_EntityLibrary.size());
-        for (auto& [id, entity] : m_EntityLibrary)
-            all.push_back(entity);
-
-        for (auto entity : all)
+        for (auto entity : View<HierarchyComponent>())
             DestroyEntity(entity, false);
+
+        for (auto& info : m_DestroyQueue)
+            ExcDestroyEntity(info.entity, info.repairHie);
 
         m_EntityLibrary.clear();
         m_SceneLights.clear();
         m_HierarchyLevels.clear();
+        m_DestroyQueue.clear();
     }
     
     Entity Scene::CreateEntity()
@@ -258,6 +258,47 @@ namespace Aether {
 
     void Scene::DestroyHierarchy(Entity entity)
     {
+        m_DestroyQueue.push_back({entity, true, false});
+    }
+
+    void Scene::DestroyEntity(Entity entity, bool repair_hie)
+    {
+        m_DestroyQueue.push_back({entity, false, repair_hie});
+    }
+
+    void Scene::ExcDestroyEntity(Entity entity, bool repair_hie)
+    {
+        if (!m_Registry.valid(entity)) return;
+        if (repair_hie) BreakParent(entity);
+
+        if (HasComponent<AnimatorComponent>(entity))
+        {
+            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            if (rigModule)
+            {
+                auto& comp = GetComponent<AnimatorComponent>(entity);
+                if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
+                if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
+            }
+        }
+
+        if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
+            PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
+
+        if (HasComponent<AudioSourceComponent>(entity))
+        {
+            auto& audio = GetComponent<AudioSourceComponent>(entity);
+            if (audio.SourceHandle.IsValid())
+                AudioSystem::DestroySource(audio.SourceHandle);
+        }
+        
+        const UUID id = m_Registry.get<IDComponent>(entity).ID;
+        m_EntityLibrary.erase(id);
+        m_Registry.destroy(entity);
+    }
+
+    void Scene::ExcDestroyHierarchy(Entity entity)
+    {
         if (!m_Registry.valid(entity)) return;
 
         auto hierarchy = GetComponent<HierarchyComponent>(entity);
@@ -265,7 +306,7 @@ namespace Aether {
         while(currentChild != Null_Entity)
         {
             Entity next = GetComponent<HierarchyComponent>(currentChild).nextSibling;
-            DestroyHierarchy(currentChild);
+            ExcDestroyHierarchy(currentChild);
             currentChild = next;
         }
 
@@ -286,30 +327,13 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
             PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
-        const UUID id = m_Registry.get<IDComponent>(entity).ID;
-        m_EntityLibrary.erase(id);
-        m_Registry.destroy(entity);
-    }
-
-    void Scene::DestroyEntity(Entity entity, bool repair_hie)
-    {
-        if (!m_Registry.valid(entity)) return;
-        if (repair_hie) BreakParent(entity);
-
-        if (HasComponent<AnimatorComponent>(entity))
+        if (HasComponent<AudioSourceComponent>(entity))
         {
-            auto rigModule = AnimationSystem::GetModule<RigModule>();
-            if (rigModule)
-            {
-                auto& comp = GetComponent<AnimatorComponent>(entity);
-                if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
-                if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
-            }
+            auto& audio = GetComponent<AudioSourceComponent>(entity);
+            if (audio.SourceHandle.IsValid())
+                AudioSystem::DestroySource(audio.SourceHandle);
         }
 
-        if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
-        
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
@@ -728,7 +752,11 @@ namespace Aether {
                 transform.WorldTransform = pTransform * transform.GetLocalTransform();
 
             if (HasComponent<AudioSourceComponent>(entity))
-                AudioSystem::SetPosition(GetComponent<AudioSourceComponent>(entity).SourceID, glm::vec3(transform.WorldTransform[3]));
+            {
+                auto& audio = GetComponent<AudioSourceComponent>(entity);
+                if (audio.SourceHandle.IsValid())
+                    AudioSystem::SetPosition(audio.SourceHandle, glm::vec3(transform.WorldTransform[3]));
+            }
 
             if (HasComponent<LightComponent>(entity))
                 GetComponent<LightComponent>(entity).Config.position = glm::vec3(transform.WorldTransform[3]);
@@ -757,6 +785,15 @@ namespace Aether {
 
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
+        {   
+            for (auto& info : m_DestroyQueue)
+            {
+                if (info.clearHierarchy) ExcDestroyHierarchy(info.entity);
+                else ExcDestroyEntity(info.entity, info.repairHie);
+            }
+            m_DestroyQueue.clear();
+        }
+
         {
             m_CurrentFrame++;
             DirtyScan();
@@ -801,6 +838,44 @@ namespace Aether {
                 else PhysicsSystem::SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }
             PhysicsSystem::UpdateInstance(m_PhysicsInstance, ts);
+        }
+
+        {
+            auto audioView = View<AudioSourceComponent>();
+            for (auto entity : audioView)
+            {
+                auto& audio = GetComponent<AudioSourceComponent>(entity);
+                if (!audio.SourceHandle.IsValid() && !audio.Path.empty())
+                {
+                    audio.SourceHandle = AudioSystem::CreateSource(audio.Path, audio.Type);
+                    if (audio.SourceHandle.IsValid())
+                    {
+                        AudioSystem::SetVolume(audio.SourceHandle, audio.Volume);
+                        AudioSystem::SetPan(audio.SourceHandle, audio.Pan);
+                        AudioSystem::SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
+                        AudioSystem::SetLooping(audio.SourceHandle, audio.Looping);
+                        if (audio.Type == AudioType::Audio3D)
+                        {
+                            AudioSystem::SetDistance(audio.SourceHandle,
+                                audio.Config3D.minDistance, audio.Config3D.maxDistance);
+                            AudioSystem::SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
+                        }
+                        if (audio.PlayOnStart)
+                        {
+                            AudioSystem::Play(audio.SourceHandle);
+                            audio.IsPlaying = true;
+                        }
+                    }
+                }
+                else if (audio.SourceHandle.IsValid())
+                {
+                    AudioSystem::SetVolume(audio.SourceHandle,        audio.Volume);
+                    AudioSystem::SetPan(audio.SourceHandle,           audio.Pan);
+                    AudioSystem::SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
+                    AudioSystem::SetLooping(audio.SourceHandle,       audio.Looping);
+                }
+            }
+            AudioSystem::Update();
         }
 
         {

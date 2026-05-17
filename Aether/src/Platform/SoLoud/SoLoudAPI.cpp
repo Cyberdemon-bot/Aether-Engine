@@ -1,24 +1,15 @@
 #include "aepch.h"
 #include "Platform/SoLoud/SoLoudAPI.h"
-#include "Aether/Assets/AssetManager.h"
-#include "Aether/Assets/Sound.h"
 
 namespace Aether {
-
-    SoLoud::Wav* SoLoudAPI::GetWav(UUID soundID)
-    {
-        auto* sound = AssetManager::GetAsset<Sound>(soundID);
-        if (!sound) return nullptr;
-        return static_cast<SoLoud::Wav*>(sound->GetNativeHandle());
-    }
 
     SoLoud::AudioSource::ATTENUATION_MODELS SoLoudAPI::ToSoLoudAttenuation(AudioAttenuation attenuation)
     {
         switch (attenuation)
         {
-            case AudioAttenuation::NO_ATTENUATION:       return SoLoud::AudioSource::NO_ATTENUATION;
-            case AudioAttenuation::LINEAR_DISTANCE:      return SoLoud::AudioSource::LINEAR_DISTANCE;
-            case AudioAttenuation::INVERSE_DISTANCE:     return SoLoud::AudioSource::INVERSE_DISTANCE;
+            case AudioAttenuation::NO_ATTENUATION: return SoLoud::AudioSource::NO_ATTENUATION;
+            case AudioAttenuation::LINEAR_DISTANCE: return SoLoud::AudioSource::LINEAR_DISTANCE;
+            case AudioAttenuation::INVERSE_DISTANCE: return SoLoud::AudioSource::INVERSE_DISTANCE;
             case AudioAttenuation::EXPONENTIAL_DISTANCE: return SoLoud::AudioSource::EXPONENTIAL_DISTANCE;
         }
         return SoLoud::AudioSource::NO_ATTENUATION;
@@ -27,192 +18,230 @@ namespace Aether {
     void SoLoudAPI::Init()
     {
         soloud.init();
-        m_Sources.reserve(32);
+        m_Pool.Init();
     }
 
     void SoLoudAPI::Shutdown()
     {
         soloud.stopAll();
-        m_Sources.clear();
+        m_Pool.Clear();
         soloud.deinit();
     }
 
-    void SoLoudAPI::CreateSource(UUID sourceID, UUID soundID, AudioType type)
+    void SoLoudAPI::Update()
     {
-        if (m_Sources.count(sourceID)) return;
-
-        if (!AssetManager::GetAsset<Sound>(soundID))
+        m_Pool.Loop([this](AudioSource& source)
         {
-            AE_CORE_WARN("SoLoudAPI::CreateSource: sound {0} not loaded in AssetManager", uint64_t(soundID));
-            return;
+            UpdateSource(source);
+        });
+    }
+
+    void SoLoudAPI::UpdateSource(AudioSource& source)
+    {
+        int voice = source.voiceHandle;
+        bool valid = soloud.isValidVoiceHandle(voice);
+        if (!valid) return;
+
+        auto& s = source.state;
+
+        if (s.volumeDirty)
+        {
+            soloud.setVolume(voice, s.volume);
+            s.volumeDirty = false;
         }
-
-        auto& source   = m_Sources[sourceID];
-        source.soundID = soundID;
-        source.type    = type;
-    }
-
-    void SoLoudAPI::DestroySource(UUID sourceID)
-    {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
-
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.stop(it->second.handle);
-        m_Sources.erase(it);
-    }
-
-    bool SoLoudAPI::IsActive(UUID sourceID)
-    {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return false;
-        return soloud.isValidVoiceHandle(it->second.handle);
-    }
-
-    void SoLoudAPI::Play(UUID sourceID)
-    {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
-
-        auto* wav = GetWav(it->second.soundID);
-        if (!wav) return;
-
-        if (!soloud.isValidVoiceHandle(it->second.handle))
+        if (s.panDirty)
         {
-            if (it->second.type == AudioType::Audio2D)
-                it->second.handle = soloud.play(*wav);
-            else
-                it->second.handle = soloud.play3d(*wav, 0, 0, 0);
+            soloud.setPan(voice, s.pan);
+            s.panDirty = false;
         }
-
-        it->second.state.pausing = false;
-        int handle = it->second.handle;
-        soloud.setPause(handle, false);
-        soloud.setVolume(handle, it->second.state.volume);
-        soloud.setPan(handle, it->second.state.pan);
-        soloud.setRelativePlaySpeed(handle, it->second.state.playback_speed);
-        soloud.setLooping(handle, it->second.state.looping);
-
-        if (it->second.type == AudioType::Audio3D)
+        if (s.speedDirty)
         {
-            const auto& pos = it->second.state.position;
-            const auto& vel = it->second.state.velocity;
-            const auto& cfg = it->second.config;
-
-            soloud.set3dSourceAttenuation(handle, ToSoLoudAttenuation(cfg.attenuation), 1.0f);
-            soloud.set3dSourceMinMaxDistance(handle, cfg.minDistance, cfg.maxDistance);
-            soloud.set3dSourceVelocity(handle, vel.x, vel.y, vel.z);
-            soloud.set3dSourcePosition(handle, pos.x, pos.y, pos.z);
+            soloud.setRelativePlaySpeed(voice, s.playback_speed);
+            s.speedDirty = false;
+        }
+        if (s.loopingDirty)
+        {
+            soloud.setLooping(voice, s.looping);
+            s.loopingDirty = false;
+        }
+        if (source.type == AudioType::Audio3D)
+        {
+            if (s.positionDirty)
+            {
+                soloud.set3dSourcePosition(voice, s.position.x, s.position.y, s.position.z);
+                s.positionDirty = false;
+            }
+            if (s.velocityDirty)
+            {
+                soloud.set3dSourceVelocity(voice, s.velocity.x, s.velocity.y, s.velocity.z);
+                s.velocityDirty = false;
+            }
         }
     }
 
-    void SoLoudAPI::Pause(UUID sourceID)
+    Handle<AudioSource> SoLoudAPI::CreateSource(const std::string& path, AudioType type)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
+        Handle<AudioSource> handle = m_Pool.CreateResource();
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source)
+        {
+            AE_CORE_ERROR("SoLoudAPI::CreateSource: pool allocation failed");
+            return Handle<AudioSource>::MakeInvalid();
+        }
 
-        it->second.state.pausing = true;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.setPause(it->second.handle, true);
+        SoLoud::result res = source->wav.load(path.c_str());
+        if (res != SoLoud::SO_NO_ERROR)
+        {
+            AE_CORE_ERROR("SoLoudAPI::CreateSource: failed to load '{0}'", path);
+            m_Pool.DestroyResource(handle);
+            return Handle<AudioSource>::MakeInvalid();
+        }
+
+        source->type = type;
+        return handle;
     }
 
-    void SoLoudAPI::Stop(UUID sourceID)
+    void SoLoudAPI::DestroySource(Handle<AudioSource> handle)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
 
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.stop(it->second.handle);
+        if (soloud.isValidVoiceHandle(source->voiceHandle))
+            soloud.stop(source->voiceHandle);
+
+        m_Pool.DestroyResource(handle);
     }
 
-    void SoLoudAPI::SetVolume(UUID sourceID, float value)
+    bool SoLoudAPI::IsActive(Handle<AudioSource> handle)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
-
-        it->second.state.volume = value;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.setVolume(it->second.handle, value);
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return false;
+        return soloud.isValidVoiceHandle(source->voiceHandle);
     }
 
-    void SoLoudAPI::SetPan(UUID sourceID, float value)
+    void SoLoudAPI::Play(Handle<AudioSource> handle)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
 
-        it->second.state.pan = value;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.setPan(it->second.handle, value);
+        if (!soloud.isValidVoiceHandle(source->voiceHandle))
+        {
+            auto& s = source->state;
+            if (source->type == AudioType::Audio2D) source->voiceHandle = soloud.play(source->wav);
+            else source->voiceHandle = soloud.play3d(source->wav, s.position.x, s.position.y, s.position.z);
+
+            int voice = source->voiceHandle;
+            soloud.setVolume(voice, s.volume);
+            soloud.setPan(voice, s.pan);
+            soloud.setRelativePlaySpeed(voice, s.playback_speed);
+            soloud.setLooping(voice, s.looping);
+
+            if (source->type == AudioType::Audio3D)
+            {
+                auto& cfg = source->config;
+                soloud.set3dSourceAttenuation(voice, ToSoLoudAttenuation(cfg.attenuation), 1.0f);
+                soloud.set3dSourceMinMaxDistance(voice, cfg.minDistance, cfg.maxDistance);
+                soloud.set3dSourceVelocity(voice, s.velocity.x, s.velocity.y, s.velocity.z);
+                soloud.set3dSourcePosition(voice, s.position.x, s.position.y, s.position.z);
+            }
+        }
+
+        source->state.pausing = false;
+        soloud.setPause(source->voiceHandle, false);
     }
 
-    void SoLoudAPI::SetLooping(UUID sourceID, bool value)
+    void SoLoudAPI::Pause(Handle<AudioSource> handle)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
 
-        it->second.state.looping = value;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.setLooping(it->second.handle, value);
+        source->state.pausing = true;
+        if (soloud.isValidVoiceHandle(source->voiceHandle))
+            soloud.setPause(source->voiceHandle, true);
     }
 
-    void SoLoudAPI::SetPlaybackSpeed(UUID sourceID, float value)
+    void SoLoudAPI::Stop(Handle<AudioSource> handle)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
 
-        it->second.state.playback_speed = value;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.setRelativePlaySpeed(it->second.handle, value);
+        if (soloud.isValidVoiceHandle(source->voiceHandle))
+            soloud.stop(source->voiceHandle);
     }
 
-    void SoLoudAPI::Seek(UUID sourceID, float value)
+    void SoLoudAPI::SetVolume(Handle<AudioSource> handle, float value)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end()) return;
-
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.seek(it->second.handle, value);
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
+        source->state.volume = value;
+        source->state.volumeDirty = true;
     }
 
-    void SoLoudAPI::SetPosition(UUID sourceID, const glm::vec3& position)
+    void SoLoudAPI::SetPan(Handle<AudioSource> handle, float value)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end() || it->second.type != AudioType::Audio3D) return;
-
-        it->second.state.position = position;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.set3dSourcePosition(it->second.handle, position.x, position.y, position.z);
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
+        source->state.pan = value;
+        source->state.panDirty = true;
     }
 
-    void SoLoudAPI::SetVelocity(UUID sourceID, const glm::vec3& velocity)
+    void SoLoudAPI::SetLooping(Handle<AudioSource> handle, bool value)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end() || it->second.type != AudioType::Audio3D) return;
-
-        it->second.state.velocity = velocity;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.set3dSourceVelocity(it->second.handle, velocity.x, velocity.y, velocity.z);
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
+        source->state.looping = value;
+        source->state.loopingDirty = true;
     }
 
-    void SoLoudAPI::SetDistance(UUID sourceID, float minDist, float maxDist)
+    void SoLoudAPI::SetPlaybackSpeed(Handle<AudioSource> handle, float value)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end() || it->second.type != AudioType::Audio3D) return;
-
-        it->second.config.minDistance = minDist;
-        it->second.config.maxDistance = maxDist;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.set3dSourceMinMaxDistance(it->second.handle, minDist, maxDist);
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
+        source->state.playback_speed = value;
+        source->state.speedDirty = true;
     }
 
-    void SoLoudAPI::SetAttenuation(UUID sourceID, AudioAttenuation attenuation)
+    void SoLoudAPI::Seek(Handle<AudioSource> handle, float value)
     {
-        auto it = m_Sources.find(sourceID);
-        if (it == m_Sources.end() || it->second.type != AudioType::Audio3D) return;
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source) return;
+        if (soloud.isValidVoiceHandle(source->voiceHandle))
+            soloud.seek(source->voiceHandle, value);
+    }
 
-        it->second.config.attenuation = attenuation;
-        if (soloud.isValidVoiceHandle(it->second.handle))
-            soloud.set3dSourceAttenuation(it->second.handle, ToSoLoudAttenuation(attenuation), 1.0f);
+    void SoLoudAPI::SetPosition(Handle<AudioSource> handle, const glm::vec3& position)
+    {
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source || source->type != AudioType::Audio3D) return;
+        source->state.position = position;
+        source->state.positionDirty = true;
+    }
+
+    void SoLoudAPI::SetVelocity(Handle<AudioSource> handle, const glm::vec3& velocity)
+    {
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source || source->type != AudioType::Audio3D) return;
+        source->state.velocity = velocity;
+        source->state.velocityDirty = true;
+    }
+
+    void SoLoudAPI::SetDistance(Handle<AudioSource> handle, float minDist, float maxDist)
+    {
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source || source->type != AudioType::Audio3D) return;
+        source->config.minDistance = minDist;
+        source->config.maxDistance = maxDist;
+        if (soloud.isValidVoiceHandle(source->voiceHandle))
+            soloud.set3dSourceMinMaxDistance(source->voiceHandle, minDist, maxDist);
+    }
+
+    void SoLoudAPI::SetAttenuation(Handle<AudioSource> handle, AudioAttenuation attenuation)
+    {
+        AudioSource* source = m_Pool.GetResource(handle);
+        if (!source || source->type != AudioType::Audio3D) return;
+        source->config.attenuation = attenuation;
+        if (soloud.isValidVoiceHandle(source->voiceHandle))
+            soloud.set3dSourceAttenuation(source->voiceHandle, ToSoLoudAttenuation(attenuation), 1.0f);
     }
 
     void SoLoudAPI::UpdateListener(const AudioListener& listener)

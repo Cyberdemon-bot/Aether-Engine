@@ -162,15 +162,13 @@ void MainGameLayer::Attach()
     // =========================================================================
     // AUDIO
     // =========================================================================
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_BgmSoundID,   "assets/audios/Hatsune Miku - Ievan Polkka.mp3");
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunSoundID,   "assets/audios/pistol.mp3");
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_GunReloadID,  "assets/audios/pistol_reload.mp3");
-    Aether::AssetManager::CreateAsset<Aether::Sound>(m_ZombieBiteID, "assets/audios/zombie_bite.mp3");
+    m_BgmSource    = Aether::AudioSystem::CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
+    m_GunSource    = Aether::AudioSystem::CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);
+    m_ReloadSource = Aether::AudioSystem::CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
+    m_BiteSource   = Aether::AudioSystem::CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
 
-    Aether::UUID bgmSrcID;
-    Aether::AudioSystem::CreateSource(bgmSrcID, m_BgmSoundID, Aether::AudioType::Audio2D);
-    Aether::AudioSystem::SetLooping(bgmSrcID, true);
-    Aether::AudioSystem::Play(bgmSrcID);
+    Aether::AudioSystem::SetLooping(m_BgmSource, true);
+    Aether::AudioSystem::Play(m_BgmSource);
 
     AE_INFO("MainGameLayer started.");
 }
@@ -182,11 +180,6 @@ void MainGameLayer::Detach()
     m_MainShader.reset();
     m_ActiveChunks.clear();
     m_Scene.Shutdown();
-
-    Aether::AssetManager::Unload(m_BgmSoundID);
-    Aether::AssetManager::Unload(m_GunSoundID);
-    Aether::AssetManager::Unload(m_GunReloadID);
-    Aether::AssetManager::Unload(m_ZombieBiteID);
 }
 
 void MainGameLayer::Update(Aether::Timestep ts)
@@ -311,10 +304,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
         {
             m_IsReloading = true;
             m_ReloadTimer = m_ReloadDuration;
-            Aether::UUID src;
-            Aether::AudioSystem::CreateSource(src, m_GunReloadID, Aether::AudioType::Audio2D);
-            Aether::AudioSystem::Play(src);
-            sources.push_back(src);
+            Aether::AudioSystem::Stop(m_ReloadSource);
+            Aether::AudioSystem::Play(m_ReloadSource);
             AE_INFO("Reloading...");
         }
 
@@ -500,13 +491,6 @@ void MainGameLayer::Update(Aether::Timestep ts)
         gTransform.Dirty       = true;
     }
 
-    for (size_t i = 0; i < sources.size(); )
-    {
-        if (!Aether::AudioSystem::IsActive(sources[i]))
-        { sources[i] = sources.back(); sources.pop_back(); }
-        else i++;
-    }
-
     // --- PLAYER HEALTH ---
     if (m_DamageCooldown > 0.0f)
         m_DamageCooldown -= ts;
@@ -523,9 +507,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 m_PlayerHealth   -= 10.0f;
                 m_DamageCooldown  = 1.0f;
                 Aether::UUID src;
-                Aether::AudioSystem::CreateSource(src, m_ZombieBiteID, Aether::AudioType::Audio2D);
-                Aether::AudioSystem::Play(src);
-                sources.push_back(src);
+                Aether::AudioSystem::Stop(m_BiteSource);
+                Aether::AudioSystem::Play(m_BiteSource);
                 AE_WARN("Player bit! HP remaining: {0}", m_PlayerHealth);
                 break;
             }
@@ -1004,11 +987,9 @@ void MainGameLayer::OnEvent(Aether::Event& event)
             }
         }
 
-        Aether::UUID src;
-        Aether::AudioSystem::CreateSource(src, m_GunSoundID, Aether::AudioType::Audio2D);
-        Aether::AudioSystem::SetVolume(src, 0.3f);
-        sources.push_back(src);
-        Aether::AudioSystem::Play(src);
+        Aether::AudioSystem::Stop(m_GunSource);
+        Aether::AudioSystem::SetVolume(m_GunSource, 0.3f);
+        Aether::AudioSystem::Play(m_GunSource);
 
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
