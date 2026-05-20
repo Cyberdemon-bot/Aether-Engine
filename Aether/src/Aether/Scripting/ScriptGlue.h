@@ -512,8 +512,7 @@ namespace Aether {
                 AE_REFLECT("DestroyMyself",
                     AE_MAKE_LAMBDA((), (Type& self), void,
                         Entity e = static_cast<Entity>(self.entity);
-                        auto& sc = self.scene->GetComponent<ScriptComponent>(e);
-                        ScriptEngine::PushDestroyQueue(e, sc.ScriptHandle);
+                        self.scene->DestroyEntity(e);
                     )
                 )
             );

@@ -497,7 +497,7 @@ void LabLayer::DrawScriptingPanel()
                     m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 }
 
-                auto script = ScriptEngine::LoadScript(m_ScriptPath, true);
+                auto script = ScriptEngine::LoadScript(m_ScriptPath);
                 Handle<ScriptInstance> handle = ScriptEngine::CreateInstance(
                     &m_Scene, m_ScriptTargetEntity, script);
 

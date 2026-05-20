@@ -4,9 +4,6 @@ _script = 0
 
 function OnStart()
     _speed = 5.0
-    event:Listen("hello", function()
-        print("hearded" .. _time)
-    end)
 end
 
 function OnUpdate(ts)
@@ -15,9 +12,9 @@ function OnUpdate(ts)
 
     if Input.IsKeyPressed(Key.Up) then
         move = move + Math.Vec3(0.0, 0.0, -1.0)
-        physics:AddForce(Math.Vec3(0.0, 100000.0, 0.0))
-        event:Fire("test func", 10)
-        Native.Async("PrintTest", {}, function() end)
+        Physics:AddForce(Math.Vec3(0.0, 100000.0, 0.0))
+        Event:Fire("test func", 10)
+        Native.PrintTest()
     end
     if Input.IsKeyPressed(Key.Down) then
         move = move + Math.Vec3(0.0, 0.0, 1.0)

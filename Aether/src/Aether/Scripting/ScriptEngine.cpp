@@ -77,28 +77,44 @@ namespace Aether {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
         lua["Native"] = lua.create_table();
-        sol::table native = lua["Native"];
-        native.set_function("Async", [](std::string name, sol::table args, sol::protected_function callback)
-        {
-            auto& engine = GetInstance();
-            auto it = std::find_if(engine.m_NativeFuncs.begin(), engine.m_NativeFuncs.end(), [name](const NativeFunc& func) { return func.name == name; });
-            if (it == engine.m_NativeFuncs.end())
-            {
-                AE_CORE_WARN("[ScriptEngine] Native.Async: func '{0}' not found", name);
-                return;
-            }
-            auto delegate = it->native;
-            ScriptArgs scriptArgs;
-            for (size_t i = 1; i <= args.size(); i++)
-                scriptArgs.Pushback(FromSolObject(args[i]));
+    }
 
-            JobSystem::SubmitJob([delegate, scriptArgs, callback, &engine]()
-            {
-                ScriptValue result = delegate(scriptArgs);
-                std::lock_guard<std::mutex> lock(engine.m_PendingMutex);
-                engine.m_PendingCallbacks.push_back({callback, result});
-            });
-        });
+    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path)
+    {
+        auto& instance = GetInstance();
+        auto& lua = instance.LuaState.lua;
+
+        std::ifstream file(path);
+        std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+        sol::load_result res = lua.load(source);
+        if (!res.valid())
+        {
+            sol::error err = res;
+            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
+            return Handle<Bytecode>::MakeInvalid();
+        }
+
+        sol::bytecode bytecode = res.get<sol::function>().dump();
+        auto handle = instance.m_Sources.SaveResource({bytecode});
+        return handle;
+    }
+
+    Handle<Bytecode> ScriptEngine::LoadScriptSource(const std::string& source)
+    {
+        auto& instance = GetInstance();
+        auto& lua = instance.LuaState.lua;
+
+        sol::load_result res = lua.load(source);
+        if (!res.valid())
+        {
+            sol::error err = res;
+            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
+            return Handle<Bytecode>::MakeInvalid();
+        }
+
+        sol::bytecode bytecode = res.get<sol::function>().dump();
+        return instance.m_Sources.SaveResource({bytecode});
     }
 
     Handle<ScriptInstance> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh)
@@ -121,9 +137,9 @@ namespace Aether {
         EventContext eventCtx{ handle, &instance.m_EventManager.value() };
         PhysicsContext physicsCtx{ scene, entity };
         env["self"] = self;
-        env["scene"] = sceneCtx;
-        env["event"] = eventCtx;
-        env["physics"] = physicsCtx;
+        env["Scene"] = sceneCtx;
+        env["Event"] = eventCtx;
+        env["Physics"] = physicsCtx;
 
         slot->env_hanle = env_handle;
         slot->ctx = scene;
@@ -132,100 +148,25 @@ namespace Aether {
         return handle; 
     }
 
-    void ScriptEngine::StartInstance(Handle<ScriptInstance> handle)
-    {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return;
-        CallMethod(*slot, "OnStart");
-    }
-
-    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path, bool saveRaw)
-    {
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
-
-        std::ifstream file(path);
-        std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-        sol::load_result res = lua.load(source);
-        if (!res.valid())
-        {
-            sol::error err = res;
-            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
-            return Handle<Bytecode>::MakeInvalid();
-        }
-
-        sol::bytecode bytecode = res.get<sol::function>().dump();
-        if (!saveRaw) source.clear();
-        auto handle = instance.m_Sources.SaveResource({bytecode, source});
-        return handle;
-    }
-
-    Handle<Bytecode> ScriptEngine::LoadScriptSource(const std::string& source)
-    {
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
-
-        sol::load_result res = lua.load(source);
-        if (!res.valid())
-        {
-            sol::error err = res;
-            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
-            return Handle<Bytecode>::MakeInvalid();
-        }
-
-        sol::bytecode bytecode = res.get<sol::function>().dump();
-        return instance.m_Sources.SaveResource({bytecode, source});
-    }
-
-    std::string ScriptEngine::GetRaw(Handle<Bytecode> handle)
-    {
-        auto& instance = GetInstance();
-        auto source = instance.m_Sources.GetResource(handle);
-        if (source == nullptr) return {};
-        return source->rawcode;
-    }
-
-    std::string ScriptEngine::GetRaw(Handle<ScriptInstance> handle)
-    {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return {};
-        return GetRaw(slot->code_handle);
-    }
-
     void ScriptEngine::DestroyInstance(Handle<ScriptInstance> handle)
     {
         auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return;
-        CallMethod(*slot, "OnDestroy");
+        instance.m_DestroyQueue.push_back({handle});
+    }
 
-        instance.LuaState.RemoveEnvironment(slot->env_hanle);
-        instance.m_Instances.DestroyResource(handle);
-        instance.m_EventManager->RemoveListener(handle);
-        MarkExecOrderChanged();
+    void ScriptEngine::StartInstance(Handle<ScriptInstance> handle)
+    {
+        CallDirectInstanceAPI(handle, "OnStart");
     }
 
     void ScriptEngine::UpdateInstance(Handle<ScriptInstance> handle, Timestep ts)
     {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return;
-        if (slot->has_error) return;
-
-        CallMethod(*slot, "OnUpdate", (float)ts);
+        CallDirectInstanceAPI(handle, "OnUpdate", (float)ts);
     }
 
     void ScriptEngine::OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data)
     {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return;
-        if (slot->has_error) return;
-
-        CallMethod(*slot, "OnCollision", data);
+        CallDirectInstanceAPI(handle, "OnCollision", data);
     }
 
     void ScriptEngine::SetActiveStage(Handle<ScriptInstance> handle, bool active)
@@ -248,29 +189,18 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
-        std::vector<PendingCallback> pending;
-        {
-            std::lock_guard<std::mutex> lock(instance.m_PendingMutex);
-            std::swap(pending, instance.m_PendingCallbacks);
-        }
-        for (auto& p : pending)
-        {
-            auto result = p.callback(ToSolObject(lua, p.result));
-            if (!result.valid())
-            {
-                sol::error err = result;
-                AE_CORE_ERROR("[ScriptEngine] Async callback error: {0}", err.what());
-            }
-        }
         instance.m_EventManager->Flush();
 
-        for (auto& [e, handle] : instance.m_DestroyQueue)
+        for (auto& handle : instance.m_DestroyQueue)
         {
-            auto* it = instance.m_Instances.GetResource(handle);
-            if (it == nullptr) continue;
+            auto slot = instance.m_Instances.GetResource(handle);
+            if (slot == nullptr) return;
+            CallDirectInstanceAPI(handle, "OnDestroy");
 
-            it->ctx->DestroyEntity(e);
-            DestroyInstance(handle);
+            instance.LuaState.RemoveEnvironment(slot->env_hanle);
+            instance.m_Instances.DestroyResource(handle);
+            instance.m_EventManager->RemoveListener(handle);
+            MarkExecOrderChanged();
         }
         instance.m_DestroyQueue.clear();
     }
@@ -292,47 +222,6 @@ namespace Aether {
             return true;
         }
         return false;
-    }
-
-    sol::object ScriptEngine::CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
-    {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return sol::lua_nil;
-
-        auto it = std::find_if(slot->exposed_funcs.begin(), slot->exposed_funcs.end(), [name](const Exposed& data) { return data.name == name; });
-        if (it == slot->exposed_funcs.end()) return sol::lua_nil;
-
-        sol::protected_function_result result = it->func(sol::as_args(args));
-        if (!result.valid())
-        {
-            sol::error err = result;
-            AE_CORE_ERROR("[Script] CallSafeInstanceAPI error in '{0}': {1}", name, err.what());
-            return sol::lua_nil;
-        }
-        return result;
-    }
-
-    sol::object ScriptEngine::CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args)
-    {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
-        if (slot == nullptr) return sol::lua_nil;
-
-        auto env = instance.LuaState.env_pool.GetResource(slot->env_hanle);
-        if (env == nullptr) return sol::lua_nil;
-
-        sol::protected_function func = (*env)[name];
-        if (!func.valid()) return sol::lua_nil;
-
-        sol::protected_function_result result = func(sol::as_args(args));
-        if (!result.valid())
-        {
-            sol::error err = result;
-            AE_CORE_ERROR("[Script] CallInstanceAPI error in '{0}': {1}", name, err.what());
-            return sol::lua_nil;
-        }
-        return result;
     }
 
     Handle<ScriptCallback> ScriptEngine::AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
