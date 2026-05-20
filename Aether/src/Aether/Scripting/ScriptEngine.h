@@ -85,13 +85,6 @@ namespace Aether {
     struct ScriptSource
     {
         sol::bytecode bytecode;
-        std::string rawcode;
-    };
-
-    struct PendingCallback
-    {
-        sol::protected_function callback;
-        ScriptValue result;
     };
 
     struct NativeFunc
@@ -125,10 +118,8 @@ namespace Aether {
         static Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
         static void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name);
         static void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func);
-        static Handle<Bytecode> LoadScript(const std::string& path, bool saveRaw = false);
+        static Handle<Bytecode> LoadScript(const std::string& path);
         static Handle<Bytecode> LoadScriptSource(const std::string& source);
-        static std::string GetRaw(Handle<Bytecode> handle);
-        static std::string GetRaw(Handle<ScriptInstance> handle);
 
         static void SetActiveStage(Handle<ScriptInstance> handle, bool active);
         static bool GetActiveStage(Handle<ScriptInstance> handle);
@@ -141,9 +132,8 @@ namespace Aether {
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
-        std::vector<std::pair<Entity, Handle<ScriptInstance>>> m_DestroyQueue;
+        std::vector<Handle<ScriptInstance>> m_DestroyQueue;
         std::vector<NativeFunc> m_NativeFuncs;
-        std::vector<PendingCallback> m_PendingCallbacks;
         std::mutex m_PendingMutex;
         bool IsExecChanged = false;
 
@@ -153,10 +143,7 @@ namespace Aether {
         static bool IsExecOrderChanged();
         static int GetExecOrder(Handle<ScriptInstance> handle);
         static void RegisterBinding();
-        static sol::object CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args);
-        static sol::object CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, const std::vector<sol::object>& args);
         static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
-        static void PushDestroyQueue(Entity ent, Handle<ScriptInstance> handle) { GetInstance().m_DestroyQueue.push_back({ent, handle}); }
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -264,23 +251,43 @@ namespace Aether {
         }
 
         template<typename... Args>
-        static void CallMethod(InstanceSlot& slot, const std::string& name, Args&&... args) 
+        static sol::object CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, Args&&... args)
         {
             auto& instance = GetInstance();
-            auto env = instance.LuaState.env_pool.GetResource(slot.env_hanle);
-            if (env == nullptr) return;
-            sol::protected_function func = (*env)[name];
-            
-            if (func.valid()) 
+            auto slot = instance.m_Instances.GetResource(handle);
+            if (slot == nullptr || slot->has_error) return sol::lua_nil;
+            auto it = std::find_if(slot->exposed_funcs.begin(), slot->exposed_funcs.end(), [name](const Exposed& data) { return data.name == name; });
+            if (it == slot->exposed_funcs.end()) return sol::lua_nil;
+
+            sol::protected_function_result result = it->func(std::forward<Args>(args)...);
+            if (!result.valid())
             {
-                auto result = func(std::forward<Args>(args)...); 
-                if (!result.valid()) 
-                {
-                    sol::error err = result;
-                    slot.has_error = true;
-                    AE_CORE_ERROR("[Script Error in {0}] {1}", name, err.what());
-                }
+                sol::error err = result;
+                slot->has_error = true;
+                AE_CORE_ERROR("[Script] CallSafeInstanceAPI error in '{0}': {1}", name, err.what());
+                return sol::lua_nil;
             }
+            return result;
+        }
+
+        template<typename... Args>
+        static sol::object CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, Args&&... args)
+        {
+            auto& instance = GetInstance();
+            auto slot = instance.m_Instances.GetResource(handle);
+            if (slot == nullptr || slot->has_error) return sol::lua_nil;
+            auto env = instance.LuaState.env_pool.GetResource(slot->env_hanle);
+            if (env == nullptr) return sol::lua_nil;
+
+            sol::protected_function func = (*env)[name]; if (!func.valid()) return sol::lua_nil;
+            sol::protected_function_result result = func(std::forward<Args>(args)...);
+            if (!result.valid())
+            {
+                sol::error err = result;
+                AE_CORE_ERROR("[Script] CallInstanceAPI error in '{0}': {1}", name, err.what());
+                return sol::lua_nil;
+            }
+            return result;
         }
 
         friend struct ScriptSelfBinding;

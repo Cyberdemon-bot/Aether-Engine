@@ -291,6 +291,12 @@ namespace Aether {
             if (audio.SourceHandle.IsValid())
                 AudioSystem::DestroySource(audio.SourceHandle);
         }
+
+        if (HasComponent<ScriptComponent>(entity))
+        {
+            auto& script = GetComponent<ScriptComponent>(entity);
+            ScriptEngine::DestroyInstance(script.ScriptHandle);
+        }
         
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
@@ -332,6 +338,12 @@ namespace Aether {
             auto& audio = GetComponent<AudioSourceComponent>(entity);
             if (audio.SourceHandle.IsValid())
                 AudioSystem::DestroySource(audio.SourceHandle);
+        }
+
+        if (HasComponent<ScriptComponent>(entity))
+        {
+            auto& script = GetComponent<ScriptComponent>(entity);
+            ScriptEngine::DestroyInstance(script.ScriptHandle);
         }
 
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
@@ -841,6 +853,28 @@ namespace Aether {
         }
 
         {
+            auto scriptView = View<ScriptComponent>();
+            if (ScriptEngine::IsExecOrderChanged())
+                Sort<ScriptComponent>([](const ScriptComponent& a, const ScriptComponent& b) 
+                {return ScriptEngine::GetExecOrder(a.ScriptHandle) <  ScriptEngine::GetExecOrder(b.ScriptHandle);});
+
+            for (auto entity : scriptView)
+            {
+                auto& cmp = GetComponent<ScriptComponent>(entity);
+                auto& instance = cmp.ScriptHandle;
+                if (cmp.PendingStart)
+                {
+                    cmp.PendingStart = false;
+                    ScriptEngine::StartInstance(cmp.ScriptHandle);
+                }
+                else if (cmp.IsActive)
+                    ScriptEngine::UpdateInstance(instance, ts);
+            }
+
+            ScriptEngine::FlushEvent();
+        }
+
+        {
             auto audioView = View<AudioSourceComponent>();
             for (auto entity : audioView)
             {
@@ -876,28 +910,6 @@ namespace Aether {
                 }
             }
             AudioSystem::Update();
-        }
-
-        {
-            auto scriptView = View<ScriptComponent>();
-            if (ScriptEngine::IsExecOrderChanged())
-                Sort<ScriptComponent>([](const ScriptComponent& a, const ScriptComponent& b) 
-                {return ScriptEngine::GetExecOrder(a.ScriptHandle) <  ScriptEngine::GetExecOrder(b.ScriptHandle);});
-
-            for (auto entity : scriptView)
-            {
-                auto& cmp = GetComponent<ScriptComponent>(entity);
-                auto& instance = cmp.ScriptHandle;
-                if (cmp.PendingStart)
-                {
-                    cmp.PendingStart = false;
-                    ScriptEngine::StartInstance(cmp.ScriptHandle);
-                }
-                else if (cmp.IsActive)
-                    ScriptEngine::UpdateInstance(instance, ts);
-            }
-
-            ScriptEngine::FlushEvent();
         }
 
         { // render
