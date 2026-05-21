@@ -872,6 +872,7 @@ namespace Aether {
             }
 
             ScriptEngine::FlushEvent();
+            ScriptEngine::UpdateCoroutines(ts);
         }
 
         {

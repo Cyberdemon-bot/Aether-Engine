@@ -39,10 +39,11 @@ namespace Aether {
        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
        instance.m_Instances.Init();
        instance.m_Sources.Init();
+       instance.m_Coroutines.Init();
        instance.m_DestroyQueue.reserve(32);
        instance.m_EventManager.emplace(instance.LuaState.lua);
        RegisterBinding();
-       AE_CORE_INFO("ScriptEngine initialized with {0}", LUA_VERSION);
+       AE_CORE_INFO("ScriptEngine initialized with {0}/Sol {1}", LUA_VERSION, SOL_VERSION_MAJOR);
     }
 
     void ScriptEngine::Shutdown()
@@ -50,6 +51,7 @@ namespace Aether {
         auto& instance = GetInstance();
         instance.m_Instances.Shutdown();
         instance.m_Sources.Shutdown();
+        instance.m_Coroutines.Shutdown();
         instance.m_DestroyQueue.clear();
     }
 
@@ -73,10 +75,7 @@ namespace Aether {
         BindType<CollisionBinding>();
         BindType<RaycastHitBinding>();
         BindType<PhysicsBinding>();
-
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
-        lua["Native"] = lua.create_table();
+        BindType<AsyncBinding>();
     }
 
     Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path)
@@ -136,15 +135,17 @@ namespace Aether {
         SceneContext sceneCtx{ scene };
         EventContext eventCtx{ handle, &instance.m_EventManager.value() };
         PhysicsContext physicsCtx{ scene, entity };
+        AsyncContext asyncCtx{ handle };
         env["self"] = self;
         env["Scene"] = sceneCtx;
         env["Event"] = eventCtx;
         env["Physics"] = physicsCtx;
+        env["Async"] = asyncCtx;
 
         slot->env_hanle = env_handle;
         slot->ctx = scene;
         slot->code_handle = bh;
-        MarkExecOrderChanged();
+        instance.IsExecChanged = true;
         return handle; 
     }
 
@@ -152,6 +153,7 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_DestroyQueue.push_back({handle});
+        CallDirectInstanceAPI(handle, "OnDestroy");
     }
 
     void ScriptEngine::StartInstance(Handle<ScriptInstance> handle)
@@ -159,14 +161,14 @@ namespace Aether {
         CallDirectInstanceAPI(handle, "OnStart");
     }
 
-    void ScriptEngine::UpdateInstance(Handle<ScriptInstance> handle, Timestep ts)
-    {
-        CallDirectInstanceAPI(handle, "OnUpdate", (float)ts);
-    }
-
     void ScriptEngine::OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data)
     {
         CallDirectInstanceAPI(handle, "OnCollision", data);
+    }
+
+    void ScriptEngine::UpdateInstance(Handle<ScriptInstance> handle, Timestep ts)
+    {
+        CallDirectInstanceAPI(handle, "OnUpdate", (float)ts);
     }
 
     void ScriptEngine::SetActiveStage(Handle<ScriptInstance> handle, bool active)
@@ -195,12 +197,11 @@ namespace Aether {
         {
             auto slot = instance.m_Instances.GetResource(handle);
             if (slot == nullptr) return;
-            CallDirectInstanceAPI(handle, "OnDestroy");
 
             instance.LuaState.RemoveEnvironment(slot->env_hanle);
             instance.m_Instances.DestroyResource(handle);
             instance.m_EventManager->RemoveListener(handle);
-            MarkExecOrderChanged();
+            instance.IsExecChanged = true;
         }
         instance.m_DestroyQueue.clear();
     }
@@ -240,7 +241,7 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         auto& lua = instance.LuaState.lua;
-        sol::table native = lua["Native"];
+        sol::table native = lua["Native"].get_or_create<sol::table>();
         instance.m_NativeFuncs.push_back({name, func});
         native.set_function(name, [func, &lua](sol::variadic_args va) -> sol::object
         {
@@ -250,6 +251,140 @@ namespace Aether {
             
             ScriptValue result = func(args);
             return ToSolObject(lua, result);
+        });
+    }
+
+    void ScriptEngine::MarkCoroutineDone(Handle<Coroutine> handle)
+    {
+        auto& instance = GetInstance();
+        auto task = instance.m_Coroutines.GetResource(handle);
+        if (task) task->DoneFlag.store(true, std::memory_order_release);
+    }
+
+    Handle<Coroutine> ScriptEngine::StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func)
+    {
+        auto& instance = GetInstance();
+        sol::thread runner = sol::thread::create(instance.LuaState.lua.lua_state());
+        sol::coroutine co = sol::coroutine(runner.state(), func);
+        auto result = co();
+        lua_State* T = runner.state();
+        int top = lua_gettop(T);
+        AE_CORE_INFO("[Coroutine] raw stack size after resume: {0}", top);
+        for (int i = 1; i <= top; i++)
+        {
+            int t = lua_type(T, i);
+            AE_CORE_INFO("[Coroutine] stack[{0}] type={1} | tointeger={2} | tonumber={3}", 
+                i, lua_typename(T, t), lua_tointeger(T, i), lua_tonumber(T, i));
+        }
+        if (!result.valid()) 
+        {
+            sol::error err = result;
+            AE_CORE_ERROR("[Script] Coroutine failed to start: {0}", err.what());
+            return {};
+        }
+
+        if (co.runnable()) 
+        {
+            CoroutineTask task;
+            task.Owner = owner;
+            task.Runner = std::move(runner);
+            task.Co = co;
+            task.Type = (WaitType)result[result.return_count() - 1].get<int>();
+            if (task.Type == WaitType::Time) task.Timer = result[0].get<float>();
+            else if (task.Type == WaitType::Frame) task.Frames = result[0].get<int>();
+            else if (task.Type == WaitType::Event) task.AwaitEvent = result[0].get<std::string>();
+            auto handle = instance.m_Coroutines.SaveResource(task);
+            auto stored = instance.m_Coroutines.GetResource(handle);
+            if (stored) 
+            {
+                stored->Self = handle;
+                if (stored->Type == WaitType::Event)
+                {
+                    stored->EventCbHandle = instance.m_EventManager->AddNativeListener(
+                        stored->AwaitEvent, 
+                        [stored](const ScriptArgs&) { MarkCoroutineDone(stored->Self); }
+                    );
+                }
+            }
+            return handle;
+        }
+
+        return Handle<Coroutine>::MakeInvalid();
+    }
+
+    void ScriptEngine::KillCoroutineAPI(Handle<Coroutine> handle)
+    {
+        auto& instance = GetInstance();
+        auto task = instance.m_Coroutines.GetResource(handle);
+        if (!task) return;
+        if (task->Type == WaitType::Event && task->EventCbHandle.IsValid()) 
+            instance.m_EventManager->RemoveNativeListener(task->EventCbHandle, task->AwaitEvent);
+        instance.m_Coroutines.DestroyResource(handle);
+    }
+
+    void ScriptEngine::UpdateCoroutines(Timestep ts)
+    {
+        auto& instance = GetInstance();
+        instance.m_Coroutines.Loop([&](CoroutineTask& task) 
+        {
+            if (!instance.m_Instances.GetResource(task.Owner)) 
+            {
+                KillCoroutineAPI(task.Self);
+                return;
+            }
+
+            bool shouldResume = false;
+            switch (task.Type) 
+            {
+                case WaitType::Time:
+                    task.Timer -= (float)ts;
+                    if (task.Timer <= 0.0f) shouldResume = true;
+                    break;
+                case WaitType::Frame:
+                    task.Frames--;
+                    if (task.Frames <= 0) shouldResume = true;
+                    break;
+                case WaitType::Job:
+                case WaitType::Event:
+                    if (task.DoneFlag.load(std::memory_order_acquire)) shouldResume = true;
+                    break;
+                default: shouldResume = true; break;
+            }
+
+            if (shouldResume) 
+            {
+                if (task.Type == WaitType::Event) 
+                {
+                    instance.m_EventManager->RemoveNativeListener(task.EventCbHandle, task.AwaitEvent);
+                    task.EventCbHandle = {};
+                }
+
+                task.DoneFlag.store(false);
+                auto result = task.Co(); 
+                if (!result.valid()) 
+                {
+                    sol::error err = result;
+                    AE_CORE_ERROR("[Script] Coroutine error: {0}", err.what());
+                    KillCoroutineAPI(task.Self);
+                    return;
+                }
+
+                if (task.Co.runnable()) 
+                {
+                    task.Type = (WaitType)result[1].get<int>();
+                    if (task.Type == WaitType::Time) task.Timer = result[0].get<float>();
+                    else if (task.Type == WaitType::Frame) task.Frames = result[0].get<int>();
+                    else if (task.Type == WaitType::Event) 
+                    {
+                        task.AwaitEvent = result[0].get<std::string>();
+                        task.EventCbHandle = instance.m_EventManager->AddNativeListener(task.AwaitEvent, [&task](const ScriptArgs&) 
+                        {
+                            MarkCoroutineDone(task.Self);
+                        });
+                    }
+                }
+                else KillCoroutineAPI(task.Self);
+            }
         });
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sol/sol.hpp>
+#include <sol/coroutine.hpp>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
 #include <unordered_map>
@@ -29,8 +30,72 @@ namespace Aether {
     struct ScriptInstance;
     struct Enviroment;
     struct Bytecode;
+    struct Coroutine;
     enum class CollisionType;
     class Scene;
+
+    enum class WaitType
+    {
+        None, Time, Frame, Event, Job 
+    };
+
+    struct CoroutineTask
+    {
+        Handle<ScriptInstance> Owner;
+        Handle<Coroutine> Self;
+        sol::thread Runner;
+        sol::coroutine Co;
+        WaitType Type = WaitType::None;
+        float Timer = 0.0f;
+        int Frames = 0;
+        std::atomic<bool> DoneFlag{false}; 
+        Handle<ScriptCallback> EventCbHandle; 
+        std::string AwaitEvent;
+
+        CoroutineTask() = default;
+        CoroutineTask(const CoroutineTask&) = delete;
+        CoroutineTask& operator=(const CoroutineTask&) = delete;
+
+        CoroutineTask(CoroutineTask&& other) noexcept
+            : Owner(other.Owner),
+            Self(other.Self),
+            Runner(std::move(other.Runner)),
+            Co(std::move(other.Co)),
+            Type(other.Type),
+            Timer(other.Timer),
+            Frames(other.Frames),
+            EventCbHandle(other.EventCbHandle),
+            AwaitEvent(std::move(other.AwaitEvent))
+        {
+            DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+            other.Owner = {};
+            other.Self = {};
+            other.Type = WaitType::None;
+        }
+
+        CoroutineTask& operator=(CoroutineTask&& other) noexcept
+        {
+            if (this != &other)
+            {
+                Owner = other.Owner;
+                Self = other.Self;
+                Runner = std::move(other.Runner);
+                Co = std::move(other.Co);
+                Type = other.Type;
+                Timer = other.Timer;
+                Frames = other.Frames;
+                EventCbHandle = other.EventCbHandle;
+                AwaitEvent = std::move(other.AwaitEvent);
+                DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
+                            std::memory_order_relaxed);
+                other.Owner = {};
+                other.Self = {};
+                other.Type = WaitType::None;
+            }
+            return *this;
+        }
+    };
 
     struct Exposed
     {
@@ -124,6 +189,10 @@ namespace Aether {
         static void SetActiveStage(Handle<ScriptInstance> handle, bool active);
         static bool GetActiveStage(Handle<ScriptInstance> handle);
 
+        static Handle<Coroutine> StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func);
+        static void KillCoroutineAPI(Handle<Coroutine> handle);
+        static void UpdateCoroutines(Timestep ts);
+        static void MarkCoroutineDone(Handle<Coroutine> handle);
     private:
         static ScriptEngine& GetInstance();
 
@@ -132,6 +201,7 @@ namespace Aether {
         static sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
+        ResourcePool<Handle<Coroutine>, CoroutineTask> m_Coroutines;
         std::vector<Handle<ScriptInstance>> m_DestroyQueue;
         std::vector<NativeFunc> m_NativeFuncs;
         std::mutex m_PendingMutex;
@@ -143,7 +213,6 @@ namespace Aether {
         static bool IsExecOrderChanged();
         static int GetExecOrder(Handle<ScriptInstance> handle);
         static void RegisterBinding();
-        static void MarkExecOrderChanged() {GetInstance().IsExecChanged = true;}
 
         template<typename Binder>
         static void BindType(const std::string& Namespace = "")
@@ -291,7 +360,7 @@ namespace Aether {
         }
 
         friend struct ScriptSelfBinding;
-        friend struct SceneBinding;
+        friend class AsyncBinding;
         friend class Scene;
     };
 } 
