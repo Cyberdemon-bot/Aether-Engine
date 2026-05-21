@@ -82,7 +82,30 @@ namespace Aether {
             return handle;
         }
 
-        HandleType SaveResource(DataType resource)
+        HandleType SaveResource(DataType& resource)
+        {
+            uint32_t index;
+            if (!m_FreeList.empty())
+            {
+                index = m_FreeList.back();
+                m_FreeList.pop_back();
+                m_Resources[index].asset = std::move(resource);
+                m_Resources[index].valid = true;
+            }
+            else
+            {
+                index = m_Resources.size();
+                m_Resources.emplace_back(0, resource);
+            }
+
+            m_Size++;
+            HandleType handle;
+            handle.index = index;
+            handle.generation = m_Resources[index].generation;
+            return handle;
+        }
+
+        HandleType SaveResource(const DataType& resource)
         {
             uint32_t index;
             if (!m_FreeList.empty())

@@ -4,6 +4,14 @@ _script = 0
 
 function OnStart()
     _speed = 5.0
+    Async:Start(function()
+        --Async.WaitEvent("bruh")
+        Async.WaitJob("", 10)
+        print("waited")
+    end)
+    Event:Listen("bruh", function()
+        print("got it")
+    end)
 end
 
 function OnUpdate(ts)
@@ -17,6 +25,7 @@ function OnUpdate(ts)
         Native.PrintTest()
     end
     if Input.IsKeyPressed(Key.Down) then
+        
         move = move + Math.Vec3(0.0, 0.0, 1.0)
     end
     if Input.IsKeyPressed(Key.Left) then

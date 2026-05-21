@@ -1,12 +1,10 @@
 function OnStart()
-    self:Expose("SayHello", function()
-        print("Hello from Script B!")
-    end)
+   
 end
 
 function OnUpdate(ts)
-    if Input.IsKeyPressed(Key.E) then
-        event:Fire("hello")
+    if Input.IsKeyPressed(Key.K) then
+        Event:Fire("bruh")
     end
 end
 

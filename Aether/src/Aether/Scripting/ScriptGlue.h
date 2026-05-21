@@ -8,6 +8,7 @@
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Core/JobSystem.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -472,7 +473,7 @@ namespace Aether {
                 ), 
                 AE_REFLECT("ExecOrder",
                     AE_MAKE_LAMBDA((), (const Type& self), int,
-                        ScriptEngine::MarkExecOrderChanged(); return self.slot->exec_order;
+                        ScriptEngine::GetInstance().IsExecChanged = true; return self.slot->exec_order;
                     ),
                     AE_MAKE_LAMBDA((), (Type& self, int val), void,
                         self.slot->exec_order = val;
@@ -582,6 +583,56 @@ namespace Aether {
                 AE_REFLECT("Unlisten",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), void,
                         ctx.event_manager->RemoveListener(ctx.handle, name);
+                    )
+                )
+            );
+        }
+    };
+
+    struct AsyncContext
+    {
+        Handle<ScriptInstance> handle;
+    };
+
+    struct AsyncBinding 
+    {
+        using Type = AsyncContext;
+        static constexpr const char* get_name() { return "AsyncContext"; }
+        static constexpr auto get_methods() {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Start",
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), Handle<Coroutine>,
+                        return ScriptEngine::StartCoroutineAPI(ctx.handle, func);
+                    )
+                ),
+
+                AE_REFLECT("Kill",
+                    AE_MAKE_LAMBDA((), (Type& ctx, Handle<Coroutine> co), void,
+                        ScriptEngine::KillCoroutineAPI(co);
+                    )
+                ),
+
+                AE_REFLECT("Wait",
+                    AE_MAKE_LAMBDA((), (sol::this_state s, float seconds), int,
+                        lua_State* L = s.lua_state();
+                        lua_pushinteger(L, (int)WaitType::Time);
+                        return lua_yield(L, 2);
+                    )
+                ),
+
+                AE_REFLECT("WaitFrame",
+                    AE_MAKE_LAMBDA((), (sol::this_state s, int frames), int,
+                        lua_State* L = s.lua_state();
+                        lua_pushinteger(L, (int)WaitType::Frame);
+                        return lua_yield(L, 2);
+                    )
+                ),
+
+                AE_REFLECT("WaitEvent",
+                    AE_MAKE_LAMBDA((), (sol::this_state s, std::string event_name), int,
+                        lua_State* L = s.lua_state();
+                        lua_pushinteger(L, (int)WaitType::Event);
+                        return lua_yield(L, 2);
                     )
                 )
             );
