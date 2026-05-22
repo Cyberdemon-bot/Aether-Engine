@@ -60,7 +60,7 @@ void MainGameLayer::Attach()
     mainPass.UsingShadowmap = true;
     m_Pipeline.push_back(mainPass);
 
-    Aether::Renderer::SetPipeline(m_Pipeline);
+    Aether::Renderer::SetPipeline(m_Pipeline.data(), m_Pipeline.size());
     m_Scene.Init();
 
     // =========================================================================

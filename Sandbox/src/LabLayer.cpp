@@ -72,7 +72,7 @@ void LabLayer::Attach()
     };
 
     m_Pipeline = { mainPass, volPass };
-    Aether::Renderer::SetPipeline(m_Pipeline);
+    Aether::Renderer::SetPipeline(m_Pipeline.data(), m_Pipeline.size());
 
     // --- SKYBOX ---
     Aether::Renderer::SetSkyBox("assets/textures/skybox.png");

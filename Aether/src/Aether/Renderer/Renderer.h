@@ -113,7 +113,7 @@ namespace Aether {
 
 		static void OnWindowResize(uint32_t width, uint32_t height);
 
-		static void SetPipeline(const std::vector<RenderPass>& list);
+		static void SetPipeline(RenderPass* list, size_t size);
 		static void SetLutMap(const std::string& filepath);
 		static void SetSkyBox(const std::string& filepath);
 
@@ -121,10 +121,10 @@ namespace Aether {
 		static void DeactivatePass(uint32_t PassIdx);
 		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 
-		static void BeginScene(const Camera& camera, const std::vector<LightParam>& lights = {});
+		static void BeginScene(const Camera& camera, LightParam* lights = nullptr, size_t size = 0);
 		static void EndScene();
 
-		static void DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<Pose> pose, const glm::mat4& transform);
+		static void DrawMesh(Mesh* mesh, Material** materials, size_t size, Handle<Pose> pose, const glm::mat4& transform);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);

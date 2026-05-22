@@ -7,12 +7,11 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <functional>
 #include <mutex>
 #include "imgui.h"
 
 namespace Aether {
-    using CommandCallback = std::function<void(const std::vector<std::string>&)>;
+    using CommandCallback = Delegate<void(const std::vector<std::string>&)>;
 
     enum class LogLevel
     {
