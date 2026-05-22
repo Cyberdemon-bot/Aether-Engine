@@ -284,7 +284,11 @@ namespace Aether {
             task.Type = (WaitType)result[rc - 1].get<int>();
             if (task.Type == WaitType::Time) task.Timer = result[0].get<float>();
             else if (task.Type == WaitType::Frame) task.Frames = result[0].get<int>();
-            else if (task.Type == WaitType::Event) task.AwaitEvent = result[0].get<std::string>();
+            else if (task.Type == WaitType::Event)
+            {
+                task.AwaitEvent = result[0].get<std::string>();
+                task.Timer = rc == 3 ? result[1].get<float>() : -1.0f;
+            }
             auto handle = instance.m_Coroutines.SaveResource(task);
             auto stored = instance.m_Coroutines.GetResource(handle);
             if (stored) 
@@ -310,11 +314,12 @@ namespace Aether {
                     if (it != instance.m_NativeFuncs.end())
                     {
                         auto nativeFunc = it->native;
-                        JobSystem::SubmitJob([stored, args, nativeFunc]() mutable
+                        Handle<Coroutine> selfHandle = stored->Self;
+                        JobSystem::SubmitJob([selfHandle, args, nativeFunc]() mutable
                         {
                             ScriptValue ret = nativeFunc(args);
                             auto& eng = ScriptEngine::GetInstance();
-                            auto task = eng.m_Coroutines.GetResource(stored->Self);
+                            auto task = eng.m_Coroutines.GetResource(selfHandle);
                             if (task)
                             {
                                 task->JobResult = ret;
@@ -365,6 +370,11 @@ namespace Aether {
                 case WaitType::Job:
                 case WaitType::Event:
                     if (task.DoneFlag.load(std::memory_order_acquire)) shouldResume = true;
+                    else if (task.Timer >= 0.0f)
+                    {
+                        task.Timer -= (float)ts;
+                        if (task.Timer <= 0.0f) shouldResume = true;
+                    }
                     break;
                 default: shouldResume = true; break;
             }
@@ -387,15 +397,17 @@ namespace Aether {
                     KillCoroutineAPI(task.Self);
                     return;
                 }
+                int rc = result.return_count();
 
                 if (task.Co.runnable()) 
                 {
-                    task.Type = (WaitType)result[result.return_count() - 1].get<int>();
+                    task.Type = (WaitType)result[rc - 1].get<int>();
                     if (task.Type == WaitType::Time) task.Timer = result[0].get<float>();
                     else if (task.Type == WaitType::Frame) task.Frames = result[0].get<int>();
                     else if (task.Type == WaitType::Event) 
                     {
                         task.AwaitEvent = result[0].get<std::string>();
+                        task.Timer = rc == 3 ? result[1].get<float>() : -1.0f;
                         task.EventCbHandle = instance.m_EventManager->AddNativeListener(task.AwaitEvent, [&task](const ScriptArgs&) 
                         {
                             MarkCoroutineDone(task.Self);
@@ -403,7 +415,6 @@ namespace Aether {
                     }
                     else if (task.Type == WaitType::Job)
                     {
-                        int rc = result.return_count();
                         std::string funcName = result[0].get<std::string>();
                         ScriptArgs args;
                         for (int i = 1; i < rc - 1; i++)
