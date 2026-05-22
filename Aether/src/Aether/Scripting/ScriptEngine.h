@@ -183,6 +183,13 @@ namespace Aether {
             instance.m_EventManager->FireEvent(event_name, sol_args);
         }
 
+        template<typename... Args>
+        static ScriptValue CallMethod(Handle<ScriptInstance> handle, const std::string func_name, Args&&... args)
+        {
+            auto& obj = CallDirectInstanceAPI(handle, func_name, std::forward<Args>(args)...);
+            return FromSolObject(obj);
+        }
+
         static Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
         static void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name);
         static void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func);
