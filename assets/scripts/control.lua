@@ -6,7 +6,7 @@ function OnStart()
     _speed = 5.0
     Async:Start(function()
         --Async.WaitEvent("bruh")
-        Async.WaitJob("", 10)
+        Async.WaitJob("PrintTest", 10)
         print("waited")
     end)
     Event:Listen("bruh", function()

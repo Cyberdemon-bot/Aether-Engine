@@ -142,7 +142,7 @@ namespace Aether {
         env["Physics"] = physicsCtx;
         env["Async"] = asyncCtx;
 
-        slot->env_hanle = env_handle;
+        slot->env_handle = env_handle;
         slot->ctx = scene;
         slot->code_handle = bh;
         instance.IsExecChanged = true;
@@ -196,9 +196,9 @@ namespace Aether {
         for (auto& handle : instance.m_DestroyQueue)
         {
             auto slot = instance.m_Instances.GetResource(handle);
-            if (slot == nullptr) return;
+            if (slot == nullptr) continue;
 
-            instance.LuaState.RemoveEnvironment(slot->env_hanle);
+            instance.LuaState.RemoveEnvironment(slot->env_handle);
             instance.m_Instances.DestroyResource(handle);
             instance.m_EventManager->RemoveListener(handle);
             instance.IsExecChanged = true;
@@ -267,15 +267,6 @@ namespace Aether {
         sol::thread runner = sol::thread::create(instance.LuaState.lua.lua_state());
         sol::coroutine co = sol::coroutine(runner.state(), func);
         auto result = co();
-        lua_State* T = runner.state();
-        int top = lua_gettop(T);
-        AE_CORE_INFO("[Coroutine] raw stack size after resume: {0}", top);
-        for (int i = 1; i <= top; i++)
-        {
-            int t = lua_type(T, i);
-            AE_CORE_INFO("[Coroutine] stack[{0}] type={1} | tointeger={2} | tonumber={3}", 
-                i, lua_typename(T, t), lua_tointeger(T, i), lua_tonumber(T, i));
-        }
         if (!result.valid()) 
         {
             sol::error err = result;
@@ -285,11 +276,12 @@ namespace Aether {
 
         if (co.runnable()) 
         {
+            int rc = result.return_count();
             CoroutineTask task;
             task.Owner = owner;
             task.Runner = std::move(runner);
             task.Co = co;
-            task.Type = (WaitType)result[result.return_count() - 1].get<int>();
+            task.Type = (WaitType)result[rc - 1].get<int>();
             if (task.Type == WaitType::Time) task.Timer = result[0].get<float>();
             else if (task.Type == WaitType::Frame) task.Frames = result[0].get<int>();
             else if (task.Type == WaitType::Event) task.AwaitEvent = result[0].get<std::string>();
@@ -304,6 +296,32 @@ namespace Aether {
                         stored->AwaitEvent, 
                         [stored](const ScriptArgs&) { MarkCoroutineDone(stored->Self); }
                     );
+                }
+                if (stored->Type == WaitType::Job)
+                {
+                    std::string funcName = result[0].get<std::string>();
+                    ScriptArgs args;
+                    for (int i = 1; i < rc - 1; i++)
+                        args.Pushback(FromSolObject(result[i]));
+
+                    auto it = std::find_if(instance.m_NativeFuncs.begin(), instance.m_NativeFuncs.end(),
+                        [&funcName](const NativeFunc& f) { return f.name == funcName; });
+
+                    if (it != instance.m_NativeFuncs.end())
+                    {
+                        auto nativeFunc = it->native;
+                        JobSystem::SubmitJob([stored, args, nativeFunc]() mutable
+                        {
+                            ScriptValue ret = nativeFunc(args);
+                            auto& eng = ScriptEngine::GetInstance();
+                            auto task = eng.m_Coroutines.GetResource(stored->Self);
+                            if (task)
+                            {
+                                task->JobResult = ret;
+                                MarkCoroutineDone(task->Self);
+                            }
+                        });
+                    }
                 }
             }
             return handle;
@@ -360,7 +378,8 @@ namespace Aether {
                 }
 
                 task.DoneFlag.store(false);
-                auto result = task.Co(); 
+                sol::protected_function_result result = task.JobResult.type != ScriptValue::Type::Nil ? task.Co(task.JobResult) : task.Co();
+                task.JobResult = ScriptValue{};
                 if (!result.valid()) 
                 {
                     sol::error err = result;
@@ -371,7 +390,7 @@ namespace Aether {
 
                 if (task.Co.runnable()) 
                 {
-                    task.Type = (WaitType)result[1].get<int>();
+                    task.Type = (WaitType)result[result.return_count() - 1].get<int>();
                     if (task.Type == WaitType::Time) task.Timer = result[0].get<float>();
                     else if (task.Type == WaitType::Frame) task.Frames = result[0].get<int>();
                     else if (task.Type == WaitType::Event) 
@@ -381,6 +400,34 @@ namespace Aether {
                         {
                             MarkCoroutineDone(task.Self);
                         });
+                    }
+                    else if (task.Type == WaitType::Job)
+                    {
+                        int rc = result.return_count();
+                        std::string funcName = result[0].get<std::string>();
+                        ScriptArgs args;
+                        for (int i = 1; i < rc - 1; i++)
+                            args.Pushback(FromSolObject(result[i]));
+
+                        auto it = std::find_if(instance.m_NativeFuncs.begin(), instance.m_NativeFuncs.end(),
+                            [&funcName](const NativeFunc& f) { return f.name == funcName; });
+
+                        if (it != instance.m_NativeFuncs.end())
+                        {
+                            auto nativeFunc = it->native;
+                            Handle<Coroutine> selfHandle = task.Self;
+                            JobSystem::SubmitJob([selfHandle, args, nativeFunc]() mutable
+                            {
+                                ScriptValue ret = nativeFunc(args);
+                                auto& eng = ScriptEngine::GetInstance();
+                                auto t = eng.m_Coroutines.GetResource(selfHandle);
+                                if (t)
+                                {
+                                    t->JobResult = ret;
+                                    MarkCoroutineDone(t->Self);
+                                }
+                            });
+                        }
                     }
                 }
                 else KillCoroutineAPI(task.Self);
