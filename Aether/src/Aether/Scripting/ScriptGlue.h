@@ -633,6 +633,11 @@ namespace Aether {
                         lua_State* L = s.lua_state();
                         lua_pushinteger(L, (int)WaitType::Event);
                         return lua_yield(L, 2);
+                    ),
+                    AE_MAKE_LAMBDA((), (sol::this_state s, std::string event_name, float timeout), int,
+                        lua_State* L = s.lua_state();
+                        lua_pushinteger(L, (int)WaitType::Event);
+                        return lua_yield(L, 3);
                     )
                 ),
                 AE_REFLECT("WaitJob",

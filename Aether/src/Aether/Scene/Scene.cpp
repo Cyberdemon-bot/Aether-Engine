@@ -1046,8 +1046,8 @@ namespace Aether {
                 ResolveBoneAttachments();
 
                 // render
-                if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights); 
-                else Renderer::BeginScene(mainCamera->Camera, m_SceneLights); 
+                if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights.data(), m_SceneLights.size()); 
+                else Renderer::BeginScene(mainCamera->Camera, m_SceneLights.data(), m_SceneLights.size()); 
 
                 for (auto entity : meshView)
                 {
@@ -1058,7 +1058,7 @@ namespace Aether {
                     Handle<Pose> pose = Handle<Pose>::MakeInvalid();
                     if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
-                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr, pose, transform.WorldTransform);
+                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr.data(), meshcmp.Materials.CachedPtr.size(), pose, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();

@@ -125,9 +125,9 @@ namespace Aether {
 		s_RenderData.reset();
 	}
 
-	void Renderer::SetPipeline(const std::vector<RenderPass>& list)
+	void Renderer::SetPipeline(RenderPass* list, size_t size)
 	{
-		s_RenderData->s_PassList = list;
+		s_RenderData->s_PassList.assign(list, list + size);
 	}
 
 	void Renderer::SetLutMap(const std::string& filepath)
@@ -163,7 +163,7 @@ namespace Aether {
 		return fbo ? fbo->GetDepthAttachment() : nullptr;
 	}
 
-	void Renderer::BeginScene(const Camera& camera, const std::vector<LightParam>& lights)
+	void Renderer::BeginScene(const Camera& camera, LightParam* lights, size_t size)
 	{
 		s_SceneData->camera.Position       = camera.GetPosition();
 		s_SceneData->camera.View           = camera.GetView();
@@ -175,10 +175,10 @@ namespace Aether {
 		for (uint32_t i = 0; i < MaxShadowCaster; i++)
 			s_RenderData->s_ShadowPipeline[i].IsActive = false;
 
-		s_SceneData->lights.lightCount = (int)std::min(lights.size(), (size_t)MAX_LIGHTS);
+		s_SceneData->lights.lightCount = (int)std::min(size, (size_t)MAX_LIGHTS);
 		s_SceneData->CandList.clear();
 
-		for (int i = 0; i < lights.size(); i++)
+		for (int i = 0; i < size; i++)
 		{
 			const LightParam& light = lights[i];
 			float score = 0.0f;
@@ -333,7 +333,7 @@ namespace Aether {
 			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray()));
 	}
 
-	void Renderer::DrawMesh(Mesh* mesh, const std::vector<Material*> materials, Handle<Pose> pose, const glm::mat4& transform)
+	void Renderer::DrawMesh(Mesh* mesh, Material** materials, size_t size, Handle<Pose> pose, const glm::mat4& transform)
 	{
 		if (!mesh) return;
 		const auto& submeshes = mesh->GetSubMeshes();
@@ -341,7 +341,7 @@ namespace Aether {
 
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{
-			if (submeshes[i].MaterialIdx >= materials.size()) continue;
+			if (submeshes[i].MaterialIdx >= size) continue;
 			Command command;
 			command.mesh = mesh;
 			command.material = materials[submeshes[i].MaterialIdx];
