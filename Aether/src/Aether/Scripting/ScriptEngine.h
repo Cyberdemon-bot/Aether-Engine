@@ -28,7 +28,7 @@ namespace Aether {
     template <typename T> struct HasGetFuncs<T, std::void_t<decltype(T::get_funcs())>> : std::true_type {};
 
     struct ScriptInstance;
-    struct Enviroment;
+    struct Environment;
     struct Bytecode;
     struct Coroutine;
     enum class CollisionType;
@@ -51,6 +51,7 @@ namespace Aether {
         std::atomic<bool> DoneFlag{false}; 
         Handle<ScriptCallback> EventCbHandle; 
         std::string AwaitEvent;
+        ScriptValue JobResult;
 
         CoroutineTask() = default;
         CoroutineTask(const CoroutineTask&) = delete;
@@ -65,7 +66,8 @@ namespace Aether {
             Timer(other.Timer),
             Frames(other.Frames),
             EventCbHandle(other.EventCbHandle),
-            AwaitEvent(std::move(other.AwaitEvent))
+            AwaitEvent(std::move(other.AwaitEvent)),
+            JobResult(std::move(other.JobResult))
         {
             DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
@@ -82,6 +84,7 @@ namespace Aether {
                 Self = other.Self;
                 Runner = std::move(other.Runner);
                 Co = std::move(other.Co);
+                JobResult = std::move(other.JobResult);
                 Type = other.Type;
                 Timer = other.Timer;
                 Frames = other.Frames;
@@ -105,7 +108,7 @@ namespace Aether {
     struct InstanceSlot
     {
         int generation = 0;
-        Handle<Enviroment> env_hanle = Handle<Enviroment>::MakeInvalid();
+        Handle<Environment> env_handle = Handle<Environment>::MakeInvalid();
         Handle<Bytecode> code_handle = Handle<Bytecode>::MakeInvalid();
         bool has_error = false;
         bool is_active = true;
@@ -119,14 +122,14 @@ namespace Aether {
         sol::state lua;
         size_t env_count = 0;
         
-        Handle<Enviroment> CreateEnvironment() 
+        Handle<Environment> CreateEnvironment() 
         {
-            Handle<Enviroment> handle = env_pool.CreateResource(lua, sol::create, lua.globals());
+            Handle<Environment> handle = env_pool.CreateResource(lua, sol::create, lua.globals());
             env_count++;
             return handle;
         }
         
-        void RemoveEnvironment(Handle<Enviroment> handle) 
+        void RemoveEnvironment(Handle<Environment> handle) 
         {
             if (env_count > 0) env_count--;
             auto env = env_pool.GetResource(handle);
@@ -135,7 +138,7 @@ namespace Aether {
             env_pool.DestroyResource(handle);
         }
 
-        ResourcePool<Handle<Enviroment>, sol::environment> env_pool;
+        ResourcePool<Handle<Environment>, sol::environment> env_pool;
     };
 
     struct CollisionData
@@ -204,7 +207,6 @@ namespace Aether {
         ResourcePool<Handle<Coroutine>, CoroutineTask> m_Coroutines;
         std::vector<Handle<ScriptInstance>> m_DestroyQueue;
         std::vector<NativeFunc> m_NativeFuncs;
-        std::mutex m_PendingMutex;
         bool IsExecChanged = false;
 
         static void FlushEvent();
@@ -345,7 +347,7 @@ namespace Aether {
             auto& instance = GetInstance();
             auto slot = instance.m_Instances.GetResource(handle);
             if (slot == nullptr || slot->has_error) return sol::lua_nil;
-            auto env = instance.LuaState.env_pool.GetResource(slot->env_hanle);
+            auto env = instance.LuaState.env_pool.GetResource(slot->env_handle);
             if (env == nullptr) return sol::lua_nil;
 
             sol::protected_function func = (*env)[name]; if (!func.valid()) return sol::lua_nil;
@@ -360,7 +362,7 @@ namespace Aether {
         }
 
         friend struct ScriptSelfBinding;
-        friend class AsyncBinding;
+        friend struct AsyncBinding;
         friend class Scene;
     };
 } 
