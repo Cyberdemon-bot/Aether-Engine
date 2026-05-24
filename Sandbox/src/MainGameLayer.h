@@ -36,16 +36,10 @@ private:
     // --- Core ---
     Aether::Scene               m_Scene;
     Aether::EditorCamera        m_Camera;
-    Aether::Ref<Aether::Shader> m_ShadowShader;
     Aether::Ref<Aether::Shader> m_MainShader;
-
-    static constexpr int k_MaxShadowCasters = 4;
-    Aether::Ref<Aether::FrameBuffer> m_ShadowFbo[k_MaxShadowCasters];
 
     Aether::Ref<Aether::FrameBuffer> m_MainFbo;
     std::vector<Aether::RenderPass>  m_Pipeline;
-
-    int m_ShadowLightIndices[k_MaxShadowCasters] = { -1, -1, -1, -1 };
     int m_ActiveShadowCount = 0;
 
     Aether::Entity m_SunLight = Aether::Null_Entity;

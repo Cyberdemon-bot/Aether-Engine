@@ -43,7 +43,6 @@ void MainGameLayer::Attach()
     m_MainShader = Aether::Shader::Create("Assets/shaders/Standard.shader");
     m_MainShader->Bind();
     m_MainShader->SetUBOSlot("Camera", 0);
-    //m_MainShader->SetUBOSlot("Bones",  1);
     m_MainShader->SetUBOSlot("Lights", 2);
     m_MainFbo = Aether::FrameBuffer::Create(sceneFbSpec);
 
@@ -176,7 +175,6 @@ void MainGameLayer::Attach()
 void MainGameLayer::Detach()
 {
     m_ActiveZombies.clear();
-    m_ShadowShader.reset();
     m_MainShader.reset();
     m_ActiveChunks.clear();
     m_Scene.Shutdown();
