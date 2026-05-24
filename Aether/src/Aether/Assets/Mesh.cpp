@@ -6,10 +6,10 @@ namespace Aether {
 
     Mesh::Mesh(const MeshSpec& spec)
         : m_SubMeshes(spec.Submeshes)
-        , m_VertexCount(spec.Streams[0].VertexCount)
+        , m_VertexCount(spec.StreamData[0].VertexCount)
         , m_IndexCount(spec.IndexCount)
     {
-        AE_CORE_ASSERT(!spec.Streams.empty(), "Mesh require at least 1 vbo in streams!");
+        AE_CORE_ASSERT(spec.StreamData, "Mesh require at least 1 vbo in streams!");
         AE_CORE_ASSERT(spec.IndexData, "Index data cannot be null!");
 
         m_VertexArray = ResourceManager::CreateResource<VertexArray>();
@@ -18,10 +18,11 @@ namespace Aether {
         m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>((uint32_t*)spec.IndexData, spec.IndexCount);
         vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(m_IndexBuffer));
 
-        m_VertexCount = spec.Streams[0].VertexCount;
+        m_VertexCount = spec.StreamData[0].VertexCount;
 
-        for (const auto& vbuffer : spec.Streams)
+        for (int i = 0; i < spec.StreamCount; i++)
         {
+            const auto& vbuffer = spec.StreamData[i];
             AE_CORE_ASSERT(vbuffer.VertexCount == m_VertexCount, "vbuffer's size mismatch in stream!");
 
             uint32_t stride   = vbuffer.Layout.GetStride();
@@ -34,7 +35,6 @@ namespace Aether {
             m_VertexBuffers.push_back(vboHandle);
         }
 
-        // Create default submesh if none provided
         if (m_SubMeshes.empty())
         {
             SubMesh defaultSubMesh;
@@ -45,14 +45,13 @@ namespace Aether {
             m_SubMeshes.push_back(defaultSubMesh);
         }
 
-        // Calculate bounds from first vertex stream
-        CalculateBounds(spec.Streams[0].Data, m_VertexCount, spec.Streams[0].Layout);
-        if (!spec.RigPoseMats.empty())
+        CalculateBounds(spec.StreamData[0].Data, m_VertexCount, spec.StreamData[0].Layout);
+        if (!spec.RigPoseMats.empty() && spec.StreamCount >= 6)
         {
             m_HasAnimatedBounds = true;
-            CalculateAnimatedBounds(spec.Streams[0].Data, spec.Streams[0].Layout, 
-                                    spec.Streams[4].Data, spec.Streams[4].Layout, 
-                                    spec.Streams[5].Data, spec.Streams[5].Layout, 
+            CalculateAnimatedBounds(spec.StreamData[0].Data, spec.StreamData[0].Layout, 
+                                    spec.StreamData[4].Data, spec.StreamData[4].Layout, 
+                                    spec.StreamData[5].Data, spec.StreamData[5].Layout, 
                                     m_VertexCount, spec.RigPoseMats);
         }
     }
@@ -74,7 +73,6 @@ namespace Aether {
         m_BoundsMin = glm::vec3( FLT_MAX);
         m_BoundsMax = glm::vec3(-FLT_MAX);
 
-        // Assumes position is the first 3 floats in each vertex
         for (uint32_t i = 0; i < vertexCount; i++)
         {
             glm::vec3 pos(verts[i * stride], verts[i * stride + 1], verts[i * stride + 2]);

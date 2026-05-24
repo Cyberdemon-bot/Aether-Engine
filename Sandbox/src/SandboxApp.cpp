@@ -6,8 +6,8 @@
 class Sandbox : public Aether::Application {
 public:
     Sandbox() { 
-        PushLayer(new LabLayer());
-        //PushLayer(new MainGameLayer());
+        //PushLayer(new LabLayer());
+        PushLayer(new MainGameLayer());
         //PushLayer(new TestLayer());
     }
     ~Sandbox() {}

@@ -160,8 +160,7 @@ namespace Aether {
             }
             
             // Create mesh spec
-            MeshSpec spec;
-            spec.Streams = {
+            std::vector<VertexStream> temp = {
                 {meshInfo.Positions.data(), meshInfo.totalVertices, {{"a_Position", ShaderDataType::Float3}}},
                 {meshInfo.Normals.data(), meshInfo.totalVertices, {{"a_Normal", ShaderDataType::Float3}}},
                 {meshInfo.Tangents.data(), meshInfo.totalVertices, {{"a_Tangent", ShaderDataType::Float4}}},
@@ -169,6 +168,9 @@ namespace Aether {
                 {meshInfo.Joints.data(), meshInfo.totalVertices, {{"a_Joints", ShaderDataType::Uint4}}},
                 {meshInfo.Weights.data(), meshInfo.totalVertices, {{"a_Weights", ShaderDataType::Float4}}}
             };
+            MeshSpec spec;
+            spec.StreamData = temp.data();
+            spec.StreamCount = temp.size();
             spec.IndexData = meshInfo.Indices.data();
             spec.IndexCount = meshInfo.totalIndices;
             spec.Submeshes = submeshes;
