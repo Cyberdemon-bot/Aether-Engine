@@ -106,7 +106,8 @@ void LabLayer::Attach()
         AE_WARN("Tested successfully {0}", args.GetElement<int>(0));
     });
 
-    Aether::ScriptEngine::ImportNativeFunc("PrintTest", [](const Aether::ScriptArgs& args) -> Aether::ScriptValue{
+    Aether::ScriptEngine::ImportNativeFunc("PrintTest", [](const Aether::ScriptArgs& args) -> Aether::ScriptValue
+    {
         AE_WARN("printTested successfully with value {0}", args.GetElement<int>(0));
         return Aether::ScriptValue{};
     });

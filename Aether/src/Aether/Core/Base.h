@@ -59,6 +59,7 @@
 #define AE_EXPAND_MACRO(x) x
 #define AE_STRINGIFY_MACRO(x) #x
 #define BIT(x) (1 << x)
+#define UBIT(x) (1u << x)
 #define AE_BIND_EVENT_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 #define AE_BIND_CONSOLE_FN(fn) [this](const std::vector<std::string>& args) -> void { return this->fn(args); }
 
@@ -164,6 +165,17 @@ namespace Aether {
 		void(*m_Destroy)(void*) = nullptr;
 		void*(*m_Copy)(void*) = nullptr;
 	};
+
+	inline uint32_t LowestBit(uint32_t mask)
+	{
+	#if defined(_MSC_VER)
+		unsigned long idx;
+		_BitScanForward(&idx, mask);
+		return (uint32_t)idx;
+	#else
+		return (uint32_t)__builtin_ctz(mask);
+	#endif
+	}
 }
 
 #define AE_UNWRAP(...) __VA_ARGS__
@@ -189,4 +201,8 @@ constexpr std::string_view GetTypeName() {
 
 #define MAGIC_ENUM_RANGE_MIN 0
 #define MAGIC_ENUM_RANGE_MAX 512
+
+#define MAX_LIGHTS 16
+#define MAX_RENDER_PASSES 32
+#define MAX_SHADOW_CASTER 4
 }

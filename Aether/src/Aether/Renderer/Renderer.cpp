@@ -77,12 +77,11 @@ namespace Aether {
 		shadowFbSpec.Height      = 2048;
 		shadowFbSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
 
-		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			s_RenderData->s_ShadowFBO[i] = ResourceManager::CreateResource<FrameBuffer>(shadowFbSpec);
 
-		s_RenderData->s_ShadowPipeline.reserve(MaxShadowCaster);
-		s_SceneData->CandList.reserve(MaxShadowCaster);
-		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+		s_SceneData->CandList.reserve(MAX_SHADOW_CASTER);
+		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 		{
 			RenderPass shadowPass;
 			shadowPass.TargetFBO     = ResourceManager::GetResource<FrameBuffer>(s_RenderData->s_ShadowFBO[i]);
@@ -95,7 +94,7 @@ namespace Aether {
 			shadowPass.CullFace      = Aether::State::FRONT_CULL;
 			shadowPass.attribList    = { {"u_LightIndex", (int)i} };
 			shadowPass.IsActive      = false; 
-			s_RenderData->s_ShadowPipeline.push_back(shadowPass);
+			s_RenderData->s_ShadowPipeline[i] = shadowPass;
 		}
 
 		s_RenderData->s_Screen  = new Mesh(MeshSpec{{VertexStream{quadVertices,    4, MeshLayout::Quad()}},   quadIndices,    6});
@@ -116,7 +115,7 @@ namespace Aether {
 		if (rd.s_LutMap.IsValid()) ResourceManager::Unload(rd.s_LutMap);
 		if (rd.s_Skybox.IsValid()) ResourceManager::Unload(rd.s_Skybox);
 
-		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			if (rd.s_ShadowFBO[i].IsValid()) ResourceManager::Unload(rd.s_ShadowFBO[i]);
 
 		delete rd.s_Screen;
@@ -127,7 +126,9 @@ namespace Aether {
 
 	void Renderer::SetPipeline(RenderPass* list, size_t size)
 	{
-		s_RenderData->s_PassList.assign(list, list + size);
+		s_RenderData->s_PassCount = std::min((uint32_t)size, (uint32_t)MAX_RENDER_PASSES);
+		for (uint32_t i = 0; i < s_RenderData->s_PassCount; i++)
+			s_RenderData->s_PassList[i] = list[i];
 	}
 
 	void Renderer::SetLutMap(const std::string& filepath)
@@ -146,19 +147,19 @@ namespace Aether {
 
 	void Renderer::ActivatePass(uint32_t PassIdx)
 	{
-		if (PassIdx < s_RenderData->s_PassList.size())
+		if (PassIdx < s_RenderData->s_PassCount)
 			s_RenderData->s_PassList[PassIdx].IsActive = true;
 	}
 
 	void Renderer::DeactivatePass(uint32_t PassIdx)
 	{
-		if (PassIdx < s_RenderData->s_PassList.size())
+		if (PassIdx < s_RenderData->s_PassCount)
 			s_RenderData->s_PassList[PassIdx].IsActive = false;
 	}
 
 	Texture2D* Renderer::GetShadowDepthAttachment(uint32_t slot)
 	{
-		if (slot >= MaxShadowCaster) return nullptr;
+		if (slot >= MAX_SHADOW_CASTER) return nullptr;
 		auto* fbo = ResourceManager::GetResource<FrameBuffer>(s_RenderData->s_ShadowFBO[slot]);
 		return fbo ? fbo->GetDepthAttachment() : nullptr;
 	}
@@ -172,7 +173,7 @@ namespace Aether {
 		s_SceneData->lights.shadowMask = 0;
 		uint32_t shadowSlot = 0; 
 
-		for (uint32_t i = 0; i < MaxShadowCaster; i++)
+		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			s_RenderData->s_ShadowPipeline[i].IsActive = false;
 
 		s_SceneData->lights.lightCount = (int)std::min(size, (size_t)MAX_LIGHTS);
@@ -202,7 +203,7 @@ namespace Aether {
 			s_SceneData->lights.lights[i].colorAndIntensity = glm::vec4(light.color,     light.intensity);
 			s_SceneData->lights.lights[i].coneAngles        = glm::vec4(light.innerCone, light.outerCone, light.castShadows ? 1.0f : 0.0f, 0.0f);
 
-			if (light.castShadows && shadowSlot < MaxShadowCaster)
+			if (light.castShadows && shadowSlot < MAX_SHADOW_CASTER)
 			{
 				s_SceneData->lights.shadowMask |= (1u << i);
 
@@ -274,11 +275,12 @@ namespace Aether {
 			offsetStorage->SetData(s_SceneData->OffsetStorage.data(), s_SceneData->OffsetStorage.size() * sizeof(glm::vec4));
 		}
 
-		for (auto& pass : s_RenderData->s_ShadowPipeline)
-			if (pass.IsActive) Flush(pass);
+		for (int i = 0; i < s_SceneData->lights.lightCount; i++) 
+			Flush(s_RenderData->s_ShadowPipeline[i]);
 
-		for (auto& pass : s_RenderData->s_PassList)
+		for (int i = 0; i < s_RenderData->s_PassCount; i++)
 		{
+			auto& pass = s_RenderData->s_PassList[i];
 			if (pass.IsActive)
 			{
 				Flush(pass);
@@ -407,7 +409,7 @@ namespace Aether {
 
 		if (pass.UsingShadowmap)
 		{
-			for (size_t i = 0; i < MaxShadowCaster; i++)
+			for (size_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			{
 				GetShadowDepthAttachment(i)->Bind(startSlot);
 				shader->SetInt("u_Shadowmap" + std::to_string(i), startSlot);

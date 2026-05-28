@@ -11,7 +11,6 @@
 #include "Aether/Renderer/RenderCommand.h"
 #include <glm/glm.hpp>
 #include <tuple>
-#define MAX_LIGHTS 16
 
 namespace Aether {
 
@@ -68,7 +67,7 @@ namespace Aether {
 		bool operator<(const Command& other) const
 		{
 			if (material != other.material) return material < other.material;
-			if (mesh     != other.mesh) return mesh < other.mesh;
+			if (mesh != other.mesh) return mesh < other.mesh;
 			return subIdx < other.subIdx;
 		}
 
@@ -120,7 +119,7 @@ namespace Aether {
 		static void ActivatePass(uint32_t PassIdx);
 		static void DeactivatePass(uint32_t PassIdx);
 		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
-
+		
 		static void BeginScene(const Camera& camera, LightParam* lights = nullptr, size_t size = 0);
 		static void EndScene();
 
@@ -139,8 +138,6 @@ namespace Aether {
 		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
 		static Texture2D* GetShadowDepthAttachment(uint32_t slot);
 
-		static const uint32_t MaxShadowCaster = 4;
-
 		struct InstanceData
 		{
 			glm::mat4 transform;
@@ -151,7 +148,7 @@ namespace Aether {
 		{
 			CameraData camera;
 			LightsData lights;
-			std::vector<Command>   CommandList;
+			std::vector<Command> CommandList;
 			std::vector<InstanceData> batchInstance;
 			std::vector<LightCandidate> CandList;
 			std::vector<glm::mat4> BoneStorage;
@@ -171,14 +168,15 @@ namespace Aether {
 			Handle<Resource> lineShader;
 			Handle<Resource> s_LutMap;
 			Handle<Resource> s_Skybox;
-			Handle<Resource> s_ShadowFBO[MaxShadowCaster]; 
+			Handle<Resource> s_ShadowFBO[MAX_SHADOW_CASTER]; 
 			Handle<Resource> BoneStorage;
 			Handle<Resource> OffsetStorage;
 			Mesh* s_Screen   = nullptr;
 			Mesh* s_SkyMesh  = nullptr;
 
-			std::vector<RenderPass> s_PassList;
-			std::vector<RenderPass> s_ShadowPipeline;   
+			RenderPass s_ShadowPipeline[MAX_SHADOW_CASTER];
+			RenderPass s_PassList[MAX_RENDER_PASSES];
+			uint32_t s_PassCount = 0;
 		};
 
 		static Scope<SceneData>  s_SceneData;
