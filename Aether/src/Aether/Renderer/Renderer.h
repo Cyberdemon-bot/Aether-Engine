@@ -171,7 +171,7 @@ namespace Aether {
 			Handle<Resource> s_ShadowFBO[MAX_SHADOW_CASTER]; 
 			Handle<Resource> BoneStorage;
 			Handle<Resource> OffsetStorage;
-			Mesh* s_Screen   = nullptr;
+			Mesh* s_Quad   = nullptr;
 			Mesh* s_SkyMesh  = nullptr;
 
 			RenderPass s_ShadowPipeline[MAX_SHADOW_CASTER];

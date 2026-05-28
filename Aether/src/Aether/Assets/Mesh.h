@@ -87,7 +87,8 @@ namespace Aether {
 
     struct MeshSpec
     {
-        std::vector<VertexStream> Streams;
+        const VertexStream* StreamData = nullptr;
+        uint32_t StreamCount = 0;
         const uint32_t* IndexData = nullptr;
         uint32_t IndexCount = 0;
         std::vector<SubMesh> Submeshes = {};
@@ -107,12 +108,12 @@ namespace Aether {
         uint32_t GetVertexCount() const { return m_VertexCount; }
         uint32_t GetIndexCount()  const { return m_IndexCount; }
 
-        const glm::vec3& GetBoundsMin()   const { return m_BoundsMin; }
-        const glm::vec3& GetBoundsMax()   const { return m_BoundsMax; }
-        const glm::vec3& GetAnimatedBoundsMin()   const { return m_AnimatedBoundsMin; }
-        const glm::vec3& GetAnimatedBoundsMax()   const { return m_AnimatedBoundsMax; }
-        glm::vec3        GetBoundsCenter()  const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
-        glm::vec3        GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
+        const glm::vec3& GetBoundsMin() const { return m_BoundsMin; }
+        const glm::vec3& GetBoundsMax() const { return m_BoundsMax; }
+        const glm::vec3& GetAnimatedBoundsMin() const { return m_AnimatedBoundsMin; }
+        const glm::vec3& GetAnimatedBoundsMax() const { return m_AnimatedBoundsMax; }
+        glm::vec3 GetBoundsCenter()  const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
+        glm::vec3 GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
         bool HasAnimatedBounds() { return m_HasAnimatedBounds; }
         bool HasInstanceBuffer() { return m_HasInstanceBuffer; }
 

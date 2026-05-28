@@ -46,10 +46,10 @@ namespace Aether {
 	void Renderer::Init()
 	{
 		RenderCommand::Init();
-		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 }, { "a_InstanceRigIdx", ShaderDataType::Int} };
+		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 }, { "a_InstanceRigIdx", ShaderDataType::Int}};
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
 
-		s_RenderData->s_InstanceVBO = ResourceManager::CreateResource<VertexBuffer>(10 * (sizeof(glm::mat4) + sizeof(glm::vec4)));
+		s_RenderData->s_InstanceVBO = ResourceManager::CreateResource<VertexBuffer>(10 * sizeof(InstanceData));
 		ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO)->SetLayout(layout);
 
 		s_RenderData->CameraUB = ResourceManager::CreateResource<UniformBuffer>(sizeof(CameraData));
@@ -73,8 +73,8 @@ namespace Aether {
 		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Lights", 2);
 
 		Aether::FramebufferSpec shadowFbSpec;
-		shadowFbSpec.Width       = 2048;
-		shadowFbSpec.Height      = 2048;
+		shadowFbSpec.Width = 2048;
+		shadowFbSpec.Height = 2048;
 		shadowFbSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
 
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
@@ -84,28 +84,27 @@ namespace Aether {
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 		{
 			RenderPass shadowPass;
-			shadowPass.TargetFBO     = ResourceManager::GetResource<FrameBuffer>(s_RenderData->s_ShadowFBO[i]);
-			shadowPass.Shader        = ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader);
-			shadowPass.ClearDepth    = true;
-			shadowPass.ClearColor    = false;
-			shadowPass.OnScreen      = false;
+			shadowPass.TargetFBO = ResourceManager::GetResource<FrameBuffer>(s_RenderData->s_ShadowFBO[i]);
+			shadowPass.Shader = ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader);
+			shadowPass.ClearDepth = true;
+			shadowPass.ClearColor = false;
+			shadowPass.OnScreen = false;
 			shadowPass.UsingMaterial = false;
 			shadowPass.UsingShadowmap = false;
-			shadowPass.CullFace      = Aether::State::FRONT_CULL;
-			shadowPass.attribList    = { {"u_LightIndex", (int)i} };
-			shadowPass.IsActive      = false; 
+			shadowPass.CullFace = Aether::State::FRONT_CULL;
+			shadowPass.attribList = { {"u_LightIndex", (int)i} };
+			shadowPass.IsActive = false; 
 			s_RenderData->s_ShadowPipeline[i] = shadowPass;
 		}
-
-		s_RenderData->s_Screen  = new Mesh(MeshSpec{{VertexStream{quadVertices,    4, MeshLayout::Quad()}},   quadIndices,    6});
-		s_RenderData->s_SkyMesh = new Mesh(MeshSpec{{VertexStream{skyboxVertices,  8, MeshLayout::Vertex()}}, skyboxIndices, 36});
+		VertexStream temp;
+		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new Mesh(MeshSpec{&temp, 1, quadIndices, 6});
+		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new Mesh(MeshSpec{&temp, 1, skyboxIndices, 36});
 	}
 
 	void Renderer::Shutdown()
 	{
 		auto& rd = *s_RenderData;
 		ResourceManager::Unload(rd.CameraUB);
-		//ResourceManager::Unload(rd.BoneUB);
 		ResourceManager::Unload(rd.LightUB);
 		ResourceManager::Unload(rd.s_InstanceVBO);
 		ResourceManager::Unload(rd.s_ScreenShader);
@@ -118,7 +117,7 @@ namespace Aether {
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			if (rd.s_ShadowFBO[i].IsValid()) ResourceManager::Unload(rd.s_ShadowFBO[i]);
 
-		delete rd.s_Screen;
+		delete rd.s_Quad;
 		delete rd.s_SkyMesh;
 		s_SceneData.reset();
 		s_RenderData.reset();
@@ -332,7 +331,7 @@ namespace Aether {
 		else screenShader->SetInt("u_HasLut", 0);
 
 		RenderCommand::DrawIndexed(
-			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray()));
+			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->GetVertexArray()));
 	}
 
 	void Renderer::DrawMesh(Mesh* mesh, Material** materials, size_t size, Handle<Pose> pose, const glm::mat4& transform)
@@ -376,7 +375,7 @@ namespace Aether {
 
 		auto* shader = pass.Shader; shader->Bind();
 		auto* fbo = pass.TargetFBO; fbo->Bind();
-		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Screen->GetVertexArray());
+		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->GetVertexArray());
 		auto* instanceVBO = ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO);
 		auto* boneStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->BoneStorage);
 		auto* offsetStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->OffsetStorage);
