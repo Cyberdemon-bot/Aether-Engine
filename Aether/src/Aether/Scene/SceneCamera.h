@@ -1,10 +1,11 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
 #include "Aether/Renderer/Camera.h"
 
 namespace Aether {
 
-	class SceneCamera : public Camera
+	class AETHER_API SceneCamera : public Camera
 	{
 	public:
 		enum class ProjectionType { Perspective = 0, Orthographic = 1 };

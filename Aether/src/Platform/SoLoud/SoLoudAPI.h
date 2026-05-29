@@ -59,6 +59,7 @@ namespace Aether {
         void UpdateSource(AudioSource& source); 
         static SoLoud::AudioSource::ATTENUATION_MODELS ToSoLoudAttenuation(AudioAttenuation attenuation);
         SoLoud::Soloud soloud;
+        bool m_Initialized = false;
         ResourcePool<Handle<AudioSource>, AudioSource> m_Pool;
     };
 }

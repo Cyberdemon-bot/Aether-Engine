@@ -1,4 +1,6 @@
 #pragma once
+
+#include "Aether/Core/Base.h"
 #include <vector>
 #include <tuple>
 #include <sol/sol.hpp>
@@ -17,7 +19,7 @@ namespace Aether {
         template<typename T> T As() const;
     };
 
-    class ScriptArgs
+    class AETHER_API ScriptArgs
     {
     public:
         std::tuple<const ScriptValue*, uint32_t> GetArgs() const;
@@ -40,10 +42,21 @@ namespace Aether {
 
     typedef std::tuple<const ScriptValue*, size_t> ScriptList;
 
-    template<> bool ScriptValue::As() const;
-    template<> int ScriptValue::As() const;
-    template<> float ScriptValue::As() const;
-    template<> std::string ScriptValue::As() const;
-    template<> glm::vec3 ScriptValue::As() const;
-    template<> ScriptList ScriptValue::As() const;
+    template<>
+    inline bool ScriptValue::As<bool>() const { return b; }
+
+    template<>
+    inline int ScriptValue::As<int>() const { return i; }
+
+    template<>
+    inline float ScriptValue::As<float>() const { return f; }
+
+    template<>
+    inline std::string ScriptValue::As<std::string>() const { return str; }
+
+    template<>
+    inline glm::vec3 ScriptValue::As<glm::vec3>() const { return vec; }
+
+    template<>
+    inline ScriptList ScriptValue::As<ScriptList>() const { return {list.data(), list.size()}; }
 }
