@@ -3,9 +3,12 @@
 #include "LabLayer.h"
 #include "TestLayer.h"
 
-class Sandbox : public Aether::Application {
+class Sandbox : public Aether::Application 
+{
 public:
-    Sandbox() { 
+    Sandbox() 
+    { 
+        SetIcon("assets/textures/wood.png");
         //PushLayer(new LabLayer());
         PushLayer(new MainGameLayer());
         //PushLayer(new TestLayer());

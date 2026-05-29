@@ -13,24 +13,24 @@ namespace Aether {
 		GLFW_Window(const WinProps& props);
 		virtual ~GLFW_Window();
 
-		void Update() override;
+		virtual void Update() override;
 
-		unsigned int GetWidth() const override { return m_Data.Width; }
-		unsigned int GetHeight() const override { return m_Data.Height; }
+		virtual unsigned int GetWidth() const override { return m_Data.Width; }
+		virtual unsigned int GetHeight() const override { return m_Data.Height; }
 
-		unsigned int GetFramebufferWidth() const override { return m_Data.FramebufferWidth; }
-		unsigned int GetFramebufferHeight() const override { return m_Data.FramebufferHeight; }
+		virtual unsigned int GetFramebufferWidth() const override { return m_Data.FramebufferWidth; }
+		virtual unsigned int GetFramebufferHeight() const override { return m_Data.FramebufferHeight; }
 
-		// Window attributes
-		void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
-		void SetVSync(bool enabled) override;
-		bool IsVSync() const override;
+		virtual void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
+		virtual void SetVSync(bool enabled) override;
+		virtual bool IsVSync() const override;
+		virtual void SetIcon(const std::string& path) override;
 
 		virtual void* GetWindow() const override { return m_Window; }
 	private:
 		virtual void Init(const WinProps& props);
 		virtual void Shutdown();
-	private:
+
 		GLFWwindow* m_Window;
 		Scope<GraphicsContext> m_Context;
 

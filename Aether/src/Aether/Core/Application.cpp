@@ -104,4 +104,8 @@ namespace Aether {
         return true;
     }
 
+    void Application::SetIcon(const std::string& path)
+    {
+        m_Window->SetIcon(path);
+    }
 }
