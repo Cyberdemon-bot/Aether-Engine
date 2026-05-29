@@ -23,6 +23,7 @@ namespace Aether {
 
         void PushLayer(Layer* Layer);
         void PushOverlay(Layer* layer);
+        void SetIcon(const std::string& path);
 
         static Application& Get() { return *s_Instance; }
         Window& GetWindow() { return *m_Window; }

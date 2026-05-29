@@ -1,4 +1,5 @@
 #include "aepch.h"
+#include "stb_image.h"
 #include "Platform/GLFW/GLFW_Window.h"
 
 #include "Aether/Core/Input.h"
@@ -169,6 +170,26 @@ namespace Aether {
 	{
 		glfwPollEvents();
 		m_Context->SwapBuffers();
+	}
+
+	void GLFW_Window::SetIcon(const std::string& path)
+	{
+		GLFWimage icon;
+		int width, height, channels;
+
+		unsigned char* pixels = stbi_load(path.data(), &width, &height, &channels, 4);
+		if (!pixels) 
+		{
+			AE_CORE_ERROR("Failed to load icon from {0}", path);
+			return;
+		}
+
+		icon.width = width;
+		icon.height = height;
+		icon.pixels = pixels;
+
+		glfwSetWindowIcon(m_Window, 1, &icon);
+		stbi_image_free(pixels);
 	}
 
 	void GLFW_Window::SetVSync(bool enabled)
