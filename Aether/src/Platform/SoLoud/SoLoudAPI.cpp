@@ -17,12 +17,21 @@ namespace Aether {
 
     void SoLoudAPI::Init()
     {
-        soloud.init();
+        auto res = soloud.init();
+        m_Initialized = (res == SoLoud::SO_NO_ERROR);
+
+        if (!m_Initialized)
+        {
+            AE_CORE_ERROR("SoLoud init failed: {}", soloud.getErrorString(res));
+            return;
+        }
+
         m_Pool.Init();
     }
 
     void SoLoudAPI::Shutdown()
     {
+        if (!m_Initialized) return;
         soloud.stopAll();
         m_Pool.Clear();
         soloud.deinit();
@@ -30,6 +39,7 @@ namespace Aether {
 
     void SoLoudAPI::Update()
     {
+        if (!m_Initialized) return;
         m_Pool.Loop([this](AudioSource& source)
         {
             UpdateSource(source);
@@ -38,6 +48,7 @@ namespace Aether {
 
     void SoLoudAPI::UpdateSource(AudioSource& source)
     {
+        if (!m_Initialized) return;
         int voice = source.voiceHandle;
         bool valid = soloud.isValidVoiceHandle(voice);
         if (!valid) return;
@@ -81,6 +92,7 @@ namespace Aether {
 
     Handle<AudioSource> SoLoudAPI::CreateSource(const std::string& path, AudioType type)
     {
+        if (!m_Initialized) return Handle<AudioSource>::MakeInvalid();
         Handle<AudioSource> handle = m_Pool.CreateResource();
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source)
@@ -103,6 +115,7 @@ namespace Aether {
 
     void SoLoudAPI::DestroySource(Handle<AudioSource> handle)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
 
@@ -114,6 +127,7 @@ namespace Aether {
 
     bool SoLoudAPI::IsActive(Handle<AudioSource> handle)
     {
+        if (!m_Initialized) return false;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return false;
         return soloud.isValidVoiceHandle(source->voiceHandle);
@@ -121,6 +135,7 @@ namespace Aether {
 
     void SoLoudAPI::Play(Handle<AudioSource> handle)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
 
@@ -152,6 +167,7 @@ namespace Aether {
 
     void SoLoudAPI::Pause(Handle<AudioSource> handle)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
 
@@ -162,6 +178,7 @@ namespace Aether {
 
     void SoLoudAPI::Stop(Handle<AudioSource> handle)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
 
@@ -171,6 +188,7 @@ namespace Aether {
 
     void SoLoudAPI::SetVolume(Handle<AudioSource> handle, float value)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
         source->state.volume = value;
@@ -179,6 +197,7 @@ namespace Aether {
 
     void SoLoudAPI::SetPan(Handle<AudioSource> handle, float value)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
         source->state.pan = value;
@@ -187,6 +206,7 @@ namespace Aether {
 
     void SoLoudAPI::SetLooping(Handle<AudioSource> handle, bool value)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
         source->state.looping = value;
@@ -195,6 +215,7 @@ namespace Aether {
 
     void SoLoudAPI::SetPlaybackSpeed(Handle<AudioSource> handle, float value)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
         source->state.playback_speed = value;
@@ -203,6 +224,7 @@ namespace Aether {
 
     void SoLoudAPI::Seek(Handle<AudioSource> handle, float value)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source) return;
         if (soloud.isValidVoiceHandle(source->voiceHandle))
@@ -211,6 +233,7 @@ namespace Aether {
 
     void SoLoudAPI::SetPosition(Handle<AudioSource> handle, const glm::vec3& position)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source || source->type != AudioType::Audio3D) return;
         source->state.position = position;
@@ -219,6 +242,7 @@ namespace Aether {
 
     void SoLoudAPI::SetVelocity(Handle<AudioSource> handle, const glm::vec3& velocity)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source || source->type != AudioType::Audio3D) return;
         source->state.velocity = velocity;
@@ -227,6 +251,7 @@ namespace Aether {
 
     void SoLoudAPI::SetDistance(Handle<AudioSource> handle, float minDist, float maxDist)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source || source->type != AudioType::Audio3D) return;
         source->config.minDistance = minDist;
@@ -237,6 +262,7 @@ namespace Aether {
 
     void SoLoudAPI::SetAttenuation(Handle<AudioSource> handle, AudioAttenuation attenuation)
     {
+        if (!m_Initialized) return;
         AudioSource* source = m_Pool.GetResource(handle);
         if (!source || source->type != AudioType::Audio3D) return;
         source->config.attenuation = attenuation;
@@ -246,6 +272,7 @@ namespace Aether {
 
     void SoLoudAPI::UpdateListener(const AudioListener& listener)
     {
+        if (!m_Initialized) return;
         soloud.set3dListenerPosition(listener.position.x, listener.position.y, listener.position.z);
         soloud.set3dListenerVelocity(listener.velocity.x, listener.velocity.y, listener.velocity.z);
         soloud.set3dListenerAt(listener.forward.x, listener.forward.y, listener.forward.z);

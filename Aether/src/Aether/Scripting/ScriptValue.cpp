@@ -3,13 +3,6 @@
 
 namespace Aether {
 
-    template<> bool ScriptValue::As() const { return b; }
-    template<> int ScriptValue::As() const { return i; }
-    template<> float ScriptValue::As() const { return f; }
-    template<> std::string ScriptValue::As() const { return str; }
-    template<> glm::vec3 ScriptValue::As() const { return vec; }
-    template<> ScriptList ScriptValue::As() const { return {list.data(), list.size()}; }
-    
     ScriptValue FromSolObject(const sol::object& obj)
     {
         ScriptValue v;
@@ -33,7 +26,7 @@ namespace Aether {
 
     std::tuple<const ScriptValue*, uint32_t> ScriptArgs::GetArgs() const 
     { 
-        return { args.data(), args.size()}; 
+        return { args.data(), (uint32_t)args.size()}; 
     }
 
     void ScriptArgs::Pushback(const ScriptValue& val) 

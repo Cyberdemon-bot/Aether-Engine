@@ -58,6 +58,7 @@ target("Aether")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {public = true})
+        add_cxflags("/bigobj")
     end
 
     if is_os("windows") then

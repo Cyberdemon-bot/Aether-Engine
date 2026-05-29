@@ -111,7 +111,7 @@ namespace Aether {
                 if (a == Null_Entity || b == Null_Entity) return;
                 if (HasComponent<ScriptComponent>(a)) 
                 {
-                    auto& cmp = GetComponent<ScriptComponent>(a);
+                    auto& cmp = this->GetComponent<ScriptComponent>(a);
                     if (cmp.IsActive)
                     {
                         CollisionData data;
@@ -127,7 +127,7 @@ namespace Aether {
 
                 if (HasComponent<ScriptComponent>(b)) 
                 {
-                    auto& cmp = GetComponent<ScriptComponent>(b);
+                    auto& cmp = this->GetComponent<ScriptComponent>(b);
                     if (cmp.IsActive)
                     {
                         CollisionData data;
