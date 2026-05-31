@@ -910,7 +910,6 @@ namespace Aether {
                     AudioSystem::SetLooping(audio.SourceHandle,       audio.Looping);
                 }
             }
-            AudioSystem::Update();
         }
 
         { // render
