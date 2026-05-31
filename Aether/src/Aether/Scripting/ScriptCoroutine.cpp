@@ -43,11 +43,12 @@ namespace Aether {
             if (stored) 
             {
                 stored->Self = handle;
+                Handle<Coroutine> selfHandle = stored->Self;
                 if (stored->Type == WaitType::Event)
                 {
                     stored->EventCbHandle = instance.m_EventManager->AddNativeListener(
                         stored->AwaitEvent, 
-                        [stored](const ScriptArgs&) { MarkCoroutineDone(stored->Self); }
+                        [handle](const ScriptArgs&) { MarkCoroutineDone(handle); } 
                     );
                 }
                 if (stored->Type == WaitType::Job)
@@ -63,7 +64,6 @@ namespace Aether {
                     if (it != instance.m_NativeFuncs.end())
                     {
                         auto nativeFunc = it->native;
-                        Handle<Coroutine> selfHandle = stored->Self;
                         JobSystem::SubmitJob([selfHandle, args, nativeFunc]() mutable
                         {
                             ScriptValue ret = nativeFunc(args);
@@ -130,15 +130,22 @@ namespace Aether {
 
             if (shouldResume) 
             {
+                task.DoneFlag.store(false);
+                sol::protected_function_result result;
+                if (task.JobResult.type != ScriptValue::Type::Nil) 
+                {
+                    sol::object obj = ToSolObject(instance.LuaState.lua, task.JobResult);
+                    result = task.Co(obj);
+                } 
+                else result = task.Co();
+                task.JobResult = ScriptValue{};
+
                 if (task.Type == WaitType::Event) 
                 {
                     instance.m_EventManager->RemoveNativeListener(task.EventCbHandle, task.AwaitEvent);
                     task.EventCbHandle = {};
                 }
-
-                task.DoneFlag.store(false);
-                sol::protected_function_result result = task.JobResult.type != ScriptValue::Type::Nil ? task.Co(task.JobResult) : task.Co();
-                task.JobResult = ScriptValue{};
+                
                 if (!result.valid()) 
                 {
                     sol::error err = result;
@@ -157,10 +164,9 @@ namespace Aether {
                     {
                         task.AwaitEvent = result[0].get<std::string>();
                         task.Timer = rc == 3 ? result[1].get<float>() : -1.0f;
-                        task.EventCbHandle = instance.m_EventManager->AddNativeListener(task.AwaitEvent, [&task](const ScriptArgs&) 
-                        {
-                            MarkCoroutineDone(task.Self);
-                        });
+                        Handle<Coroutine> selfHandle = task.Self; 
+                        task.EventCbHandle = instance.m_EventManager->AddNativeListener(task.AwaitEvent, 
+                        [selfHandle](const ScriptArgs&) { MarkCoroutineDone(selfHandle); });
                     }
                     else if (task.Type == WaitType::Job)
                     {

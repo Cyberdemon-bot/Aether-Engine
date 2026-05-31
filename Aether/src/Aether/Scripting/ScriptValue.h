@@ -17,6 +17,8 @@ namespace Aether {
         std::vector<ScriptValue> list;
 
         template<typename T> T As() const;
+        template<typename T> static ScriptValue Make(const T& val);
+        template<typename T> void Set(const T& val);
     };
 
     class AETHER_API ScriptArgs
@@ -42,6 +44,7 @@ namespace Aether {
 
     typedef std::tuple<const ScriptValue*, size_t> ScriptList;
 
+    // As
     template<>
     inline bool ScriptValue::As<bool>() const { return b; }
 
@@ -59,4 +62,78 @@ namespace Aether {
 
     template<>
     inline ScriptList ScriptValue::As<ScriptList>() const { return {list.data(), list.size()}; }
+
+    //Make
+    template<>
+    inline ScriptValue ScriptValue::Make<bool>(const bool& val) 
+    { 
+        ScriptValue v; v.type = Type::Bool; v.b = val; return v; 
+    }
+
+    template<>
+    inline ScriptValue ScriptValue::Make<int>(const int& val) 
+    { 
+        ScriptValue v; v.type = Type::Int; v.i = val; return v; 
+    }
+
+    template<>
+    inline ScriptValue ScriptValue::Make<float>(const float& val) 
+    { 
+        ScriptValue v; v.type = Type::Float; v.f = val; return v; 
+    }
+
+    template<>
+    inline ScriptValue ScriptValue::Make<std::string>(const std::string& val) 
+    { 
+        ScriptValue v; v.type = Type::String; v.str = val; return v; 
+    }
+
+    template<>
+    inline ScriptValue ScriptValue::Make<glm::vec3>(const glm::vec3& val) 
+    { 
+        ScriptValue v; v.type = Type::Vec3; v.vec = val; return v; 
+    }
+
+    template<>
+    inline ScriptValue ScriptValue::Make<std::vector<ScriptValue>>(const std::vector<ScriptValue>& val) 
+    { 
+        ScriptValue v; v.type = Type::List; v.list = val; return v; 
+    }
+
+    //Set
+    template<>
+    inline void ScriptValue::Set<bool>(const bool& val) 
+    { 
+        type = Type::Bool; b = val; 
+    }
+
+    template<>
+    inline void ScriptValue::Set<int>(const int& val) 
+    { 
+        type = Type::Int; i = val; 
+    }
+
+    template<>
+    inline void ScriptValue::Set<float>(const float& val) 
+    { 
+        type = Type::Float; f = val; 
+    }
+
+    template<>
+    inline void ScriptValue::Set<std::string>(const std::string& val) 
+    { 
+        type = Type::String; str = val; 
+    }
+
+    template<>
+    inline void ScriptValue::Set<glm::vec3>(const glm::vec3& val) 
+    { 
+        type = Type::Vec3; vec = val; 
+    }
+
+    template<>
+    inline void ScriptValue::Set<std::vector<ScriptValue>>(const std::vector<ScriptValue>& val) 
+    { 
+        type = Type::List; list = val; 
+    }
 }
