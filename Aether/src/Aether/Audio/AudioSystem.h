@@ -9,7 +9,6 @@ namespace Aether {
     public:
         static void Init() { s_AudioAPI->Init(); }
         static void Shutdown() { s_AudioAPI->Shutdown(); }
-        static void Update() { s_AudioAPI->Update(); } 
 
         static Handle<AudioSource> CreateSource(const std::string& path, AudioType type) { return s_AudioAPI->CreateSource(path, type); }
         static void DestroySource(Handle<AudioSource> handle) { s_AudioAPI->DestroySource(handle); }

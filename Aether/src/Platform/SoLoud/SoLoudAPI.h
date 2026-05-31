@@ -16,9 +16,9 @@ namespace Aether {
         int voiceHandle = 0; 
 
         AudioSource() = default;
-        AudioSource(const AudioSource&)            = delete;
+        AudioSource(const AudioSource&) = delete;
         AudioSource& operator=(const AudioSource&) = delete;
-        AudioSource(AudioSource&&) noexcept        = default;
+        AudioSource(AudioSource&&) noexcept = default;
         AudioSource& operator=(AudioSource&&) noexcept = default;
     };
 
@@ -27,8 +27,7 @@ namespace Aether {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
-        virtual void Update() override; 
-
+        
         virtual Handle<AudioSource> CreateSource(const std::string& path, AudioType type) override;
         virtual void DestroySource(Handle<AudioSource> handle) override;
         virtual bool IsActive(Handle<AudioSource> handle) override;
@@ -56,7 +55,6 @@ namespace Aether {
         virtual void UpdateListener(const AudioListener& listener) override;
 
     private:
-        void UpdateSource(AudioSource& source); 
         static SoLoud::AudioSource::ATTENUATION_MODELS ToSoLoudAttenuation(AudioAttenuation attenuation);
         SoLoud::Soloud soloud;
         bool m_Initialized = false;

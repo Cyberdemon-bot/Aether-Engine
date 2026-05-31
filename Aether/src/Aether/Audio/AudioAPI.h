@@ -45,13 +45,6 @@ namespace Aether {
         float playback_speed = 1.0f;
         glm::vec3 position = glm::vec3(0.0f);
         glm::vec3 velocity = glm::vec3(0.0f);
-
-        bool volumeDirty = false;
-        bool panDirty = false;
-        bool speedDirty = false;
-        bool loopingDirty = false;
-        bool positionDirty = false;
-        bool velocityDirty = false;
     };
 
     class AudioAPI
@@ -64,7 +57,6 @@ namespace Aether {
         virtual ~AudioAPI() = default;
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
-        virtual void Update() = 0; 
 
         virtual Handle<AudioSource> CreateSource(const std::string& path, AudioType type) = 0;
         virtual void DestroySource(Handle<AudioSource> handle) = 0;
