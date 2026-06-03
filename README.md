@@ -7,22 +7,6 @@ Built as a learning project to deeply understand the internals of a modern game 
 
 ---
 
-## Demo — Zombie Shooter
-
-A fully playable zombie shooter game built on top of Aether, used to validate all engine systems in a real game context.
-
-| Feature | Description |
-|---|---|
-| Player Controller | First-person and third-person camera, smooth head bob while moving |
-| Gun System | Shooting, reloading, limited ammo, muzzle flash, sound effects |
-| Zombie AI | Flow Field pathfinding — optimized for up to 100 simultaneous agents |
-| Dynamic Map Chunks | Map loads/unloads in chunks around the player, resource reuse |
-| Obstacle Map | 16×16 static obstacle grid with walls, slow zones, and open space |
-| Health & Game Over | Damage cooldown, health bar UI, respawn system |
-| Radar | Real-time minimap showing zombie positions relative to the player |
-
----
-
 ## Features
 
 ### Rendering
@@ -136,17 +120,6 @@ cd Aether-Engine
 xmake
 xmake run Sandbox
 ```
-
----
-
-## Performance
-
-Tested on real hardware running the Zombie Shooter demo:
-
-| Device | OS | FPS |
-|---|---|---|
-| Windows Laptop | Windows | ~60 FPS |
-| MacBook Air M4 | macOS | ~120 FPS |
 
 ---
 
