@@ -45,6 +45,7 @@ namespace Aether {
         void MakeParent(Entity child, Entity parent);
         void BreakParent(Entity entity);
         void MarkDirty(Entity entity);
+        glm::vec3 GetWorldPosition(Entity entity);
 
         void ImportPrefab(Entity entity, const Prefab& prefab, bool override = false);
         Prefab ExportPrefab(Entity entity) const;
@@ -133,10 +134,11 @@ namespace Aether {
         uint32_t m_SortDirtyCount = 0;
         Handle<PhysicsInstance> m_PhysicsInstance;
         entt::registry m_Registry;
-        std::unordered_map<UUID, Entity> m_EntityLibrary;
         std::vector<LightParam> m_SceneLights;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
         std::vector<DestroyInfo> m_DestroyQueue;
+        std::unordered_map<UUID, Entity> m_EntityLibrary;
+        std::unordered_map<Entity, uint32_t> m_Rank;
         void DirtyScan();
         void BreadthFirstSearch(bool usingFilter = true);
         void UpdateTransform(Entity entity);

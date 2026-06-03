@@ -255,10 +255,10 @@ namespace Aether {
         }
     }; 
 
-    struct TransformComponentBinding
+    struct TransformBinding
     {
         using Type = TransformComponent;
-        static constexpr const char* get_name() { return "TransformComponent"; }
+        static constexpr const char* get_name() { return "Transform"; }
 
         static constexpr auto get_props()
         {
@@ -490,30 +490,29 @@ namespace Aether {
                         self.slot->exposed_funcs.push_back({name, func});
                     )
                 ),
-                AE_REFLECT("SafeCall",
-                    AE_MAKE_LAMBDA((), (Type& self, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = self.scene->FindEntity((UUID(targetId)));
-                        if (!self.scene->IsValid(target)) return sol::lua_nil;
-                        if (!self.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
-                        auto& sc = self.scene->GetComponent<ScriptComponent>(target);
-                        std::vector<sol::object> collected(args.begin(), args.end());
-                        return ScriptEngine::CallSafeInstanceAPI(sc.ScriptHandle, name, collected);
-                    )
-                ),
-                AE_REFLECT("DirectCall",
-                    AE_MAKE_LAMBDA((), (Type& self, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = self.scene->FindEntity((UUID(targetId)));
-                        if (!self.scene->IsValid(target)) return sol::lua_nil;
-                        if (!self.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
-                        auto& sc = self.scene->GetComponent<ScriptComponent>(target);
-                        std::vector<sol::object> collected(args.begin(), args.end());
-                        return ScriptEngine::CallDirectInstanceAPI(sc.ScriptHandle, name, collected);
-                    )
-                ),
                 AE_REFLECT("DestroyMyself",
                     AE_MAKE_LAMBDA((), (Type& self), void,
                         Entity e = static_cast<Entity>(self.entity);
                         self.scene->DestroyEntity(e);
+                    )
+                ),
+                AE_REFLECT("GetWorldPosition",
+                    AE_MAKE_LAMBDA((), (Type& self), glm::vec3,
+                        Entity e = static_cast<Entity>(self.entity);
+                        return self.scene->GetWorldPosition(e);
+                    )
+                ),
+                AE_REFLECT("BreakParent",
+                    AE_MAKE_LAMBDA((), (Type& self), void,
+                        Entity e = static_cast<Entity>(self.entity);
+                        self.scene->BreakParent(e);
+                    )
+                ),
+                AE_REFLECT("MakeParent",
+                    AE_MAKE_LAMBDA((), (Type& self, uint64_t parentId), void,
+                        Entity e = static_cast<Entity>(self.entity);
+                        Entity parent = self.scene->FindEntity((UUID(parentId)));
+                        self.scene->MakeParent(e, parent);
                     )
                 )
             );
@@ -549,6 +548,26 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& ctx, uint64_t id), bool,
                         Entity e = ctx.scene->FindEntity(UUID(id));
                         return ctx.scene->IsValid(e);
+                    )
+                ),
+                AE_REFLECT("SafeCall",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = ctx.scene->FindEntity((UUID(targetId)));
+                        if (!ctx.scene->IsValid(target)) return sol::lua_nil;
+                        if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
+                        auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        return ScriptEngine::CallSafeInstanceAPI(sc.ScriptHandle, name, collected);
+                    )
+                ),
+                AE_REFLECT("DirectCall",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = ctx.scene->FindEntity((UUID(targetId)));
+                        if (!ctx.scene->IsValid(target)) return sol::lua_nil;
+                        if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
+                        auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        return ScriptEngine::CallDirectInstanceAPI(sc.ScriptHandle, name, collected);
                     )
                 )
             );

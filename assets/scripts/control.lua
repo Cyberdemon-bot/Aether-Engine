@@ -43,7 +43,7 @@ function OnUpdate(ts)
     end
 
     local current = self.Transform.Translation
-    --self.Transform.Translation = current + move * _speed * ts
+    self.Transform.Translation = current + move * _speed * ts
 end
 
 function OnCollision(data)
