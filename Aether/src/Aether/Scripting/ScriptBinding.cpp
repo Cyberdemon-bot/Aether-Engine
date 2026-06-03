@@ -14,7 +14,7 @@ namespace Aether {
         BindType<QuatBinding>("Math");
         BindModule<MathBinding>("Math");
         BindModule<InputBinding>("Input"); 
-        BindType<TransformComponentBinding>();
+        BindType<TransformBinding>();
         BindType<LightParamBinding>();   
         BindType<SceneCameraBinding>();
         BindType<ScriptSelfBinding>();

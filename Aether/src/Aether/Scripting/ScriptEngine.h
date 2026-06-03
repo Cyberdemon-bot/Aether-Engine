@@ -370,6 +370,7 @@ namespace Aether {
 
         friend struct ScriptSelfBinding;
         friend struct AsyncBinding;
+        friend struct SceneBinding;
         friend class Scene;
     };
 } 
