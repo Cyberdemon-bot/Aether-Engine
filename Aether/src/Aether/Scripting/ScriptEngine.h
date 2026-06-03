@@ -103,7 +103,7 @@ namespace Aether {
     struct Exposed
     {
         std::string name;
-        sol::protected_function func;
+        sol::main_protected_function func;
     };
     struct InstanceSlot
     {

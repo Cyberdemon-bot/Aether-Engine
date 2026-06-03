@@ -24,7 +24,7 @@ namespace Aether {
     struct EventListener 
     {
         Handle<ScriptInstance> script;
-        sol::protected_function callback;
+        sol::main_protected_function callback;
     };
 
     struct NativeListener
@@ -40,7 +40,7 @@ namespace Aether {
 
         void FireEvent(const std::string& event_name, const std::vector<sol::object>& args);
 
-        void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::protected_function callback);
+        void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::main_protected_function callback);
         Handle<ScriptCallback> AddNativeListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
         void RemoveListener(Handle<ScriptInstance> script);
         void RemoveListener(Handle<ScriptInstance> script, const std::string& event_name);
