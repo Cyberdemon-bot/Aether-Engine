@@ -1,18 +1,15 @@
 #pragma once
 
-#include <iostream>
 #include <memory>
 #include <utility>
 #include <algorithm>
-#include <functional>
 #include <string>
 #include <vector>
-#include <array>
+#include <queue>
 #include <fstream>
 #include <sstream>
 #include <cstdint>
 #include <cstddef>
-#include <functional>
 #include <mutex>
 
 #include <spdlog/spdlog.h>
