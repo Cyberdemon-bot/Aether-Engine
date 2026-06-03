@@ -38,7 +38,6 @@ namespace Aether {
 
     struct TransformComponent
     {
-        using Self = TransformComponent;
         glm::vec3 Translation = {0.0f, 0.0f, 0.0f};
         glm::quat Rotation = glm::quat({0.0f, 0.0f, 0.0f});
         glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
