@@ -26,8 +26,5 @@ namespace Aether {
         }
     private:
         Handle<Skeleton> handle;
-
-        static Scope<Skeleton> CreateImpl(const SkeletonSpec& spec) { return CreateScope<Skeleton>(spec);}
-        friend class AssetManager;
     };
 }

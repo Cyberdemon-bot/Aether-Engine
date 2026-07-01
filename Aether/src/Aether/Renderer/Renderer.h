@@ -58,23 +58,26 @@ namespace Aether {
 
 	struct Command
 	{
-		Mesh* mesh;
-		Material* material;
+		Handle<Asset> mesh;
+		Handle<Asset> sheet;
 		uint32_t subIdx;
+		uint32_t matIdx;
 		Handle<Pose> pose;
 		glm::mat4 transform;
 
 		bool operator<(const Command& other) const
 		{
-			if (material != other.material) return material < other.material;
-			if (mesh != other.mesh) return mesh < other.mesh;
+			if (sheet.Blend() != other.sheet.Blend()) return sheet.Blend() < other.sheet.Blend();
+			if (matIdx != other.matIdx) return matIdx < other.matIdx;
+			if (mesh.Blend() != other.mesh.Blend()) return mesh.Blend() < other.mesh.Blend();
 			return subIdx < other.subIdx;
 		}
 
 		bool operator!=(const Command& other) const
 		{
-			return (mesh != other.mesh) || 
-				(material != other.material) || 
+			return (mesh.Blend() != other.mesh.Blend()) || 
+				(sheet.Blend() != other.sheet.Blend()) || 
+				(matIdx != other.matIdx) || 
 				(subIdx != other.subIdx);
 		}
 	};
@@ -123,7 +126,7 @@ namespace Aether {
 		static void BeginScene(const Camera& camera, LightParam* lights = nullptr, size_t size = 0);
 		static void EndScene();
 
-		static void DrawMesh(Mesh* mesh, Material** materials, size_t size, Handle<Pose> pose, const glm::mat4& transform);
+		static void DrawMesh(Handle<Asset> mesh, Handle<Asset> sheet, Handle<Pose> pose, const glm::mat4& transform);
 
 		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
 		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);

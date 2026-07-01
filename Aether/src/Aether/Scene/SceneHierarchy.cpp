@@ -337,12 +337,15 @@ namespace Aether {
         {
             auto& component = AddComponent<MeshComponent>(e);
             component.Mesh = AssetManager::GetHandle(reg.meshIDs[node.meshIdx]);
-            component.Materials.Resize(reg.meshMap[node.meshIdx].size());
+            auto sh_handle = AssetManager::CreateAsset<Sheet>(UUID());
+            auto* sh = AssetManager::GetAsset<Sheet>(sh_handle);
+            sh->Resize(reg.meshMap[node.meshIdx].size());
             for(size_t i = 0; i < reg.meshMap[node.meshIdx].size(); i++)
             {
                 auto& id = reg.meshMap[node.meshIdx][i];
-                component.Materials.SetDefault(i, AssetManager::GetHandle(id));
+                sh->SetDefault(i, AssetManager::GetHandle(id));
             }
+            component.Sheet = sh_handle;
         }
 
         if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animators.size())

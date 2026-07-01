@@ -136,6 +136,8 @@ private:
 
     Aether::Prefab m_ZombiePrefab;
     Aether::Prefab m_ChunkPrefab;
+    Aether::Sheet* m_MapSheet;
+    Aether::Handle<Aether::Asset> m_SheetHandle;
 
     float m_ShootTimer    = 0.0f;
     float m_ShootDuration = 0.3f;

@@ -3,9 +3,7 @@
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Renderer/Resource.h"
-#include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
-#include "Aether/Core/UUID.h"
 
 #include <string>
 #include <vector>
@@ -60,22 +58,17 @@ namespace Aether {
         std::vector<std::pair<std::string, float>> m_FloatUniforms;
 
         uint32_t m_Flags = (uint32_t)MaterialFlag::None;
-
-        static Scope<Material> CreateImpl() { return CreateScope<Material>(); }
-        friend class AssetManager;
     };
 
-    struct AETHER_API MaterialTable
+    struct AETHER_API Sheet : public Asset
     {
-        std::vector<Material*> CachedPtr;
         std::vector<Handle<Asset>> BaseHandles;
         std::vector<Handle<Asset>> OverrideHandles;
 
         void Resize(uint32_t size)
         {
-            CachedPtr.resize(size);
-            BaseHandles.resize(size);
-            OverrideHandles.resize(size);
+            BaseHandles.resize(size, Handle<Asset>::MakeInvalid());
+            OverrideHandles.resize(size, Handle<Asset>::MakeInvalid());
         }
 
         void CopyDefaultList(const std::vector<Handle<Asset>>& handleList);
@@ -87,6 +80,18 @@ namespace Aether {
         void SetOverride(uint32_t index, Handle<Asset> handle);
         void SetDefault(uint32_t index, Handle<Asset> handle);
         void Revert(uint32_t index);
-        void SwitchOverride(uint32_t index);
+        
+        Handle<Asset> GetActiveHandle(uint32_t index) const
+        {
+            if (OverrideHandles[index].IsValid())
+                return OverrideHandles[index];
+                
+            return BaseHandles[index];
+        }
+
+        uint32_t GetSize()
+        {
+            return BaseHandles.size();
+        }
     };
 }

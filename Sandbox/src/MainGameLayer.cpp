@@ -169,6 +169,11 @@ void MainGameLayer::Attach()
     Aether::AudioSystem::SetLooping(m_BgmSource, true);
     Aether::AudioSystem::Play(m_BgmSource);
 
+    m_SheetHandle = Aether::AssetManager::CreateAsset<Aether::Sheet>(Aether::UUID());
+    m_MapSheet = Aether::AssetManager::GetAsset<Aether::Sheet>(m_SheetHandle);
+    m_MapSheet->Resize(m_BaseMapMaterials.size());
+    m_MapSheet->CopyDefaultList(m_BaseMapMaterials);
+
     AE_INFO("MainGameLayer started.");
 }
 
@@ -553,10 +558,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
 
             auto& mesh     = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
             mesh.Mesh      = m_BaseMapMesh;
-            mesh.Materials.BaseHandles = m_BaseMapMaterials;
-            mesh.Materials.Resize(m_BaseMapMaterials.size());
-            mesh.Materials.CopyDefaultList(m_BaseMapMaterials);
-            mesh.Materials.Reset();
+            mesh.Sheet     = m_SheetHandle;
 
             ChunkData newData;
             newData.landEntity = chunk;

@@ -709,12 +709,10 @@ namespace Aether {
                 {
                     auto& transform = GetComponent<TransformComponent>(entity);
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
-                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
-                    UUID animatorID = UUID(0);
                     Handle<Pose> pose = Handle<Pose>::MakeInvalid();
                     if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
-                        Renderer::DrawMesh(mesh, meshcmp.Materials.CachedPtr.data(), meshcmp.Materials.CachedPtr.size(), pose, transform.WorldTransform);
+                        Renderer::DrawMesh(meshcmp.Mesh, meshcmp.Sheet, pose, transform.WorldTransform);
                 }
 
                 Renderer::EndScene();

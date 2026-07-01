@@ -2,8 +2,7 @@
 
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
-#include "Aether/Assets/Skeleton.h"
-#include "Aether/Assets/Clip.h"
+#include "Aether/Assets/Rig.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
