@@ -3,7 +3,7 @@
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Renderer/Buffer.h"
-#include "Aether/Assets/AssetManager.h"
+#include "Aether/Assets/Asset.h"
 #include "Aether/Renderer/ResourceManager.h"
 
 #include <vector>
@@ -145,8 +145,5 @@ namespace Aether {
             const void* weights,   const BufferLayout& weightLayout,
             uint32_t vertexCount,
             const std::vector<glm::mat4>& poseMats);
-
-        static Scope<Mesh> CreateImpl(const MeshSpec& spec) { return CreateScope<Mesh>(spec); }
-        friend class AssetManager;
     };
 }

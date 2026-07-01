@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "Aether/Renderer/Renderer.h"
+#include "Aether/Assets/AssetManager.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Core/Application.h"
@@ -334,19 +335,22 @@ namespace Aether {
 			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->GetVertexArray()));
 	}
 
-	void Renderer::DrawMesh(Mesh* mesh, Material** materials, size_t size, Handle<Pose> pose, const glm::mat4& transform)
+	void Renderer::DrawMesh(Handle<Asset> mesh, Handle<Asset> sheet, Handle<Pose> pose, const glm::mat4& transform)
 	{
-		if (!mesh) return;
-		const auto& submeshes = mesh->GetSubMeshes();
-		if (!mesh->HasInstanceBuffer()) mesh->AddInstanceBuffer(s_RenderData->s_InstanceVBO);
+		if (!mesh.IsValid()) return;
+		auto* me_asset = AssetManager::GetAsset<Mesh>(mesh);
+		auto* sh_asset = AssetManager::GetAsset<Sheet>(sheet);
+		const auto& submeshes = me_asset->GetSubMeshes();
+		if (!me_asset->HasInstanceBuffer()) me_asset->AddInstanceBuffer(s_RenderData->s_InstanceVBO);
 
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{
-			if (submeshes[i].MaterialIdx >= size) continue;
+			if (submeshes[i].MaterialIdx >= sh_asset->GetSize()) continue;
 			Command command;
 			command.mesh = mesh;
-			command.material = materials[submeshes[i].MaterialIdx];
+			command.sheet = sheet;
 			command.subIdx = i;
+			command.matIdx = submeshes[i].MaterialIdx;
 			command.pose  = pose;
 			command.transform = transform;
 			s_SceneData->CommandList.push_back(command);
@@ -425,8 +429,9 @@ namespace Aether {
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
 				auto& command = CommandList[i];
-				auto* material = command.material;
-				auto* mesh = command.mesh;
+				auto* sheet = AssetManager::GetAsset<Sheet>(command.sheet);
+				auto* mesh = AssetManager::GetAsset<Mesh>(command.mesh);
+				auto* material = AssetManager::GetAsset<Material>(sheet->GetActiveHandle(command.matIdx));
 				if (!material || !mesh) continue;
 
 				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];

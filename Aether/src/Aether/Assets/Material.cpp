@@ -1,6 +1,6 @@
 #include "aepch.h"
+#include "Aether/Core/Assert.h"
 #include "Aether/Renderer/ResourceManager.h"
-#include "Aether/Assets/AssetManager.h"
 #include "Aether/Assets/Material.h"
 
 namespace Aether {
@@ -22,90 +22,46 @@ namespace Aether {
         }
     }
 
-    void MaterialTable::Reset()
+    void Sheet::CopyDefaultList(const std::vector<Handle<Asset>>& handleList)
     {
-        for(size_t i = 0; i < BaseHandles.size(); i++)
-            CachedPtr[i] = AssetManager::GetAsset<Material>(BaseHandles[i]);
+        BaseHandles = handleList;
     }
 
-    void MaterialTable::SetDefault(uint32_t index, Handle<Asset> handle)
+    void Sheet::CopyOverrideList(const std::vector<Handle<Asset>>& handleList)
     {
-        if (index >= BaseHandles.size())
-        {
-            AE_CORE_ERROR("Index out of bounds in MaterialTable");
-            return;
-        }
-        BaseHandles[index] = handle;
-        CachedPtr[index] = AssetManager::GetAsset<Material>(BaseHandles[index]);
+        OverrideHandles = handleList;
     }
 
-    void MaterialTable::SetOverride(uint32_t index, Handle<Asset> handle)
+    void Sheet::MoveDefaultList(std::vector<Handle<Asset>>&& handleList)
     {
-        if (index >= OverrideHandles.size())
-        {
-            AE_CORE_ERROR("Index out of bounds in MaterialTable");
-            return;
-        }
+        BaseHandles = std::move(handleList);
+    }
+
+    void Sheet::MoveOverrideList(std::vector<Handle<Asset>>&& handleList)
+    {
+        OverrideHandles = std::move(handleList);
+    }
+
+    void Sheet::Reset()
+    {
+        std::fill(OverrideHandles.begin(), OverrideHandles.end(), Handle<Asset>::MakeInvalid());
+    }
+
+    void Sheet::SetOverride(uint32_t index, Handle<Asset> handle)
+    {
+        AE_CORE_ASSERT(index < OverrideHandles.size(), "Index out of bounds in Sheet!");
         OverrideHandles[index] = handle;
-        CachedPtr[index] = AssetManager::GetAsset<Material>(OverrideHandles[index]);
     }
 
-    void MaterialTable::Revert(uint32_t index)
+    void Sheet::SetDefault(uint32_t index, Handle<Asset> handle)
     {
-        if (index >= BaseHandles.size())
-        {
-            AE_CORE_ERROR("Index out of bounds in MaterialTable");
-            return;
-        }
-        CachedPtr[index] = AssetManager::GetAsset<Material>(BaseHandles[index]);
+        AE_CORE_ASSERT(index < BaseHandles.size(), "Index out of bounds in Sheet!");
+        BaseHandles[index] = handle;
     }
 
-    void MaterialTable::SwitchOverride(uint32_t index)
+    void Sheet::Revert(uint32_t index)
     {
-        if (index >= OverrideHandles.size())
-        {
-            AE_CORE_ERROR("Index out of bounds in MaterialTable");
-            return;
-        }
-        CachedPtr[index] = AssetManager::GetAsset<Material>(OverrideHandles[index]);
-    }
-
-    void MaterialTable::CopyDefaultList(const std::vector<Handle<Asset>>& handleList)
-    {
-        Resize((uint32_t)handleList.size()); 
-        BaseHandles = handleList;           
-    }
-
-    void MaterialTable::MoveDefaultList(std::vector<Handle<Asset>>&& handleList)
-    {
-        uint32_t newSize = (uint32_t)handleList.size();
-        BaseHandles = std::move(handleList); 
-        CachedPtr.resize(newSize);
-        OverrideHandles.resize(newSize);
-    }
-
-    void MaterialTable::CopyOverrideList(const std::vector<Handle<Asset>>& handleList)
-    {
-        uint32_t targetSize = (uint32_t)BaseHandles.size();
-        OverrideHandles.resize(targetSize); 
-        uint32_t copyCount = std::min((uint32_t)handleList.size(), targetSize);
-        std::copy(handleList.begin(), handleList.begin() + copyCount, OverrideHandles.begin());
-        for (uint32_t i = copyCount; i < targetSize; ++i) OverrideHandles[i].MakeInvalid(); 
-    }
-
-    void MaterialTable::MoveOverrideList(std::vector<Handle<Asset>>&& handleList)
-    {
-        uint32_t targetSize = (uint32_t)BaseHandles.size();
-
-        if (handleList.size() <= targetSize)
-        {
-            OverrideHandles = std::move(handleList);
-            OverrideHandles.resize(targetSize); 
-        }
-        else
-        {
-            OverrideHandles.resize(targetSize);
-            std::move(handleList.begin(), handleList.begin() + targetSize, OverrideHandles.begin());
-        }
+        AE_CORE_ASSERT(index < OverrideHandles.size(), "Index out of bounds in Sheet!");
+        OverrideHandles[index] = Handle<Asset>::MakeInvalid();
     }
 }

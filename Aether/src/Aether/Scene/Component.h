@@ -76,7 +76,7 @@ namespace Aether {
     struct MeshComponent
     {
         Handle<Asset> Mesh;
-        MaterialTable Materials;
+        Handle<Asset> Sheet;
         bool ShowBounds = false;
         mutable bool Culled = false;
 

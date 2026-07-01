@@ -13,7 +13,7 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_Handles.reserve(64);
-        instance.m_Assets.reserve(64);
+        InitializePools();
         AE_CORE_INFO("AssetManager initialized");
     }
 
@@ -21,7 +21,8 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_Handles.clear();
-        instance.m_Assets.clear();
+        ShutdownPools();
+        AE_CORE_INFO("AssetManager shutdowned");
     }
 
     Handle<Asset> AssetManager::GetHandle(UUID id)
@@ -38,44 +39,86 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         auto it = instance.m_Handles.find(id);
-        if (it == instance.m_Handles.end()) return;
-        Handle<Asset> handle = it->second;
-        if (handle.index >= instance.m_Assets.size()) return;
-        AssetSlot& slot = instance.m_Assets[handle.index];
-        if (slot.generation != handle.generation) return;
-
-        slot.asset.reset();
-        slot.loaded = false;
-        slot.generation++;
-        instance.FreeList.push_back(handle.index);
-        instance.m_Handles.erase(it);
+        if(it == instance.m_Handles.end()) return;
+        Unload(it->second);
     }
 
-    Handle<Asset> AssetManager::RequestAssetSlot(UUID id)
+    void AssetManager::Unload(Handle<Asset> handle)
     {
         auto& instance = GetInstance();
-        auto it = instance.m_Handles.find(id); int index;
-        if (it != instance.m_Handles.end())
-        {
-            AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
-            return {};
-        } 
+        auto* route = instance.m_Router.GetResource(handle);
+        if (route == nullptr) return;
 
-        if (!instance.FreeList.empty())
+        switch (route->type)
+    {
+        case AssetType::Mesh:
         {
-            index = instance.FreeList.back();
-            instance.FreeList.pop_back();
+            using TargetPoolType = ResourcePool<Handle<Mesh>, Mesh>;
+            auto& pool = std::get<TargetPoolType>(instance.m_AssetContainers);
+            pool.DestroyResource(Handle<Mesh>::FromBlend(route->handle));
+            break;
         }
-        else
+        case AssetType::Material:
         {
-            index = instance.m_Assets.size();
-            instance.m_Assets.emplace_back();
+            using TargetPoolType = ResourcePool<Handle<Material>, Material>;
+            auto& pool = std::get<TargetPoolType>(instance.m_AssetContainers);
+            pool.DestroyResource(Handle<Material>::FromBlend(route->handle));
+            break;
         }
-        AssetSlot& slot = instance.m_Assets[index]; slot.id = id;
-        Handle<Asset> handle;
-        handle.index = index;
-        handle.generation = slot.generation;
-        instance.m_Handles[id] = handle;
-        return handle;
+        case AssetType::Sheet:
+        {
+            using TargetPoolType = ResourcePool<Handle<Sheet>, Sheet>;
+            auto& pool = std::get<TargetPoolType>(instance.m_AssetContainers);
+            pool.DestroyResource(Handle<Sheet>::FromBlend(route->handle));
+            break;
+        }
+        case AssetType::Skeleton:
+        {
+            using TargetPoolType = ResourcePool<Handle<Skeleton>, Skeleton>;
+            auto& pool = std::get<TargetPoolType>(instance.m_AssetContainers);
+            pool.DestroyResource(Handle<Skeleton>::FromBlend(route->handle));
+            break;
+        }
+        case AssetType::Clip:
+        {
+            using TargetPoolType = ResourcePool<Handle<Clip>, Clip>;
+            auto& pool = std::get<TargetPoolType>(instance.m_AssetContainers);
+            pool.DestroyResource(Handle<Clip>::FromBlend(route->handle));
+            break;
+        }
+        case AssetType::Script:
+        {
+            using TargetPoolType = ResourcePool<Handle<Script>, Script>;
+            auto& pool = std::get<TargetPoolType>(instance.m_AssetContainers);
+            pool.DestroyResource(Handle<Script>::FromBlend(route->handle));
+            break;
+        }
+        case AssetType::None:
+        default:
+            AE_CORE_ASSERT(false, "Unknown or invalid asset type in Unload!");
+            break;
+    }
+
+        instance.m_Router.DestroyResource(handle);
+    }
+
+    void AssetManager::InitializePools() 
+    {
+        auto& instance = GetInstance();
+        instance.m_Router.Init();
+        std::apply([](auto&... pools) 
+        {
+            (pools.Init(), ...);
+        }, instance.m_AssetContainers);
+    }
+
+    void AssetManager::ShutdownPools()
+    {
+        auto& instance = GetInstance();
+        instance.m_Router.Shutdown();
+        std::apply([](auto&... pools) 
+        {
+            (pools.Shutdown(), ...);
+        }, instance.m_AssetContainers);
     }
 }

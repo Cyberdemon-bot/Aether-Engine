@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Aether/Assets/Asset.h"
-#include "Aether/Assets/AssetManager.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include <string>
@@ -30,9 +29,5 @@ namespace Aether {
         }
     private:
         Handle<Bytecode> handle;
-
-        static Scope<Script> CreateImpl(const std::string& source) { return CreateScope<Script>(source);}
-        static Scope<Script> CreateImpl(Handle<Bytecode> script) { return CreateScope<Script>(script);}
-        friend class AssetManager;
     };
 }

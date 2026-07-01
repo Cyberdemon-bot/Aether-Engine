@@ -3,6 +3,7 @@
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/Component.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Assets/Material.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
@@ -133,9 +134,17 @@ static EntitySnapshot PrefabToSnapshot(
         s.hasMesh    = true;
         s.MeshID     = std::stoull(AssetUUID<Mesh>(m.Mesh));
         s.ShowBounds = m.ShowBounds;
-        s.MaterialIDs.reserve(m.Materials.BaseHandles.size());
-        for (size_t i = 0; i < m.Materials.BaseHandles.size(); ++i)
-            s.MaterialIDs.push_back(std::stoull(AssetUUID<Material>(m.Materials.BaseHandles[i])));
+
+        if (Sheet* sheet = AssetManager::GetAsset<Sheet>(m.Sheet))
+        {
+            s.MaterialIDs.reserve(sheet->BaseHandles.size());
+            for (size_t i = 0; i < sheet->BaseHandles.size(); ++i)
+                s.MaterialIDs.push_back(std::stoull(AssetUUID<Material>(sheet->BaseHandles[i])));
+
+            s.OverrideMaterialIDs.reserve(sheet->OverrideHandles.size());
+            for (size_t i = 0; i < sheet->OverrideHandles.size(); ++i)
+                s.OverrideMaterialIDs.push_back(std::stoull(AssetUUID<Material>(sheet->OverrideHandles[i])));
+        }
     }
 
     // --- Animator ---
@@ -256,6 +265,9 @@ static void EmitEntitySnapshot(YAML::Emitter& out, const EntitySnapshot& s)
         out << YAML::Key << "ShowBounds" << YAML::Value << s.ShowBounds;
         out << YAML::Key << "Materials"  << YAML::Value << YAML::BeginSeq;
         for (auto id : s.MaterialIDs) out << id;
+        out << YAML::EndSeq;
+        out << YAML::Key << "OverrideMaterials" << YAML::Value << YAML::BeginSeq;
+        for (auto id : s.OverrideMaterialIDs) out << id;
         out << YAML::EndSeq;
         out << YAML::EndMap;
     }
@@ -471,6 +483,9 @@ static void ReadMesh(const YAML::Node& n, EntitySnapshot& s)
     if (auto mats = n["Materials"])
         for (const auto& m : mats)
             s.MaterialIDs.push_back(m.as<uint64_t>(0));
+    if (auto overrideMats = n["OverrideMaterials"])
+        for (const auto& m : overrideMats)
+            s.OverrideMaterialIDs.push_back(m.as<uint64_t>(0));
 }
 
 static void ReadAnimator(const YAML::Node& n, EntitySnapshot& s)
@@ -692,9 +707,21 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
             auto& c      = scene.AddComponent<MeshComponent>(e);
             c.Mesh       = AssetManager::GetHandle(UUID(s.MeshID));
             c.ShowBounds = s.ShowBounds;
-            c.Materials.Resize(s.MaterialIDs.size());
+
+            Handle<Asset> sheetHandle = AssetManager::CreateAsset<Sheet>(UUID());
+            Sheet* sheet = AssetManager::GetAsset<Sheet>(sheetHandle);
+
+            sheet->Resize(s.MaterialIDs.size());
             for (size_t i = 0; i < s.MaterialIDs.size(); ++i)
-                c.Materials.SetDefault(i, AssetManager::GetHandle(UUID(s.MaterialIDs[i])));
+                sheet->SetDefault(i, AssetManager::GetHandle(UUID(s.MaterialIDs[i])));
+
+            for (size_t i = 0; i < s.OverrideMaterialIDs.size() && i < sheet->GetSize(); ++i)
+            {
+                if (s.OverrideMaterialIDs[i] != 0)
+                    sheet->SetOverride(i, AssetManager::GetHandle(UUID(s.OverrideMaterialIDs[i])));
+            }
+
+            c.Sheet = sheetHandle;
         }
 
         // Animator
@@ -813,4 +840,4 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
     return true;
 }
 
-} 
+}
