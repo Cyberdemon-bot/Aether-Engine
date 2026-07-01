@@ -68,7 +68,7 @@ private:
     float          m_ZombieSpeed = 4.5f;
     Aether::Entity SpawnZombie(const glm::vec3& position);
 
-    int maxZombies = 100;
+    int maxZombies = 1000;
 
     // --- Flow Field ---
     std::map<std::pair<int, int>, FlowCell> m_FlowField;
