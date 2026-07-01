@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
-#include "Aether/Core/UUID.h"
 #include "Aether/Renderer/Buffer.h"
 #include "Aether/Assets/Asset.h"
 #include "Aether/Renderer/ResourceManager.h"

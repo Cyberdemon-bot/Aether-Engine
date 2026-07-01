@@ -6,7 +6,6 @@
 #include "Aether/Core/Application.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Renderer/BuiltinShader.h"
-#include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/StorageBuffer.h"
 
@@ -65,9 +64,9 @@ namespace Aether {
 		s_RenderData->LightUB = ResourceManager::CreateResource<UniformBuffer>(sizeof(LightsData));
 		ResourceManager::GetResource<UniformBuffer>(s_RenderData->LightUB)->Bind(2);
 
-		s_RenderData->s_ScreenShader    = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VScreenShader,    FScreenShader});
-		s_RenderData->lineShader         = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VLineShader,      FLineShader});
-		s_RenderData->s_SkyboxShader    = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VSkyboxShader,    FSkyboxShader});
+		s_RenderData->s_ScreenShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VScreenShader, FScreenShader});
+		s_RenderData->lineShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VLineShader, FLineShader});
+		s_RenderData->s_SkyboxShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VSkyboxShader, FSkyboxShader});
 		s_RenderData->s_ShadowmapShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VShadowmapShader, FShadowmapShader});
 
 		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)   ->SetUBOSlot("Camera", 0);

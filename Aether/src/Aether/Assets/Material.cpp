@@ -2,6 +2,7 @@
 #include "Aether/Core/Assert.h"
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Assets/Material.h"
+#include "Aether/Renderer/Texture.h"
 
 namespace Aether {
 

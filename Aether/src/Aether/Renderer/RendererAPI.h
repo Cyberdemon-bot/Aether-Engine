@@ -12,7 +12,8 @@ namespace Aether {
     class AETHER_API RendererAPI 
     {
     public:
-        enum class API {
+        enum class API 
+        {
             None = 0, OpenGL = 1
         };
 

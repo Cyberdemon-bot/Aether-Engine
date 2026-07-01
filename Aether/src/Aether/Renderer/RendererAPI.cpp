@@ -1,6 +1,5 @@
 #include "aepch.h"
 #include "Aether/Renderer/RendererAPI.h"
-
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
 
 namespace Aether {

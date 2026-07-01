@@ -3,9 +3,7 @@
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Renderer/Resource.h"
-#include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Shader.h"
-#include "Aether/Core/UUID.h"
 
 #include <string>
 #include <vector>

@@ -4,12 +4,12 @@
 #include "Aether/Core/Base.h"
 #include "Aether/Core/Log.h"
 #include "Aether/Core/Assert.h"
-#include "Aether/Container/ResourcePool.h"
 #include "Aether/Assets/Asset.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Assets/Rig.h"
 #include "Aether/Assets/Script.h"
+#include "Aether/Container/ResourcePool.h"
 #include <unordered_map>
 #include <tuple>
 
