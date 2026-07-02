@@ -165,50 +165,49 @@ namespace Aether {
     class AETHER_API ScriptEngine
     {
     public:
-        static void Init();
-        static void Shutdown();
+        void Init();
+        void Shutdown();
 
-        static Handle<ScriptInstance> CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh);
-        static void DestroyInstance(Handle<ScriptInstance> handle);
-        static void StartInstance(Handle<ScriptInstance> handle);
+        Handle<ScriptInstance> CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh);
+        void DestroyInstance(Handle<ScriptInstance> handle);
+        void StartInstance(Handle<ScriptInstance> handle);
 
         template<typename... Args>
-        static void FireEvent(const std::string& event_name, Args&&... args)
+        void FireEvent(const std::string& event_name, Args&&... args)
         {
-            auto& instance = GetInstance();
-            auto& lua = instance.LuaState.lua;
+            auto& lua = LuaState.lua;
             std::vector<sol::object> sol_args = {
                 sol::make_object(lua, std::forward<Args>(args))...
             };
-            instance.m_EventManager->FireEvent(event_name, sol_args);
+            m_EventManager->FireEvent(event_name, sol_args);
         }
 
         template<typename... Args>
-        static ScriptValue CallMethod(Handle<ScriptInstance> handle, const std::string func_name, Args&&... args)
+        ScriptValue CallMethod(Handle<ScriptInstance> handle, const std::string func_name, Args&&... args)
         {
             auto& obj = CallDirectInstanceAPI(handle, func_name, std::forward<Args>(args)...);
             return FromSolObject(obj);
         }
 
-        static Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
-        static void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name);
-        static void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func);
-        static Handle<Bytecode> LoadScript(const std::string& path);
-        static Handle<Bytecode> LoadScriptSource(const std::string& source);
+        Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
+        void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name);
+        void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func);
+        Handle<Bytecode> LoadScript(const std::string& path);
+        Handle<Bytecode> LoadScriptSource(const std::string& source);
 
-        static void SetActiveStage(Handle<ScriptInstance> handle, bool active);
-        static bool GetActiveStage(Handle<ScriptInstance> handle);
+        void SetActiveStage(Handle<ScriptInstance> handle, bool active);
+        bool GetActiveStage(Handle<ScriptInstance> handle);
 
-        static Handle<Coroutine> StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func);
-        static void KillCoroutineAPI(Handle<Coroutine> handle);
-        static void UpdateCoroutines(Timestep ts);
-        static void MarkCoroutineDone(Handle<Coroutine> handle);
+        Handle<Coroutine> StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func);
+        void KillCoroutineAPI(Handle<Coroutine> handle);
+        void UpdateCoroutines(Timestep ts);
+        void MarkCoroutineDone(Handle<Coroutine> handle);
     private:
-        static ScriptEngine& GetInstance();
+        ScriptEngine& GetInstance();
 
         LuaWorker LuaState;
         std::optional<ScriptEventManager> m_EventManager;
-        static sol::meta_function OpNameToMeta(std::string_view name);
+        sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
         ResourcePool<Handle<Coroutine>, CoroutineTask> m_Coroutines;
@@ -216,18 +215,17 @@ namespace Aether {
         std::vector<NativeFunc> m_NativeFuncs;
         bool IsExecChanged = false;
 
-        static void FlushEvent();
-        static void UpdateInstance(Handle<ScriptInstance> handle, Timestep ts);
-        static void OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data);
-        static bool IsExecOrderChanged();
-        static int GetExecOrder(Handle<ScriptInstance> handle);
-        static void RegisterBinding();
+        void FlushEvent();
+        void UpdateInstance(Handle<ScriptInstance> handle, Timestep ts);
+        void OnInstanceCollision(Handle<ScriptInstance> handle, CollisionData data);
+        bool IsExecOrderChanged();
+        int GetExecOrder(Handle<ScriptInstance> handle);
+        void RegisterBinding();
 
         template<typename Binder>
-        static void BindType(const std::string& Namespace = "")
+        void BindType(const std::string& Namespace = "")
         {
-            auto& instance = GetInstance();
-            auto& lua = instance.LuaState.lua;
+            auto& lua = LuaState.lua;
             sol::table table = lua.globals();
             if (!Namespace.empty()) table = lua[Namespace].get_or_create<sol::table>();
             using TargetType = typename Binder::Type;
@@ -262,7 +260,7 @@ namespace Aether {
 
             if constexpr (HasGetOps<Binder>::value) 
             {
-                ForEachTuple(Binder::get_ops(), [&utype](auto&& item) 
+                ForEachTuple(Binder::get_ops(), [&utype, this](auto&& item) 
                 {
                     std::string name = std::get<0>(item);
                     auto lambdas = std::get<1>(item);
@@ -271,16 +269,15 @@ namespace Aether {
                         return sol::overload(std::forward<decltype(fns)>(fns)...);
                     }, lambdas);
 
-                    utype.set_function(OpNameToMeta(name), overloaded_ops);
+                    utype.set_function(this->OpNameToMeta(name), overloaded_ops);
                 });
             }
         }
 
         template<typename Binder>
-        static void BindModule(const std::string& Namespace = "")
+        void BindModule(const std::string& Namespace = "")
         {
-            auto& instance = GetInstance();
-            auto& lua = instance.LuaState.lua;
+            auto& lua = LuaState.lua;
             sol::table table = lua.globals();
             if (!Namespace.empty()) table = lua[Namespace].get_or_create<sol::table>();
             if constexpr (HasGetFuncs<Binder>::value) 
@@ -299,10 +296,9 @@ namespace Aether {
         }
 
         template<typename T>
-        static void BindEnum(const std::string& Name, const std::string& Namespace = "")
+        void BindEnum(const std::string& Name, const std::string& Namespace = "")
         {
-            auto& instance = GetInstance();
-            auto& lua = instance.LuaState.lua;
+            auto& lua = LuaState.lua;
             sol::table dataTable = lua.create_table();
             sol::table reverseTable = lua.create_table(); 
             auto entries = magic_enum::enum_entries<T>();
@@ -329,10 +325,9 @@ namespace Aether {
         }
 
         template<typename... Args>
-        static sol::object CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, Args&&... args)
+        sol::object CallSafeInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, Args&&... args)
         {
-            auto& instance = GetInstance();
-            auto slot = instance.m_Instances.GetResource(handle);
+            auto slot = m_Instances.GetResource(handle);
             if (slot == nullptr || slot->has_error) return sol::lua_nil;
             auto it = std::find_if(slot->exposed_funcs.begin(), slot->exposed_funcs.end(), [name](const Exposed& data) { return data.name == name; });
             if (it == slot->exposed_funcs.end()) return sol::lua_nil;
@@ -349,12 +344,11 @@ namespace Aether {
         }
 
         template<typename... Args>
-        static sol::object CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, Args&&... args)
+        sol::object CallDirectInstanceAPI(Handle<ScriptInstance> handle, const std::string& name, Args&&... args)
         {
-            auto& instance = GetInstance();
-            auto slot = instance.m_Instances.GetResource(handle);
+            auto slot = m_Instances.GetResource(handle);
             if (slot == nullptr || slot->has_error) return sol::lua_nil;
-            auto env = instance.LuaState.env_pool.GetResource(slot->env_handle);
+            auto env = LuaState.env_pool.GetResource(slot->env_handle);
             if (env == nullptr) return sol::lua_nil;
 
             sol::protected_function func = (*env)[name]; if (!func.valid()) return sol::lua_nil;

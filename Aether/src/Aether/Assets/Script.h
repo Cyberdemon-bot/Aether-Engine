@@ -3,6 +3,7 @@
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Core/ServiceManager.h"
 #include <string>
 
 namespace Aether {
@@ -12,7 +13,7 @@ namespace Aether {
     public:
         Script(const std::string& source)
         {
-            handle = ScriptEngine::LoadScriptSource(source);
+            handle = ServiceManager::GetService<ScriptEngine>()->LoadScriptSource(source);
         }
         Script(Handle<Bytecode> script)
         {

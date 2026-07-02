@@ -31,8 +31,11 @@ void MainGameLayer::Attach()
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
-    Aether::Renderer::SetLutMap("Assets/textures/LUT.png");
-    Aether::Renderer::SetSkyBox("Assets/textures/skybox.png");
+    auto* renderer = Aether::ServiceManager::GetService<Aether::Renderer>();
+    auto* asset_manager = Aether::ServiceManager::GetService<Aether::AssetManager>();
+
+    renderer->SetLutMap("Assets/textures/LUT.png");
+    renderer->SetSkyBox("Assets/textures/skybox.png");
 
     auto& window = Aether::Application::Get().GetWindow();
     Aether::FramebufferSpec sceneFbSpec;
@@ -59,7 +62,7 @@ void MainGameLayer::Attach()
     mainPass.UsingShadowmap = true;
     m_Pipeline.push_back(mainPass);
 
-    Aether::Renderer::SetPipeline(m_Pipeline.data(), m_Pipeline.size());
+    renderer->SetPipeline(m_Pipeline.data(), m_Pipeline.size());
     m_Scene.Init();
 
     // =========================================================================
@@ -77,17 +80,17 @@ void MainGameLayer::Attach()
     sunTransform.Translation = glm::vec3(0.0f, 50.0f, 0.0f);
     sunTransform.Dirty       = true;
 
-    Aether::Renderer::ActivatePass(0);
+    renderer->ActivatePass(0);
 
     // =========================================================================
     // MAP
     // =========================================================================
     auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
     if (!uploadMap.meshIDs.empty()) {
-        m_BaseMapMesh = Aether::AssetManager::GetHandle(uploadMap.meshIDs[0]);
+        m_BaseMapMesh = asset_manager->GetHandle(uploadMap.meshIDs[0]);
         if (uploadMap.matIDs.empty()) AE_ERROR("no material!");
         for (auto& matID : uploadMap.matIDs)
-            m_BaseMapMaterials.push_back(Aether::AssetManager::GetHandle(matID));
+            m_BaseMapMaterials.push_back(asset_manager->GetHandle(matID));
     }
 
     // =========================================================================
@@ -169,8 +172,8 @@ void MainGameLayer::Attach()
     Aether::AudioSystem::SetLooping(m_BgmSource, true);
     Aether::AudioSystem::Play(m_BgmSource);
 
-    m_SheetHandle = Aether::AssetManager::CreateAsset<Aether::Sheet>(Aether::UUID());
-    m_MapSheet = Aether::AssetManager::GetAsset<Aether::Sheet>(m_SheetHandle);
+    m_SheetHandle = asset_manager->CreateAsset<Aether::Sheet>(Aether::UUID());
+    m_MapSheet = asset_manager->GetAsset<Aether::Sheet>(m_SheetHandle);
     m_MapSheet->Resize(m_BaseMapMaterials.size());
     m_MapSheet->CopyDefaultList(m_BaseMapMaterials);
 

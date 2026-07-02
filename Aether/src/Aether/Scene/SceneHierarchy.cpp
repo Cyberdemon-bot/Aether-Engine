@@ -1,5 +1,7 @@
 #include "aepch.h"
 #include "Aether/Scene/Scene.h"
+#include "Aether/Core/ServiceManager.h"
+#include "Aether/Assets/AssetManager.h"
 
 namespace Aether {
     void Scene::MarkDirty(Entity entity)
@@ -80,7 +82,7 @@ namespace Aether {
         if (HasComponent<ScriptComponent>(entity))
         {
             auto& script = GetComponent<ScriptComponent>(entity);
-            ScriptEngine::DestroyInstance(script.ScriptHandle);
+            ServiceManager::GetService<ScriptEngine>()->DestroyInstance(script.ScriptHandle);
         }
         
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
@@ -128,7 +130,7 @@ namespace Aether {
         if (HasComponent<ScriptComponent>(entity))
         {
             auto& script = GetComponent<ScriptComponent>(entity);
-            ScriptEngine::DestroyInstance(script.ScriptHandle);
+            ServiceManager::GetService<ScriptEngine>()->DestroyInstance(script.ScriptHandle);
         }
 
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
@@ -325,6 +327,7 @@ namespace Aether {
 
     void Scene::CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity)
     {
+        auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
         const Node& node = reg.hierarchy->nodes[nodeIdx];
         Entity e = CreateEntity(node.name, parentEntity);
         auto& t = GetComponent<TransformComponent>(e);
@@ -336,14 +339,14 @@ namespace Aether {
         if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
         {
             auto& component = AddComponent<MeshComponent>(e);
-            component.Mesh = AssetManager::GetHandle(reg.meshIDs[node.meshIdx]);
-            auto sh_handle = AssetManager::CreateAsset<Sheet>(UUID());
-            auto* sh = AssetManager::GetAsset<Sheet>(sh_handle);
+            component.Mesh = asset_manager->GetHandle(reg.meshIDs[node.meshIdx]);
+            auto sh_handle = asset_manager->CreateAsset<Sheet>(UUID());
+            auto* sh = asset_manager->GetAsset<Sheet>(sh_handle);
             sh->Resize(reg.meshMap[node.meshIdx].size());
             for(size_t i = 0; i < reg.meshMap[node.meshIdx].size(); i++)
             {
                 auto& id = reg.meshMap[node.meshIdx][i];
-                sh->SetDefault(i, AssetManager::GetHandle(id));
+                sh->SetDefault(i, asset_manager->GetHandle(id));
             }
             component.Sheet = sh_handle;
         }
@@ -358,8 +361,8 @@ namespace Aether {
             if (!comp.Clips.empty())
             {
                 auto rigModule = AnimationSystem::GetModule<RigModule>();
-                auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
-                auto* clipAsset = AssetManager::GetAsset<Clip>(comp.Clips[0]);
+                auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(comp.Skeleton);
+                auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[0]);
                 if (skeletonAsset && clipAsset)
                 {
                     comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());

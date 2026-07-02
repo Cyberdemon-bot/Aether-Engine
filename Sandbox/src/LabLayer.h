@@ -38,9 +38,20 @@ private:
     void DrawScriptingPanel();
     void DrawBoneAttachmentPanel();
 
+    void RefreshJointCache(
+        Aether::Entity entity,
+        Aether::Entity& cachedEntity,
+        std::vector<std::string>& cache,
+        Aether::Scene& scene,
+        Aether::RigModule* rig);
+
+    bool JointCombo(const char* label, int& selectedIdx,
+        const std::vector<std::string>& names);
+
 private:
     Aether::Scene        m_Scene;
     Aether::EditorCamera m_Camera;
+    Aether::AssetManager* m_AssetManager = nullptr;
 
     Aether::Ref<Aether::Shader> m_MainShader;
     Aether::Ref<Aether::Shader> m_VolShader;

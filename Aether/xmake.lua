@@ -34,6 +34,7 @@ target("Aether")
     add_defines("AETHER_SHARED")
     add_defines("AETHER_BUILD_DLL")
     add_defines("MSDFGEN_USE_CPP11", "MSDFGEN_EXTENSIONS")
+    --set_policy("build.sanitizer.address", true)
 
     if is_mode("debug") then
         add_defines("AETHER_DEBUG", {public = true})
@@ -67,4 +68,5 @@ target("Aether")
         add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo", {public = true})
     elseif is_os("linux") then
         add_syslinks("pthread", "dl", {public = true})
-    end
+    end 
+

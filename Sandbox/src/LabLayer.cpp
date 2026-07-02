@@ -21,6 +21,7 @@ void LabLayer::Attach()
     if (ctx) ImGui::SetCurrentContext(ctx);
 
     auto& window = Aether::Application::Get().GetWindow();
+    m_AssetManager = Aether::ServiceManager::GetService<Aether::AssetManager>();
 
     // --- MAIN PASS ---
     Aether::FramebufferSpec mainSpec;
@@ -72,10 +73,11 @@ void LabLayer::Attach()
     };
 
     m_Pipeline = { mainPass, volPass };
-    Aether::Renderer::SetPipeline(m_Pipeline.data(), m_Pipeline.size());
+    auto* renderer = Aether::ServiceManager::GetService<Aether::Renderer>();
+    renderer->SetPipeline(m_Pipeline.data(), m_Pipeline.size());
 
     // --- SKYBOX ---
-    Aether::Renderer::SetSkyBox("assets/textures/skybox.png");
+    renderer->SetSkyBox("assets/textures/skybox.png");
 
     // --- SPOT LIGHT ---
     Aether::LightParam spotLight;
@@ -102,11 +104,12 @@ void LabLayer::Attach()
     Aether::ConsoleLayer::RegisterCommand("loadcache", AE_BIND_CONSOLE_FN(LoadCacheModelAsync));
     Aether::ConsoleLayer::RegisterCommand("add",       AE_BIND_CONSOLE_FN(AddEntity));
 
-    Aether::ScriptEngine::AddListener("test func", [](const Aether::ScriptArgs& args){
+    auto* script_engine = Aether::ServiceManager::GetService<Aether::ScriptEngine>();
+    script_engine->AddListener("test func", [](const Aether::ScriptArgs& args){
         AE_WARN("Tested successfully {0}", args.GetElement<int>(0));
     });
 
-    Aether::ScriptEngine::ImportNativeFunc("PrintTest", [](const Aether::ScriptArgs& args) -> Aether::ScriptValue
+    script_engine->ImportNativeFunc("PrintTest", [](const Aether::ScriptArgs& args) -> Aether::ScriptValue
     {
         AE_WARN("printTested successfully with value {0}", args.GetElement<int>(0));
         return Aether::ScriptValue::Make(20);
@@ -219,7 +222,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
 {
     if (!m_Scene.IsValid(transformEntity)) return;
 
-    auto* mesh = Aether::AssetManager::GetAsset<Aether::Mesh>(colliderMeshID);
+    auto* mesh = m_AssetManager->GetAsset<Aether::Mesh>(colliderMeshID);
     if (!mesh) return;
 
     // Walk up hierarchy to compute world transform
@@ -316,7 +319,7 @@ void LabLayer::RebuildPostEvaluate()
         if (!scene.HasComponent<Aether::AnimatorComponent>(entity)) return;
 
         auto& comp      = scene.GetComponent<Aether::AnimatorComponent>(entity);
-        auto* skelAsset = Aether::AssetManager::GetAsset<Aether::Skeleton>(comp.Skeleton);
+        auto* skelAsset = m_AssetManager->GetAsset<Aether::Skeleton>(comp.Skeleton);
         if (!skelAsset || !comp.CurrentPose.IsValid()) return;
 
         auto skelHnd = skelAsset->GetHandle();
@@ -357,9 +360,9 @@ void LabLayer::RebuildPostEvaluate()
         // ---- Clip Blend -------------------------------------------------
         if (blState.enabled)
         {
-            auto* clipAAsset = Aether::AssetManager::GetAsset<Aether::Clip>(
+            auto* clipAAsset = m_AssetManager->GetAsset<Aether::Clip>(
                 comp.Clips[blState.clipAIdx]);
-            auto* clipBAsset = Aether::AssetManager::GetAsset<Aether::Clip>(
+            auto* clipBAsset = m_AssetManager->GetAsset<Aether::Clip>(
                 comp.Clips[blState.clipBIdx]);
 
             if (clipAAsset && clipBAsset)
@@ -430,7 +433,7 @@ void LabLayer::OnEvent(Aether::Event& event)
 
 void LabLayer::OnImGuiRender()
 {
-    Aether::UI::PerformanceOverlay(0);
+    //Aether::UI::PerformanceOverlay(0);
 
     DrawHierarchyPanel();
     DrawScenePanel();
@@ -442,6 +445,7 @@ void LabLayer::OnImGuiRender()
 
 void LabLayer::DrawScriptingPanel()
 {
+#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Scripting"))
@@ -544,6 +548,7 @@ void LabLayer::DrawScriptingPanel()
             UI::Text("%s  (slot %d)", tag.Tag.c_str(), sc.ScriptHandle.index);
         }
     }
+#endif
 }
 
 // =============================================================================
@@ -552,7 +557,7 @@ void LabLayer::DrawScriptingPanel()
 
 void LabLayer::DrawHierarchyPanel()
 {
-    Aether::UI::SceneHierarchy("Hierarchy", m_Scene, m_SelectedEntity);
+    //Aether::UI::SceneHierarchy("Hierarchy", m_Scene, m_SelectedEntity);
 }
 
 // =============================================================================
@@ -561,6 +566,7 @@ void LabLayer::DrawHierarchyPanel()
 
 void LabLayer::DrawScenePanel()
 {
+#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Scene"))
@@ -651,13 +657,14 @@ void LabLayer::DrawScenePanel()
             }
         }
     }
+#endif
 }
 
 // =============================================================================
 //  Animation panel
 // =============================================================================
 
-static void RefreshJointCache(
+void LabLayer::RefreshJointCache(
     Aether::Entity entity,
     Aether::Entity& cachedEntity,
     std::vector<std::string>& cache,
@@ -671,7 +678,7 @@ static void RefreshJointCache(
     if (!scene.HasComponent<Aether::AnimatorComponent>(entity)) return;
 
     auto& anim = scene.GetComponent<Aether::AnimatorComponent>(entity);
-    auto* skelAsset = Aether::AssetManager::GetAsset<Aether::Skeleton>(anim.Skeleton);
+    auto* skelAsset = Aether::ServiceManager::GetService<Aether::AssetManager>()->GetAsset<Aether::Skeleton>(anim.Skeleton);
     if (!skelAsset) return;
 
     auto skelHnd = skelAsset->GetHandle();
@@ -681,7 +688,7 @@ static void RefreshJointCache(
         cache.push_back(std::to_string(i) + "  " + rig->GetJointName(skelHnd, i));
 }
 
-static bool JointCombo(const char* label, int& selectedIdx,
+bool LabLayer::JointCombo(const char* label, int& selectedIdx,
                        const std::vector<std::string>& names)
 {
     if (names.empty()) { ImGui::TextDisabled("(no skeleton)"); return false; }
@@ -703,6 +710,7 @@ static bool JointCombo(const char* label, int& selectedIdx,
 
 void LabLayer::DrawAnimationPanel()
 {
+#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Animation"))
@@ -740,7 +748,7 @@ void LabLayer::DrawAnimationPanel()
                     for (auto entity : m_Scene.View<MeshComponent>())
                     {
                         auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
-                        auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                        auto* mesh = m_AssetManager->GetAsset<Mesh>(mc.Mesh);
                         if (mesh && mesh->id == meshID)
                         {
                             m_Scene.CloneComponent<AnimatorComponent>(entity, targetAnimEnt);
@@ -754,12 +762,12 @@ void LabLayer::DrawAnimationPanel()
             for (auto entity : m_Scene.View<MeshComponent, AnimatorComponent>())
             {
                 auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
-                auto* mesh = AssetManager::GetAsset<Mesh>(mc.Mesh);
+                auto* mesh = m_AssetManager->GetAsset<Mesh>(mc.Mesh);
                 auto& anim = m_Scene.GetComponent<AnimatorComponent>(entity);
 
                 std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
                 std::string skelName = anim.Skeleton.IsValid()
-                    ? AssetsRegister::Get(AssetManager::GetAsset<Skeleton>(anim.Skeleton)->id)
+                    ? AssetsRegister::Get(m_AssetManager->GetAsset<Skeleton>(anim.Skeleton)->id)
                     : "(no skeleton)";
 
                 auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : (int)(uint64_t)entity);
@@ -931,6 +939,7 @@ void LabLayer::DrawAnimationPanel()
             }
         } // end IK & Advanced header
     }
+#endif
 }
 
 // =============================================================================
@@ -939,6 +948,7 @@ void LabLayer::DrawAnimationPanel()
 
 void LabLayer::DrawLightingPanel()
 {
+#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Lighting"))
@@ -962,6 +972,7 @@ void LabLayer::DrawLightingPanel()
             UI::SliderFloat("Bias", m_ShadowBias, 0.00001f, 0.005f);
         }
     }
+#endif
 }
 
 // =============================================================================
@@ -970,6 +981,7 @@ void LabLayer::DrawLightingPanel()
 
 void LabLayer::DrawBoneAttachmentPanel()
 {
+#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Bone Attachment"))
@@ -1149,4 +1161,5 @@ void LabLayer::DrawBoneAttachmentPanel()
                 UI::TextDisabled("No bone attachments in scene.");
         }
     }
+#endif
 }
