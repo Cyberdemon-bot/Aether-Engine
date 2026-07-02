@@ -7,7 +7,6 @@
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Assets/AssetManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Audio/AudioSystem.h"

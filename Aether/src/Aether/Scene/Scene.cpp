@@ -6,6 +6,7 @@
 #include "Aether/Audio/AudioSystem.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Core/ServiceManager.h"
 #include <glm/gtx/matrix_decompose.hpp>
 
 namespace Aether {
@@ -121,7 +122,7 @@ namespace Aether {
                         data.type = ev.type;
 
                         Handle<ScriptInstance> handle = cmp.ScriptHandle;
-                        ScriptEngine::OnInstanceCollision(handle, data);
+                        ServiceManager::GetService<ScriptEngine>()->OnInstanceCollision(handle, data);
                     }
                 }
 
@@ -137,7 +138,7 @@ namespace Aether {
                         data.type = ev.type;
 
                         Handle<ScriptInstance> handle = cmp.ScriptHandle;
-                        ScriptEngine::OnInstanceCollision(handle, data);
+                        ServiceManager::GetService<ScriptEngine>()->OnInstanceCollision(handle, data);
                     }
                 }
             }
@@ -265,6 +266,7 @@ namespace Aether {
     void Scene::ResolveBoneAttachments()
     {
         auto view = View<BoneAttachmentComponent, TransformComponent>();
+        auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
         for (auto entity : view)
         {
             auto& attach = GetComponent<BoneAttachmentComponent>(entity);
@@ -276,7 +278,7 @@ namespace Aether {
             auto& animComp = GetComponent<AnimatorComponent>(animEnt);
             const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
             
-            auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(animComp.Skeleton);
+            auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(animComp.Skeleton);
             if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
                 Handle<Skeleton> skelHnd = skeletonAsset->GetHandle();
@@ -511,9 +513,10 @@ namespace Aether {
 
         {
             auto scriptView = View<ScriptComponent>();
-            if (ScriptEngine::IsExecOrderChanged())
-                Sort<ScriptComponent>([](const ScriptComponent& a, const ScriptComponent& b) 
-                {return ScriptEngine::GetExecOrder(a.ScriptHandle) <  ScriptEngine::GetExecOrder(b.ScriptHandle);});
+            auto* script_engine = ServiceManager::GetService<ScriptEngine>();
+            if (script_engine->IsExecOrderChanged())
+                Sort<ScriptComponent>([script_engine](const ScriptComponent& a, const ScriptComponent& b) 
+                {return script_engine->GetExecOrder(a.ScriptHandle) <  script_engine->GetExecOrder(b.ScriptHandle);});
 
             for (auto entity : scriptView)
             {
@@ -522,14 +525,14 @@ namespace Aether {
                 if (cmp.PendingStart)
                 {
                     cmp.PendingStart = false;
-                    ScriptEngine::StartInstance(cmp.ScriptHandle);
+                    script_engine->StartInstance(cmp.ScriptHandle);
                 }
                 else if (cmp.IsActive)
-                    ScriptEngine::UpdateInstance(instance, ts);
+                    script_engine->UpdateInstance(instance, ts);
             }
 
-            ScriptEngine::FlushEvent();
-            ScriptEngine::UpdateCoroutines(ts);
+            script_engine->FlushEvent();
+            script_engine->UpdateCoroutines(ts);
         }
 
         {
@@ -571,6 +574,7 @@ namespace Aether {
 
         { // render
             auto camView = View<CameraComponent>();
+            auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
             
             CameraComponent* mainCamera = nullptr;
             for (auto entity : camView)
@@ -622,7 +626,7 @@ namespace Aether {
                 JobSystem::ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     auto& transform = this->GetComponent<TransformComponent>(entity);
                     auto& meshcmp = this->GetComponent<MeshComponent>(entity);
-                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); 
+                    Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); 
                     if (!mesh)
                     {
                         meshcmp.Culled = true;
@@ -652,8 +656,8 @@ namespace Aether {
                     auto& comp = GetComponent<AnimatorComponent>(entity);
                     if (comp.Clips.empty() || comp.Culled || !comp.RunSampling) continue;
 
-                    auto* skeletonAsset = AssetManager::GetAsset<Skeleton>(comp.Skeleton);
-                    auto* clipAsset = AssetManager::GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
+                    auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(comp.Skeleton);
+                    auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
 
                     if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());
@@ -702,8 +706,9 @@ namespace Aether {
                 ResolveBoneAttachments();
 
                 // render
-                if (camera != nullptr) Renderer::BeginScene(*camera, m_SceneLights.data(), m_SceneLights.size()); 
-                else Renderer::BeginScene(mainCamera->Camera, m_SceneLights.data(), m_SceneLights.size()); 
+                auto* renderer = ServiceManager::GetService<Renderer>(); 
+                if (camera != nullptr) renderer->BeginScene(*camera, m_SceneLights.data(), m_SceneLights.size()); 
+                else renderer->BeginScene(mainCamera->Camera, m_SceneLights.data(), m_SceneLights.size()); 
 
                 for (auto entity : meshView)
                 {
@@ -712,10 +717,10 @@ namespace Aether {
                     Handle<Pose> pose = Handle<Pose>::MakeInvalid();
                     if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
-                        Renderer::DrawMesh(meshcmp.Mesh, meshcmp.Sheet, pose, transform.WorldTransform);
+                        renderer->DrawMesh(meshcmp.Mesh, meshcmp.Sheet, pose, transform.WorldTransform);
                 }
 
-                Renderer::EndScene();
+                renderer->EndScene();
 
                 // draw debug box
                 for (auto entity : meshView)
@@ -724,7 +729,7 @@ namespace Aether {
                     if (!meshcmp.ShowBounds) continue;
 
                     auto& transform = GetComponent<TransformComponent>(entity);
-                    Mesh* mesh = AssetManager::GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
+                    Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
@@ -732,7 +737,7 @@ namespace Aether {
                         Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
                     else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
-                    Renderer::RenderBox(worldMin, worldMax, glm::mat4(1.0f), RED);
+                    renderer->RenderBox(worldMin, worldMax, glm::mat4(1.0f), RED);
                 }
 
                 auto rbView = View<ColliderComponent>();
@@ -747,19 +752,19 @@ namespace Aether {
                     if (component.Shape == ColliderShape::Sphere)
                     {
                         float radius = component.Size.x;
-                        Renderer::RenderSphere(radius, colliderTransform, GREEN);
+                        renderer->RenderSphere(radius, colliderTransform, GREEN);
                     }
                     if (component.Shape == ColliderShape::Box)
                     {
                         glm::vec3 bMin = -component.Size;
                         glm::vec3 bMax =  component.Size;
-                        Renderer::RenderBox(bMin, bMax, colliderTransform, GREEN);
+                        renderer->RenderBox(bMin, bMax, colliderTransform, GREEN);
                     }
                     if (component.Shape == ColliderShape::Capsule)
                     {
                         float radius  = component.Size.x;
                         float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
-                        Renderer::RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
+                        renderer->RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
                     }
                 }
             }

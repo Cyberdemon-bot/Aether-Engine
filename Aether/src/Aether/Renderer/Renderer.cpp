@@ -40,14 +40,14 @@ uint32_t skyboxIndices[] = {
 
 namespace Aether {
 
-	Scope<Renderer::SceneData>  Renderer::s_SceneData  = CreateScope<Renderer::SceneData>();
-	Scope<Renderer::RenderData> Renderer::s_RenderData = CreateScope<Renderer::RenderData>();
-
 	void Renderer::Init()
 	{
+		s_SceneData = CreateScope<Renderer::SceneData>();
+		s_RenderData = CreateScope<Renderer::RenderData>();
+
 		RenderCommand::Init();
-		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 }, { "a_InstanceRigIdx", ShaderDataType::Int}};
 		RenderCommand::SetDepthFuncEqual(State::LEQUAL);
+		BufferLayout layout = { { "a_InstanceModel", ShaderDataType::Mat4 }, { "a_InstanceRigIdx", ShaderDataType::Int}};
 
 		s_RenderData->s_InstanceVBO = ResourceManager::CreateResource<VertexBuffer>(10 * sizeof(InstanceData));
 		ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO)->SetLayout(layout);
@@ -69,7 +69,7 @@ namespace Aether {
 		s_RenderData->s_SkyboxShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VSkyboxShader, FSkyboxShader});
 		s_RenderData->s_ShadowmapShader = ResourceManager::CreateResource<Shader>(ShaderProgramSource{VShadowmapShader, FShadowmapShader});
 
-		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)   ->SetUBOSlot("Camera", 0);
+		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)->SetUBOSlot("Camera", 0);
 		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Lights", 2);
 
 		Aether::FramebufferSpec shadowFbSpec;
@@ -337,8 +337,9 @@ namespace Aether {
 	void Renderer::DrawMesh(Handle<Asset> mesh, Handle<Asset> sheet, Handle<Pose> pose, const glm::mat4& transform)
 	{
 		if (!mesh.IsValid()) return;
-		auto* me_asset = AssetManager::GetAsset<Mesh>(mesh);
-		auto* sh_asset = AssetManager::GetAsset<Sheet>(sheet);
+		auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
+		auto* me_asset = asset_manager->GetAsset<Mesh>(mesh);
+		auto* sh_asset = asset_manager->GetAsset<Sheet>(sheet);
 		const auto& submeshes = me_asset->GetSubMeshes();
 		if (!me_asset->HasInstanceBuffer()) me_asset->AddInstanceBuffer(s_RenderData->s_InstanceVBO);
 
@@ -368,6 +369,7 @@ namespace Aether {
 	{
 		Mesh* currentMesh = nullptr;
 		Material* currentMaterial = nullptr;
+		auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
 		int startSlot = 3;
 
 		if (!pass.Shader || !pass.TargetFBO)
@@ -428,9 +430,9 @@ namespace Aether {
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
 				auto& command = CommandList[i];
-				auto* sheet = AssetManager::GetAsset<Sheet>(command.sheet);
-				auto* mesh = AssetManager::GetAsset<Mesh>(command.mesh);
-				auto* material = AssetManager::GetAsset<Material>(sheet->GetActiveHandle(command.matIdx));
+				auto* sheet = asset_manager->GetAsset<Sheet>(command.sheet);
+				auto* mesh = asset_manager->GetAsset<Mesh>(command.mesh);
+				auto* material = asset_manager->GetAsset<Material>(sheet->GetActiveHandle(command.matIdx));
 				if (!material || !mesh) continue;
 
 				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];

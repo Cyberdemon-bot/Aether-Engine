@@ -5,15 +5,13 @@
 namespace Aether {
     void ScriptEngine::MarkCoroutineDone(Handle<Coroutine> handle)
     {
-        auto& instance = GetInstance();
-        auto task = instance.m_Coroutines.GetResource(handle);
+        auto task = m_Coroutines.GetResource(handle);
         if (task) task->DoneFlag.store(true, std::memory_order_release);
     }
 
     Handle<Coroutine> ScriptEngine::StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func)
     {
-        auto& instance = GetInstance();
-        sol::thread runner = sol::thread::create(instance.LuaState.lua.lua_state());
+        sol::thread runner = sol::thread::create(LuaState.lua.lua_state());
         sol::coroutine co = sol::coroutine(runner.state(), func);
         auto result = co();
         if (!result.valid()) 
@@ -38,17 +36,17 @@ namespace Aether {
                 task.AwaitEvent = result[0].get<std::string>();
                 task.Timer = rc == 3 ? result[1].get<float>() : -1.0f;
             }
-            auto handle = instance.m_Coroutines.SaveResource(task);
-            auto stored = instance.m_Coroutines.GetResource(handle);
+            auto handle = m_Coroutines.SaveResource(task);
+            auto stored = m_Coroutines.GetResource(handle);
             if (stored) 
             {
                 stored->Self = handle;
                 Handle<Coroutine> selfHandle = stored->Self;
                 if (stored->Type == WaitType::Event)
                 {
-                    stored->EventCbHandle = instance.m_EventManager->AddNativeListener(
+                    stored->EventCbHandle = m_EventManager->AddNativeListener(
                         stored->AwaitEvent, 
-                        [handle](const ScriptArgs&) { MarkCoroutineDone(handle); } 
+                        [handle, this](const ScriptArgs&) { this->MarkCoroutineDone(handle); } 
                     );
                 }
                 if (stored->Type == WaitType::Job)
@@ -58,21 +56,20 @@ namespace Aether {
                     for (int i = 1; i < rc - 1; i++)
                         args.Pushback(FromSolObject(result[i]));
 
-                    auto it = std::find_if(instance.m_NativeFuncs.begin(), instance.m_NativeFuncs.end(),
+                    auto it = std::find_if(m_NativeFuncs.begin(), m_NativeFuncs.end(),
                         [&funcName](const NativeFunc& f) { return f.name == funcName; });
 
-                    if (it != instance.m_NativeFuncs.end())
+                    if (it != m_NativeFuncs.end())
                     {
                         auto nativeFunc = it->native;
-                        JobSystem::SubmitJob([selfHandle, args, nativeFunc]() mutable
+                        JobSystem::SubmitJob([selfHandle, args, nativeFunc, this]() mutable
                         {
                             ScriptValue ret = nativeFunc(args);
-                            auto& eng = ScriptEngine::GetInstance();
-                            auto task = eng.m_Coroutines.GetResource(selfHandle);
+                            auto task = this->m_Coroutines.GetResource(selfHandle);
                             if (task)
                             {
                                 task->JobResult = ret;
-                                MarkCoroutineDone(task->Self);
+                                this->MarkCoroutineDone(task->Self);
                             }
                         });
                     }
@@ -86,20 +83,18 @@ namespace Aether {
 
     void ScriptEngine::KillCoroutineAPI(Handle<Coroutine> handle)
     {
-        auto& instance = GetInstance();
-        auto task = instance.m_Coroutines.GetResource(handle);
+        auto task = m_Coroutines.GetResource(handle);
         if (!task) return;
         if (task->Type == WaitType::Event && task->EventCbHandle.IsValid()) 
-            instance.m_EventManager->RemoveNativeListener(task->EventCbHandle, task->AwaitEvent);
-        instance.m_Coroutines.DestroyResource(handle);
+            m_EventManager->RemoveNativeListener(task->EventCbHandle, task->AwaitEvent);
+        m_Coroutines.DestroyResource(handle);
     }
 
     void ScriptEngine::UpdateCoroutines(Timestep ts)
     {
-        auto& instance = GetInstance();
-        instance.m_Coroutines.Loop([&](CoroutineTask& task) 
+        m_Coroutines.Loop([&, this](CoroutineTask& task) 
         {
-            if (!instance.m_Instances.GetResource(task.Owner)) 
+            if (!m_Instances.GetResource(task.Owner)) 
             {
                 KillCoroutineAPI(task.Self);
                 return;
@@ -134,7 +129,7 @@ namespace Aether {
                 sol::protected_function_result result;
                 if (task.JobResult.type != ScriptValue::Type::Nil) 
                 {
-                    sol::object obj = ToSolObject(instance.LuaState.lua, task.JobResult);
+                    sol::object obj = ToSolObject(LuaState.lua, task.JobResult);
                     result = task.Co(obj);
                 } 
                 else result = task.Co();
@@ -142,7 +137,7 @@ namespace Aether {
 
                 if (task.Type == WaitType::Event) 
                 {
-                    instance.m_EventManager->RemoveNativeListener(task.EventCbHandle, task.AwaitEvent);
+                    m_EventManager->RemoveNativeListener(task.EventCbHandle, task.AwaitEvent);
                     task.EventCbHandle = {};
                 }
                 
@@ -165,8 +160,8 @@ namespace Aether {
                         task.AwaitEvent = result[0].get<std::string>();
                         task.Timer = rc == 3 ? result[1].get<float>() : -1.0f;
                         Handle<Coroutine> selfHandle = task.Self; 
-                        task.EventCbHandle = instance.m_EventManager->AddNativeListener(task.AwaitEvent, 
-                        [selfHandle](const ScriptArgs&) { MarkCoroutineDone(selfHandle); });
+                        task.EventCbHandle = m_EventManager->AddNativeListener(task.AwaitEvent, 
+                        [selfHandle, this](const ScriptArgs&) { this->MarkCoroutineDone(selfHandle); });
                     }
                     else if (task.Type == WaitType::Job)
                     {
@@ -175,22 +170,21 @@ namespace Aether {
                         for (int i = 1; i < rc - 1; i++)
                             args.Pushback(FromSolObject(result[i]));
 
-                        auto it = std::find_if(instance.m_NativeFuncs.begin(), instance.m_NativeFuncs.end(),
+                        auto it = std::find_if(m_NativeFuncs.begin(), m_NativeFuncs.end(),
                             [&funcName](const NativeFunc& f) { return f.name == funcName; });
 
-                        if (it != instance.m_NativeFuncs.end())
+                        if (it != m_NativeFuncs.end())
                         {
                             auto nativeFunc = it->native;
                             Handle<Coroutine> selfHandle = task.Self;
-                            JobSystem::SubmitJob([selfHandle, args, nativeFunc]() mutable
+                            JobSystem::SubmitJob([selfHandle, args, nativeFunc, this]() mutable
                             {
                                 ScriptValue ret = nativeFunc(args);
-                                auto& eng = ScriptEngine::GetInstance();
-                                auto t = eng.m_Coroutines.GetResource(selfHandle);
+                                auto t = this->m_Coroutines.GetResource(selfHandle);
                                 if (t)
                                 {
                                     t->JobResult = ret;
-                                    MarkCoroutineDone(t->Self);
+                                    this->MarkCoroutineDone(t->Self);
                                 }
                             });
                         }

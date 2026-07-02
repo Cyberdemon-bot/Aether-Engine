@@ -2,12 +2,13 @@
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLTexture.h"
+#include "Aether/Core/ServiceManager.h"
 
 namespace Aether {
 
 	Scope<Texture2D> Texture2D::CreateImpl(const TextureSpec& specification)
 	{
-		switch (Renderer::GetAPI())
+		switch (ServiceManager::GetService<Renderer>()->GetAPI())
 		{
 			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLTexture2D>(specification);
@@ -19,7 +20,7 @@ namespace Aether {
 
 	Scope<Texture2D> Texture2D::CreateImpl(const std::string& path, WrapMode mode, bool flip)
 	{
-		switch (Renderer::GetAPI())
+		switch (ServiceManager::GetService<Renderer>()->GetAPI())
 		{
 			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLTexture2D>(path, mode, flip);
@@ -31,7 +32,7 @@ namespace Aether {
 
 	Scope<Texture2D> Texture2D::CreateImpl(void* data, size_t size)
 	{
-		switch (Renderer::GetAPI())
+		switch (ServiceManager::GetService<Renderer>()->GetAPI())
 		{
 			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLTexture2D>(data, size);
@@ -43,7 +44,7 @@ namespace Aether {
 
 	Scope<TextureCube> TextureCube::CreateImpl(const std::string& path)
     {
-        switch (Renderer::GetAPI())
+        switch (ServiceManager::GetService<Renderer>()->GetAPI())
         {
             case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
             case RendererAPI::API::OpenGL:  return CreateScope<OpenGLTextureCube>(path);

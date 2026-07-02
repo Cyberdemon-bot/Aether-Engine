@@ -14,6 +14,7 @@
 #include "Aether/Packer/MaterialPack.h"
 #include "Aether/Packer/RigPack.h"
 #include "Aether/Packer/MeshPack.h"
+#include "Aether/Core/ServiceManager.h"
 namespace Aether {
 
 	ImporterAPI::API ImporterAPI::s_API = ImporterAPI::API::Cgltf;
@@ -31,8 +32,8 @@ namespace Aether {
         
 		switch (s_API)
 		{
-			case ImporterAPI::API::None:    AE_CORE_ASSERT(false, "ImporterAPI::None is currently not supported!"); return nullptr;
-			case ImporterAPI::API::Cgltf:  return CreateScope<GLTF_ImporterAPI>();
+			case ImporterAPI::API::None: AE_CORE_ASSERT(false, "ImporterAPI::None is currently not supported!"); return nullptr;
+			case ImporterAPI::API::Cgltf: return CreateScope<GLTF_ImporterAPI>();
 		}
 
 		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
@@ -57,8 +58,9 @@ namespace Aether {
         std::vector<Handle<Resource>> texHandle;
         std::vector<UUID> rigIDs;     
         std::vector<UUID> clipIDs; 
+        auto* asset_manager = ServiceManager::GetService<AssetManager>();
         // Upload textures
-        for (const auto& texInfo : sceneData->Textures)
+        for (const auto& texInfo : sceneData->Textures) 
         {
             auto handle = ResourceManager::CreateResource<Texture2D>(texInfo.Spec);
             auto resource = ResourceManager::GetResource<Texture2D>(handle);
@@ -70,8 +72,8 @@ namespace Aether {
         for (const auto& matInfo : sceneData->Materials)
         {
             UUID matID = AssetsRegister::Register(matInfo.DebugName, matInfo.AssetID);
-            AssetManager::CreateAsset<Material>(matID);
-            auto material = AssetManager::GetAsset<Material>(matID);
+            asset_manager->CreateAsset<Material>(matID);
+            auto material = asset_manager->GetAsset<Material>(matID);
             if (!material) AE_CORE_ERROR("Fail to Create material while uploading");
             
             // Set textures
@@ -102,7 +104,7 @@ namespace Aether {
             UUID rigID = AssetsRegister::Register(rigInfo.DebugName, rigInfo.AssetID);
             rigIDs.push_back(rigID);
             res.animators.push_back({});
-            auto rig = AssetManager::CreateAsset<Skeleton>(rigID, std::move(rigInfo.spec));
+            auto rig = asset_manager->CreateAsset<Skeleton>(rigID, std::move(rigInfo.spec));
             res.animators[rigIdx].skeleton = rig;
         }
 
@@ -114,8 +116,8 @@ namespace Aether {
             uint32_t targetRigIdx = clipInfo.rigIdx; 
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
-                auto skeletonHandle = AssetManager::GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->GetHandle();
-                auto clip = AssetManager::CreateAsset<Clip>(clipID, std::move(clipInfo.spec), skeletonHandle);
+                auto skeletonHandle = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->GetHandle();
+                auto clip = asset_manager->CreateAsset<Clip>(clipID, std::move(clipInfo.spec), skeletonHandle);
                 res.animators[targetRigIdx].clips.push_back(clip);
             }
         }
@@ -176,12 +178,12 @@ namespace Aether {
             spec.Submeshes = submeshes;
             if (rigIdx >= 0)
             {
-                auto handle = AssetManager::GetAsset<Skeleton>(rigIDs[rigIdx])->GetHandle();
+                auto handle = asset_manager->GetAsset<Skeleton>(rigIDs[rigIdx])->GetHandle();
                 spec.RigPoseMats.resize(animSystem->GetJointCount(handle));
                 animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());
             }
 
-            AssetManager::CreateAsset<Mesh>(meshID, spec);
+            asset_manager->CreateAsset<Mesh>(meshID, spec);
             res.meshIDs.push_back(meshID);
         }
 

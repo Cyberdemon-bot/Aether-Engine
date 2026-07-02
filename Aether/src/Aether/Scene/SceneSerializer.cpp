@@ -1,3 +1,4 @@
+#if 0
 #include "aepch.h"
 #include "Aether/Scene/SceneSerializer.h"
 #include "Aether/Scene/Scene.h"
@@ -8,6 +9,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Core/ServiceManager.h"
 // #include "Aether/Scripting/ScriptEngine.h"
 
 #include <yaml-cpp/yaml.h>
@@ -80,9 +82,9 @@ static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::quat& q)
 
 template<typename TAsset>
 static std::string AssetUUID(Handle<Asset> handle)
-{
+{ 
     if (!handle.IsValid()) return "0";
-    auto* asset = AssetManager::GetAsset<TAsset>(handle);
+    auto* asset =  ServiceManager::GetService<AssetManager>()->GetAsset<TAsset>(handle);
     if (!asset) return "0";
     return std::to_string((uint64_t)asset->id);
 }
@@ -107,6 +109,7 @@ static EntitySnapshot PrefabToSnapshot(
 
     // --- Identity (always present) ---
     s.ID  = (uint64_t)scene.GetComponent<IDComponent>(entity).ID;
+    auto* asset_manager = ServiceManager::GetService<AssetManager>();
 
     if (prefab.tag.IsExits)
         s.Tag = prefab.tag.data.Tag;
@@ -135,7 +138,7 @@ static EntitySnapshot PrefabToSnapshot(
         s.MeshID     = std::stoull(AssetUUID<Mesh>(m.Mesh));
         s.ShowBounds = m.ShowBounds;
 
-        if (Sheet* sheet = AssetManager::GetAsset<Sheet>(m.Sheet))
+        if (Sheet* sheet = asset_manager->GetAsset<Sheet>(m.Sheet))
         {
             s.MaterialIDs.reserve(sheet->BaseHandles.size());
             for (size_t i = 0; i < sheet->BaseHandles.size(); ++i)
@@ -662,6 +665,7 @@ bool SceneSerializer::Deserialize(const std::string& path, SceneSnapshot& snapsh
 bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
 {
     SceneSnapshot snapshot;
+    auto* asset_manager = ServiceManager::GetService<AssetManager>();
     if (!Deserialize(path, snapshot)) return false;
 
     // std::vector<Handle<Bytecode>> compiledScripts;
@@ -705,20 +709,20 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
         if (s.hasMesh)
         {
             auto& c      = scene.AddComponent<MeshComponent>(e);
-            c.Mesh       = AssetManager::GetHandle(UUID(s.MeshID));
+            c.Mesh       = asset_manager->GetHandle(UUID(s.MeshID));
             c.ShowBounds = s.ShowBounds;
 
-            Handle<Asset> sheetHandle = AssetManager::CreateAsset<Sheet>(UUID());
-            Sheet* sheet = AssetManager::GetAsset<Sheet>(sheetHandle);
+            Handle<Asset> sheetHandle = asset_manager->CreateAsset<Sheet>(UUID());
+            Sheet* sheet = asset_manager->GetAsset<Sheet>(sheetHandle);
 
             sheet->Resize(s.MaterialIDs.size());
             for (size_t i = 0; i < s.MaterialIDs.size(); ++i)
-                sheet->SetDefault(i, AssetManager::GetHandle(UUID(s.MaterialIDs[i])));
+                sheet->SetDefault(i, asset_manager->GetHandle(UUID(s.MaterialIDs[i])));
 
             for (size_t i = 0; i < s.OverrideMaterialIDs.size() && i < sheet->GetSize(); ++i)
             {
                 if (s.OverrideMaterialIDs[i] != 0)
-                    sheet->SetOverride(i, AssetManager::GetHandle(UUID(s.OverrideMaterialIDs[i])));
+                    sheet->SetOverride(i, asset_manager->GetHandle(UUID(s.OverrideMaterialIDs[i])));
             }
 
             c.Sheet = sheetHandle;
@@ -728,7 +732,7 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
         if (s.hasAnimator)
         {
             auto& c         = scene.AddComponent<AnimatorComponent>(e);
-            c.Skeleton      = AssetManager::GetHandle(UUID(s.SkeletonID));
+            c.Skeleton      = asset_manager->GetHandle(UUID(s.SkeletonID));
             c.ActiveClipIdx = s.ActiveClipIdx;
             c.CurrentTime   = s.CurrentTime;
             c.Speed         = s.Speed;
@@ -736,14 +740,14 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
             c.Loop          = s.Loop;
 
             for (auto clipID : s.ClipIDs)
-                c.Clips.push_back(AssetManager::GetHandle(UUID(clipID)));
+                c.Clips.push_back(asset_manager->GetHandle(UUID(clipID)));
 
             // Eagerly build animation cache for the active clip.
             if (!c.Clips.empty())
             {
                 auto  rigModule = AnimationSystem::GetModule<RigModule>();
-                auto* skelAsset = AssetManager::GetAsset<Skeleton>(c.Skeleton);
-                auto* clipAsset = AssetManager::GetAsset<Clip>(c.Clips[0]);
+                auto* skelAsset = asset_manager->GetAsset<Skeleton>(c.Skeleton);
+                auto* clipAsset = asset_manager->GetAsset<Clip>(c.Clips[0]);
                 if (rigModule && skelAsset && clipAsset)
                     c.Cache = rigModule->CreateCache(clipAsset->GetHandle());
             }
@@ -841,3 +845,5 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
 }
 
 }
+
+#endif

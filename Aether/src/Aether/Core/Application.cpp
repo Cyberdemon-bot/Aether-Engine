@@ -1,6 +1,7 @@
 #include "aepch.h"
-#include "Application.h"
+#include "Aether/Core/Application.h"
 #include "Aether/Core/Log.h"
+#include "Aether/Core/Timestep.h"
 
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Core/JobSystem.h"
@@ -22,13 +23,15 @@ namespace Aether {
         m_Window = Window::Create(WinProps("Aether Engine", 1366, 768));
         m_Window->SetEventCallback(AE_BIND_EVENT_FN(OnEvent));
 
-        Renderer::Init();  
+        ServiceManager::Init();
+
+        InitService<Renderer>();
+        InitService<AssetManager>();
+        InitService<ScriptEngine>();
         JobSystem::Init();
         AnimationSystem::Init();
         PhysicsSystem::Init();
-        AssetManager::Init();
         AudioSystem::Init();
-        ScriptEngine::Init();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -38,13 +41,14 @@ namespace Aether {
 
     Application::~Application()
     {
-        AssetManager::Shutdown();
-        Renderer::Shutdown();
         AnimationSystem::Shutdown();
         JobSystem::Shutdown();
         PhysicsSystem::Shutdown();
         AudioSystem::Shutdown();
-        ScriptEngine::Shutdown();
+
+        ShutdownService<ScriptEngine>();
+        ShutdownService<AssetManager>();
+        ShutdownService<Renderer>();
     }
 
     void Application::Close()

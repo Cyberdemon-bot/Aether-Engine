@@ -9,6 +9,7 @@
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Core/JobSystem.h"
+#include "Aether/Core/ServiceManager.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -473,7 +474,7 @@ namespace Aether {
                 ), 
                 AE_REFLECT("ExecOrder",
                     AE_MAKE_LAMBDA((), (const Type& self), int,
-                        ScriptEngine::GetInstance().IsExecChanged = true; return self.slot->exec_order;
+                        ServiceManager::GetService<ScriptEngine>()->IsExecChanged = true; return self.slot->exec_order;
                     ),
                     AE_MAKE_LAMBDA((), (Type& self, int val), void,
                         self.slot->exec_order = val;
@@ -557,7 +558,7 @@ namespace Aether {
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
                         std::vector<sol::object> collected(args.begin(), args.end());
-                        return ScriptEngine::CallSafeInstanceAPI(sc.ScriptHandle, name, collected);
+                        return ServiceManager::GetService<ScriptEngine>()->CallSafeInstanceAPI(sc.ScriptHandle, name, collected);
                     )
                 ),
                 AE_REFLECT("DirectCall",
@@ -567,7 +568,7 @@ namespace Aether {
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
                         std::vector<sol::object> collected(args.begin(), args.end());
-                        return ScriptEngine::CallDirectInstanceAPI(sc.ScriptHandle, name, collected);
+                        return ServiceManager::GetService<ScriptEngine>()->CallDirectInstanceAPI(sc.ScriptHandle, name, collected);
                     )
                 )
             );
@@ -621,13 +622,13 @@ namespace Aether {
             return AE_REFLECT_LIST(
                 AE_REFLECT("Start",
                     AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), Handle<Coroutine>,
-                        return ScriptEngine::StartCoroutineAPI(ctx.handle, func);
+                        return ServiceManager::GetService<ScriptEngine>()->StartCoroutineAPI(ctx.handle, func);
                     )
                 ),
 
                 AE_REFLECT("Kill",
                     AE_MAKE_LAMBDA((), (Type& ctx, Handle<Coroutine> co), void,
-                        ScriptEngine::KillCoroutineAPI(co);
+                        ServiceManager::GetService<ScriptEngine>()->KillCoroutineAPI(co);
                     )
                 ),
 

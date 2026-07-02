@@ -110,36 +110,36 @@ namespace Aether {
 	class AETHER_API Renderer
 	{
 	public:
-		static void Init();
-		static void Shutdown();
+		void Init();
+		void Shutdown();
 
-		static void OnWindowResize(uint32_t width, uint32_t height);
+		void OnWindowResize(uint32_t width, uint32_t height);
 
-		static void SetPipeline(RenderPass* list, size_t size);
-		static void SetLutMap(const std::string& filepath);
-		static void SetSkyBox(const std::string& filepath);
+		void SetPipeline(RenderPass* list, size_t size);
+		void SetLutMap(const std::string& filepath);
+		void SetSkyBox(const std::string& filepath);
 
-		static void ActivatePass(uint32_t PassIdx);
-		static void DeactivatePass(uint32_t PassIdx);
-		static void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
+		void ActivatePass(uint32_t PassIdx);
+		void DeactivatePass(uint32_t PassIdx);
+		void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
 		
-		static void BeginScene(const Camera& camera, LightParam* lights = nullptr, size_t size = 0);
-		static void EndScene();
+		void BeginScene(const Camera& camera, LightParam* lights = nullptr, size_t size = 0);
+		void EndScene();
 
-		static void DrawMesh(Handle<Asset> mesh, Handle<Asset> sheet, Handle<Pose> pose, const glm::mat4& transform);
+		void DrawMesh(Handle<Asset> mesh, Handle<Asset> sheet, Handle<Pose> pose, const glm::mat4& transform);
 
-		static void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
-		static void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);
-		static void RenderSphere(float radius, const glm::mat4& transform, const glm::vec4& color);
+		void RenderBox(const glm::vec3& boundMin, const glm::vec3& boundMax, const glm::mat4& transform, const glm::vec4& color);
+		void RenderCapsule(float radius, float halfHeight, const glm::mat4& transform, const glm::vec4& color);
+		void RenderSphere(float radius, const glm::mat4& transform, const glm::vec4& color);
 
-		static RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
+		RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
 
 	private:
-		static void Flush(const RenderPass& pass);
-		static void RenderOnScreen(const RenderPass& pass);
-		static void RenderSkybox();
-		static void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
-		static Texture2D* GetShadowDepthAttachment(uint32_t slot);
+		void Flush(const RenderPass& pass);
+		void RenderOnScreen(const RenderPass& pass);
+		void RenderSkybox();
+		void CalculateDirectionalMat(const Camera& camera, const LightParam& light, glm::mat4& view, glm::mat4& proj, float zMultiplier = 10.0f);
+		Texture2D* GetShadowDepthAttachment(uint32_t slot);
 
 		struct InstanceData
 		{
@@ -182,7 +182,7 @@ namespace Aether {
 			uint32_t s_PassCount = 0;
 		};
 
-		static Scope<SceneData>  s_SceneData;
-		static Scope<RenderData> s_RenderData;
+		Scope<SceneData>  s_SceneData;
+		Scope<RenderData> s_RenderData;
 	};
 }

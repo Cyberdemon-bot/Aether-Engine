@@ -5,7 +5,6 @@
 #include "Aether/Physics/PhysicsAPI.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Assets/Script.h"
-#include "Aether/Assets/AssetManager.h"
 
 namespace Aether {
 
@@ -32,31 +31,28 @@ namespace Aether {
 
     void ScriptEngine::Init()
     {   
-       auto& instance = GetInstance();
-       auto& lua = instance.LuaState.lua;
+       auto& lua = LuaState.lua;
        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
-       instance.m_Instances.Init();
-       instance.m_Sources.Init();
-       instance.m_Coroutines.Init();
-       instance.m_DestroyQueue.reserve(32);
-       instance.m_EventManager.emplace(instance.LuaState.lua);
+       m_Instances.Init();
+       m_Sources.Init();
+       m_Coroutines.Init();
+       m_DestroyQueue.reserve(32);
+       m_EventManager.emplace(LuaState.lua);
        RegisterBinding();
        AE_CORE_INFO("ScriptEngine initialized with {0}/Sol {1}", LUA_VERSION, SOL_VERSION_MAJOR);
     }
 
     void ScriptEngine::Shutdown()
     {
-        auto& instance = GetInstance();
-        instance.m_Instances.Shutdown();
-        instance.m_Sources.Shutdown();
-        instance.m_Coroutines.Shutdown();
-        instance.m_DestroyQueue.clear();
+        m_Instances.Shutdown();
+        m_Sources.Shutdown();
+        m_Coroutines.Shutdown();
+        m_DestroyQueue.clear();
     }
 
     Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path)
     {
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
+        auto& lua = LuaState.lua;
 
         std::ifstream file(path);
         std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -70,14 +66,13 @@ namespace Aether {
         }
 
         sol::bytecode bytecode = res.get<sol::function>().dump();
-        auto handle = instance.m_Sources.SaveResource({bytecode});
+        auto handle = m_Sources.SaveResource({bytecode});
         return handle;
     }
 
     Handle<Bytecode> ScriptEngine::LoadScriptSource(const std::string& source)
     {
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
+        auto& lua = LuaState.lua;
 
         sol::load_result res = lua.load(source);
         if (!res.valid())
@@ -88,27 +83,26 @@ namespace Aether {
         }
 
         sol::bytecode bytecode = res.get<sol::function>().dump();
-        return instance.m_Sources.SaveResource({bytecode});
+        return m_Sources.SaveResource({bytecode});
     }
 
     Handle<ScriptInstance> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh)
-    {
-        auto& instance = GetInstance(); 
-        auto it = instance.m_Sources.GetResource(bh);
+    { 
+        auto it = m_Sources.GetResource(bh);
         if (it == nullptr) return Handle<ScriptInstance>::MakeInvalid();
 
         sol::bytecode bytecode = it->bytecode;
-        auto env_handle = instance.LuaState.CreateEnvironment();
-        sol::environment env = *instance.LuaState.env_pool.GetResource(env_handle);
-        auto& lua = instance.LuaState.lua;
+        auto env_handle = LuaState.CreateEnvironment();
+        sol::environment env = *LuaState.env_pool.GetResource(env_handle);
+        auto& lua = LuaState.lua;
         lua.script(bytecode.as_string_view(), env);
 
-        auto handle = instance.m_Instances.CreateResource();
-        auto slot = instance.m_Instances.GetResource(handle);
+        auto handle = m_Instances.CreateResource();
+        auto slot = m_Instances.GetResource(handle);
 
         ScriptSelf self{ scene, entity, slot};
         SceneContext sceneCtx{ scene };
-        EventContext eventCtx{ handle, &instance.m_EventManager.value() };
+        EventContext eventCtx{ handle, &m_EventManager.value() };
         PhysicsContext physicsCtx{ scene, entity };
         AsyncContext asyncCtx{ handle };
         env["self"] = self;
@@ -120,14 +114,13 @@ namespace Aether {
         slot->env_handle = env_handle;
         slot->ctx = scene;
         slot->code_handle = bh;
-        instance.IsExecChanged = true;
+        IsExecChanged = true;
         return handle; 
     }
 
     void ScriptEngine::DestroyInstance(Handle<ScriptInstance> handle)
     {
-        auto& instance = GetInstance();
-        instance.m_DestroyQueue.push_back({handle});
+        m_DestroyQueue.push_back({handle});
         CallDirectInstanceAPI(handle, "OnDestroy");
     }
 
@@ -148,53 +141,48 @@ namespace Aether {
 
     void ScriptEngine::SetActiveStage(Handle<ScriptInstance> handle, bool active)
     {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
+        auto slot = m_Instances.GetResource(handle);
         if (slot == nullptr) return;
         slot->is_active = active;
     }
 
     bool ScriptEngine::GetActiveStage(Handle<ScriptInstance> handle)
     {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
+        auto slot = m_Instances.GetResource(handle);
         if (slot == nullptr) return false;
         return slot->is_active;
     }
 
     void ScriptEngine::FlushEvent()
     {
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
-        instance.m_EventManager->Flush();
+        auto& lua = LuaState.lua;
+        m_EventManager->Flush();
 
-        for (auto& handle : instance.m_DestroyQueue)
+        for (auto& handle : m_DestroyQueue)
         {
-            auto slot = instance.m_Instances.GetResource(handle);
+            auto slot = m_Instances.GetResource(handle);
             if (slot == nullptr) continue;
 
-            instance.LuaState.RemoveEnvironment(slot->env_handle);
-            instance.m_Instances.DestroyResource(handle);
-            instance.m_EventManager->RemoveListener(handle);
-            instance.IsExecChanged = true;
+            LuaState.RemoveEnvironment(slot->env_handle);
+            m_Instances.DestroyResource(handle);
+            m_EventManager->RemoveListener(handle);
+            IsExecChanged = true;
         }
-        instance.m_DestroyQueue.clear();
+        m_DestroyQueue.clear();
     }
 
     int ScriptEngine::GetExecOrder(Handle<ScriptInstance> handle)
     {
-        auto& instance = GetInstance();
-        auto slot = instance.m_Instances.GetResource(handle);
+        auto slot = m_Instances.GetResource(handle);
         if (slot == nullptr) return -1;
         return slot->exec_order;
     }
 
     bool ScriptEngine::IsExecOrderChanged() 
     { 
-        auto& instance = GetInstance();
-        if(instance.IsExecChanged)
+        if(IsExecChanged)
         {
-            instance.IsExecChanged = false;
+            IsExecChanged = false;
             return true;
         }
         return false;
@@ -202,13 +190,11 @@ namespace Aether {
 
     Handle<ScriptCallback> ScriptEngine::AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
     {
-        auto& instance = GetInstance();
-        return instance.m_EventManager->AddNativeListener(event_name, callback);
+        return m_EventManager->AddNativeListener(event_name, callback);
     }
 
     void ScriptEngine::RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name)
     {
-        auto& instance = GetInstance();
-        instance.m_EventManager->RemoveNativeListener(handle, event_name);
+        m_EventManager->RemoveNativeListener(handle, event_name);
     }
 }
