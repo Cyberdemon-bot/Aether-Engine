@@ -26,12 +26,12 @@ namespace Aether {
         ServiceManager::Init();
 
         InitService<Renderer>();
+        InitService<AudioSystem>();
         InitService<AssetManager>();
+        InitService<AnimationSystem>();
         InitService<ScriptEngine>();
-        JobSystem::Init();
-        AnimationSystem::Init();
-        PhysicsSystem::Init();
-        AudioSystem::Init();
+        InitService<JobSystem>();
+        InitService<PhysicsSystem>();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -41,13 +41,14 @@ namespace Aether {
 
     Application::~Application()
     {
-        AnimationSystem::Shutdown();
-        JobSystem::Shutdown();
-        PhysicsSystem::Shutdown();
-        AudioSystem::Shutdown();
-
+        m_LayerStack.Clear();
+        
+        ShutdownService<PhysicsSystem>();
+        ShutdownService<JobSystem>();
         ShutdownService<ScriptEngine>();
+        ShutdownService<AnimationSystem>();
         ShutdownService<AssetManager>();
+        ShutdownService<AudioSystem>();
         ShutdownService<Renderer>();
     }
 

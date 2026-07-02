@@ -2,5 +2,15 @@
 #include "Aether/Audio/AudioSystem.h"
 
 namespace Aether {
-    Scope<AudioAPI> AudioSystem::s_AudioAPI = AudioAPI::Create();
+
+    void AudioSystem::Init() 
+    { 
+        s_AudioAPI = AudioAPI::Create();
+        s_AudioAPI->Init(); 
+    }
+
+    void AudioSystem::Shutdown() 
+    { 
+        s_AudioAPI->Shutdown(); 
+    }
 }

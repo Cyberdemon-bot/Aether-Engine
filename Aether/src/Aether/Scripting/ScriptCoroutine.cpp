@@ -1,6 +1,7 @@
 #include "aepch.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Core/JobSystem.h"
+#include "Aether/Core/ServiceManager.h"
 
 namespace Aether {
     void ScriptEngine::MarkCoroutineDone(Handle<Coroutine> handle)
@@ -62,7 +63,7 @@ namespace Aether {
                     if (it != m_NativeFuncs.end())
                     {
                         auto nativeFunc = it->native;
-                        JobSystem::SubmitJob([selfHandle, args, nativeFunc, this]() mutable
+                        ServiceManager::GetService<JobSystem>()->SubmitJob([selfHandle, args, nativeFunc, this]() mutable
                         {
                             ScriptValue ret = nativeFunc(args);
                             auto task = this->m_Coroutines.GetResource(selfHandle);
@@ -177,7 +178,7 @@ namespace Aether {
                         {
                             auto nativeFunc = it->native;
                             Handle<Coroutine> selfHandle = task.Self;
-                            JobSystem::SubmitJob([selfHandle, args, nativeFunc, this]() mutable
+                            ServiceManager::GetService<JobSystem>()->SubmitJob([selfHandle, args, nativeFunc, this]() mutable
                             {
                                 ScriptValue ret = nativeFunc(args);
                                 auto t = this->m_Coroutines.GetResource(selfHandle);

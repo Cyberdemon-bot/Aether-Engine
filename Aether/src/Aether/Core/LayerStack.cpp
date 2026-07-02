@@ -3,7 +3,7 @@
 
 namespace Aether {
 
-	LayerStack::~LayerStack()
+	void LayerStack::Clear()
 	{
 		for (Layer* layer : m_Layers)
 		{

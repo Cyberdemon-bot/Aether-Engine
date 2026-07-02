@@ -14,3 +14,8 @@ target("Sandbox")
     add_deps("Aether")
     add_defines("AETHER_SHARED")
     --set_policy("build.sanitizer.address", true)
+
+    if is_mode("release") then
+        set_symbols("debug")     
+        set_optimize("fastest")   
+    end

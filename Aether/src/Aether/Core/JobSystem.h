@@ -14,14 +14,14 @@ namespace Aether {
     class AETHER_API JobSystem
     {
     public:
-        static void Init(uint32_t numThreads = SYS_THREAD_NUM);
-        static void Shutdown();
+        void Init(uint32_t numThreads = SYS_THREAD_NUM);
+        void Shutdown();
         
-        static void SubmitJob(Job job);
-        static void WaitAll();
+        void SubmitJob(Job job);
+        void WaitAll();
 
         template<typename Func, typename Arr>
-        static void ParallelFor(uint32_t totalCount, uint32_t chunkSize, Arr arr, Func&& task) 
+        void ParallelFor(uint32_t totalCount, uint32_t chunkSize, Arr arr, Func&& task) 
         {
             if (totalCount == 0) return;
 
@@ -45,17 +45,17 @@ namespace Aether {
             WaitAll();
         }
     private:
-        static void WorkerThread();
+        void WorkerThread();
         
-        static std::vector<std::thread> s_Workers;
-        static std::queue<Job> s_JobQueue;
-        static std::mutex s_QueueMutex;
-        static std::condition_variable s_Condition;
-        static std::atomic<bool> s_Stop;
+        std::vector<std::thread> s_Workers;
+        std::queue<Job> s_JobQueue;
+        std::mutex s_QueueMutex;
+        std::condition_variable s_Condition;
+        std::atomic<bool> s_Stop;
 
-        static std::atomic<uint32_t> s_ActiveJobCount; 
-        static std::condition_variable s_WaitCondition; 
-        static std::mutex s_WaitMutex;
+        std::atomic<uint32_t> s_ActiveJobCount; 
+        std::condition_variable s_WaitCondition; 
+        std::mutex s_WaitMutex;
     };
 
 }

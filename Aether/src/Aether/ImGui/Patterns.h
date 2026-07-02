@@ -226,81 +226,80 @@ namespace Aether::UI
     //  UI::AnimatorControls(anim, rigSystem);
     // =========================================================================
 
-    // inline void AnimatorControls(AnimatorComponent& anim, RigModule* rig)
-    // {
-    //     if (!rig) { TextDisabled("RigSystem not available."); return; }
-    //     if (!anim.Skeleton.IsValid()) { TextDisabled("No skeleton bound."); return; }
+    inline void AnimatorControls(AnimatorComponent& anim, RigModule* rig)
+    {
+        if (!rig) { TextDisabled("RigSystem not available."); return; }
+        if (!anim.Skeleton.IsValid()) { TextDisabled("No skeleton bound."); return; }
 
-    //     auto guard = ID("AnimatorControls");
+        auto guard = ID("AnimatorControls");
 
-    //     // --- Clip combo ---
-    //     {
-    //         std::vector<std::string> clipNames;
-    //         clipNames.reserve(anim.Clips.size());
-    //         for (int i = 0; i < (int)anim.Clips.size(); i++)
-    //             clipNames.push_back("Clip " + std::to_string(i));
+        // --- Clip combo ---
+        {
+            std::vector<std::string> clipNames;
+            clipNames.reserve(anim.Clips.size());
+            for (int i = 0; i < (int)anim.Clips.size(); i++)
+                clipNames.push_back("Clip " + std::to_string(i));
 
-    //         if (ComboList("Clip", clipNames, anim.ActiveClipIdx))
-    //         {
-    //             anim.CurrentTime = 0.0f;
-    //             anim.CacheDirty = true;
-    //         }
-    //     }
+            if (ComboList("Clip", clipNames, anim.ActiveClipIdx))
+            {
+                anim.CurrentTime = 0.0f;
+                anim.CacheDirty = true;
+            }
+        }
 
-    //     Separator();
+        Separator();
 
-    //     // --- Transport ---
-    //     {
-    //         auto d = Disabled(!anim.IsPlaying ? false : false); // play always available to re-trigger
-    //         bool canPlay = !anim.IsPlaying;
-    //         {
-    //             auto dd = Disabled(!canPlay);
-    //             if (Button("Play"))  anim.IsPlaying = true;
-    //         }
-    //     }
-    //     SameLine();
-    //     {
-    //         auto d = Disabled(!anim.IsPlaying);
-    //         if (Button("Pause")) anim.IsPlaying = false;
-    //     }
-    //     SameLine();
-    //     if (Button("Stop")) { anim.IsPlaying = false; anim.CurrentTime = 0.0f; }
-    //     SameLine();
-    //     Badge(anim.IsPlaying ? "PLAYING" : "STOPPED",
-    //         anim.IsPlaying ? Color::Green() : Color::Red());
+        // --- Transport ---
+        {
+            auto d = Disabled(!anim.IsPlaying ? false : false); // play always available to re-trigger
+            bool canPlay = !anim.IsPlaying;
+            {
+                auto dd = Disabled(!canPlay);
+                if (Button("Play"))  anim.IsPlaying = true;
+            }
+        }
+        SameLine();
+        {
+            auto d = Disabled(!anim.IsPlaying);
+            if (Button("Pause")) anim.IsPlaying = false;
+        }
+        SameLine();
+        if (Button("Stop")) { anim.IsPlaying = false; anim.CurrentTime = 0.0f; }
+        SameLine();
+        Badge(anim.IsPlaying ? "PLAYING" : "STOPPED",
+            anim.IsPlaying ? Color::Green() : Color::Red());
 
-    //     // --- Loop toggle ---
-    //     Checkbox("Loop", anim.Loop);
+        // --- Loop toggle ---
+        Checkbox("Loop", anim.Loop);
 
-    //     // --- Speed ---
-    //     SliderFloat("Speed", anim.Speed, 0.0f, 3.0f);
+        // --- Speed ---
+        SliderFloat("Speed", anim.Speed, 0.0f, 3.0f);
 
-    //     // --- Scrubber ---
-    //     if (anim.ActiveClipIdx >= 0 && anim.ActiveClipIdx < (int)anim.Clips.size())
-    //     {
-    //         auto* clipAsset = ServiceManager::GetService<AssetManager>()->GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx]);
-    //         if (clipAsset)bool LabLayer::JointCombo(const char* label, int& selectedIdx,
-    //                    const std::vector<std::string>& names)
-    //         {
-    //             float duration = rig->GetDuration(clipAsset->GetHandle());
-    //             if (duration > 0.0f)
-    //             {
-    //                 Text("Time: %.2f / %.2f", anim.CurrentTime, duration);
-    //                 float t = anim.CurrentTime;
-    //                 if (SliderFloat("##scrub", t, 0.0f, duration, "%.2f"))
-    //                 {
-    //                     anim.CurrentTime = t;
-    //                     anim.IsPlaying   = false;
-    //                 }
-    //                 ProgressBar(anim.CurrentTime / duration);
-    //             }
-    //         }
-    //     }
-    // }
+        // --- Scrubber ---
+        if (anim.ActiveClipIdx >= 0 && anim.ActiveClipIdx < (int)anim.Clips.size())
+        {
+            auto* clipAsset = ServiceManager::GetService<AssetManager>()->GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx]);
+            if (clipAsset)
+            {
+                float duration = rig->GetDuration(clipAsset->GetHandle());
+                if (duration > 0.0f)
+                {
+                    Text("Time: %.2f / %.2f", anim.CurrentTime, duration);
+                    float t = anim.CurrentTime;
+                    if (SliderFloat("##scrub", t, 0.0f, duration, "%.2f"))
+                    {
+                        anim.CurrentTime = t;
+                        anim.IsPlaying   = false;
+                    }
+                    ProgressBar(anim.CurrentTime / duration);
+                }
+            }
+        }
+    }
 
     // =========================================================================
     //  LightInspector  —  edits a LightParam in-place
-    //
+    
     //  UI::LightInspector(light.Config);
     // =========================================================================
 

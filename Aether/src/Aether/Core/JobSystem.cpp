@@ -4,23 +4,13 @@
 
 namespace Aether {
 
-    std::vector<std::thread> JobSystem::s_Workers;
-    std::queue<Job> JobSystem::s_JobQueue;
-    std::mutex JobSystem::s_QueueMutex;
-    std::condition_variable JobSystem::s_Condition;
-    std::atomic<bool> JobSystem::s_Stop = false;
-
-    std::atomic<uint32_t> JobSystem::s_ActiveJobCount = 0;
-    std::condition_variable JobSystem::s_WaitCondition;
-    std::mutex JobSystem::s_WaitMutex;
-
     void JobSystem::Init(uint32_t numThreads)
     {
         s_ActiveJobCount = 0;
         s_Stop = false;
         for (uint32_t i = 0; i < numThreads; ++i)
         {
-            s_Workers.emplace_back(WorkerThread);
+            s_Workers.emplace_back([this]() { WorkerThread(); });
         }
         AE_CORE_INFO("JobSystem initialized with {0} threads", numThreads);
     }
@@ -61,7 +51,7 @@ namespace Aether {
             Job job;
             {
                 std::unique_lock<std::mutex> lock(s_QueueMutex);
-                s_Condition.wait(lock, []{ return s_Stop.load() || !s_JobQueue.empty(); });
+                s_Condition.wait(lock, [this]{ return s_Stop.load() || !s_JobQueue.empty(); });
                 
                 if (s_Stop.load()) return;
                 

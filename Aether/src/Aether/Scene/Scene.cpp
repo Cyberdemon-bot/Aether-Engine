@@ -99,13 +99,14 @@ namespace Aether {
         m_SceneLights.reserve(32);
         m_DestroyQueue.reserve(32);
         m_Rank.reserve(32);
-        m_PhysicsInstance = PhysicsSystem::CreateInstance();
-        PhysicsSystem::RegisterCallback(m_PhysicsInstance, [this](const CollisionEvent& ev) 
+        auto* physys = ServiceManager::GetService<PhysicsSystem>();
+        m_PhysicsInstance = physys->CreateInstance();
+        physys->RegisterCallback(m_PhysicsInstance, [this, physys](const CollisionEvent& ev) 
         {
             if (ev.type == CollisionType::Enter || ev.type == CollisionType::Exit) 
             {
-                UUID aID = PhysicsSystem::GetUUID(m_PhysicsInstance, ev.bodyA);
-                UUID bID = PhysicsSystem::GetUUID(m_PhysicsInstance, ev.bodyB);
+                UUID aID = physys->GetUUID(m_PhysicsInstance, ev.bodyA);
+                UUID bID = physys->GetUUID(m_PhysicsInstance, ev.bodyB);
                 Entity a = this->FindEntity(aID);
                 Entity b = this->FindEntity(bID);
 
@@ -157,6 +158,8 @@ namespace Aether {
         m_SceneLights.clear();
         m_HierarchyLevels.clear();
         m_DestroyQueue.clear();
+
+        ServiceManager::GetService<PhysicsSystem>()->DestroyInstance(m_PhysicsInstance);
     }
 
     void Scene::ImportPrefab(Entity entity, const Prefab& prefab, bool override)
@@ -274,7 +277,7 @@ namespace Aether {
             Entity animEnt = attach.AnimatorEntity;
 
             if (!IsValid(animEnt) || !HasComponent<AnimatorComponent>(animEnt)) continue;
-            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
             auto& animComp = GetComponent<AnimatorComponent>(animEnt);
             const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
             
@@ -351,6 +354,7 @@ namespace Aether {
 
         if (HasComponent<ColliderComponent>(entity))
         {
+            auto* physys = ServiceManager::GetService<PhysicsSystem>();
             auto& rbComp = GetComponent<ColliderComponent>(entity);
             Handle<RigidBody>& handle = rbComp.ColliderHandle;
 
@@ -365,12 +369,12 @@ namespace Aether {
                     glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
                     glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
                     PhysTransform target = {translation + worldOffset, rotation};
-                    if (PhysicsSystem::GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Kinematic)
+                    if (physys->GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Kinematic)
                     {
-                        if (PhysicsSystem::CanMove(m_PhysicsInstance, handle, target)) PhysicsSystem::SetPhysTransform(m_PhysicsInstance, handle, target);
+                        if (physys->CanMove(m_PhysicsInstance, handle, target)) physys->SetPhysTransform(m_PhysicsInstance, handle, target);
                         else
                         {
-                            PhysTransform physTrans = PhysicsSystem::GetPhysTransform(m_PhysicsInstance, handle);
+                            PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                             glm::vec3 trans = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
 
                             if (hierarchy.parent == Null_Entity)
@@ -388,11 +392,11 @@ namespace Aether {
                             transform.Dirty = true;
                         }
                     }
-                    else PhysicsSystem::SetPhysTransform(m_PhysicsInstance, handle, target);
+                    else physys->SetPhysTransform(m_PhysicsInstance, handle, target);
                 }
-                else if (PhysicsSystem::GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Dynamic)
+                else if (physys->GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Dynamic)
                 {
-                    PhysTransform physTrans = PhysicsSystem::GetPhysTransform(m_PhysicsInstance, handle);
+                    PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::vec3 localOffset = rbComp.ColliderOffset;
                     glm::vec3 trans = physTrans.translation - (physTrans.rotation * localOffset);
 
@@ -424,7 +428,7 @@ namespace Aether {
             {
                 auto& audio = GetComponent<AudioSourceComponent>(entity);
                 if (audio.SourceHandle.IsValid())
-                    AudioSystem::SetPosition(audio.SourceHandle, glm::vec3(transform.WorldTransform[3]));
+                    ServiceManager::GetService<AudioSystem>()->SetPosition(audio.SourceHandle, glm::vec3(transform.WorldTransform[3]));
             }
 
             if (HasComponent<LightComponent>(entity))
@@ -456,6 +460,8 @@ namespace Aether {
 
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
+        auto* jobsys = ServiceManager::GetService<JobSystem>();
+        auto* physys = ServiceManager::GetService<PhysicsSystem>();
         {   
             for (auto& info : m_DestroyQueue)
             {
@@ -470,7 +476,7 @@ namespace Aether {
             DirtyScan();
             BreadthFirstSearch();
             for (auto& level : m_HierarchyLevels) 
-                JobSystem::ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 
                 ));
         }
@@ -500,15 +506,15 @@ namespace Aether {
                     config.restitution = rbComp.Restitution;
                     config.isSensor = rbComp.IsSensor;
 
-                    handle = PhysicsSystem::CreateBody(m_PhysicsInstance, config);
+                    handle = physys->CreateBody(m_PhysicsInstance, config);
                     if (rbComp.Type == MotionType::Dynamic)
-                        PhysicsSystem::SetActive(m_PhysicsInstance, handle, true);
+                        physys->SetActive(m_PhysicsInstance, handle, true);
 
-                    PhysicsSystem::SetUUID(m_PhysicsInstance, handle, GetComponent<IDComponent>(entity).ID);
+                    physys->SetUUID(m_PhysicsInstance, handle, GetComponent<IDComponent>(entity).ID);
                 }
-                else PhysicsSystem::SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
+                else physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }
-            PhysicsSystem::UpdateInstance(m_PhysicsInstance, ts);
+            physys->UpdateInstance(m_PhysicsInstance, ts);
         }
 
         {
@@ -537,37 +543,38 @@ namespace Aether {
 
         {
             auto audioView = View<AudioSourceComponent>();
+            auto* audsys = ServiceManager::GetService<AudioSystem>();
             for (auto entity : audioView)
             {
                 auto& audio = GetComponent<AudioSourceComponent>(entity);
                 if (!audio.SourceHandle.IsValid() && !audio.Path.empty())
                 {
-                    audio.SourceHandle = AudioSystem::CreateSource(audio.Path, audio.Type);
+                    audio.SourceHandle = audsys->CreateSource(audio.Path, audio.Type);
                     if (audio.SourceHandle.IsValid())
                     {
-                        AudioSystem::SetVolume(audio.SourceHandle, audio.Volume);
-                        AudioSystem::SetPan(audio.SourceHandle, audio.Pan);
-                        AudioSystem::SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-                        AudioSystem::SetLooping(audio.SourceHandle, audio.Looping);
+                        audsys->SetVolume(audio.SourceHandle, audio.Volume);
+                        audsys->SetPan(audio.SourceHandle, audio.Pan);
+                        audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
+                        audsys->SetLooping(audio.SourceHandle, audio.Looping);
                         if (audio.Type == AudioType::Audio3D)
                         {
-                            AudioSystem::SetDistance(audio.SourceHandle,
+                            audsys->SetDistance(audio.SourceHandle,
                                 audio.Config3D.minDistance, audio.Config3D.maxDistance);
-                            AudioSystem::SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
+                            audsys->SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
                         }
                         if (audio.PlayOnStart)
                         {
-                            AudioSystem::Play(audio.SourceHandle);
+                            audsys->Play(audio.SourceHandle);
                             audio.IsPlaying = true;
                         }
                     }
                 }
                 else if (audio.SourceHandle.IsValid())
                 {
-                    AudioSystem::SetVolume(audio.SourceHandle,        audio.Volume);
-                    AudioSystem::SetPan(audio.SourceHandle,           audio.Pan);
-                    AudioSystem::SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-                    AudioSystem::SetLooping(audio.SourceHandle,       audio.Looping);
+                    audsys->SetVolume(audio.SourceHandle,        audio.Volume);
+                    audsys->SetPan(audio.SourceHandle,           audio.Pan);
+                    audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
+                    audsys->SetLooping(audio.SourceHandle,       audio.Looping);
                 }
             }
         }
@@ -597,7 +604,7 @@ namespace Aether {
                 m_SceneLights.clear();
                 auto lightView = View<LightComponent>();
 
-                JobSystem::ParallelFor(lightView.size(), m_Threshold, lightView->data(), AE_MAKE_LAMBDA((&, this),  (Entity entity), void,
+                jobsys->ParallelFor(lightView.size(), m_Threshold, lightView->data(), AE_MAKE_LAMBDA((&, this),  (Entity entity), void,
                     auto& lightComp = lightView.get<LightComponent>(entity);
                     auto& light = lightComp.Config;
                     if (light.type == LightType::None)
@@ -623,7 +630,7 @@ namespace Aether {
                 // mesh and animator culling
                 auto meshView = View<MeshComponent>();
 
-                JobSystem::ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                jobsys->ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     auto& transform = this->GetComponent<TransformComponent>(entity);
                     auto& meshcmp = this->GetComponent<MeshComponent>(entity);
                     Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); 
@@ -647,7 +654,7 @@ namespace Aether {
                             this->GetComponent<AnimatorComponent>(entity).Culled = true;
                 ));
 
-                auto rigModule = AnimationSystem::GetModule<RigModule>().get();
+                auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>().get();
                 auto animView  = View<AnimatorComponent>();
 
                 rigModule->ClearTasks();
@@ -746,7 +753,7 @@ namespace Aether {
                     auto& component = GetComponent<ColliderComponent>(entity);
                     if (!component.Visible || !component.ColliderHandle.IsValid()) continue;
                     Handle<RigidBody> handle = component.ColliderHandle;
-                    PhysTransform pt = PhysicsSystem::GetPhysTransform(m_PhysicsInstance, handle);
+                    PhysTransform pt = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                 * glm::toMat4(pt.rotation);
                     if (component.Shape == ColliderShape::Sphere)

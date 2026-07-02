@@ -1,6 +1,6 @@
-#include "Platform/JoltPhys/Jolt_PhysicsAPI.h"
 #include "aepch.h"
-
+#include "Platform/JoltPhys/Jolt_PhysicsAPI.h"
+#include <Jolt/Core/Memory.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -179,13 +179,13 @@ namespace Aether {
         JPH::Factory::sInstance = new JPH::Factory();
         JPH::RegisterTypes();   
 
+        const JPH::uint maxBodies = 1024;
+        const JPH::uint numBodyMutexes = 0;
+        const JPH::uint maxBodyPairs = 1024;
+        const JPH::uint maxContactConstraints = 1024;
+
         m_TempAllocator = new JPH::TempAllocatorImpl(10 * 1024 * 1024); // 10MB
         m_JobSystem = new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 2);
-
-        const JPH::uint maxBodies       = 1024;
-        const JPH::uint numBodyMutexes = 0;
-        const JPH::uint maxBodyPairs    = 1024;
-        const JPH::uint maxContactConstraints = 1024;
 
         m_PhysicsSystem = new JPH::PhysicsSystem();
 
@@ -440,9 +440,13 @@ namespace Aether {
 
     RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
+        AE_CORE_INFO("cast in");
         RaycastHit result;
+        if (!m_PhysicsSystem) return result;
+
         const JPH::NarrowPhaseQuery& query = m_PhysicsSystem->GetNarrowPhaseQuery();
-        glm::vec3 rayDir = glm::normalize(direction) * distance;
+        glm::vec3 normDir = glm::normalize(direction);
+        glm::vec3 rayDir = normDir * distance;
 
         JPH::RVec3 joltOrigin(origin.x, origin.y, origin.z);
         JPH::Vec3 joltDir(rayDir.x, rayDir.y, rayDir.z);
@@ -453,21 +457,24 @@ namespace Aether {
         if (query.CastRay(ray, hit))
         {
             result.Hit = true;
-            result.Distance = distance * hit.mFraction;
-            result.Position = origin + (glm::normalize(direction) * result.Distance);
+            result.Position = origin + (normDir * (distance * hit.mFraction));
+            result.Distance = glm::distance(origin, result.Position);
 
             JPH::BodyID bodyID = hit.mBodyID;
-
             JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), bodyID);
             if (lock.Succeeded())
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                result.HitEntityHandle = {Handle<RigidBody>::FromBlend(id)};
+                result.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
+                result.HitEntityID = GetUUID(result.HitEntityHandle);
 
                 JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
-                JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
-                result.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
+                JPH::Vec3 localHitPos = body.GetInverseCenterOfMassTransform() * joltHitPos;
+                JPH::Vec3 localNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, localHitPos);
+                JPH::Vec3 worldNormal = body.GetRotation() * localNormal;
+                
+                result.Normal = glm::vec3(worldNormal.GetX(), worldNormal.GetY(), worldNormal.GetZ());
             }
         }
 
@@ -477,9 +484,11 @@ namespace Aether {
     std::vector<RaycastHit> Jolt_PhysicsAPI::CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
         std::vector<RaycastHit> results;
+        if (!m_PhysicsSystem) return results;
+
         const JPH::NarrowPhaseQuery& query = m_PhysicsSystem->GetNarrowPhaseQuery();
-        JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
-        glm::vec3 rayDir = glm::normalize(direction) * distance;
+        glm::vec3 normDir = glm::normalize(direction);
+        glm::vec3 rayDir = normDir * distance;
 
         JPH::RVec3 joltOrigin(origin.x, origin.y, origin.z);
         JPH::Vec3 joltDir(rayDir.x, rayDir.y, rayDir.z);
@@ -488,14 +497,17 @@ namespace Aether {
         JPH::RayCastSettings settings;
         JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
         query.CastRay(ray, settings, collector);
+        
+        results.reserve(collector.mHits.size());
+
         for (const JPH::RayCastResult& hit : collector.mHits)
         {
             RaycastHit res;
             res.Hit = true;
-            res.Distance = distance * hit.mFraction; 
-            res.Position = origin + (glm::normalize(direction) * res.Distance);
-            JPH::BodyID bodyID = hit.mBodyID;
+            res.Position = origin + (normDir * (distance * hit.mFraction));
+            res.Distance = glm::distance(origin, res.Position);
 
+            JPH::BodyID bodyID = hit.mBodyID;
             JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), bodyID);
             if (lock.Succeeded())
             {
@@ -503,14 +515,21 @@ namespace Aether {
                 uint64_t id = body.GetUserData();
                 res.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
                 res.HitEntityID = GetUUID(res.HitEntityHandle);
+                
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
-                JPH::Vec3 joltNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, joltHitPos);
-                res.Normal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
+                JPH::Vec3 localHitPos = body.GetInverseCenterOfMassTransform() * joltHitPos;
+                JPH::Vec3 localNormal = body.GetShape()->GetSurfaceNormal(hit.mSubShapeID2, localHitPos);
+                JPH::Vec3 worldNormal = body.GetRotation() * localNormal;
+
+                res.Normal = glm::vec3(worldNormal.GetX(), worldNormal.GetY(), worldNormal.GetZ());
             }
             results.push_back(res);
         }
 
-        std::sort(results.begin(), results.end(), [](const RaycastHit& a, const RaycastHit& b) {return a.Distance < b.Distance;});
+        std::sort(results.begin(), results.end(), [](const RaycastHit& a, const RaycastHit& b) 
+        {
+            return a.Distance < b.Distance;
+        });
 
         return results;
     }
@@ -546,7 +565,6 @@ namespace Aether {
         JPH::ShapeCastSettings settings;
         settings.mReturnDeepestPoint = false;
 
-        // Exclude self from the cast
         class IgnoreSelf : public JPH::BodyFilter {
         public:
             JPH::BodyID selfID;

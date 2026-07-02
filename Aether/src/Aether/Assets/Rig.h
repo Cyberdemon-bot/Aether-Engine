@@ -4,6 +4,7 @@
 #include "Aether/Container/Handle.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
+#include "Aether/Core/ServiceManager.h"
 
 namespace Aether {
 
@@ -12,7 +13,7 @@ namespace Aether {
     public:
         Skeleton(const SkeletonSpec& spec)
         {
-            handle = AnimationSystem::GetModule<RigModule>()->CreateSkeleton(spec);
+            handle = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>()->CreateSkeleton(spec);
         }
         virtual ~Skeleton() = default;
 
@@ -32,7 +33,7 @@ namespace Aether {
     public:
         Clip(const ClipSpec& spec, Handle<Skeleton> skeleton)
         {
-            handle = AnimationSystem::GetModule<RigModule>()->CreateClip(spec, skeleton);
+            handle = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>()->CreateClip(spec, skeleton);
         }
         virtual ~Clip() = default;
 

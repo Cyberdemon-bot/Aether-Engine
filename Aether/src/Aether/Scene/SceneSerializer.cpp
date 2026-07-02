@@ -1,4 +1,3 @@
-#if 0
 #include "aepch.h"
 #include "Aether/Scene/SceneSerializer.h"
 #include "Aether/Scene/Scene.h"
@@ -745,7 +744,7 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
             // Eagerly build animation cache for the active clip.
             if (!c.Clips.empty())
             {
-                auto  rigModule = AnimationSystem::GetModule<RigModule>();
+                auto  rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
                 auto* skelAsset = asset_manager->GetAsset<Skeleton>(c.Skeleton);
                 auto* clipAsset = asset_manager->GetAsset<Clip>(c.Clips[0]);
                 if (rigModule && skelAsset && clipAsset)
@@ -845,5 +844,3 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
 }
 
 }
-
-#endif

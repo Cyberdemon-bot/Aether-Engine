@@ -60,7 +60,7 @@ namespace Aether {
 
         if (HasComponent<AnimatorComponent>(entity))
         {
-            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
             if (rigModule)
             {
                 auto& comp = GetComponent<AnimatorComponent>(entity);
@@ -70,13 +70,13 @@ namespace Aether {
         }
 
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
+            ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
         if (HasComponent<AudioSourceComponent>(entity))
         {
             auto& audio = GetComponent<AudioSourceComponent>(entity);
             if (audio.SourceHandle.IsValid())
-                AudioSystem::DestroySource(audio.SourceHandle);
+                ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
         }
 
         if (HasComponent<ScriptComponent>(entity))
@@ -108,7 +108,7 @@ namespace Aether {
 
         if (HasComponent<AnimatorComponent>(entity))
         {
-            auto rigModule = AnimationSystem::GetModule<RigModule>();
+            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
             if (rigModule)
             {
                 auto& comp = GetComponent<AnimatorComponent>(entity);
@@ -116,15 +116,14 @@ namespace Aether {
                 if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
             }
         }
-
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            PhysicsSystem::DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
+            ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
         if (HasComponent<AudioSourceComponent>(entity))
         {
             auto& audio = GetComponent<AudioSourceComponent>(entity);
             if (audio.SourceHandle.IsValid())
-                AudioSystem::DestroySource(audio.SourceHandle);
+                ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
         }
 
         if (HasComponent<ScriptComponent>(entity))
@@ -360,7 +359,7 @@ namespace Aether {
 
             if (!comp.Clips.empty())
             {
-                auto rigModule = AnimationSystem::GetModule<RigModule>();
+                auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
                 auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(comp.Skeleton);
                 auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[0]);
                 if (skeletonAsset && clipAsset)

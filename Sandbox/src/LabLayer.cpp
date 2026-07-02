@@ -145,7 +145,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
 
     if (args.size() == 1)
     {
-        Aether::JobSystem::SubmitJob([this, path]()
+        Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, path]()
         {
             AE_CORE_INFO("Worker: Parsing {0}", path);
             auto parsed = Aether::Importer::Import(path, true, "bruh");
@@ -159,7 +159,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
     else if (args.size() == 2)
     {
         std::string name = args[1];
-        Aether::JobSystem::SubmitJob([this, path, name]()
+        Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, path, name]()
         {
             AE_CORE_INFO("Worker: Parsing {0}", path);
             auto parsed = Aether::Importer::Import(path, true, name.c_str());
@@ -177,7 +177,7 @@ void LabLayer::LoadCacheModelAsync(const std::vector<std::string>& args)
     if (args.empty()) return;
     std::string name = args[0];
 
-    Aether::JobSystem::SubmitJob([this, name]()
+    Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, name]()
     {
         AE_CORE_INFO("Worker: Loading cache {0}", name);
         auto parsed = Aether::Importer::ImportCache(name.c_str());
@@ -445,7 +445,6 @@ void LabLayer::OnImGuiRender()
 
 void LabLayer::DrawScriptingPanel()
 {
-#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Scripting"))
@@ -497,19 +496,19 @@ void LabLayer::DrawScriptingPanel()
                 if (m_Scene.HasComponent<ScriptComponent>(m_ScriptTargetEntity))
                 {
                     auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
-                    if (sc.ScriptHandle.IsValid())
-                        ScriptEngine::DestroyInstance(sc.ScriptHandle);
+                    if (sc.ScriptHandle.IsValid()) 
+                        Aether::ServiceManager::GetService<Aether::ScriptEngine>()->DestroyInstance(sc.ScriptHandle);
                     m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 }
 
-                auto script = ScriptEngine::LoadScript(m_ScriptPath);
-                Handle<ScriptInstance> handle = ScriptEngine::CreateInstance(
+                auto script = Aether::ServiceManager::GetService<Aether::ScriptEngine>()->LoadScript(m_ScriptPath);
+                Handle<ScriptInstance> handle = Aether::ServiceManager::GetService<Aether::ScriptEngine>()->CreateInstance(
                     &m_Scene, m_ScriptTargetEntity, script);
 
                 if (handle.IsValid())
                 {
                     m_Scene.AddComponent<ScriptComponent>(m_ScriptTargetEntity, handle);
-                    ScriptEngine::StartInstance(handle);
+                    Aether::ServiceManager::GetService<Aether::ScriptEngine>()->StartInstance(handle);
                     AE_CORE_INFO("[Scripting] Attached '{}' to entity '{}'",
                         m_ScriptPath,
                         m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag);
@@ -529,7 +528,7 @@ void LabLayer::DrawScriptingPanel()
             {
                 auto& sc = m_Scene.GetComponent<ScriptComponent>(m_ScriptTargetEntity);
                 if (sc.ScriptHandle.IsValid())
-                    ScriptEngine::DestroyInstance(sc.ScriptHandle);
+                    Aether::ServiceManager::GetService<Aether::ScriptEngine>()->DestroyInstance(sc.ScriptHandle);
                 m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 AE_CORE_INFO("[Scripting] Detached script from entity '{}'",
                     m_Scene.GetComponent<TagComponent>(m_ScriptTargetEntity).Tag);
@@ -548,7 +547,6 @@ void LabLayer::DrawScriptingPanel()
             UI::Text("%s  (slot %d)", tag.Tag.c_str(), sc.ScriptHandle.index);
         }
     }
-#endif
 }
 
 // =============================================================================
@@ -566,7 +564,6 @@ void LabLayer::DrawHierarchyPanel()
 
 void LabLayer::DrawScenePanel()
 {
-#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Scene"))
@@ -657,7 +654,6 @@ void LabLayer::DrawScenePanel()
             }
         }
     }
-#endif
 }
 
 // =============================================================================
@@ -710,12 +706,11 @@ bool LabLayer::JointCombo(const char* label, int& selectedIdx,
 
 void LabLayer::DrawAnimationPanel()
 {
-#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Animation"))
     {
-        auto rigSystem = AnimationSystem::GetModule<RigModule>();
+        auto rigSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
         if (!rigSystem) { UI::TextDisabled("RigSystem not initialized."); return; }
 
         // ---- Bind mesh to animator ------------------------------------------
@@ -939,7 +934,6 @@ void LabLayer::DrawAnimationPanel()
             }
         } // end IK & Advanced header
     }
-#endif
 }
 
 // =============================================================================
@@ -948,7 +942,6 @@ void LabLayer::DrawAnimationPanel()
 
 void LabLayer::DrawLightingPanel()
 {
-#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Lighting"))
@@ -972,7 +965,6 @@ void LabLayer::DrawLightingPanel()
             UI::SliderFloat("Bias", m_ShadowBias, 0.00001f, 0.005f);
         }
     }
-#endif
 }
 
 // =============================================================================
@@ -981,7 +973,6 @@ void LabLayer::DrawLightingPanel()
 
 void LabLayer::DrawBoneAttachmentPanel()
 {
-#if 0
     using namespace Aether;
 
     if (auto w = UI::Window("Bone Attachment"))
@@ -1028,7 +1019,7 @@ void LabLayer::DrawBoneAttachmentPanel()
 
             // --- Joint picker ------------------------------------------------
             {
-                auto rigSystem = Aether::AnimationSystem::GetModule<Aether::RigModule>();
+                auto rigSystem = Aether::ServiceManager::GetService<AnimationSystem>()->GetModule<Aether::RigModule>();
                 if (rigSystem)
                     RefreshJointCache(m_BoneAttachAnimatorEntity, m_JointBrowserEntity,
                                       m_CachedJointNames, m_Scene, rigSystem.get());
@@ -1161,5 +1152,4 @@ void LabLayer::DrawBoneAttachmentPanel()
                 UI::TextDisabled("No bone attachments in scene.");
         }
     }
-#endif
 }

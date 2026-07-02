@@ -96,7 +96,7 @@ namespace Aether {
             material->AddFloat("u_Roughness", matInfo.Roughness);
             res.matIDs.push_back(matID);
         }
-        auto animSystem = AnimationSystem::GetModule<RigModule>();
+        auto animSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
 
         for (size_t rigIdx = 0; rigIdx < sceneData->Rigs.size(); rigIdx++)
         {
