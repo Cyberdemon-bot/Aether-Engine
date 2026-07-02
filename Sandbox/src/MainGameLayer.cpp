@@ -38,6 +38,8 @@ void MainGameLayer::Attach()
     renderer->SetLutMap("Assets/textures/LUT.png");
     renderer->SetSkyBox("Assets/textures/skybox.png");
 
+    AE_CORE_INFO("Done");
+
     auto& window = Aether::Application::Get().GetWindow();
     Aether::FramebufferSpec sceneFbSpec;
     sceneFbSpec.Width       = window.GetWidth();
@@ -167,7 +169,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
     m_BgmSource    = audsys->CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
-    m_GunSource    = audsys->CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);
+    m_GunSource    = audsys->CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);   
     m_ReloadSource = audsys->CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
     m_BiteSource   = audsys->CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
 
@@ -969,7 +971,7 @@ void MainGameLayer::OnImGuiRender()
 void MainGameLayer::OnEvent(Aether::Event& event)
 {
     m_Camera.OnEvent(event);
-    auto* physys = Aether::ServiceManager::GetService<Aether::PhysicsSystem>();
+        auto* physys = Aether::ServiceManager::GetService<Aether::PhysicsSystem>();
 
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
         Aether::Input::IsMouseButtonPressed(Aether::Mouse::MouseCode::Button0) &&
@@ -1001,7 +1003,6 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
         Aether::RaycastHit hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
-        AE_CORE_INFO("scene phys handle {0}", m_Scene.GetPhysicsInstance().Blend());
         if (hit.Hit)
         {
             Aether::UUID   bodyID = physys->GetUUID(m_Scene.GetPhysicsInstance(), hit.HitEntityHandle);

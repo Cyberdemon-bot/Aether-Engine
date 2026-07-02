@@ -16,6 +16,6 @@ target("Sandbox")
     --set_policy("build.sanitizer.address", true)
 
     if is_mode("release") then
-        set_symbols("debug")     
-        set_optimize("fastest")   
+        --set_symbols("debug")     
+        --set_optimize("fastest")   
     end
