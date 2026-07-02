@@ -2,7 +2,7 @@
 #include "Aether/Core/ServiceManager.h"
 
 namespace Aether {
-    std::vector<void*> ServiceManager::s_Services;
+    std::unordered_map<std::type_index, void*> ServiceManager::s_Services;
 
     void ServiceManager::Init()
     {

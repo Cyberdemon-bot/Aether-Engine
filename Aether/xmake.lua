@@ -43,8 +43,8 @@ target("Aether")
     end
 
     if is_mode("release") then
-        set_symbols("debug")     
-        set_optimize("fastest")   
+        --set_symbols("debug")     
+        --set_optimize("fastest")   
     end
 
     add_includedirs("src", {public = true})

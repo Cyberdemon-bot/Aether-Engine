@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Aether/Core/TypeRegistry.h"
+#include <typeindex>
 #include <vector>
 
 namespace Aether {
-    class ServiceManager
+    class AETHER_API ServiceManager
     {
     public:
         static void Init();
@@ -13,19 +13,20 @@ namespace Aether {
         template<typename T>
         static void Provide(T* service)
         {
-            uint32_t idx = TypeRegistry::GetCode<T>();
-            if (idx >= s_Services.size()) s_Services.resize(idx + 1, nullptr);
-            s_Services[idx] = service;
+            s_Services[std::type_index(typeid(T))] = static_cast<void*>(service);
         }
 
         template<typename T>
         static T* GetService()
         {
-            uint32_t idx = TypeRegistry::GetCode<T>();
-            if (idx < s_Services.size()) return static_cast<T*>(s_Services[idx]);
+            auto it = s_Services.find(std::type_index(typeid(T)));
+            if (it != s_Services.end()) 
+            {
+                return static_cast<T*>(it->second);
+            }
             return nullptr;
         }
     private:
-        static std::vector<void*> s_Services;
+        static std::unordered_map<std::type_index, void*> s_Services;
     };
 }
