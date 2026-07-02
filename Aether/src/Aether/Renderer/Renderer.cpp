@@ -240,7 +240,7 @@ namespace Aether {
 
 		auto* boneStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->BoneStorage);
 		auto* offsetStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->OffsetStorage);
-		auto skelSystem   = AnimationSystem::GetModule<RigModule>();
+		auto skelSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
 		auto& CommandList = s_SceneData->CommandList;
 		sort(CommandList.begin(), CommandList.end());
 

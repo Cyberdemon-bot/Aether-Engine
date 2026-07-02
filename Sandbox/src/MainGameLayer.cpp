@@ -33,6 +33,7 @@ void MainGameLayer::Attach()
 
     auto* renderer = Aether::ServiceManager::GetService<Aether::Renderer>();
     auto* asset_manager = Aether::ServiceManager::GetService<Aether::AssetManager>();
+    auto* physys = Aether::ServiceManager::GetService<Aether::PhysicsSystem>();
 
     renderer->SetLutMap("Assets/textures/LUT.png");
     renderer->SetSkyBox("Assets/textures/skybox.png");
@@ -118,11 +119,11 @@ void MainGameLayer::Attach()
         cfg.offset      = glm::vec3(0.0f, 1.0f, 0.0f);
         cfg.friction    = 0.5f;
         cfg.restitution = 0.0f;
-        m_PlayerBodyHandle = Aether::PhysicsSystem::CreateBody(m_Scene.GetPhysicsInstance(), cfg);
+        m_PlayerBodyHandle = physys->CreateBody(m_Scene.GetPhysicsInstance(), cfg);
         m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle);
 
         Aether::UUID playerID = m_Scene.GetComponent<Aether::IDComponent>(m_Player).ID;
-        Aether::PhysicsSystem::SetUUID(m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle, playerID);
+        physys->SetUUID(m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle, playerID);
     }
     m_Scene.GetComponent<Aether::AnimatorComponent>(FindAnimatorEntity(m_Scene, m_Player)).IsPlaying = false;
 
@@ -159,18 +160,19 @@ void MainGameLayer::Attach()
     // =========================================================================
     m_PathGridSize = m_ChunkSize / static_cast<float>(m_FlowFieldSubdivisions);
 
-    Aether::PhysicsSystem::SetGravity(m_Scene.GetPhysicsInstance(), { 0.0f, 0.0f, 0.0f });
+    physys->SetGravity(m_Scene.GetPhysicsInstance(), { 0.0f, 0.0f, 0.0f });
 
     // =========================================================================
     // AUDIO
     // =========================================================================
-    m_BgmSource    = Aether::AudioSystem::CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
-    m_GunSource    = Aether::AudioSystem::CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);
-    m_ReloadSource = Aether::AudioSystem::CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
-    m_BiteSource   = Aether::AudioSystem::CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
+    auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
+    m_BgmSource    = audsys->CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
+    m_GunSource    = audsys->CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);
+    m_ReloadSource = audsys->CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
+    m_BiteSource   = audsys->CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
 
-    Aether::AudioSystem::SetLooping(m_BgmSource, true);
-    Aether::AudioSystem::Play(m_BgmSource);
+    audsys->SetLooping(m_BgmSource, true);
+    audsys->Play(m_BgmSource);
 
     m_SheetHandle = asset_manager->CreateAsset<Aether::Sheet>(Aether::UUID());
     m_MapSheet = asset_manager->GetAsset<Aether::Sheet>(m_SheetHandle);
@@ -191,6 +193,7 @@ void MainGameLayer::Detach()
 void MainGameLayer::Update(Aether::Timestep ts)
 {
     auto& window = Aether::Application::Get().GetWindow();
+    auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
 
     m_Camera.Update(ts);
@@ -310,8 +313,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
         {
             m_IsReloading = true;
             m_ReloadTimer = m_ReloadDuration;
-            Aether::AudioSystem::Stop(m_ReloadSource);
-            Aether::AudioSystem::Play(m_ReloadSource);
+            audsys->Stop(m_ReloadSource);
+            audsys->Play(m_ReloadSource);
             AE_INFO("Reloading...");
         }
 
@@ -513,8 +516,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 m_PlayerHealth   -= 10.0f;
                 m_DamageCooldown  = 1.0f;
                 Aether::UUID src;
-                Aether::AudioSystem::Stop(m_BiteSource);
-                Aether::AudioSystem::Play(m_BiteSource);
+                audsys->Stop(m_BiteSource);
+                audsys->Play(m_BiteSource);
                 AE_WARN("Player bit! HP remaining: {0}", m_PlayerHealth);
                 break;
             }
@@ -966,6 +969,7 @@ void MainGameLayer::OnImGuiRender()
 void MainGameLayer::OnEvent(Aether::Event& event)
 {
     m_Camera.OnEvent(event);
+    auto* physys = Aether::ServiceManager::GetService<Aether::PhysicsSystem>();
 
     if (event.GetEventType() == Aether::EventType::MouseButtonPressed &&
         Aether::Input::IsMouseButtonPressed(Aether::Mouse::MouseCode::Button0) &&
@@ -989,18 +993,18 @@ void MainGameLayer::OnEvent(Aether::Event& event)
                 animComp.IsPlaying   = true;
             }
         }
-
-        Aether::AudioSystem::Stop(m_GunSource);
-        Aether::AudioSystem::SetVolume(m_GunSource, 0.3f);
-        Aether::AudioSystem::Play(m_GunSource);
+        auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
+        audsys->Stop(m_GunSource);
+        audsys->SetVolume(m_GunSource, 0.3f);
+        audsys->Play(m_GunSource);
 
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
-        Aether::RaycastHit hit       = Aether::PhysicsSystem::CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
-
+        Aether::RaycastHit hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
+        AE_CORE_INFO("scene phys handle {0}", m_Scene.GetPhysicsInstance().Blend());
         if (hit.Hit)
         {
-            Aether::UUID   bodyID = Aether::PhysicsSystem::GetUUID(m_Scene.GetPhysicsInstance(), hit.HitEntityHandle);
+            Aether::UUID   bodyID = physys->GetUUID(m_Scene.GetPhysicsInstance(), hit.HitEntityHandle);
             Aether::Entity target = m_Scene.FindEntity(bodyID);
             if (target != Aether::Null_Entity && target != m_Player)
             {

@@ -42,6 +42,11 @@ target("Aether")
         set_symbols("debug")
     end
 
+    if is_mode("release") then
+        set_symbols("debug")     
+        set_optimize("fastest")   
+    end
+
     add_includedirs("src", {public = true})
     add_includedirs("vendor", {public = true})
 

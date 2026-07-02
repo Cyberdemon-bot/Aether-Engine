@@ -2,14 +2,13 @@
 
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
-#include "Aether/Assets/Mesh.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Renderer/Renderer.h"
-#include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Animation/RigModule.h"
 #include "Aether/Audio/AudioSystem.h"
+#include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Animation/RigModule.h"
+#include "Aether/Core/ServiceManager.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -17,6 +16,9 @@
 #include <glm/gtx/quaternion.hpp>
 
 namespace Aether {
+
+    class ScriptInstance;
+    class Asset;
     struct IDComponent
     {
         UUID ID;
@@ -184,7 +186,7 @@ namespace Aether {
         ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false)
             : ColliderHandle(handle), Visible(visible)
         {
-            auto it = PhysicsSystem::GetBodyInfo(instance, ColliderHandle);
+            auto it = ServiceManager::GetService<PhysicsSystem>()->GetBodyInfo(instance, ColliderHandle);
             if (it == nullptr) return;
             auto& info = *it;
             ColliderOffset = info.offset;

@@ -3,11 +3,6 @@
 #include "Aether/Animation/RigModule.h"
 
 namespace Aether {
-    AnimationSystem& AnimationSystem::GetInstance()
-    {
-        static AnimationSystem instance;
-        return instance;
-    }
 
     void AnimationSystem::Init()
     {
@@ -17,7 +12,6 @@ namespace Aether {
 
     void AnimationSystem::Shutdown()
     {
-        auto& instance = GetInstance();
-        instance.m_Modules.clear();
+        m_Modules.clear();
     }
 }

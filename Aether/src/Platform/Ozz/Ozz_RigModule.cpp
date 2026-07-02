@@ -1,6 +1,7 @@
 #include "Platform/Ozz/Ozz_RigModule.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Core/Log.h"
+#include "Aether/Core/ServiceManager.h"
 
 #include <ozz/animation/offline/skeleton_builder.h>
 #include <ozz/animation/offline/raw_animation.h>
@@ -275,7 +276,7 @@ namespace Aether {
         if (total == 0) return;
 
         uint32_t chunkSize = 16;
-        JobSystem::ParallelFor(total, chunkSize, m_SampleTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+        ServiceManager::GetService<JobSystem>()->ParallelFor(total, chunkSize, m_SampleTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
             SampleClipIntoPose(task);
         ));
     }
@@ -286,7 +287,7 @@ namespace Aether {
         if (total == 0) return;
 
         uint32_t chunkSize = 16;
-        JobSystem::ParallelFor(total, chunkSize, m_BlendTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+        ServiceManager::GetService<JobSystem>()->ParallelFor(total, chunkSize, m_BlendTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
             BlendPoses(task);
         ));
     }
@@ -297,7 +298,7 @@ namespace Aether {
         if (total == 0) return;
 
         uint32_t chunkSize = 16;
-        JobSystem::ParallelFor(total, chunkSize, m_IKTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+        ServiceManager::GetService<JobSystem>()->ParallelFor(total, chunkSize, m_IKTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
             if (task.mode == IKMode::TwoBone) ApplyTwoBoneIK(task);
             else ApplyLookAt(task);
         ));
@@ -309,7 +310,7 @@ namespace Aether {
         if (total == 0) return;
 
         uint32_t chunkSize = 16;
-        JobSystem::ParallelFor(total, chunkSize, m_FinalizeTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
+        ServiceManager::GetService<JobSystem>()->ParallelFor(total, chunkSize, m_FinalizeTasks.data(), AE_MAKE_LAMBDA((this), (auto& task), auto,
             FinalizePose(task);
         ));
     }
