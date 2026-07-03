@@ -23,15 +23,6 @@ namespace Aether {
     template<> struct GetAssetType<Clip> { static constexpr AssetType value = AssetType::Clip; };
     template<> struct GetAssetType<Script> { static constexpr AssetType value = AssetType::Script; };
 
-
-    template<AssetType Type> struct GetTypeFromEnum;
-    template<> struct GetTypeFromEnum<AssetType::Mesh> { using Type = Mesh; };
-    template<> struct GetTypeFromEnum<AssetType::Material> { using Type = Material; };
-    template<> struct GetTypeFromEnum<AssetType::Sheet> { using Type = Sheet; };
-    template<> struct GetTypeFromEnum<AssetType::Skeleton> { using Type = Skeleton; };
-    template<> struct GetTypeFromEnum<AssetType::Clip> { using Type = Clip; };
-    template<> struct GetTypeFromEnum<AssetType::Script> { using Type = Script; };
-
     struct Route
     {
         Route(uint64_t h, AssetType t)
