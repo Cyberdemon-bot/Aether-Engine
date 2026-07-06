@@ -203,8 +203,6 @@ namespace Aether {
         void UpdateCoroutines(Timestep ts);
         void MarkCoroutineDone(Handle<Coroutine> handle);
     private:
-        ScriptEngine& GetInstance();
-
         LuaWorker LuaState;
         std::optional<ScriptEventManager> m_EventManager;
         sol::meta_function OpNameToMeta(std::string_view name);

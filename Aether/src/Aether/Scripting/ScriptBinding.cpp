@@ -28,10 +28,9 @@ namespace Aether {
 
     void ScriptEngine::ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func)
     {
-        auto& instance = GetInstance();
-        auto& lua = instance.LuaState.lua;
+        auto& lua = LuaState.lua;
         sol::table native = lua["Native"].get_or_create<sol::table>();
-        instance.m_NativeFuncs.push_back({name, func});
+        m_NativeFuncs.push_back({name, func});
         native.set_function(name, [func, &lua](sol::variadic_args va) -> sol::object
         {
             ScriptArgs args;
