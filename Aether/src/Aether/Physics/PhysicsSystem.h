@@ -15,6 +15,8 @@ namespace Aether {
     class AETHER_API PhysicsSystem
     {
     public:
+        PhysicsSystem() = default;
+
         void Init();
         void Shutdown();
 
@@ -46,8 +48,12 @@ namespace Aether {
         const BodyConfig* GetBodyInfo(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
     private:
+        PhysicsSystem(const PhysicsSystem&) = delete;
+        PhysicsSystem& operator=(const PhysicsSystem&) = delete;
+        PhysicsSystem(PhysicsSystem&&) = default;
+        PhysicsSystem& operator=(PhysicsSystem&&) = default;
+
         PhysicsAPI* GetAPI(Handle<PhysicsInstance> world);
-        
 
         std::vector<PhysicsWorldSlot> m_Worlds;
         std::vector<uint32_t> m_FreeList;

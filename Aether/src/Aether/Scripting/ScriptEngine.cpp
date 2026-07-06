@@ -23,12 +23,6 @@ namespace Aether {
         return sol::meta_function::addition;
     }
 
-    ScriptEngine& ScriptEngine::GetInstance()
-    {
-        static ScriptEngine instance;
-        return instance;
-    }
-
     void ScriptEngine::Init()
     {   
        auto& lua = LuaState.lua;
