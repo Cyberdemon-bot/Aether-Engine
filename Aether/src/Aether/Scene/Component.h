@@ -17,8 +17,9 @@
 
 namespace Aether {
 
-    class ScriptInstance;
     class Asset;
+    struct ScriptInstance;
+    
     struct IDComponent
     {
         UUID ID;
