@@ -38,6 +38,12 @@ namespace Aether {
         ScriptEventManager(sol::state& lua);
         ~ScriptEventManager() = default;
 
+        ScriptEventManager(const ScriptEventManager&) = delete;
+        ScriptEventManager& operator=(const ScriptEventManager&) = delete;
+
+        ScriptEventManager(ScriptEventManager&&) = default;
+        ScriptEventManager& operator=(ScriptEventManager&&) = default;
+
         void FireEvent(const std::string& event_name, const std::vector<sol::object>& args);
 
         void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::main_protected_function callback);

@@ -1,16 +1,11 @@
 #pragma once
 #include "Aether/Physics/PhysicsAPI.h"
+#include "Aether/Container/ResourcePool.h"
 #include <vector>
 
 namespace Aether {
 
     struct PhysicsInstance;
-    struct PhysicsWorldSlot
-    {
-        Scope<PhysicsAPI> api = nullptr;
-        bool active = false;
-        uint32_t generation = 0;
-    };
 
     class AETHER_API PhysicsSystem
     {
@@ -55,7 +50,6 @@ namespace Aether {
 
         PhysicsAPI* GetAPI(Handle<PhysicsInstance> world);
 
-        std::vector<PhysicsWorldSlot> m_Worlds;
-        std::vector<uint32_t> m_FreeList;
+        ResourcePool<Handle<PhysicsInstance>, Scope<PhysicsAPI>> m_Worlds;
     };
 }

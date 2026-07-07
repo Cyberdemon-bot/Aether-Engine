@@ -13,6 +13,9 @@ namespace Aether {
 
         ResourcePool() = default;
         ~ResourcePool() = default;
+        
+        ResourcePool(ResourcePool&&) = default;
+        ResourcePool& operator=(ResourcePool&&) = default;
         struct ResourceSlot
         {
             DataType asset;
