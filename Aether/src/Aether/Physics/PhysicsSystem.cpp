@@ -6,53 +6,32 @@ namespace Aether {
 
     PhysicsAPI* PhysicsSystem::GetAPI(Handle<PhysicsInstance> world)
     {
-        if (!world.IsValid()) return nullptr;
-        if (world.index >= m_Worlds.size()) return nullptr;
-        PhysicsWorldSlot& slot = m_Worlds[world.index];
-        if (slot.generation != world.generation) return nullptr;
-        return slot.api.get();
+        Scope<PhysicsAPI>* api = m_Worlds.GetResource(world);
+        if (api == nullptr) return nullptr;
+        return api->get();
     }
 
     void PhysicsSystem::Init()
     {
-        m_Worlds.reserve(8);
+        m_Worlds.Init();
         AE_CORE_INFO("PhysicsSystem initialized");
     }
 
     void PhysicsSystem::Shutdown()
     {
-        for (auto& slot : m_Worlds)
+        m_Worlds.Loop([](Scope<PhysicsAPI>& api)
         {
-            if (slot.active && slot.api)
-                slot.api->Shutdown();
-        }
-        m_Worlds.clear();
-        m_FreeList.clear();
+            if (api) api->Shutdown();
+        });
+        m_Worlds.Shutdown();
     }
 
     Handle<PhysicsInstance> PhysicsSystem::CreateInstance()
     {
-        uint32_t index;
-
-        if (!m_FreeList.empty())
-        {
-            index = m_FreeList.back();
-            m_FreeList.pop_back();
-        }
-        else
-        {
-            index = (uint32_t)m_Worlds.size();
-            m_Worlds.emplace_back();
-        }
-
-        PhysicsWorldSlot& slot = m_Worlds[index];
-        slot.api = std::move(PhysicsAPI::Create());
-        slot.api->Init();
-        slot.active = true;
-
-        Handle<PhysicsInstance> handle;
-        handle.index = index;
-        handle.generation = slot.generation;
+        Handle<PhysicsInstance> handle = m_Worlds.CreateResource();
+        Scope<PhysicsAPI>* api = m_Worlds.GetResource(handle);
+        *api = PhysicsAPI::Create();
+        (*api)->Init();
         return handle;
     }
 
@@ -62,11 +41,9 @@ namespace Aether {
         if (api == nullptr) return;
 
         api->Shutdown();
-        PhysicsWorldSlot& slot = m_Worlds[handle.index];
-        slot.api.reset();
-        slot.active = false;
-        slot.generation++;
-        m_FreeList.push_back(handle.index);
+        Scope<PhysicsAPI>* slot = m_Worlds.GetResource(handle);
+        slot->reset();
+        m_Worlds.DestroyResource(handle);
     }
 
     void PhysicsSystem::UpdateInstance(Handle<PhysicsInstance> handle, Timestep ts)
