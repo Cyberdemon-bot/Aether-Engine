@@ -35,14 +35,10 @@ namespace Aether {
     class ScriptEventManager
     {
     public:
-        ScriptEventManager(sol::state& lua);
-        ~ScriptEventManager() = default;
+        ScriptEventManager() = default;
 
-        ScriptEventManager(const ScriptEventManager&) = delete;
-        ScriptEventManager& operator=(const ScriptEventManager&) = delete;
-
-        ScriptEventManager(ScriptEventManager&&) = default;
-        ScriptEventManager& operator=(ScriptEventManager&&) = default;
+        void Init();
+        void Shutdown();
 
         void FireEvent(const std::string& event_name, const std::vector<sol::object>& args);
 
@@ -55,9 +51,13 @@ namespace Aether {
 
         void Flush();
     private:
+        ScriptEventManager(const ScriptEventManager&) = delete;
+        ScriptEventManager& operator=(const ScriptEventManager&) = delete;
+        ScriptEventManager(ScriptEventManager&&) = default;
+        ScriptEventManager& operator=(ScriptEventManager&&) = default;
+
         std::unordered_map<std::string, std::vector<EventListener>> m_Listeners;
         std::unordered_map<std::string, ResourcePool<Handle<ScriptCallback>, NativeListener>> m_NativeListeners;
         std::vector<ScriptEvent> m_Queue;
-        sol::state& m_lua;
     };
 }

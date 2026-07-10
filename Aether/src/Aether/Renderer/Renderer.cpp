@@ -415,7 +415,9 @@ namespace Aether {
 		{
 			for (size_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			{
-				GetShadowDepthAttachment(i)->Bind(startSlot);
+				auto it = GetShadowDepthAttachment(i);
+				if (!it) continue;
+				it->Bind(startSlot);
 				shader->SetInt("u_Shadowmap" + std::to_string(i), startSlot);
 				startSlot++;
 			}

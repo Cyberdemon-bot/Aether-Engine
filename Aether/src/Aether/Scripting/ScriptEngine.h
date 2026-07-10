@@ -179,7 +179,7 @@ namespace Aether {
             std::vector<sol::object> sol_args = {
                 sol::make_object(lua, std::forward<Args>(args))...
             };
-            m_EventManager->FireEvent(event_name, sol_args);
+            m_EventManager.FireEvent(event_name, sol_args);
         }
 
         template<typename... Args>
@@ -204,7 +204,7 @@ namespace Aether {
         void MarkCoroutineDone(Handle<Coroutine> handle);
     private:
         LuaWorker LuaState;
-        std::optional<ScriptEventManager> m_EventManager;
+        ScriptEventManager m_EventManager;
         sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
