@@ -3,13 +3,20 @@
 #include "Aether/Core/Log.h"
 
 namespace Aether {
-    ScriptEventManager::ScriptEventManager(sol::state& lua)
-        : m_lua(lua)
+
+    void ScriptEventManager::Init()
     {
         m_Listeners.reserve(32);
         m_NativeListeners.reserve(32);
         m_Queue.reserve(32);
-    }  
+    }
+
+    void ScriptEventManager::Shutdown()
+    {
+        m_Listeners.clear();
+        m_NativeListeners.clear();
+        m_Queue.clear();
+    }
 
     void ScriptEventManager::FireEvent(const std::string& event_name, const std::vector<sol::object>& args)
     {
@@ -115,8 +122,9 @@ namespace Aether {
             ScriptArgs converted;
             for (const auto& arg : event.args)
                 converted.Pushback(FromSolObject(arg));
-                it->second.Loop([converted](const NativeListener& listener){
-                    listener.callback(converted);
+            it->second.Loop([converted](const NativeListener& listener)
+            {
+                listener.callback(converted);
             });
         }
 

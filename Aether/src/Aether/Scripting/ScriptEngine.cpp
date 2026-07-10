@@ -30,8 +30,8 @@ namespace Aether {
        m_Instances.Init();
        m_Sources.Init();
        m_Coroutines.Init();
+       m_EventManager.Init();
        m_DestroyQueue.reserve(32);
-       m_EventManager.emplace(LuaState.lua);
        RegisterBinding();
        AE_CORE_INFO("ScriptEngine initialized with {0}/Sol {1}", LUA_VERSION, SOL_VERSION_MAJOR);
     }
@@ -41,6 +41,7 @@ namespace Aether {
         m_Instances.Shutdown();
         m_Sources.Shutdown();
         m_Coroutines.Shutdown();
+        m_EventManager.Shutdown();
         m_DestroyQueue.clear();
     }
 
@@ -96,7 +97,7 @@ namespace Aether {
 
         ScriptSelf self{ scene, entity, slot};
         SceneContext sceneCtx{ scene };
-        EventContext eventCtx{ handle, &m_EventManager.value() };
+        EventContext eventCtx{ handle, &m_EventManager };
         PhysicsContext physicsCtx{ scene, entity };
         AsyncContext asyncCtx{ handle };
         env["self"] = self;
@@ -150,7 +151,7 @@ namespace Aether {
     void ScriptEngine::FlushEvent()
     {
         auto& lua = LuaState.lua;
-        m_EventManager->Flush();
+        m_EventManager.Flush();
 
         for (auto& handle : m_DestroyQueue)
         {
@@ -159,7 +160,7 @@ namespace Aether {
 
             LuaState.RemoveEnvironment(slot->env_handle);
             m_Instances.DestroyResource(handle);
-            m_EventManager->RemoveListener(handle);
+            m_EventManager.RemoveListener(handle);
             IsExecChanged = true;
         }
         m_DestroyQueue.clear();
@@ -184,11 +185,11 @@ namespace Aether {
 
     Handle<ScriptCallback> ScriptEngine::AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
     {
-        return m_EventManager->AddNativeListener(event_name, callback);
+        return m_EventManager.AddNativeListener(event_name, callback);
     }
 
     void ScriptEngine::RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name)
     {
-        m_EventManager->RemoveNativeListener(handle, event_name);
+        m_EventManager.RemoveNativeListener(handle, event_name);
     }
 }

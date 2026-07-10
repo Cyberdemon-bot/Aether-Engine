@@ -45,7 +45,7 @@ namespace Aether {
                 Handle<Coroutine> selfHandle = stored->Self;
                 if (stored->Type == WaitType::Event)
                 {
-                    stored->EventCbHandle = m_EventManager->AddNativeListener(
+                    stored->EventCbHandle = m_EventManager.AddNativeListener(
                         stored->AwaitEvent, 
                         [handle, this](const ScriptArgs&) { this->MarkCoroutineDone(handle); } 
                     );
@@ -87,7 +87,7 @@ namespace Aether {
         auto task = m_Coroutines.GetResource(handle);
         if (!task) return;
         if (task->Type == WaitType::Event && task->EventCbHandle.IsValid()) 
-            m_EventManager->RemoveNativeListener(task->EventCbHandle, task->AwaitEvent);
+            m_EventManager.RemoveNativeListener(task->EventCbHandle, task->AwaitEvent);
         m_Coroutines.DestroyResource(handle);
     }
 
@@ -138,7 +138,7 @@ namespace Aether {
 
                 if (task.Type == WaitType::Event) 
                 {
-                    m_EventManager->RemoveNativeListener(task.EventCbHandle, task.AwaitEvent);
+                    m_EventManager.RemoveNativeListener(task.EventCbHandle, task.AwaitEvent);
                     task.EventCbHandle = {};
                 }
                 
@@ -161,7 +161,7 @@ namespace Aether {
                         task.AwaitEvent = result[0].get<std::string>();
                         task.Timer = rc == 3 ? result[1].get<float>() : -1.0f;
                         Handle<Coroutine> selfHandle = task.Self; 
-                        task.EventCbHandle = m_EventManager->AddNativeListener(task.AwaitEvent, 
+                        task.EventCbHandle = m_EventManager.AddNativeListener(task.AwaitEvent, 
                         [selfHandle, this](const ScriptArgs&) { this->MarkCoroutineDone(selfHandle); });
                     }
                     else if (task.Type == WaitType::Job)
