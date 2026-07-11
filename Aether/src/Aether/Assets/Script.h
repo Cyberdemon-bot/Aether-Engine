@@ -22,12 +22,6 @@ namespace Aether {
         virtual ~Script() = default;
 
         Handle<Bytecode> GetHandle() { return handle; }
-
-        template<typename... Args>
-        static Ref<Bytecode> Create(Args&&... args)
-        {
-            return CreateRef<Bytecode>(std::forward<Args>(args)...);
-        }
     private:
         Handle<Bytecode> handle;
     };

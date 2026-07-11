@@ -118,8 +118,6 @@ namespace Aether {
 
         void UploadMesh();
         void AddInstanceBuffer(Handle<Resource> handle);
-        static Ref<Mesh> Create(const MeshSpec& spec) { return CreateRef<Mesh>(spec); }
-
     private:
         Handle<Resource> m_VertexArray;
         Handle<Resource> m_IndexBuffer;
