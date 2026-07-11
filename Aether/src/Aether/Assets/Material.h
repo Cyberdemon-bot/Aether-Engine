@@ -45,8 +45,6 @@ namespace Aether {
         void ToggleFlag(MaterialFlag flag) { m_Flags ^= (uint32_t)flag; }
         bool HasFlag(MaterialFlag flag) const { return m_Flags & (uint32_t)flag; }
 
-        static Ref<Material> Create() { return CreateRef<Material>(); }
-
     private:
 
         std::vector<std::pair<std::string, glm::mat4>> m_Mat4Uniforms;

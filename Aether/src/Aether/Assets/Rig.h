@@ -18,12 +18,6 @@ namespace Aether {
         virtual ~Skeleton() = default;
 
         Handle<Skeleton> GetHandle() { return handle; }
-
-        template<typename... Args>
-        static Ref<Skeleton> Create(Args&&... args)
-        {
-            return CreateRef<Skeleton>(std::forward<Args>(args)...);
-        }
     private:
         Handle<Skeleton> handle;
     };
@@ -38,12 +32,6 @@ namespace Aether {
         virtual ~Clip() = default;
 
         Handle<Clip> GetHandle() { return handle; }
-
-        template<typename... Args>
-        static Ref<Clip> Create(Args&&... args)
-        {
-            return CreateRef<Clip>(std::forward<Args>(args)...);
-        }
     private:
         Handle<Clip> handle;
     };
