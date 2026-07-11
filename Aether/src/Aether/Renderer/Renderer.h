@@ -65,6 +65,9 @@ namespace Aether {
 		Handle<Pose> pose;
 		glm::mat4 transform;
 
+		Mesh* meshPtr = nullptr;
+		Material* matPtr = nullptr;
+
 		bool operator<(const Command& other) const
 		{
 			if (sheet.Blend() != other.sheet.Blend()) return sheet.Blend() < other.sheet.Blend();
@@ -157,6 +160,9 @@ namespace Aether {
 			std::vector<glm::mat4> BoneStorage;
 			std::vector<glm::vec4> OffsetStorage;
 			std::vector<int> BoneIndices;
+			uint32_t activeShadowSlots = 0;
+			std::vector<int> PoseIndexLookup;
+			std::vector<uint32_t> PoseIndexTouched;
 		};
 
 		struct RenderData
@@ -179,6 +185,7 @@ namespace Aether {
 
 			RenderPass s_ShadowPipeline[MAX_SHADOW_CASTER];
 			RenderPass s_PassList[MAX_RENDER_PASSES];
+			std::vector<std::string> s_ShadowmapUniformNames;
 			uint32_t s_PassCount = 0;
 		};
 
