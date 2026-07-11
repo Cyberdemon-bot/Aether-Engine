@@ -99,6 +99,10 @@ namespace Aether {
 		VertexStream temp;
 		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new Mesh(MeshSpec{&temp, 1, quadIndices, 6});
 		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new Mesh(MeshSpec{&temp, 1, skyboxIndices, 36});
+
+		s_RenderData->s_ShadowmapUniformNames.reserve(MAX_SHADOW_CASTER);
+		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
+			s_RenderData->s_ShadowmapUniformNames.push_back("u_Shadowmap" + std::to_string(i));
 	}
 
 	void Renderer::Shutdown()
@@ -230,6 +234,8 @@ namespace Aether {
 			}
 			else s_SceneData->lights.lights[i].lightSpaceMatrix = glm::mat4(1.0f);
 		}
+
+		s_SceneData->activeShadowSlots = shadowSlot;
 	}
 
 	void Renderer::EndScene()
@@ -241,8 +247,22 @@ namespace Aether {
 		auto* boneStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->BoneStorage);
 		auto* offsetStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->OffsetStorage);
 		auto skelSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
+		auto* asset_manager = ServiceManager::GetService<AssetManager>();
 		auto& CommandList = s_SceneData->CommandList;
 		sort(CommandList.begin(), CommandList.end());
+
+		for (auto& command : CommandList)
+		{
+			auto* sheet = asset_manager->GetAsset<Sheet>(command.sheet);
+			command.meshPtr = asset_manager->GetAsset<Mesh>(command.mesh);
+			command.matPtr  = (sheet && command.matIdx < sheet->GetSize())
+				? asset_manager->GetAsset<Material>(sheet->GetActiveHandle(command.matIdx))
+				: nullptr;
+		}
+
+		auto& poseLookup = s_SceneData->PoseIndexLookup;
+		auto& poseTouched = s_SceneData->PoseIndexTouched;
+		poseTouched.clear();
 
 		for (size_t i = 0; i < CommandList.size(); i++)
 		{
@@ -250,13 +270,23 @@ namespace Aether {
 			int currentAnimIndex = -1;
 			if (command.pose.IsValid()) 
 			{
-				const auto [boneMatrices, size] = skelSystem->GetPose(command.pose);
-				if (boneMatrices != nullptr && size > 0)
+				uint32_t poseIdx = command.pose.index;
+				if (poseIdx >= poseLookup.size())
+					poseLookup.resize(poseIdx + 1, -1);
+
+				if (poseLookup[poseIdx] != -1) currentAnimIndex = poseLookup[poseIdx];
+				else
 				{
-					int boneBaseIndex = static_cast<int>(s_SceneData->BoneStorage.size());
-					s_SceneData->BoneStorage.insert(s_SceneData->BoneStorage.end(), boneMatrices, boneMatrices + size);
-					s_SceneData->OffsetStorage.push_back(glm::vec4(static_cast<float>(boneBaseIndex), static_cast<float>(size), 0.0f, 0.0f));
-					currentAnimIndex = static_cast<int>(s_SceneData->OffsetStorage.size() - 1);
+					const auto [boneMatrices, size] = skelSystem->GetPose(command.pose);
+					if (boneMatrices != nullptr && size > 0)
+					{
+						int boneBaseIndex = static_cast<int>(s_SceneData->BoneStorage.size());
+						s_SceneData->BoneStorage.insert(s_SceneData->BoneStorage.end(), boneMatrices, boneMatrices + size);
+						s_SceneData->OffsetStorage.push_back(glm::vec4(static_cast<float>(boneBaseIndex), static_cast<float>(size), 0.0f, 0.0f));
+						currentAnimIndex = static_cast<int>(s_SceneData->OffsetStorage.size() - 1);
+						poseLookup[poseIdx] = currentAnimIndex;
+						poseTouched.push_back(poseIdx);
+					}
 				}
 			}
 			s_SceneData->BoneIndices.push_back(currentAnimIndex);
@@ -274,7 +304,7 @@ namespace Aether {
 			offsetStorage->SetData(s_SceneData->OffsetStorage.data(), s_SceneData->OffsetStorage.size() * sizeof(glm::vec4));
 		}
 
-		for (int i = 0; i < s_SceneData->lights.lightCount; i++) 
+		for (uint32_t i = 0; i < s_SceneData->activeShadowSlots; i++)
 			Flush(s_RenderData->s_ShadowPipeline[i]);
 
 		for (int i = 0; i < s_RenderData->s_PassCount; i++)
@@ -292,6 +322,11 @@ namespace Aether {
 		s_SceneData->BoneStorage.clear();
 		s_SceneData->OffsetStorage.clear();
 		s_SceneData->BoneIndices.clear();
+
+		for (uint32_t idx : s_SceneData->PoseIndexTouched)
+			s_SceneData->PoseIndexLookup[idx] = -1;
+		s_SceneData->PoseIndexTouched.clear();
+
 		s_SceneData->lights.lightCount = 0;
 	}
 
@@ -369,7 +404,6 @@ namespace Aether {
 	{
 		Mesh* currentMesh = nullptr;
 		Material* currentMaterial = nullptr;
-		auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
 		int startSlot = 3;
 
 		if (!pass.Shader || !pass.TargetFBO)
@@ -418,7 +452,7 @@ namespace Aether {
 				auto it = GetShadowDepthAttachment(i);
 				if (!it) continue;
 				it->Bind(startSlot);
-				shader->SetInt("u_Shadowmap" + std::to_string(i), startSlot);
+				shader->SetInt(s_RenderData->s_ShadowmapUniformNames[i], startSlot);
 				startSlot++;
 			}
 		}
@@ -432,9 +466,8 @@ namespace Aether {
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
 				auto& command = CommandList[i];
-				auto* sheet = asset_manager->GetAsset<Sheet>(command.sheet);
-				auto* mesh = asset_manager->GetAsset<Mesh>(command.mesh);
-				auto* material = asset_manager->GetAsset<Material>(sheet->GetActiveHandle(command.matIdx));
+				Mesh* mesh = command.meshPtr;
+				Material* material = command.matPtr;
 				if (!material || !mesh) continue;
 
 				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];
