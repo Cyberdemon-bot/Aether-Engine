@@ -238,6 +238,33 @@ namespace Aether {
 		s_SceneData->activeShadowSlots = shadowSlot;
 	}
 
+	void Renderer::SortCommandList()
+	{
+		auto& commandlist = s_SceneData->CommandList;
+		auto& templist = s_SceneData->CommandTempList;
+		auto& sortkeys = s_SceneData->sortKeys;
+
+		sortkeys.clear();
+
+		templist.resize(commandlist.size());
+		sortkeys.reserve(commandlist.size());
+
+		for (uint32_t i = 0; i < commandlist.size(); ++i)
+		{
+			const auto& c = commandlist[i];
+			uint64_t k1 = (static_cast<uint64_t>(c.sheet.index) << 32) | c.matIdx;
+			uint64_t k2 = (static_cast<uint64_t>(c.mesh.index)  << 32) | c.subIdx;
+			sortkeys.push_back({ {k1, k2}, i });
+		}
+
+		std::sort(sortkeys.begin(), sortkeys.end(), [](const CommandKey& a, const CommandKey& b) { return a.key < b.key; });
+
+		for (uint32_t i = 0; i < commandlist.size(); ++i)
+			templist[i] = commandlist[sortkeys[i].index];
+
+		std::swap(commandlist, templist);
+	}
+
 	void Renderer::EndScene()
 	{
 		RenderPass* mainPass = nullptr;
@@ -249,7 +276,7 @@ namespace Aether {
 		auto skelSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
 		auto* asset_manager = ServiceManager::GetService<AssetManager>();
 		auto& CommandList = s_SceneData->CommandList;
-		sort(CommandList.begin(), CommandList.end());
+		SortCommandList();
 
 		for (auto& command : CommandList)
 		{
@@ -264,7 +291,7 @@ namespace Aether {
 		auto& poseTouched = s_SceneData->PoseIndexTouched;
 		poseTouched.clear();
 
-		for (size_t i = 0; i < CommandList.size(); i++)
+		for (size_t i = 0; i < CommandList.size(); ++i)
 		{
 			const auto& command = CommandList[i];
 			int currentAnimIndex = -1;

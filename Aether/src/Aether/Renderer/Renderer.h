@@ -56,6 +56,12 @@ namespace Aether {
 		glm::vec3 Position; float _pad;
 	};
 
+	struct CommandKey
+	{
+		std::pair<uint64_t, uint64_t> key;
+		uint32_t index;
+	};
+
 	struct Command
 	{
 		Handle<Asset> mesh;
@@ -63,18 +69,10 @@ namespace Aether {
 		uint32_t subIdx;
 		uint32_t matIdx;
 		Handle<Pose> pose;
-		glm::mat4 transform;
 
+		glm::mat4 transform;
 		Mesh* meshPtr = nullptr;
 		Material* matPtr = nullptr;
-
-		bool operator<(const Command& other) const
-		{
-			if (sheet.Blend() != other.sheet.Blend()) return sheet.Blend() < other.sheet.Blend();
-			if (matIdx != other.matIdx) return matIdx < other.matIdx;
-			if (mesh.Blend() != other.mesh.Blend()) return mesh.Blend() < other.mesh.Blend();
-			return subIdx < other.subIdx;
-		}
 
 		bool operator!=(const Command& other) const
 		{
@@ -138,6 +136,7 @@ namespace Aether {
 		RendererAPI::API GetAPI() { return RendererAPI::GetAPI(); }
 
 	private:
+		void SortCommandList();
 		void Flush(const RenderPass& pass);
 		void RenderOnScreen(const RenderPass& pass);
 		void RenderSkybox();
@@ -155,6 +154,8 @@ namespace Aether {
 			CameraData camera;
 			LightsData lights;
 			std::vector<Command> CommandList;
+			std::vector<Command> CommandTempList;
+			std::vector<CommandKey> sortKeys;
 			std::vector<InstanceData> batchInstance;
 			std::vector<LightCandidate> CandList;
 			std::vector<glm::mat4> BoneStorage;
