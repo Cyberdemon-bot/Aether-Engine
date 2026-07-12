@@ -3,7 +3,6 @@
 #include "Aether/Scene/Component.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Animation/RigModule.h"
-#include "Aether/Assets/AssetsRegister.h"
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Assets/AssetManager.h"
 #include <functional>

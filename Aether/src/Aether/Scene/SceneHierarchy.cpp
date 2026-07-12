@@ -307,20 +307,10 @@ namespace Aether {
         for (auto& level : m_HierarchyLevels)
             for (auto e : level)
                 topoOrder.push_back(e);
-            
-        m_Rank.clear();
-        m_Rank.reserve(topoOrder.size());
-        for (uint32_t i = 0; i < (uint32_t)topoOrder.size(); ++i)
-            m_Rank[topoOrder[i]] = i;
 
-        m_Registry.sort<TransformComponent>(AE_MAKE_LAMBDA((this), (const entt::entity a, const entt::entity b), bool, 
-            auto ia = this->m_Rank.find(a);
-            auto ib = this->m_Rank.find(b);
-            uint32_t ra = (ia != this->m_Rank.end()) ? ia->second : UINT32_MAX;
-            uint32_t rb = (ib != this->m_Rank.end()) ? ib->second : UINT32_MAX;
-            return ra < rb;
-        ));
+        m_Registry.storage<TransformComponent>().sort_as(topoOrder.begin(), topoOrder.end());
         m_Registry.sort<HierarchyComponent, TransformComponent>();
+        m_Registry.sort<ColliderComponent, TransformComponent>();
         m_SortDirtyCount = 0;
     }
 

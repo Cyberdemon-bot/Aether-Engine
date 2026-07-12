@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
+#include "Aether/Core/Delegate.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Renderer/Renderer.h"

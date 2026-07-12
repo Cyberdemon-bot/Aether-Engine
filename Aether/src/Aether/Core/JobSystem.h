@@ -1,5 +1,5 @@
 #pragma once
-#include "Aether/Core/Base.h"
+
 #include <mutex>
 #include <condition_variable>
 #include <vector>
@@ -7,6 +7,9 @@
 #include <array>
 #include <thread>
 #include <deque> 
+
+#include "Aether/Core/Semaphore.h"
+#include "Aether/Core/Delegate.h"
 
 namespace Aether {
 

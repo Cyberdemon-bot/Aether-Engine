@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <string>
 
-#include "Aether/Core/Base.h"
+#include "Aether/Core/Delegate.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Core/Timestep.h"

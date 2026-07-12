@@ -1,5 +1,6 @@
 #include "aepch.h"
-#include "ConsoleLayer.h"
+#include "Aether/Core/Log.h"
+#include "Aether/Console/ConsoleLayer.h"
 
 namespace Aether {
     ConsoleLayer* ConsoleLayer::s_Instance = nullptr;

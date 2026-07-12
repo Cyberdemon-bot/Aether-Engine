@@ -8,7 +8,7 @@ includes("Aether")
 
 target("Sandbox")
     set_kind("binary")
-    set_languages("c++17")
+    set_languages("c++20")
     set_rundir("$(projectdir)")
     add_files("Sandbox/src/**.cpp")
     add_deps("Aether")

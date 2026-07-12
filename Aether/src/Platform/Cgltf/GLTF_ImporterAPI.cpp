@@ -48,7 +48,7 @@ namespace Aether {
             WriteRigFile(".cache/" + name + ".rig", SceneData->Rigs, SceneData->Clips);
         }
 
-        AE_CORE_INFO("Parsed " + path);
+        AE_CORE_INFO("Parsed {0}", path);
         return SceneData;
     }
 }

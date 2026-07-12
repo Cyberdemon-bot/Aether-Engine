@@ -138,7 +138,6 @@ namespace Aether {
         std::vector<std::vector<Entity>> m_HierarchyLevels;
         std::vector<DestroyInfo> m_DestroyQueue;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
-        std::unordered_map<Entity, uint32_t> m_Rank;
         void DirtyScan();
         void BreadthFirstSearch(bool usingFilter = true);
         void UpdateTransform(Entity entity);

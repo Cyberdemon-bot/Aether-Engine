@@ -1,7 +1,8 @@
 #pragma once
-#include "Aether/Core/Timestep.h"
-#include "Aether/Core/Base.h"
+
 #include "Aether/Core/UUID.h"
+#include "Aether/Core/Delegate.h"
+#include "Aether/Core/Timestep.h"
 #include "Aether/Container/ResourcePool.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
