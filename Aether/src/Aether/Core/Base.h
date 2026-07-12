@@ -5,6 +5,14 @@
 #include <thread>
 
 #ifdef _WIN32
+    #include <Windows.h>
+#elif defined(__APPLE__)
+	#include <dispatch/dispatch.h>
+#else
+    #include <semaphore.h>
+#endif
+
+#ifdef _WIN32
 	#ifdef _WIN64
 		#define AETHER_PLATFORM_WINDOWS
 	#else
@@ -176,6 +184,41 @@ namespace Aether {
 		return (uint32_t)__builtin_ctz(mask);
 	#endif
 	}
+
+#if defined(_WIN32)
+	class Semaphore
+	{
+	public:
+		explicit Semaphore(int initial = 0) { m_Handle = CreateSemaphore(nullptr, initial, LONG_MAX, nullptr); }
+		~Semaphore() { CloseHandle(m_Handle); }
+		void Release(int n = 1) { ReleaseSemaphore(m_Handle, n, nullptr); }
+		void Acquire() { WaitForSingleObject(m_Handle, INFINITE); }
+	private:
+		HANDLE m_Handle;
+	};
+#elif defined(__APPLE__)
+    class Semaphore
+    {
+    public:
+        explicit Semaphore(int initial = 0) { m_Sem = dispatch_semaphore_create(initial); }
+        ~Semaphore() { dispatch_release(m_Sem); }
+        void Release(int n = 1) { while (n-- > 0) dispatch_semaphore_signal(m_Sem); }
+        void Acquire() { dispatch_semaphore_wait(m_Sem, DISPATCH_TIME_FOREVER); }
+    private:
+        dispatch_semaphore_t m_Sem;
+    };
+#else
+	class Semaphore
+	{
+	public:
+		explicit Semaphore(int initial = 0) { sem_init(&m_Sem, 0, initial); }
+		~Semaphore() { sem_destroy(&m_Sem); }
+		void Release(int n = 1) { while (n-- > 0) sem_post(&m_Sem); }
+		void Acquire() { sem_wait(&m_Sem); }
+	private:
+		sem_t m_Sem;
+	};
+#endif
 }
 
 #define AE_UNWRAP(...) __VA_ARGS__
@@ -184,20 +227,6 @@ namespace Aether {
 #define AE_REFLECT_LIST(...) std::make_tuple(__VA_ARGS__)
 #define AE_REFLECT(NAME, ...) std::make_tuple(NAME, std::make_tuple(__VA_ARGS__))
 
-template <typename T>
-constexpr std::string_view GetTypeName() {
-#if defined(__clang__) || defined(__GNUC__)
-    std::string_view name = __PRETTY_FUNCTION__;
-    size_t start = name.find("T = ") + 4;
-    size_t end = name.find_last_of(']');
-    return name.substr(start, end - start);
-#elif defined(_MSC_VER)
-    std::string_view name = __FUNCSIG__;
-    size_t start = name.find("<") + 1;
-    size_t end = name.find_last_of('>');
-    return name.substr(start, end - start);
-#endif
-
 
 #define MAGIC_ENUM_RANGE_MIN 0
 #define MAGIC_ENUM_RANGE_MAX 512
@@ -205,4 +234,3 @@ constexpr std::string_view GetTypeName() {
 #define MAX_LIGHTS 16
 #define MAX_RENDER_PASSES 32
 #define MAX_SHADOW_CASTER 4
-}
