@@ -1,8 +1,8 @@
 #pragma once
 
+#include "Aether/Core/Delegate.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
-#include "Aether/Core/Base.h"
 #include "Aether/Scripting/ScriptValue.h"
 #include <sol/sol.hpp>
 #include <glm/glm.hpp>

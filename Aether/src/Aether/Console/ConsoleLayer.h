@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Layer.h"
-#include "Aether/Core/Log.h"
-#include "Aether/Core/Base.h"
+#include "Aether/Core/Delegate.h"
 
 #include <string>
 #include <vector>

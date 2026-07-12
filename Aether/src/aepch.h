@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <cstddef>
 #include <mutex>
+#include <semaphore>
+#include <limits>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>

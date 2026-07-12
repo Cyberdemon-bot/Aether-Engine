@@ -1,3 +1,4 @@
+#include "aepch.h"
 #include "Platform/Ozz/Ozz_RigModule.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Core/Log.h"

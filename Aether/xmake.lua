@@ -29,7 +29,7 @@ end
 
 target("Aether")
     set_kind("shared")
-    set_languages("c++17")
+    set_languages("c++20")
 
     add_defines("AETHER_SHARED")
     add_defines("AETHER_BUILD_DLL")

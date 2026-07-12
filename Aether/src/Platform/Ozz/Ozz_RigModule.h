@@ -1,8 +1,8 @@
 #pragma once
 
+#include <vector>
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Container/ResourcePool.h"
-#include <vector>
 
 // Ozz-animation includes
 #include <ozz/animation/runtime/animation.h>

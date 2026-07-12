@@ -5,43 +5,47 @@
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
-
+#include <utility>
+#include <type_traits>
 
 namespace Aether {
 
-	class AETHER_API Log
-	{
-	public:
-		static void Init();
+    class AETHER_API Log
+    {
+    public:
+        static void Init();
 
-		static Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
-		static Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
-	private:
-		static Ref<spdlog::logger> s_CoreLogger;
-		static Ref<spdlog::logger> s_ClientLogger;
-	};
-	template<typename T, typename = void>
-	struct has_to_string : std::false_type {};
+        static Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
+        static Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
+    private:
+        static Ref<spdlog::logger> s_CoreLogger;
+        static Ref<spdlog::logger> s_ClientLogger;
+    };
 
-	template<typename T>
-	struct has_to_string<T, std::void_t<decltype(std::declval<T>().ToString())>> : std::true_type {};
+    template<typename T, typename = void>
+    struct has_to_string : std::false_type {};
 
-	template<typename T>
-	decltype(auto) ConvertLogArg(const T& arg)
-	{
-		if constexpr (has_to_string<T>::value) {
-			return arg.ToString();
-		}
-		else {
-			return arg;
-		}
-	}
+    template<typename T>
+    struct has_to_string<T, std::void_t<decltype(std::declval<T>().ToString())>> : std::true_type {};
 
-	template<typename... Args>
-	void LogWrapper(std::shared_ptr<spdlog::logger>& logger, spdlog::level::level_enum level, Args&&... args)
-	{
-		logger->log(level, ConvertLogArg(std::forward<Args>(args))...);
-	}
+    template<typename T>
+    decltype(auto) ConvertLogArg(const T& arg)
+    {
+        if constexpr (has_to_string<T>::value) {
+            return arg.ToString();
+        }
+        else {
+            return arg;
+        }
+    }
+
+    template<typename... Args>
+    void LogWrapper(std::shared_ptr<spdlog::logger>& logger, spdlog::level::level_enum level, 
+    				spdlog::format_string_t<decltype(ConvertLogArg(std::declval<Args>()))...> fmt, 
+                    Args&&... args)
+    {
+        logger->log(level, fmt, ConvertLogArg(std::forward<Args>(args))...);
+    }
 }
 
 #define AE_CORE_TRACE(...)   ::Aether::LogWrapper(::Aether::Log::GetCoreLogger(), spdlog::level::trace, __VA_ARGS__)
