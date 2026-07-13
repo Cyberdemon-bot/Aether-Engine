@@ -8,6 +8,6 @@ namespace Aether {
 	class GLTF_ImporterAPI : public ImporterAPI
 	{
 	public:
-		virtual Ref<ParsedScene> Import(const std::string& path, bool createCache, const char* cacheName) override;
+		virtual Ref<ParsedScene> Import(const std::string& path) override;
 	};
 }

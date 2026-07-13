@@ -1,8 +1,9 @@
 #pragma once
 
+#include <vector>
+#include <concepts>
 #include "Aether/Core/Log.h"
 #include "Aether/Container/Handle.h"
-#include <vector>
 
 namespace Aether {
 
@@ -18,8 +19,8 @@ namespace Aether {
         ResourcePool& operator=(ResourcePool&&) = default;
         struct ResourceSlot
         {
-            DataType asset;
             uint32_t generation = 0;
+            DataType asset;
             bool valid = true;
 
             template<typename... Args>
@@ -148,6 +149,7 @@ namespace Aether {
         }
 
         template<typename Fn>
+        requires std::invocable<Fn, DataType&>
         void Loop(Fn action)
         {
             for (int i = 0; i < m_Resources.size(); i++)

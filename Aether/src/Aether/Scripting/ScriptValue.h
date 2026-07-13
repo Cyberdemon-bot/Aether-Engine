@@ -21,10 +21,16 @@ namespace Aether {
         template<typename T> void Set(const T& val);
     };
 
+    struct ScriptValueList
+    {
+        const ScriptValue* data = nullptr;
+        uint32_t size = 0;
+    };
+
     class AETHER_API ScriptArgs
     {
     public:
-        std::tuple<const ScriptValue*, uint32_t> GetArgs() const;
+        ScriptValueList GetArgs() const;
         void Pushback(const ScriptValue& val);
 
         template<typename T>
@@ -41,8 +47,6 @@ namespace Aether {
 
     ScriptValue FromSolObject(const sol::object& obj);
     sol::object ToSolObject(sol::state& lua, const ScriptValue& val);
-
-    typedef std::tuple<const ScriptValue*, size_t> ScriptList;
 
     // As
     template<>
@@ -61,7 +65,7 @@ namespace Aether {
     inline glm::vec3 ScriptValue::As<glm::vec3>() const { return vec; }
 
     template<>
-    inline ScriptList ScriptValue::As<ScriptList>() const { return {list.data(), list.size()}; }
+    inline ScriptValueList ScriptValue::As<ScriptValueList>() const { return {list.data(), static_cast<uint32_t>(list.size())}; }
 
     //Make
     template<>

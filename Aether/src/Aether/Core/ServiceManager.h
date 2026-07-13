@@ -14,6 +14,7 @@ namespace Aether {
         ScriptEngine,
         JobSystem,
         PhysicsSystem,
+        FileSystem,
         Count
     };
 
@@ -24,6 +25,7 @@ namespace Aether {
     class ScriptEngine;
     class JobSystem;
     class PhysicsSystem;
+    class FileSystem;
 
     template<typename T> struct GetServiceType;
     template<> struct GetServiceType<Renderer> { static constexpr ServiceType value = ServiceType::Renderer; };
@@ -33,6 +35,7 @@ namespace Aether {
     template<> struct GetServiceType<ScriptEngine> { static constexpr ServiceType value = ServiceType::ScriptEngine; };
     template<> struct GetServiceType<JobSystem> { static constexpr ServiceType value = ServiceType::JobSystem; };
     template<> struct GetServiceType<PhysicsSystem> { static constexpr ServiceType value = ServiceType::PhysicsSystem; };
+    template<> struct GetServiceType<FileSystem> { static constexpr ServiceType value = ServiceType::FileSystem; };
 
     template<typename T>
     inline constexpr ServiceType GetServiceType_v = GetServiceType<T>::value;

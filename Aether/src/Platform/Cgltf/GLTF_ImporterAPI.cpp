@@ -1,12 +1,9 @@
 #include "aepch.h"
 #include <cgltf.h>
 #include "Platform/Cgltf/GLTF_ImporterAPI.h"
-#include "Aether/Packer/MaterialPack.h"
-#include "Aether/Packer/RigPack.h"
-#include "Aether/Packer/MeshPack.h"
 
 namespace Aether {
-    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path, bool createCache, const char* cacheName)
+    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path)
     {
         Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
         SceneData->FilePath = path;
@@ -39,14 +36,6 @@ namespace Aether {
         SceneData->Textures = std::move(matRes->texsInfo);
         SceneData->Rigs = std::move(anim->rigs);
         SceneData->Clips = std::move(anim->clips);
-
-        if (createCache)
-        {
-            const auto& name = std::string(cacheName);
-            WriteMatFile(".cache/" + name + ".mat", SceneData->Textures, SceneData->Materials);
-            WriteMeshFile(".cache/" + name + ".mesh", SceneData->Meshes);
-            WriteRigFile(".cache/" + name + ".rig", SceneData->Rigs, SceneData->Clips);
-        }
 
         AE_CORE_INFO("Parsed {0}", path);
         return SceneData;
