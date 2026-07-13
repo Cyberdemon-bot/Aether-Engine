@@ -42,7 +42,7 @@ namespace Aether {
         virtual int GetJointCount(Handle<Skeleton> skeleton) const override;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const override;
         virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const override;
-        virtual std::tuple<const glm::mat4*, size_t> GetPose(Handle<Pose> pose) override;
+        virtual PoseData GetPose(Handle<Pose> pose) override;
 
         virtual void ScheduleSample(  
             Handle<Skeleton> skeleton,

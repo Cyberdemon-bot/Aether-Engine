@@ -24,8 +24,9 @@ namespace Aether {
         return v;
     }
 
-    std::tuple<const ScriptValue*, uint32_t> ScriptArgs::GetArgs() const 
+    ScriptValueList ScriptArgs::GetArgs() const 
     { 
+        if (args.size() == 0) return {};
         return { args.data(), (uint32_t)args.size()}; 
     }
 

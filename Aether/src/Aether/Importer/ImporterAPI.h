@@ -46,8 +46,7 @@ namespace Aether {
 
     public:
         virtual ~ImporterAPI() = default;
-		virtual  Ref<ParsedScene> Import(const std::string& path, bool createCache, const char* cacheName) = 0;
-        Ref<ParsedScene> ImportCache(const char* cacheName);
+		virtual  Ref<ParsedScene> Import(const std::string& path) = 0;
         
         RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
         static API GetAPI() { return s_API; }

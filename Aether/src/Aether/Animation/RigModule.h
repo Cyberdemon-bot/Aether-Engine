@@ -72,6 +72,12 @@ namespace Aether {
         float Weight, AngleLimit; //rad
     };
 
+    struct PoseData
+    {
+        const glm::mat4* data = nullptr;
+        uint32_t size = 0;
+    };
+
     class RigModule : public AnimationModule
     {
     public:
@@ -95,7 +101,7 @@ namespace Aether {
         virtual int GetJointCount(Handle<Skeleton> skeleton) const = 0;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
         virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const = 0;
-        virtual std::tuple<const glm::mat4*, size_t> GetPose(Handle<Pose> pose) = 0;
+        virtual PoseData GetPose(Handle<Pose> pose) = 0;
 
         virtual void ScheduleSample(  
             Handle<Skeleton> skeleton,

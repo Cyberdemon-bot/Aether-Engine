@@ -101,7 +101,6 @@ void LabLayer::Attach()
 
     // --- CONSOLE COMMANDS ---
     Aether::ConsoleLayer::RegisterCommand("load",      AE_BIND_CONSOLE_FN(LoadModelAsync));
-    Aether::ConsoleLayer::RegisterCommand("loadcache", AE_BIND_CONSOLE_FN(LoadCacheModelAsync));
     Aether::ConsoleLayer::RegisterCommand("add",       AE_BIND_CONSOLE_FN(AddEntity));
 
     auto* script_engine = Aether::ServiceManager::GetService<Aether::ScriptEngine>();
@@ -148,7 +147,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
         Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, path]()
         {
             AE_CORE_INFO("Worker: Parsing {0}", path);
-            auto parsed = Aether::Importer::Import(path, true, "bruh");
+            auto parsed = Aether::Importer::Import(path);
             {
                 std::lock_guard<std::mutex> lock(m_ParseMutex);
                 m_CompletedParses.push(parsed);
@@ -156,37 +155,6 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
             AE_CORE_INFO("Worker: Parsing complete for {0}", path);
         });
     }
-    else if (args.size() == 2)
-    {
-        std::string name = args[1];
-        Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, path, name]()
-        {
-            AE_CORE_INFO("Worker: Parsing {0}", path);
-            auto parsed = Aether::Importer::Import(path, true, name.c_str());
-            {
-                std::lock_guard<std::mutex> lock(m_ParseMutex);
-                m_CompletedParses.push(parsed);
-            }
-            AE_CORE_INFO("Worker: Parsing complete for {0}", path);
-        });
-    }
-}
-
-void LabLayer::LoadCacheModelAsync(const std::vector<std::string>& args)
-{
-    if (args.empty()) return;
-    std::string name = args[0];
-
-    Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, name]()
-    {
-        AE_CORE_INFO("Worker: Loading cache {0}", name);
-        auto parsed = Aether::Importer::ImportCache(name.c_str());
-        {
-            std::lock_guard<std::mutex> lock(m_ParseMutex);
-            m_CompletedParses.push(parsed);
-        }
-        AE_CORE_INFO("Worker: Load cache complete for {0}", name);
-    });
 }
 
 void LabLayer::DrainParseQueue()

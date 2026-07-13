@@ -400,15 +400,15 @@ namespace Aether {
         return true;
     }
 
-    std::tuple<const glm::mat4*, size_t> Ozz_RigModule::GetPose(Handle<Pose> pose)
+    PoseData Ozz_RigModule::GetPose(Handle<Pose> pose)
     {
         auto* it = m_PosePool.GetResource(pose);
         if (!it || it->finalMats.empty())
         {
-            //AE_CORE_ERROR("Pose not found");
+            AE_CORE_ERROR("Pose {0} is not found", pose.Blend());
             return {nullptr, 0};
         }
-        return {it->finalMats.data(), it->finalMats.size()};
+        return {it->finalMats.data(), static_cast<uint32_t>(it->finalMats.size())};
     }
 
     // helper 

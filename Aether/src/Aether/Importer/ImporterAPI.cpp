@@ -11,9 +11,6 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Core/Assert.h"
-#include "Aether/Packer/MaterialPack.h"
-#include "Aether/Packer/RigPack.h"
-#include "Aether/Packer/MeshPack.h"
 #include "Aether/Core/ServiceManager.h"
 namespace Aether {
 
@@ -39,18 +36,6 @@ namespace Aether {
 		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
-
-    Ref<ParsedScene> ImporterAPI::ImportCache(const char* cacheName)
-    {
-        Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
-        const auto& name = std::string(cacheName);
-
-        ReadMatFile(".cache/" + name + ".mat", SceneData->Textures, SceneData->Materials);
-        ReadMeshFile(".cache/" + name + ".mesh", SceneData->Meshes);
-        ReadRigFile(".cache/" + name + ".rig", SceneData->Rigs, SceneData->Clips);
-
-        return SceneData;
-    }
 
     RegisteredScene ImporterAPI::Upload(const Ref<ParsedScene>& sceneData)
     {
