@@ -98,7 +98,6 @@ namespace Aether {
         m_EntityLibrary.reserve(32);
         m_SceneLights.reserve(32);
         m_DestroyQueue.reserve(32);
-        m_Rank.reserve(32);
         auto* physys = ServiceManager::GetService<PhysicsSystem>();
         m_PhysicsInstance = physys->CreateInstance();
         physys->RegisterCallback(m_PhysicsInstance, [this, physys](const CollisionEvent& ev) 

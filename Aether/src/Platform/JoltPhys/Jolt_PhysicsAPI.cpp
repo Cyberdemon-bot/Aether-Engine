@@ -74,7 +74,8 @@ namespace JPH {
     class Listener final : public ContactListener 
     {
     public:
-        Listener()
+        Listener(PhysicsSystem* system)
+            : m_System(system)
         {
             m_QueueA.reserve(64);
             m_QueueB.reserve(64);
@@ -90,8 +91,6 @@ namespace JPH {
             JPH::RVec3 joltContactPoint = inManifold.GetWorldSpaceContactPointOn1(0);
             JPH::Vec3 joltNormal = inManifold.mWorldSpaceNormal;
             std::lock_guard<std::mutex> lock(m_Mutex);
-            m_UserDataCache[inBody1.GetID().GetIndexAndSequenceNumber()] = inBody1.GetUserData();
-            m_UserDataCache[inBody2.GetID().GetIndexAndSequenceNumber()] = inBody2.GetUserData();
             m_WriteQueue->push_back({
                 Aether::CollisionType::Enter, 
                 Aether::Handle<Aether::RigidBody>::FromBlend(inBody1.GetUserData()), 
@@ -107,17 +106,22 @@ namespace JPH {
 
         virtual void OnContactRemoved(const JPH::SubShapeIDPair& inSubShapePair) override
         {
+            if (!m_System) return;
+            const JPH::BodyLockInterface &lockInterface = m_System->GetBodyLockInterface();
+
+            JPH::BodyLockRead lock1(lockInterface, inSubShapePair.GetBody1ID());
+            if (!lock1.Succeeded()) return; 
+            const JPH::Body &body1 = lock1.GetBody();
+
+            JPH::BodyLockRead lock2(lockInterface, inSubShapePair.GetBody2ID());
+            if (!lock2.Succeeded()) return; 
+            const JPH::Body &body2 = lock2.GetBody();
+
             std::lock_guard<std::mutex> lock(m_Mutex);
-
-            auto it1 = m_UserDataCache.find(inSubShapePair.GetBody1ID().GetIndexAndSequenceNumber());
-            auto it2 = m_UserDataCache.find(inSubShapePair.GetBody2ID().GetIndexAndSequenceNumber());
-
-            if (it1 == m_UserDataCache.end() || it2 == m_UserDataCache.end()) return;
-
             m_WriteQueue->push_back({
                 Aether::CollisionType::Exit,
-                Aether::Handle<Aether::RigidBody>::FromBlend(it1->second),
-                Aether::Handle<Aether::RigidBody>::FromBlend(it2->second),
+                Aether::Handle<Aether::RigidBody>::FromBlend(body1.GetUserData()),
+                Aether::Handle<Aether::RigidBody>::FromBlend(body2.GetUserData()),
                 glm::vec3(0.0f),
                 glm::vec3(0.0f)
             });
@@ -134,17 +138,11 @@ namespace JPH {
             for (const auto& ev : *readQueue) callback(ev);
             readQueue->clear();
         }
-
-        void EraseCache(uint32_t id)
-        {
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            m_UserDataCache.erase(id);
-        }
     private:
         std::vector<Aether::CollisionEvent> m_QueueA;
         std::vector<Aether::CollisionEvent> m_QueueB;
         std::vector<Aether::CollisionEvent>* m_WriteQueue = &m_QueueA; 
-        std::unordered_map<uint32_t, uint64_t> m_UserDataCache;
+        PhysicsSystem* m_System = nullptr;
         std::mutex m_Mutex;
     };
 }
@@ -192,7 +190,7 @@ namespace Aether {
         m_BPLayerInterface = new JPH::BPLayerInterfaceImpl();
         m_ObjVsBPFilter = new JPH::ObjVsBPFilter();
         m_ObjVsObjFilter = new JPH::ObjVsObjFilter();
-        m_ContactListener = new JPH::Listener();
+        m_ContactListener = new JPH::Listener(m_PhysicsSystem);
 
         m_PhysicsSystem->Init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints, *m_BPLayerInterface, *m_ObjVsBPFilter, *m_ObjVsObjFilter);
         m_PhysicsSystem->SetContactListener(m_ContactListener);
@@ -410,7 +408,6 @@ namespace Aether {
         if (!data) return;
 
         JPH::BodyID id = data->joltID;
-        m_ContactListener->EraseCache(id.GetIndexAndSequenceNumber());
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
 
         bodyInterface.RemoveBody(id);
