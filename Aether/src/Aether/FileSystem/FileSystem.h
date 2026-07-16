@@ -8,6 +8,7 @@
 #include "Aether/Container/ResourcePool.h"
 #include "Aether/FileSystem/FileData.h"
 #include "Aether/FileSystem/FileProvider.h"
+#include "Aether/FileSystem/FileRegistry.h"
 
 namespace Aether {
 
@@ -15,7 +16,6 @@ namespace Aether {
     {
         FileData data = {};
         uint32_t ref_count = 0;
-        std::string virtual_path = "";
     };
 
     struct MountPoint
@@ -32,6 +32,7 @@ namespace Aether {
         void Shutdown();
 
         Handle<FileData> Open(const std::string& virtual_path);
+        Handle<FileData> Open(uint64_t hash_code);
         void Close(Handle<FileData> handle);
         FileData GetBytes(Handle<FileData> handle);
         bool IsValid(Handle<FileData> handle);
@@ -39,12 +40,14 @@ namespace Aether {
 
         void Mount(const std::string& virtual_prefix, Ref<FileProvider> provider, int priority = 0);
         void Unmount(const std::string& virtual_prefix);
+
+        void RegisterPath(std::string_view virtual_path);
+        void CommitRegistry();
     private:
         bool ValidatePath(std::string_view value, std::string_view prefix) const;
         FileProvider* Resolve(std::string_view virtual_path, std::string_view& out_relative) const;
-
+        FileRegistry m_Registry;
         ResourcePool<Handle<FileData>, Entry> m_Table;
-        std::unordered_map<std::string, Handle<FileData>> m_PathMap;
         std::vector<MountPoint> m_Mounts;
     };
 }

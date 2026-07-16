@@ -362,24 +362,6 @@ static void EmitEntitySnapshot(YAML::Emitter& out, const EntitySnapshot& s)
 
 bool SceneSerializer::Serialize(Scene& scene, const std::string& path, const std::string& sceneName)
 {
-    // std::vector<std::string> scriptSources;
-    // std::unordered_map<std::string, int> scriptDedup;
-
-    // auto scriptView = scene.View<ScriptComponent>();
-    // for (auto entity : scriptView)
-    // {
-    //     auto& sc  = scene.GetComponent<ScriptComponent>(entity);
-    //     if (!sc.ScriptHandle.IsValid()) continue;
-    //
-    //     std::string raw = ScriptEngine::GetRaw(sc.ScriptHandle);
-    //     if (raw.empty()) continue;
-    //
-    //     if (scriptDedup.find(raw) == scriptDedup.end())
-    //     {
-    //         scriptDedup[raw] = (int)scriptSources.size();
-    //         scriptSources.push_back(raw);
-    //     }
-    // }
 
     std::vector<EntitySnapshot> snapshots;
 

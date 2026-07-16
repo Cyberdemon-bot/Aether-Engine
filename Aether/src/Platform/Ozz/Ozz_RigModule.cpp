@@ -64,7 +64,7 @@ namespace Aether {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
         {
-            AE_CORE_ERROR("Skeleton not found for clip");
+            AE_CORE_ERROR("Skeleton is not found for clip");
             return Handle<Clip>::MakeInvalid();
         }
 
@@ -88,7 +88,7 @@ namespace Aether {
         auto* it = m_ClipPool.GetResource(clip);
         if (!it)
         {
-            AE_CORE_ERROR("Clip not found for cache");
+            AE_CORE_ERROR("Clip is not found for cache");
             return Handle<SkeletonCache>::MakeInvalid();
         }
 
@@ -105,7 +105,7 @@ namespace Aether {
         auto* it = m_CachePool.GetResource(cache);
         if(!it)
         {
-            AE_CORE_ERROR("Cache not found");
+            AE_CORE_ERROR("Cache is not found");
             return;
         }
 
@@ -120,7 +120,7 @@ namespace Aether {
 
         if (!ce_it || !cp_it)
         {
-            AE_CORE_INFO("Cache not found or clip not found to repair!");
+            AE_CORE_INFO("Cache is not found or clip is not found to repair!");
             return;
         }
 
@@ -134,7 +134,7 @@ namespace Aether {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
         {
-            AE_CORE_ERROR("Skeleton not found for pose creation");
+            AE_CORE_ERROR("Skeleton is not found for pose creation");
             return Handle<Pose>::MakeInvalid();
         }
 
@@ -150,7 +150,7 @@ namespace Aether {
         auto* it = m_PosePool.GetResource(pose);
         if (!it)
         {
-            AE_CORE_ERROR("Pose not found");
+            AE_CORE_ERROR("Pose is not found");
             return;
         }
         it->localTransforms.clear();
@@ -162,7 +162,7 @@ namespace Aether {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
         {
-            AE_CORE_ERROR("Skeleton not found for mask");
+            AE_CORE_ERROR("Skeleton is not found for mask");
             return Handle<Mask>::MakeInvalid();
         }
 
@@ -184,7 +184,7 @@ namespace Aether {
         auto* it = m_MaskPool.GetResource(mask);
         if (!it)
         {
-            AE_CORE_ERROR("Mask not found");
+            AE_CORE_ERROR("Mask is not found");
             return;
         }
         it->weights.clear();
@@ -200,7 +200,7 @@ namespace Aether {
         int root = GetJointIndex(skeleton, boneName);
         if (root == -1)
         {
-            AE_CORE_ERROR("FillMaskSubtree: bone '{}' not found", boneName);
+            AE_CORE_ERROR("FillMaskSubtree: bone '{}' is not found", boneName);
             return;
         }
 
