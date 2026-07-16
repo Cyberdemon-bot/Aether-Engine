@@ -7,6 +7,7 @@
 
 void TestFileSystemIntegration()
 {
+    using namespace Aether;
     // 1. Lấy con trỏ FileSystem từ ServiceManager theo cú pháp yêu cầu
     auto* fs = Aether::ServiceManager::GetService<Aether::FileSystem>();
     assert(fs != nullptr && "FileSystem Service chưa được đăng ký hoặc khởi tạo!");
@@ -16,6 +17,8 @@ void TestFileSystemIntegration()
     std::string virtualPath = "textures/wood.jpg";
     auto looseProvider = std::make_shared<Aether::LooseFileProvider>(testRoot);
 
+    fs->RegisterPath(virtualPath);
+    fs->CommitRegistry();
     fs->Mount("textures/", looseProvider, 0);
     std::filesystem::path rawPath = std::filesystem::path(testRoot) / testFile;
     std::ifstream rawFile(rawPath, std::ios::binary | std::ios::ate);
@@ -39,6 +42,16 @@ void TestFileSystemIntegration()
     std::cout << "[Test Log] Đã tải file mẫu vật lý bằng STD. Kích thước: " << rawSize << " bytes.\n";
 
     Aether::Handle<Aether::FileData> handle = fs->Open(virtualPath);
+    Aether::Handle<Aether::FileData> handle2 = fs->Open("textures/wood.jpg"_hash);
+    if (handle.Blend() == handle2.Blend())
+    {
+        std::cerr << "[Test Success] Hash thành công " << virtualPath << "\n";
+    }
+    else
+    {   
+        std::cerr << "[Test Success] Hash thất bại " << virtualPath << "\n";
+    }
+
     if (!fs->IsValid(handle))
     {
         std::cerr << "[Test Failed] FileSystem không thể mở đường dẫn ảo: " << virtualPath << "\n";

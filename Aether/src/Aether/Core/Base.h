@@ -3,6 +3,7 @@
 #include <memory>
 #include <chrono>
 #include <thread>
+#include <string_view>
 
 #ifdef _WIN32
 	#ifdef _WIN64
@@ -99,6 +100,22 @@ namespace Aether {
 	#else
 		return (uint32_t)__builtin_ctz(mask);
 	#endif
+	}
+
+	static constexpr uint64_t fnv1a_64(std::string_view str) 
+	{
+		constexpr uint64_t prime = 0x00000100000001B3ULL;
+		uint64_t hash = 0xcbf29ce484222325ULL;
+		for (char c : str) 
+		{
+			hash ^= static_cast<uint64_t>(c);
+			hash *= prime;
+		}
+		return hash;
+	}
+
+	consteval uint64_t operator""_hash(const char* str, size_t size) {
+		return fnv1a_64(std::string_view(str, size));
 	}
 }
 

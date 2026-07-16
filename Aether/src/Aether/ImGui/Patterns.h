@@ -280,7 +280,7 @@ namespace Aether::UI
             auto* clipAsset = ServiceManager::GetService<AssetManager>()->GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx]);
             if (clipAsset)
             {
-                float duration = rig->GetDuration(clipAsset->GetHandle());
+                float duration = clipAsset->m_Duration;
                 if (duration > 0.0f)
                 {
                     Text("Time: %.2f / %.2f", anim.CurrentTime, duration);

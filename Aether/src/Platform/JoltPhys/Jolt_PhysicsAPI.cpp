@@ -437,7 +437,6 @@ namespace Aether {
 
     RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
-        AE_CORE_INFO("cast in");
         RaycastHit result;
         if (!m_PhysicsSystem) return result;
 

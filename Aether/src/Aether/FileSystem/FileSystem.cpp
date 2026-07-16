@@ -7,19 +7,19 @@ namespace Aether {
     void FileSystem::Init()
     {
         m_Table.Init();
-        m_PathMap.reserve(16);
         m_Mounts.reserve(16);
+        m_Registry.Init();
     }
 
     void FileSystem::Shutdown()
     {
+        m_Registry.Shutdown();
+        m_Mounts.clear();
         m_Table.Loop([](Entry& entry)
         {
             delete[] entry.data.bytes;
         });
         m_Table.Shutdown();
-        m_PathMap.clear();
-        m_Mounts.clear();
     }
 
     bool FileSystem::ValidatePath(std::string_view value, std::string_view prefix) const
@@ -45,10 +45,12 @@ namespace Aether {
 
     void FileSystem::Unmount(const std::string& virtual_prefix)
     {
+        std::string fixed_prefix = virtual_prefix;
+        if (!fixed_prefix.empty() && fixed_prefix.back() != '/') fixed_prefix += '/';
         m_Mounts.erase(
             std::remove_if(m_Mounts.begin(), m_Mounts.end(), [&](const MountPoint& m) 
             { 
-                return m.virtual_prefix == virtual_prefix; 
+                return m.virtual_prefix == fixed_prefix; 
             }),
             m_Mounts.end());
     }
@@ -76,19 +78,28 @@ namespace Aether {
 
     Handle<FileData> FileSystem::Open(const std::string& virtual_path)
     {
-        auto cached = m_PathMap.find(virtual_path);
-        if (cached != m_PathMap.end())
+        uint64_t hash_code = fnv1a_64(virtual_path);
+        return Open(hash_code); 
+    }
+
+    Handle<FileData> FileSystem::Open(uint64_t hash_code)
+    {
+        auto* it = m_Registry.Query(hash_code);
+        if (!it) return Handle<FileData>::MakeInvalid();
+
+        if (it->handle.IsValid())
         {
-            auto* entry = m_Table.GetResource(cached->second);
+            auto* entry = m_Table.GetResource(it->handle);
             if (entry)
             {
                 entry->ref_count++;
-                return cached->second;
+                return it->handle;
             }
-            m_PathMap.erase(cached);
+            it->handle = Handle<FileData>::MakeInvalid();
         }
 
         std::string_view relative;
+        std::string_view virtual_path = m_Registry.GetView(it->byte_offset);
         FileProvider* provider = Resolve(virtual_path, relative);
         if (!provider)
         {
@@ -103,9 +114,10 @@ namespace Aether {
             return Handle<FileData>::MakeInvalid();
         }
 
-        Entry entry{ data, 1, virtual_path };
+        Entry entry{data, 1};
         Handle<FileData> handle = m_Table.CreateResource(entry);
-        m_PathMap[virtual_path] = handle;
+        it->handle = handle; 
+
         return handle;
     }
 
@@ -123,8 +135,6 @@ namespace Aether {
         entry->ref_count--;
         if (entry->ref_count > 0) return;
 
-        m_PathMap.erase(entry->virtual_path);
-
         delete[] entry->data.bytes;
         entry->data = {};
         m_Table.DestroyResource(handle);
@@ -140,5 +150,15 @@ namespace Aether {
     bool FileSystem::IsValid(Handle<FileData> handle)
     {
         return m_Table.GetResource(handle) != nullptr;
+    }
+
+    void FileSystem::RegisterPath(std::string_view virtual_path)
+    {
+        m_Registry.RegisterPath(virtual_path);
+    }
+
+    void FileSystem::CommitRegistry()
+    {
+        m_Registry.CommitTable();
     }
 }

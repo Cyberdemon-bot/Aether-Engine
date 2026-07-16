@@ -6,21 +6,66 @@
 
 namespace Aether {
 
-    void Material::UploadMaterial(Shader* shader, uint32_t startSlot)
+    void Material::AddTexture(const std::string& name, Handle<Resource> handle) 
+    { 
+        m_Textures.push_back({name, handle}); 
+    }
+
+    void Material::AddFloat(const std::string& name, float value) 
+    { 
+        m_FloatUniforms.push_back({name, value}); 
+    }
+
+    void Material::AddInt(const std::string& name, int value) 
+    { 
+        m_IntUniforms.push_back({name, value}); 
+    }
+
+    void Material::AddIntArray(const std::string& name, int* values, uint32_t count)
     {
-        shader->Bind();
-        for (const auto& [name, fval] : m_FloatUniforms) shader->SetFloat(name, fval);
-        for (const auto& [name, ival] : m_IntUniforms) shader->SetInt(name, ival);
-        for (const auto& [name, ivec] : m_IntArrayUniforms) shader->SetIntArray(name, ivec.data(), (uint32_t)ivec.size());
-        for (const auto& [name, vec3] : m_Vec3Uniforms) shader->SetFloat3(name, vec3);
-        for (const auto& [name, vec4] : m_Vec4Uniforms) shader->SetFloat4(name, vec4);
-        for (const auto& [name, mat4] : m_Mat4Uniforms) shader->SetMat4(name, mat4);
-        for (const auto& [name, texture] : m_Textures)
-        {
-            ResourceManager::GetResource<Texture2D>(texture)->Bind(startSlot);
-            shader->SetInt(name, startSlot);
-            startSlot++;
-        }
+        auto it = std::find_if(m_IntArrayUniforms.begin(), m_IntArrayUniforms.end(), 
+            [&name](const auto& pair) 
+            { 
+                return pair.first == name; 
+            });
+            
+        if (it != m_IntArrayUniforms.end()) 
+            it->second.assign(values, values + count);
+    }
+
+    void Material::AddVec3(const std::string& name, const glm::vec3& value) 
+    { 
+        m_Vec3Uniforms.push_back({name, value}); 
+    }
+
+    void Material::AddVec4(const std::string& name, const glm::vec4& value) 
+    { 
+        m_Vec4Uniforms.push_back({name, value}); 
+    }
+
+    void Material::AddMat4(const std::string& name, const glm::mat4& value) 
+    { 
+        m_Mat4Uniforms.push_back({name, value}); 
+    }
+
+    void Material::AddFlag(MaterialFlag flag) 
+    { 
+        m_Flags |= (uint32_t)flag; 
+    }
+
+    void Material::RemoveFlag(MaterialFlag flag) 
+    { 
+        m_Flags &= ~(uint32_t)flag; 
+    }
+
+    void Material::ToggleFlag(MaterialFlag flag) 
+    { 
+        m_Flags ^= (uint32_t)flag; 
+    }
+
+    bool Material::HasFlag(MaterialFlag flag) const 
+    { 
+        return m_Flags & (uint32_t)flag; 
     }
 
     void Sheet::CopyDefaultList(const std::vector<Handle<Asset>>& handleList)

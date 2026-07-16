@@ -10,16 +10,4 @@ namespace Aether {
 	{
 		return glfwGetTime();
 	}
-
-
-	std::string FileDialogs::OpenFile(const char* filter)
-	{
-		return "";
-	}
-
-	std::string FileDialogs::SaveFile(const char* filter)
-	{
-		return "";
-	}
-
 }

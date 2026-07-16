@@ -8,21 +8,18 @@
 
 namespace Aether {
 
-    class Script : public Asset
+    struct Script : public Asset
     {
-    public:
         Script(const std::string& source)
         {
-            handle = ServiceManager::GetService<ScriptEngine>()->LoadScriptSource(source);
+            m_Handle = ServiceManager::GetService<ScriptEngine>()->LoadScriptSource(source);
         }
+
         Script(Handle<Bytecode> script)
         {
-            handle = script;
+            m_Handle = script;
         }
-        virtual ~Script() = default;
 
-        Handle<Bytecode> GetHandle() { return handle; }
-    private:
-        Handle<Bytecode> handle;
+        Handle<Bytecode> m_Handle;
     };
 }

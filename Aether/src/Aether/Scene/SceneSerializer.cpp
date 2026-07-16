@@ -362,24 +362,6 @@ static void EmitEntitySnapshot(YAML::Emitter& out, const EntitySnapshot& s)
 
 bool SceneSerializer::Serialize(Scene& scene, const std::string& path, const std::string& sceneName)
 {
-    // std::vector<std::string> scriptSources;
-    // std::unordered_map<std::string, int> scriptDedup;
-
-    // auto scriptView = scene.View<ScriptComponent>();
-    // for (auto entity : scriptView)
-    // {
-    //     auto& sc  = scene.GetComponent<ScriptComponent>(entity);
-    //     if (!sc.ScriptHandle.IsValid()) continue;
-    //
-    //     std::string raw = ScriptEngine::GetRaw(sc.ScriptHandle);
-    //     if (raw.empty()) continue;
-    //
-    //     if (scriptDedup.find(raw) == scriptDedup.end())
-    //     {
-    //         scriptDedup[raw] = (int)scriptSources.size();
-    //         scriptSources.push_back(raw);
-    //     }
-    // }
 
     std::vector<EntitySnapshot> snapshots;
 
@@ -748,7 +730,7 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
                 auto* skelAsset = asset_manager->GetAsset<Skeleton>(c.Skeleton);
                 auto* clipAsset = asset_manager->GetAsset<Clip>(c.Clips[0]);
                 if (rigModule && skelAsset && clipAsset)
-                    c.Cache = rigModule->CreateCache(clipAsset->GetHandle());
+                    c.Cache = rigModule->CreateCache(clipAsset->m_Handle);
             }
         }
 

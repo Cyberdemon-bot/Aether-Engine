@@ -283,7 +283,7 @@ namespace Aether {
             auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(animComp.Skeleton);
             if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
-                Handle<Skeleton> skelHnd = skeletonAsset->GetHandle();
+                Handle<Skeleton> skelHnd = skeletonAsset->m_Handle;
                 if (attach.JointIndex < 0) 
                     attach.JointIndex = rigModule->GetJointIndex(skelHnd, attach.JointName);
                 
@@ -645,15 +645,15 @@ namespace Aether {
                             this->GetComponent<AnimatorComponent>(entity).Culled = false;
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (HasComponent<AnimatorComponent>(entity) && mesh->HasAnimatedBounds())
-                        Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
-                    else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasAnimatedBounds)
+                        Utils::TransformBound(mesh->m_AnimatedBoundsMin, mesh->m_AnimatedBoundsMax, world, worldMin, worldMax);
+                    else Utils::TransformBound(mesh->m_BoundsMin, mesh->m_BoundsMax, world, worldMin, worldMax);
                     meshcmp.Culled = !Utils::CheckBoundVisible(frustum, worldMin, worldMax);
                     if (meshcmp.Culled && this->HasComponent<AnimatorComponent>(entity)) 
                             this->GetComponent<AnimatorComponent>(entity).Culled = true;
                 ));
 
-                auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>().get();
+                auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
                 auto animView  = View<AnimatorComponent>();
 
                 rigModule->ClearTasks();
@@ -666,21 +666,21 @@ namespace Aether {
                     auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
 
-                    if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());
-                    if (!comp.CurrentPose.IsValid()) comp.CurrentPose = rigModule->CreatePose(skeletonAsset->GetHandle());
+                    if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
+                    if (!comp.CurrentPose.IsValid()) comp.CurrentPose = rigModule->CreatePose(skeletonAsset->m_Handle);
 
                     if (comp.CacheDirty)
                     {
-                        rigModule->RepairCache(comp.Cache, clipAsset->GetHandle());
+                        rigModule->RepairCache(comp.Cache, clipAsset->m_Handle);
                         comp.CacheDirty = false;
                     }
 
-                    auto skelHandle = skeletonAsset->GetHandle();
-                    auto clipHandle = clipAsset->GetHandle();
+                    auto skelHandle = skeletonAsset->m_Handle;
+                    auto clipHandle = clipAsset->m_Handle;
 
                     if (comp.IsPlaying)
                     {
-                        float duration = rigModule->GetDuration(clipHandle);
+                        float duration = clipAsset->m_Duration;
                         comp.CurrentTime += ts * comp.Speed;
                         if (comp.Loop && duration > 0.0f)
                             comp.CurrentTime = std::fmod(comp.CurrentTime, duration);
@@ -739,9 +739,9 @@ namespace Aether {
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (HasComponent<AnimatorComponent>(entity) && mesh->HasAnimatedBounds())
-                        Utils::TransformBound(mesh->GetAnimatedBoundsMin(), mesh->GetAnimatedBoundsMax(), world, worldMin, worldMax);
-                    else Utils::TransformBound(mesh->GetBoundsMin(), mesh->GetBoundsMax(), world, worldMin, worldMax);
+                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasAnimatedBounds)
+                        Utils::TransformBound(mesh->m_AnimatedBoundsMin, mesh->m_AnimatedBoundsMax, world, worldMin, worldMax);
+                    else Utils::TransformBound(mesh->m_BoundsMin, mesh->m_BoundsMax, world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
                     renderer->RenderBox(worldMin, worldMax, glm::mat4(1.0f), RED);
                 }

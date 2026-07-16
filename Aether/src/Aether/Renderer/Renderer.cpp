@@ -367,7 +367,7 @@ namespace Aether {
 		shader->SetInt("u_Skybox", 0);
 		RenderCommand::SetCullingMode(State::None);
 		RenderCommand::DrawIndexed(
-			ResourceManager::GetResource<VertexArray>(s_RenderData->s_SkyMesh->GetVertexArray()));
+			ResourceManager::GetResource<VertexArray>(s_RenderData->s_SkyMesh->m_VertexArray));
 	}
 
 	void Renderer::RenderOnScreen(const RenderPass& pass)
@@ -393,7 +393,7 @@ namespace Aether {
 		else screenShader->SetInt("u_HasLut", 0);
 
 		RenderCommand::DrawIndexed(
-			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->GetVertexArray()));
+			ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->m_VertexArray));
 	}
 
 	void Renderer::DrawMesh(Handle<Asset> mesh, Handle<Asset> sheet, Handle<Pose> pose, const glm::mat4& transform)
@@ -402,8 +402,15 @@ namespace Aether {
 		auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
 		auto* me_asset = asset_manager->GetAsset<Mesh>(mesh);
 		auto* sh_asset = asset_manager->GetAsset<Sheet>(sheet);
-		const auto& submeshes = me_asset->GetSubMeshes();
-		if (!me_asset->HasInstanceBuffer()) me_asset->AddInstanceBuffer(s_RenderData->s_InstanceVBO);
+		const auto& submeshes = me_asset->m_SubMeshes;
+
+		if (!me_asset->m_HasInstanceBuffer)
+		{
+			auto* vao = ResourceManager::GetResource<VertexArray>(me_asset->m_VertexArray);
+			auto* vbo = ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO);
+			vao->AddInstanceBuffer(vbo, static_cast<uint32_t>(VertexLayoutLocation::InstanceStart));
+			me_asset->m_HasInstanceBuffer = true;
+		}
 
 		for (uint32_t i = 0; i < submeshes.size(); i++)
 		{
@@ -441,7 +448,7 @@ namespace Aether {
 
 		auto* shader = pass.Shader; shader->Bind();
 		auto* fbo = pass.TargetFBO; fbo->Bind();
-		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->GetVertexArray());
+		auto* screen_vao = ResourceManager::GetResource<VertexArray>(s_RenderData->s_Quad->m_VertexArray);
 		auto* instanceVBO = ResourceManager::GetResource<VertexBuffer>(s_RenderData->s_InstanceVBO);
 		auto* boneStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->BoneStorage);
 		auto* offsetStorage = ResourceManager::GetResource<StorageBuffer>(s_RenderData->OffsetStorage);
@@ -497,17 +504,29 @@ namespace Aether {
 				Material* material = command.matPtr;
 				if (!material || !mesh) continue;
 
-				const auto& submesh = mesh->GetSubMeshes()[command.subIdx];
+				const auto& submesh = mesh->m_SubMeshes[command.subIdx];
 				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
 
 				if (currentMaterial != material && pass.UsingMaterial)
 				{
-					material->UploadMaterial(shader, startSlot);
+					for (const auto& [name, fval] : material->m_FloatUniforms) shader->SetFloat(name, fval);
+					for (const auto& [name, ival] : material->m_IntUniforms) shader->SetInt(name, ival);
+					for (const auto& [name, ivec] : material->m_IntArrayUniforms) shader->SetIntArray(name, ivec.data(), (uint32_t)ivec.size());
+					for (const auto& [name, vec3] : material->m_Vec3Uniforms) shader->SetFloat3(name, vec3);
+					for (const auto& [name, vec4] : material->m_Vec4Uniforms) shader->SetFloat4(name, vec4);
+					for (const auto& [name, mat4] : material->m_Mat4Uniforms) shader->SetMat4(name, mat4);
+					for (const auto& [name, texture] : material->m_Textures)
+					{
+						ResourceManager::GetResource<Texture2D>(texture)->Bind(startSlot);
+						shader->SetInt(name, startSlot);
+						startSlot++;
+					}
 					currentMaterial = material;
 				}
 				if (currentMesh != mesh)
 				{
-					mesh->UploadMesh();
+					auto* vao = ResourceManager::GetResource<VertexArray>(mesh->m_VertexArray);
+        			vao->Bind();
 					currentMesh = mesh;
 				}
 

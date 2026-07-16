@@ -38,8 +38,6 @@ namespace Aether {
 
         virtual int GetJointIndex(Handle<Skeleton> skeleton, const std::string& name) const override;
         virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const override;
-        virtual float GetDuration(Handle<Clip> clip) const override;
-        virtual int GetJointCount(Handle<Skeleton> skeleton) const override;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const override;
         virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const override;
         virtual PoseData GetPose(Handle<Pose> pose) override;
