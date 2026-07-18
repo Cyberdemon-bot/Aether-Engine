@@ -101,7 +101,7 @@ namespace Aether {
             uint32_t targetRigIdx = clipInfo.rigIdx; 
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
-                auto skeletonHandle = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->GetHandle();
+                auto skeletonHandle = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->m_Handle;
                 auto clip = asset_manager->CreateAsset<Clip>(clipID, std::move(clipInfo.spec), skeletonHandle);
                 res.animators[targetRigIdx].clips.push_back(clip);
             }
@@ -163,8 +163,9 @@ namespace Aether {
             spec.Submeshes = submeshes;
             if (rigIdx >= 0)
             {
-                auto handle = asset_manager->GetAsset<Skeleton>(rigIDs[rigIdx])->GetHandle();
-                spec.RigPoseMats.resize(animSystem->GetJointCount(handle));
+                auto asset = asset_manager->GetAsset<Skeleton>(rigIDs[rigIdx]);
+                auto handle = asset->m_Handle;
+                spec.RigPoseMats.resize(asset->m_JointCount);
                 animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());
             }
 

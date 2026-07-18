@@ -222,9 +222,9 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
         glm::normalize(glm::vec3(wt[2])));
     glm::quat worldRot = glm::quat_cast(rotMat);
 
-    glm::vec3 extents     = mesh->GetBoundsExtents() * worldScale;
-    glm::vec3 center      = glm::vec3(wt[3]) + rotMat * (mesh->GetBoundsCenter() * worldScale);
-    glm::vec3 localOffset = mesh->GetBoundsCenter() * worldScale;
+    glm::vec3 extents     = mesh->m_BoundsExtents * worldScale;
+    glm::vec3 center      = glm::vec3(wt[3]) + rotMat * (mesh->m_BoundsCenter * worldScale);
+    glm::vec3 localOffset = mesh->m_BoundsCenter * worldScale;
 
     Aether::BodyConfig config;
     config.motionType  = isDynamic ? Aether::MotionType::Dynamic : Aether::MotionType::Kinematic;
@@ -290,7 +290,7 @@ void LabLayer::RebuildPostEvaluate()
         auto* skelAsset = m_AssetManager->GetAsset<Aether::Skeleton>(comp.Skeleton);
         if (!skelAsset || !comp.CurrentPose.IsValid()) return;
 
-        auto skelHnd = skelAsset->GetHandle();
+        auto skelHnd = skelAsset->m_Handle;
 
         // ---- Two-Bone IK ------------------------------------------------
         if (ikState.enabled &&
@@ -338,9 +338,9 @@ void LabLayer::RebuildPostEvaluate()
                 auto poseA = rig->CreatePose(skelHnd);
                 auto poseB = rig->CreatePose(skelHnd);
 
-                rig->ScheduleSample(skelHnd, clipAAsset->GetHandle(),
+                rig->ScheduleSample(skelHnd, clipAAsset->m_Handle,
                     comp.Cache, poseA, comp.CurrentTime);
-                rig->ScheduleSample(skelHnd, clipBAsset->GetHandle(),
+                rig->ScheduleSample(skelHnd, clipBAsset->m_Handle,
                     comp.Cache, poseB, comp.CurrentTime);
 
                 if (blState.additive)
@@ -645,8 +645,8 @@ void LabLayer::RefreshJointCache(
     auto* skelAsset = Aether::ServiceManager::GetService<Aether::AssetManager>()->GetAsset<Aether::Skeleton>(anim.Skeleton);
     if (!skelAsset) return;
 
-    auto skelHnd = skelAsset->GetHandle();
-    int count = rig->GetJointCount(skelHnd);
+    auto skelHnd = skelAsset->m_Handle;
+    int count = skelAsset->m_JointCount;
     cache.reserve(count);
     for (int i = 0; i < count; i++)
         cache.push_back(std::to_string(i) + "  " + rig->GetJointName(skelHnd, i));
@@ -753,7 +753,7 @@ void LabLayer::DrawAnimationPanel()
 
             auto g = UI::ID((uint64_t)entity);
             if (auto h = UI::Header(tag.Tag.c_str()))
-                UI::AnimatorControls(anim, rigSystem.get());
+                UI::AnimatorControls(anim, rigSystem);
             UI::Spacing();
         }
         if (!anyAnimators)
@@ -805,7 +805,7 @@ void LabLayer::DrawAnimationPanel()
             }
 
             RefreshJointCache(m_IKAnimatorEntity, m_JointBrowserEntity,
-                              m_CachedJointNames, m_Scene, rigSystem.get());
+                              m_CachedJointNames, m_Scene, rigSystem);
 
             bool hasAnimator = (m_IKAnimatorEntity != Null_Entity &&
                                 m_Scene.IsValid(m_IKAnimatorEntity) &&
@@ -990,7 +990,7 @@ void LabLayer::DrawBoneAttachmentPanel()
                 auto rigSystem = Aether::ServiceManager::GetService<AnimationSystem>()->GetModule<Aether::RigModule>();
                 if (rigSystem)
                     RefreshJointCache(m_BoneAttachAnimatorEntity, m_JointBrowserEntity,
-                                      m_CachedJointNames, m_Scene, rigSystem.get());
+                                      m_CachedJointNames, m_Scene, rigSystem);
             }
             {
                 std::string preview = (m_BoneNameBuf[0] != '\0') ? m_BoneNameBuf : "-- pick joint --";

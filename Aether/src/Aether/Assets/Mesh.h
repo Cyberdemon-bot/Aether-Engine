@@ -15,7 +15,6 @@ namespace Aether {
         uint32_t BaseIndex = 0;
         uint32_t VertexCount = 0;
         uint32_t IndexCount = 0;
-
         glm::vec3 BoundsMin = glm::vec3(0.0f);
         glm::vec3 BoundsMax = glm::vec3(0.0f);
         int MaterialIdx = -1;
@@ -24,7 +23,8 @@ namespace Aether {
     class MeshLayout 
     {
     public:
-        static BufferLayout PBR() {
+        static BufferLayout PBR() 
+        {
             return {
                 { "a_Position",  ShaderDataType::Float3 },
                 { "a_Normal",    ShaderDataType::Float3 },
@@ -33,7 +33,8 @@ namespace Aether {
             };
         }
 
-        static BufferLayout Phong() {
+        static BufferLayout Phong() 
+        {
             return {
                 { "a_Position", ShaderDataType::Float3 },
                 { "a_Normal",   ShaderDataType::Float3 },
@@ -41,7 +42,8 @@ namespace Aether {
             };
         }
 
-        static BufferLayout PBRSkinned() {
+        static BufferLayout PBRSkinned() 
+        {
             return {
                 { "a_Position",  ShaderDataType::Float3 },
                 { "a_Normal",    ShaderDataType::Float3 },
@@ -52,14 +54,16 @@ namespace Aether {
             };
         }
 
-        static BufferLayout Quad() {
+        static BufferLayout Quad() 
+        {
             return {
                 { "a_Position", ShaderDataType::Float2 },
                 { "a_TexCoord", ShaderDataType::Float2 }
             };
         }
 
-        static BufferLayout Vertex() {
+        static BufferLayout Vertex() 
+        {
             return {
                 { "a_Position", ShaderDataType::Float3 }
             };
@@ -68,12 +72,12 @@ namespace Aether {
 
     enum class VertexLayoutLocation : uint32_t 
     {
-        Position      = 0,
-        Normal        = 1,
-        TexCoord      = 2,
-        Tangent       = 3,
-        Color         = 4,
-        Joints        = 5,    
+        Position = 0,
+        Normal = 1,
+        TexCoord = 2,
+        Tangent = 3,
+        Color = 4,
+        Joints = 5,    
         InstanceStart = 6     
     };
 
@@ -94,53 +98,24 @@ namespace Aether {
         std::vector<glm::mat4> RigPoseMats = {};
     };
 
-    class AETHER_API Mesh : public Asset
+    struct Mesh : public Asset
     {
-    public:
         Mesh(const MeshSpec& spec);
         ~Mesh();
 
-        Handle<Resource> GetVertexArray() const { return m_VertexArray; }
-        const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
-        const BufferLayout& GetLayout() const { return m_Layout; }
-
-        uint32_t GetVertexCount() const { return m_VertexCount; }
-        uint32_t GetIndexCount()  const { return m_IndexCount; }
-
-        const glm::vec3& GetBoundsMin() const { return m_BoundsMin; }
-        const glm::vec3& GetBoundsMax() const { return m_BoundsMax; }
-        const glm::vec3& GetAnimatedBoundsMin() const { return m_AnimatedBoundsMin; }
-        const glm::vec3& GetAnimatedBoundsMax() const { return m_AnimatedBoundsMax; }
-        glm::vec3 GetBoundsCenter()  const { return (m_BoundsMin + m_BoundsMax) * 0.5f; }
-        glm::vec3 GetBoundsExtents() const { return (m_BoundsMax - m_BoundsMin) * 0.5f; }
-        bool HasAnimatedBounds() { return m_HasAnimatedBounds; }
-        bool HasInstanceBuffer() { return m_HasInstanceBuffer; }
-
-        void UploadMesh();
-        void AddInstanceBuffer(Handle<Resource> handle);
-    private:
         Handle<Resource> m_VertexArray;
         Handle<Resource> m_IndexBuffer;
         std::vector<Handle<Resource>> m_VertexBuffers;
-
-        BufferLayout m_Layout;
         std::vector<SubMesh> m_SubMeshes;
 
-        uint32_t m_VertexCount = 0;
-        uint32_t m_IndexCount  = 0;
-        glm::vec3 m_BoundsMin   = glm::vec3(0.0f);
-        glm::vec3 m_BoundsMax   = glm::vec3(0.0f);
-        glm::vec3 m_AnimatedBoundsMin   = glm::vec3(0.0f);
-        glm::vec3 m_AnimatedBoundsMax   = glm::vec3(0.0f);
+        glm::vec3 m_BoundsMin = glm::vec3(0.0f);
+        glm::vec3 m_BoundsMax = glm::vec3(0.0f);
+        glm::vec3 m_BoundsCenter = glm::vec3(0.0f);
+        glm::vec3 m_BoundsExtents = glm::vec3(0.0f);
+        glm::vec3 m_AnimatedBoundsMin = glm::vec3(0.0f);
+        glm::vec3 m_AnimatedBoundsMax = glm::vec3(0.0f);
+
         bool m_HasAnimatedBounds = false;
         bool m_HasInstanceBuffer = false;
-
-        void CalculateBounds(const void* vertexData, uint32_t vertexCount, const BufferLayout& layout);
-        void CalculateAnimatedBounds(
-            const void* positions, const BufferLayout& posLayout,
-            const void* joints,    const BufferLayout& jointLayout,
-            const void* weights,   const BufferLayout& weightLayout,
-            uint32_t vertexCount,
-            const std::vector<glm::mat4>& poseMats);
     };
 }

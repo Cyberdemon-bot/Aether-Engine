@@ -2,9 +2,9 @@
 
 namespace Aether {
 
-    Ref<RigModule> RigModule::Create()
+    Scope<RigModule> RigModule::Create()
     {
-        return CreateRef<Ozz_RigModule>();
+        return CreateScope<Ozz_RigModule>();
     }
 
 }

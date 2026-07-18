@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Animation/AnimationSystem.h"
@@ -8,31 +9,29 @@
 
 namespace Aether {
 
-    class Skeleton : public Asset
+    struct Skeleton : public Asset
     {
-    public:
         Skeleton(const SkeletonSpec& spec)
         {
-            handle = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>()->CreateSkeleton(spec);
+            auto rigit = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
+            m_Handle = rigit->CreateSkeleton(spec);
+            m_JointCount = spec.Joints.size();
         }
-        virtual ~Skeleton() = default;
 
-        Handle<Skeleton> GetHandle() { return handle; }
-    private:
-        Handle<Skeleton> handle;
+        Handle<Skeleton> m_Handle;
+        uint32_t m_JointCount;
     };
 
-    class Clip : public Asset
+    struct Clip : public Asset
     {
-    public:
         Clip(const ClipSpec& spec, Handle<Skeleton> skeleton)
         {
-            handle = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>()->CreateClip(spec, skeleton);
+            auto rigit = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
+            m_Handle = rigit->CreateClip(spec, skeleton);
+            m_Duration = spec.Duration;
         }
-        virtual ~Clip() = default;
-
-        Handle<Clip> GetHandle() { return handle; }
-    private:
-        Handle<Clip> handle;
+        
+        Handle<Clip> m_Handle;
+        float m_Duration;
     };
 }

@@ -356,22 +356,6 @@ namespace Aether {
         return std::string(names[index]);
     }
 
-    float Ozz_RigModule::GetDuration(Handle<Clip> clip) const
-    {
-        auto* it = m_ClipPool.GetResource(clip);
-        if (!it) return 0.0f;
-
-        return it->data->duration();
-    }
-
-    int Ozz_RigModule::GetJointCount(Handle<Skeleton> skeleton) const
-    {
-        auto* it = m_SkeletonPool.GetResource(skeleton);
-        if (!it) return 0;
-
-        return it->data->num_joints();
-    }
-
     void Ozz_RigModule::GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);

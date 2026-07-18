@@ -1,21 +1,20 @@
 #pragma once
 
-#include "Aether/Core/Timestep.h"
-#include "Aether/Core/Base.h"
-
-#include <string>
-#include <algorithm>
+#include <tuple>
 #include <vector>
+#include <algorithm>
+#include "Aether/Core/Base.h"
+#include "Aether/Animation/RigModule.h"
 
 namespace Aether {
 
-    class AnimationModule
+    enum class ModuleType
     {
-    public:
-        virtual ~AnimationModule() = default;
-    private:
-        virtual const char* GetName() const = 0;
+        None, Rig
     };
+
+    template<typename T> struct GetModuleType;
+    template<> struct GetModuleType<RigModule> { static constexpr ModuleType value = ModuleType::Rig; };
 
     class AETHER_API AnimationSystem
     {
@@ -24,29 +23,11 @@ namespace Aether {
         void Shutdown();
 
         template <typename T>
-        void AddModule() 
+        T* GetModule() 
         {
-            Ref<T> module = T::Create();
-            const auto& name = module->GetName();
-
-            auto it = std::find_if(m_Modules.begin(), m_Modules.end(), 
-                [name](const auto& pair) { return pair.first == name; });
-            if (it != m_Modules.end()) it->second = module;
-            else m_Modules.push_back({name, module});
+            return std::get<Scope<T>>(m_Modules).get();
         }
-
-        template <typename T>
-        Ref<T> GetModule() 
-        {
-            const auto& name = T::ModuleName();
-            auto it = std::find_if(m_Modules.begin(), m_Modules.end(), 
-                [name](const auto& pair) { return pair.first == name; });
-            if (it != m_Modules.end()) 
-                return std::static_pointer_cast<T>(it->second);
-            return nullptr;
-        }
-
     private:
-        std::vector<std::pair<std::string, Ref<AnimationModule>>> m_Modules;
+        std::tuple<Scope<RigModule>> m_Modules;
     };
 }

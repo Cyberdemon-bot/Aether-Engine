@@ -6,7 +6,6 @@
 #include <glm/gtc/quaternion.hpp> 
 #include "Aether/Core/Base.h"
 #include "Aether/Core/Timestep.h"
-#include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Container/ResourcePool.h"
 
 namespace Aether {
@@ -78,9 +77,11 @@ namespace Aether {
         uint32_t size = 0;
     };
 
-    class RigModule : public AnimationModule
+    class RigModule
     {
     public:
+        virtual ~RigModule() = default;
+        
         virtual Handle<Skeleton> CreateSkeleton(const SkeletonSpec& data) = 0;
         virtual Handle<Clip> CreateClip(const ClipSpec& data, Handle<Skeleton> skeleton) = 0;
 
@@ -97,8 +98,6 @@ namespace Aether {
 
         virtual int GetJointIndex(Handle<Skeleton> skeleton, const std::string& name) const = 0;
         virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const = 0;
-        virtual float GetDuration(Handle<Clip> clip) const = 0;
-        virtual int GetJointCount(Handle<Skeleton> skeleton) const = 0;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
         virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const = 0;
         virtual PoseData GetPose(Handle<Pose> pose) = 0;
@@ -138,9 +137,7 @@ namespace Aether {
         virtual void ProcessTasks() = 0;
         virtual void ClearTasks() = 0;
     private:
-        static Ref<RigModule> Create();
-        static const char* ModuleName() { return "RigModule"; }
-        const char* GetName() const override { return "RigModule"; }
+        static Scope<RigModule> Create();
         friend class AnimationSystem;
     };
 

@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "Aether/Core/Base.h"
+#include "Aether/Core/Assert.h"
 #include "Aether/FileSystem/FileRegistry.h"
 
 namespace Aether {
@@ -18,6 +19,12 @@ namespace Aether {
 
     void FileRegistry::RegisterPath(std::string_view virtual_path)
     {
+        if (virtual_path.size() > 0xFFFF) 
+        {
+            AE_CORE_ERROR("Path length ({0}) exceeds maximum allowed 65535 bytes!", virtual_path.size());
+            return; 
+        }
+
         uint64_t hash_code = fnv1a_64(virtual_path);
         uint32_t offset = static_cast<uint32_t>(m_Pool.size());
         uint16_t psize = static_cast<uint16_t>(virtual_path.size());
@@ -29,12 +36,33 @@ namespace Aether {
         m_Map.push_back({hash_code, offset, Handle<FileData>::MakeInvalid()});
     }
 
+    bool FileRegistry::CompareString(uint32_t offset_a, uint32_t offset_b)
+    {
+        std::string_view view_a = GetView(offset_a); 
+        std::string_view view_b = GetView(offset_b); 
+        if (view_a.size() != view_b.size()) return false;
+        
+        for (size_t i = 0; i < view_a.size(); ++i) 
+            if (view_a[i] != view_b[i]) return false;
+        return true;
+    }
+
     void FileRegistry::CommitTable()
     {
         std::sort(m_Map.begin(), m_Map.end(), [](const PathEntry& a, const PathEntry& b)
         {
             return a.hash_code < b.hash_code;
         });
+
+        for (size_t i = 1; i < m_Map.size(); i++)
+            if (m_Map[i].hash_code == m_Map[i - 1].hash_code && 
+                !CompareString(m_Map[i].byte_offset, m_Map[i - 1].byte_offset))
+            {
+                std::string_view pathA = GetView(m_Map[i - 1].byte_offset);
+                std::string_view pathB = GetView(m_Map[i].byte_offset); 
+                AE_CORE_ERROR("COLLISION: '{0}' and '{1}' have the same hash {2}!", pathA, pathB, m_Map[i].hash_code);
+                AE_CORE_ASSERT(false, "Hash code collision detected!");
+            }
 
         auto last = std::unique(m_Map.begin(), m_Map.end(), [](const PathEntry& a, const PathEntry& b)
         {

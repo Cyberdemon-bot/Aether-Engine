@@ -730,7 +730,7 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
                 auto* skelAsset = asset_manager->GetAsset<Skeleton>(c.Skeleton);
                 auto* clipAsset = asset_manager->GetAsset<Clip>(c.Clips[0]);
                 if (rigModule && skelAsset && clipAsset)
-                    c.Cache = rigModule->CreateCache(clipAsset->GetHandle());
+                    c.Cache = rigModule->CreateCache(clipAsset->m_Handle);
             }
         }
 

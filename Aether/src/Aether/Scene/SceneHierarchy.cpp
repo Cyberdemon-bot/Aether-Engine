@@ -354,8 +354,8 @@ namespace Aether {
                 auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[0]);
                 if (skeletonAsset && clipAsset)
                 {
-                    comp.Cache = rigModule->CreateCache(clipAsset->GetHandle());
-                    comp.CurrentPose = rigModule->CreatePose(skeletonAsset->GetHandle());
+                    comp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
+                    comp.CurrentPose = rigModule->CreatePose(skeletonAsset->m_Handle);
                 }
             }
         }
