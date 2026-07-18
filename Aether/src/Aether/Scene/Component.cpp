@@ -53,4 +53,9 @@ namespace Aether {
         Restitution = info.restitution;
         IsSensor = info.isSensor;
     }
+
+    void BoneAttachmentComponent::Invalidate() const
+    {
+        JointIndex = -1;
+    }
 }

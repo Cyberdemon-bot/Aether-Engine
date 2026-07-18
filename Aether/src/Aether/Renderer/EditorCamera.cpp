@@ -4,7 +4,6 @@
 #include "Aether/Core/KeyCodes.h"
 #include "Aether/Core/MouseCodes.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
 namespace Aether {

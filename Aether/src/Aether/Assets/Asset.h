@@ -17,9 +17,8 @@ namespace Aether {
         Count 
     };
 
-    class Asset
+    struct Asset
     {
-    public:
         UUID id;
         bool loaded = false;
         virtual ~Asset() = default;

@@ -10,7 +10,7 @@
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Core/JobSystem.h"
 #include "Aether/Core/ServiceManager.h"
-#define GLM_ENABLE_EXPERIMENTAL
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
 #include <glm/gtx/projection.hpp>

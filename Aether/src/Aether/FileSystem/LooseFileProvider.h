@@ -4,7 +4,7 @@
 
 namespace Aether {
 
-    class LooseFileProvider : public FileProvider
+    class AETHER_API LooseFileProvider : public FileProvider
     {
     public:
         LooseFileProvider(std::string root)
