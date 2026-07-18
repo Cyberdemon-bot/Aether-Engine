@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Delegate.h"
 #include "Aether/Scene/Entity.h"
@@ -9,8 +10,6 @@
 #include "Aether/Physics/PhysicsSystem.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
 namespace Aether {
@@ -36,7 +35,7 @@ namespace Aether {
         TagComponent(const std::string& tag) : Tag(tag) {}
     };
 
-    struct TransformComponent
+    struct AETHER_API TransformComponent
     {
         glm::vec3 Translation = {0.0f, 0.0f, 0.0f};
         glm::quat Rotation = glm::quat({0.0f, 0.0f, 0.0f});
@@ -66,7 +65,7 @@ namespace Aether {
         LightComponent(const LightParam& param) : Config(param) {}
     };
 
-    struct MeshComponent
+    struct AETHER_API MeshComponent
     {
         Handle<Asset> Mesh;
         Handle<Asset> SharedSheet;
@@ -82,7 +81,7 @@ namespace Aether {
         void DetachUniqueSheet();
     };
 
-    struct AnimatorComponent
+    struct AETHER_API AnimatorComponent
     {
         Handle<Asset> Skeleton;
         std::vector<Handle<Asset>> Clips;
@@ -161,7 +160,7 @@ namespace Aether {
 		CameraComponent(const CameraComponent&) = default;
 	};
 
-    struct ColliderComponent
+    struct AETHER_API ColliderComponent
     {
         Handle<RigidBody> ColliderHandle = Handle<RigidBody>::MakeInvalid();
         glm::vec3 ColliderOffset = glm::vec3(1.0f);
@@ -179,7 +178,7 @@ namespace Aether {
         ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false);
     };
 
-    struct BoneAttachmentComponent
+    struct AETHER_API BoneAttachmentComponent
     {
         Entity AnimatorEntity = Null_Entity;
         std::string JointName;
@@ -196,7 +195,7 @@ namespace Aether {
             , JointName(jointName)
         {}
  
-        void Invalidate() const { JointIndex = -1; }
+        void Invalidate() const;
     };
 
     template<typename Component>
