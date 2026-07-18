@@ -110,4 +110,17 @@ namespace Aether {
         AE_CORE_ASSERT(index < OverrideHandles.size(), "Index out of bounds in Sheet!");
         OverrideHandles[index] = Handle<Asset>::MakeInvalid();
     }
+
+    Handle<Asset> Sheet::GetActiveHandle(uint32_t index) const
+    {
+        if (OverrideHandles[index].IsValid())
+            return OverrideHandles[index];
+            
+        return BaseHandles[index];
+    }
+
+    uint32_t Sheet::GetSize()
+    {
+        return BaseHandles.size();
+    }
 }

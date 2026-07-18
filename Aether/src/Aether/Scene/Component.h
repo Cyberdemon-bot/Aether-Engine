@@ -7,8 +7,6 @@
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Audio/AudioSystem.h"
 #include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Animation/RigModule.h"
-#include "Aether/Core/ServiceManager.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -55,14 +53,7 @@ namespace Aether {
         TransformComponent(const glm::vec3& translation, const glm::quat& quat, const glm::vec3& scale) 
             : Translation(translation), Rotation(quat), Scale(scale)  {}
 
-        glm::mat4 GetLocalTransform() const
-        {
-            glm::mat4 rotation = glm::toMat4(Rotation);
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f), Translation);
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), Scale);
-
-            return translation * rotation * scale;
-        }
+        glm::mat4 GetLocalTransform() const;
     };
 
     struct LightComponent
@@ -78,12 +69,17 @@ namespace Aether {
     struct MeshComponent
     {
         Handle<Asset> Mesh;
-        Handle<Asset> Sheet;
+        Handle<Asset> SharedSheet;
+        Handle<Asset> UniqueSheet;
         bool ShowBounds = false;
         mutable bool Culled = false;
+        bool UsingUniqueSheet = true;
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;
+
+        void AttachUniqueSheet();
+        void DetachUniqueSheet();
     };
 
     struct AnimatorComponent
@@ -110,11 +106,7 @@ namespace Aether {
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
 
-        void SetClip(int idx)
-        {
-            ActiveClipIdx = idx;
-            CacheDirty = true;
-        }
+        void SetClip(int idx);
     };
 
     struct AudioSourceComponent
@@ -184,21 +176,7 @@ namespace Aether {
         bool IsSensor = false;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
-        ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false)
-            : ColliderHandle(handle), Visible(visible)
-        {
-            auto it = ServiceManager::GetService<PhysicsSystem>()->GetBodyInfo(instance, ColliderHandle);
-            if (it == nullptr) return;
-            auto& info = *it;
-            ColliderOffset = info.offset;
-            Shape = info.shape;
-            Size = info.size;
-            Type = info.motionType;
-            Mass = info.mass;
-            Friction = info.friction;
-            Restitution = info.restitution;
-            IsSensor = info.isSensor;
-        }
+        ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false);
     };
 
     struct BoneAttachmentComponent

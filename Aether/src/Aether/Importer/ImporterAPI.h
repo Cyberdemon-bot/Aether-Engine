@@ -32,7 +32,7 @@ namespace Aether {
     {
         std::vector<UUID> meshIDs;
         std::vector<UUID> matIDs;
-        std::vector<std::vector<UUID>> meshMap;
+        std::vector<UUID> sheetIDs;
         std::vector<Animator> animators;
         Ref<SceneHierarchy> hierarchy;
     };

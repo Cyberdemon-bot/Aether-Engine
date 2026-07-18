@@ -88,13 +88,9 @@ void MainGameLayer::Attach()
     // =========================================================================
     // MAP
     // =========================================================================
-    auto uploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
-    if (!uploadMap.meshIDs.empty()) {
-        m_BaseMapMesh = asset_manager->GetHandle(uploadMap.meshIDs[0]);
-        if (uploadMap.matIDs.empty()) AE_ERROR("no material!");
-        for (auto& matID : uploadMap.matIDs)
-            m_BaseMapMaterials.push_back(asset_manager->GetHandle(matID));
-    }
+    m_UploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
+    m_BaseMapMesh = asset_manager->GetHandle(m_UploadMap.meshIDs[0]);
+    m_SheetHandle = asset_manager->GetHandle(m_UploadMap.sheetIDs[0]);
 
     // =========================================================================
     // PLAYER
@@ -175,11 +171,6 @@ void MainGameLayer::Attach()
 
     audsys->SetLooping(m_BgmSource, true);
     audsys->Play(m_BgmSource);
-
-    m_SheetHandle = asset_manager->CreateAsset<Aether::Sheet>(Aether::UUID());
-    m_MapSheet = asset_manager->GetAsset<Aether::Sheet>(m_SheetHandle);
-    m_MapSheet->Resize(m_BaseMapMaterials.size());
-    m_MapSheet->CopyDefaultList(m_BaseMapMaterials);
 
     AE_INFO("MainGameLayer started.");
 }
@@ -552,8 +543,9 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             chunksToKeep.insert(coord);
             if (m_ActiveChunks.count(coord)) continue;
 
-            Aether::Entity chunk = m_Scene.CreateEntity(
-                "MapGrid_" + std::to_string(coord.first) + "_" + std::to_string(coord.second));
+            Aether::Entity chunk = m_Scene.LoadHierarchy(m_UploadMap);
+            auto& name = m_Scene.GetComponent<Aether::TagComponent>(chunk);
+            name.Tag = "MapGrid_" + std::to_string(coord.first) + "_" + std::to_string(coord.second);
             auto& t = m_Scene.GetComponent<Aether::TransformComponent>(chunk);
             t.Translation = glm::vec3(
                 (coord.first  + 0.5f) * actualChunkSize, -(actualChunkSize / 2.0f),
@@ -563,10 +555,6 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             float rotAngle  = glm::radians(randomRot * 90.0f);
             t.Rotation = glm::quat(glm::vec3(0.0f, rotAngle, 0.0f));
             t.Dirty = true;
-
-            auto& mesh     = m_Scene.AddComponent<Aether::MeshComponent>(chunk);
-            mesh.Mesh      = m_BaseMapMesh;
-            mesh.Sheet     = m_SheetHandle;
 
             ChunkData newData;
             newData.landEntity = chunk;

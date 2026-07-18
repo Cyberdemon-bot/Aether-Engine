@@ -28,6 +28,7 @@ namespace Aether {
         bool clearHierarchy;
         bool repairHie;
     };
+
     class AETHER_API Scene 
     {
     public:
@@ -49,22 +50,24 @@ namespace Aether {
 
         void ImportPrefab(Entity entity, const Prefab& prefab, bool override = false);
         Prefab ExportPrefab(Entity entity) const;
+        Entity LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
 
         bool IsValid(Entity entity) const;
         void Update(Timestep ts, EditorCamera* camera = nullptr);
 
         Entity FindEntity(UUID id) const;
         std::vector<Entity> FindEntity(const std::string& tag) const;
-        UUID GetUUID(Entity entity) const;
 
-        void LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
-        Handle<PhysicsInstance> GetPhysicsInstance() { return m_PhysicsInstance; }
+        Handle<PhysicsInstance> GetPhysicsInstance() 
+        { 
+            return m_PhysicsInstance; 
+        }
 
         void SortHierarchyCache();
-        uint32_t GetHierarchyDriftCount() const { return m_SortDirtyCount; }
-
-        entt::registry& Registry() {return m_Registry;}
-        const entt::registry& Registry() const {return m_Registry;}
+        uint32_t GetHierarchyDriftCount() const 
+        { 
+            return m_SortDirtyCount;
+        }
 
         template<typename T, typename... Args>
         T& AddComponent(Entity entity, Args&&... args)
@@ -141,12 +144,16 @@ namespace Aether {
         void DirtyScan();
         void BreadthFirstSearch(bool usingFilter = true);
         void UpdateTransform(Entity entity);
-        void CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
         void UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform);
         void ResolveBoneAttachments();
 
         void ExcDestroyEntity(Entity entity, bool repair_hie);
         void ExcDestroyHierarchy(Entity entity);
+
+        Entity CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
+
+        entt::registry& Registry() {return m_Registry;}
+        const entt::registry& Registry() const {return m_Registry;}
 
         template<typename T>
         void LoadComponent(Entity entity, const ComponentInfo<T>& info, bool override)

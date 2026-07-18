@@ -1,0 +1,21 @@
+#pragma once
+
+#include "Aether/FileSystem/FileProvider.h"
+
+namespace Aether {
+
+    class LooseFileProvider : public FileProvider
+    {
+    public:
+        LooseFileProvider(std::string root)
+            : m_Root(std::filesystem::absolute(std::filesystem::path(std::move(root))))
+        {}
+
+        virtual bool Exists(std::string_view relative_path) const override;
+        virtual bool Read(std::string_view relative_path, FileData& outData) override;
+        virtual std::vector<std::string> List(std::string_view dir) const override;
+    private:
+        std::filesystem::path m_Root;
+        std::filesystem::path ResolvePath(std::string_view relative_path) const;
+    };
+}

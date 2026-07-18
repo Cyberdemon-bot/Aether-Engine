@@ -137,7 +137,7 @@ static EntitySnapshot PrefabToSnapshot(
         s.MeshID     = std::stoull(AssetUUID<Mesh>(m.Mesh));
         s.ShowBounds = m.ShowBounds;
 
-        if (Sheet* sheet = asset_manager->GetAsset<Sheet>(m.Sheet))
+        if (Sheet* sheet = asset_manager->GetAsset<Sheet>(m.SharedSheet))
         {
             s.MaterialIDs.reserve(sheet->BaseHandles.size());
             for (size_t i = 0; i < sheet->BaseHandles.size(); ++i)
@@ -706,7 +706,7 @@ bool SceneSerializer::DeserializeInto(const std::string& path, Scene& scene)
                     sheet->SetOverride(i, asset_manager->GetHandle(UUID(s.OverrideMaterialIDs[i])));
             }
 
-            c.Sheet = sheetHandle;
+            c.SharedSheet = sheetHandle;
         }
 
         // Animator
