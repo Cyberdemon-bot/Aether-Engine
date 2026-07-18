@@ -14,7 +14,7 @@
 
 namespace Aether {
 
-    class Asset;
+    struct Asset;
     struct ScriptInstance;
     
     struct IDComponent
