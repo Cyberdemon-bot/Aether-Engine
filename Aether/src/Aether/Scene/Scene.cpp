@@ -259,12 +259,6 @@ namespace Aether {
         return entList;
     }
 
-    UUID Scene::GetUUID(Entity entity) const
-    {
-         if (!m_Registry.valid(entity)) return UUID(0);
-         return m_Registry.get<IDComponent>(entity).ID;
-    }
-
     void Scene::ResolveBoneAttachments()
     {
         auto view = View<BoneAttachmentComponent, TransformComponent>();
@@ -723,7 +717,7 @@ namespace Aether {
                     Handle<Pose> pose = Handle<Pose>::MakeInvalid();
                     if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
-                        renderer->DrawMesh(meshcmp.Mesh, meshcmp.Sheet, pose, transform.WorldTransform);
+                        renderer->DrawMesh(meshcmp.Mesh, meshcmp.SharedSheet, pose, transform.WorldTransform);
                 }
 
                 renderer->EndScene();

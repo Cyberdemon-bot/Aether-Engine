@@ -67,18 +67,8 @@ namespace Aether {
         void SetDefault(uint32_t index, Handle<Asset> handle);
         void Revert(uint32_t index);
         
-        Handle<Asset> GetActiveHandle(uint32_t index) const
-        {
-            if (OverrideHandles[index].IsValid())
-                return OverrideHandles[index];
-                
-            return BaseHandles[index];
-        }
-
-        uint32_t GetSize()
-        {
-            return BaseHandles.size();
-        }
+        Handle<Asset> GetActiveHandle(uint32_t index) const;
+        uint32_t GetSize();
 
         std::vector<Handle<Asset>> BaseHandles;
         std::vector<Handle<Asset>> OverrideHandles;

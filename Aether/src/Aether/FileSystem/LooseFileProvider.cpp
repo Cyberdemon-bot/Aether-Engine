@@ -1,6 +1,6 @@
 #include "aepch.h"
 #include "Aether/Core/Log.h"
-#include "Aether/FileSystem/FileProvider.h"
+#include "Aether/FileSystem/LooseFileProvider.h"
 
 namespace Aether {
     bool LooseFileProvider::Exists(std::string_view relative_path) const

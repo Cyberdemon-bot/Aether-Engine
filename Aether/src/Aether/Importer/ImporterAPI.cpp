@@ -126,8 +126,7 @@ namespace Aether {
             }
 
             UUID meshID = AssetsRegister::Register(meshInfo.DebugName, meshInfo.AssetID);
-            res.meshMap.emplace_back();
-            // Convert SubMeshCreateInfo to SubMesh
+            std::vector<Handle<Asset>> matHandles;
             std::vector<SubMesh> submeshes;
             for (const auto& subInfo : meshInfo.SubMeshes)
             {
@@ -138,13 +137,20 @@ namespace Aether {
                 sm.BaseIndex = subInfo.BaseIndex;
                 sm.BoundsMin = subInfo.BoundsMin;
                 sm.BoundsMax = subInfo.BoundsMax;
-                
+
                 // Assign material
-                auto mat = res.matIDs[subInfo.MaterialIdx];
-                res.meshMap.back().push_back(mat); 
-                sm.MaterialIdx = res.meshMap.back().size() - 1;
+                auto matHandle = asset_manager->GetHandle(res.matIDs[subInfo.MaterialIdx]);
+                matHandles.push_back(matHandle);
+                sm.MaterialIdx = (int)matHandles.size() - 1;
                 submeshes.push_back(sm);
             }
+
+            UUID sheetID = AssetsRegister::Register(meshInfo.DebugName + "_Sheet", UUID());
+            auto sheetHandle = asset_manager->CreateAsset<Sheet>(sheetID);
+            auto* sheet = asset_manager->GetAsset<Sheet>(sheetHandle);
+            sheet->Resize((uint32_t)matHandles.size());
+            sheet->MoveDefaultList(std::move(matHandles));
+            res.sheetIDs.push_back(sheetID);
             
             // Create mesh spec
             std::vector<VertexStream> temp = {

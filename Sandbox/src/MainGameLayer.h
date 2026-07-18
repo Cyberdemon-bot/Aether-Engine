@@ -40,8 +40,6 @@ private:
 
     Aether::Ref<Aether::FrameBuffer> m_MainFbo;
     std::vector<Aether::RenderPass>  m_Pipeline;
-    int m_ActiveShadowCount = 0;
-
     Aether::Entity m_SunLight = Aether::Null_Entity;
 
     bool m_ShowFlowFieldDebug = false;
@@ -113,7 +111,6 @@ private:
     std::map<std::pair<int, int>, ChunkData> m_ActiveChunks;
 
     Aether::Handle<Aether::Asset>              m_BaseMapMesh;
-    std::vector<Aether::Handle<Aether::Asset>> m_BaseMapMaterials;
 
     // --- Rendering ---
     float m_ShadowBias = 0.00001f;
@@ -136,7 +133,7 @@ private:
 
     Aether::Prefab m_ZombiePrefab;
     Aether::Prefab m_ChunkPrefab;
-    Aether::Sheet* m_MapSheet;
+    Aether::RegisteredScene m_UploadMap;
     Aether::Handle<Aether::Asset> m_SheetHandle;
 
     float m_ShootTimer    = 0.0f;
