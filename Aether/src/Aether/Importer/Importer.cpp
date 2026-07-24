@@ -13,14 +13,11 @@ namespace Aether {
         s_GLBAssembler.reset();
     }
 
-    Ref<ParsedScene> Importer::Import(const std::string& path, bool registerPath) 
+    Ref<ParsedScene> Importer::Import(const std::string& path) 
     {
         auto it = ServiceManager::GetService<FileSystem>();
-        if (registerPath)
-        {
-            it->RegisterPath(path);
-            it->CommitRegistry();
-        }
+        it->RegisterPath(path);
+        it->CommitRegistry();
         auto handle = it->Open(path);
         auto res = s_GLBAssembler->Import(it->GetBytes(handle));
         it->Close(handle);

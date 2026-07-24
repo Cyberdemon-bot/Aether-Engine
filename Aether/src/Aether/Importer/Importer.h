@@ -10,7 +10,7 @@ namespace Aether {
         void Init();
         void Shutdown();
 
-        Ref<ParsedScene> Import(const std::string& path, bool registerPath = true);
+        Ref<ParsedScene> Import(const std::string& path);
         RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
     private:
         Scope<GLBAssembler> s_GLBAssembler;
