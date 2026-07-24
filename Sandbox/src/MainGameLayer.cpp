@@ -28,6 +28,9 @@ MainGameLayer::MainGameLayer()
 
 void MainGameLayer::Attach()
 {
+    m_Importer = Aether::ServiceManager::GetService<Aether::Importer>();
+    auto fs = Aether::ServiceManager::GetService<Aether::FileSystem>();
+    fs->Mount("", Aether::CreateRef<Aether::LooseFileProvider>("."));
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
@@ -35,10 +38,8 @@ void MainGameLayer::Attach()
     auto* asset_manager = Aether::ServiceManager::GetService<Aether::AssetManager>();
     auto* physys = Aether::ServiceManager::GetService<Aether::PhysicsSystem>();
 
-    renderer->SetLutMap("Assets/textures/LUT.png");
-    renderer->SetSkyBox("Assets/textures/skybox.png");
-
-    AE_CORE_INFO("Done");
+    renderer->SetLutMap("assets/textures/LUT.png");
+    renderer->SetSkyBox("assets/textures/skybox.png");
 
     auto& window = Aether::Application::Get().GetWindow();
     Aether::FramebufferSpec sceneFbSpec;
@@ -46,7 +47,7 @@ void MainGameLayer::Attach()
     sceneFbSpec.Height      = window.GetHeight();
     sceneFbSpec.Attachments = { Aether::ImageFormat::RGBA8, Aether::ImageFormat::DEPTH24STENCIL8 };
 
-    m_MainShader = Aether::Shader::Create("Assets/shaders/Standard.shader");
+    m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
     m_MainShader->Bind();
     m_MainShader->SetUBOSlot("Camera", 0);
     m_MainShader->SetUBOSlot("Lights", 2);
@@ -88,7 +89,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // MAP
     // =========================================================================
-    m_UploadMap = Aether::Importer::Upload(Aether::Importer::Import("assets/models/map.glb"));
+    m_UploadMap = m_Importer->Upload(m_Importer->Import("assets/models/map.glb"));
     m_BaseMapMesh = asset_manager->GetHandle(m_UploadMap.meshIDs[0]);
     m_SheetHandle = asset_manager->GetHandle(m_UploadMap.sheetIDs[0]);
 
@@ -102,7 +103,7 @@ void MainGameLayer::Attach()
     pTransform.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     pTransform.Dirty       = true;
 
-    auto uploadPlayer = Aether::Importer::Upload(Aether::Importer::Import("assets/models/humanv2.glb"));
+    auto uploadPlayer = m_Importer->Upload(m_Importer->Import("assets/models/humanv2.glb"));
     m_Scene.LoadHierarchy(uploadPlayer, m_Player);
 
     // =========================================================================
@@ -128,7 +129,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // ZOMBIES
     // =========================================================================
-    m_ZombieSceneData = Aether::Importer::Upload(Aether::Importer::Import("assets/models/zombie.glb"));
+    m_ZombieSceneData = m_Importer->Upload(m_Importer->Import("assets/models/zombie.glb"));
 
     // =========================================================================
     // GUN
@@ -139,7 +140,7 @@ void MainGameLayer::Attach()
     gTransform.Scale       = { 1.0f, 1.0f, 1.0f };
     gTransform.Dirty       = true;
 
-    auto uploadGun = Aether::Importer::Upload(Aether::Importer::Import("assets/models/gun.glb"));
+    auto uploadGun = m_Importer->Upload(m_Importer->Import("assets/models/gun.glb"));
     m_Scene.LoadHierarchy(uploadGun, m_Gun);
 
     if (!uploadGun.animators.empty())

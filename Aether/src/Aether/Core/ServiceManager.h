@@ -15,6 +15,7 @@ namespace Aether {
         JobSystem,
         PhysicsSystem,
         FileSystem,
+        Importer,
         Count
     };
 
@@ -26,6 +27,7 @@ namespace Aether {
     class JobSystem;
     class PhysicsSystem;
     class FileSystem;
+    class Importer;
 
     template<typename T> struct GetServiceType;
     template<> struct GetServiceType<Renderer> { static constexpr ServiceType value = ServiceType::Renderer; };
@@ -36,6 +38,7 @@ namespace Aether {
     template<> struct GetServiceType<JobSystem> { static constexpr ServiceType value = ServiceType::JobSystem; };
     template<> struct GetServiceType<PhysicsSystem> { static constexpr ServiceType value = ServiceType::PhysicsSystem; };
     template<> struct GetServiceType<FileSystem> { static constexpr ServiceType value = ServiceType::FileSystem; };
+    template<> struct GetServiceType<Importer> { static constexpr ServiceType value = ServiceType::Importer; };
 
     template<typename T>
     inline constexpr ServiceType GetServiceType_v = GetServiceType<T>::value;

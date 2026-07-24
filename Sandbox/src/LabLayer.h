@@ -52,6 +52,7 @@ private:
     Aether::Scene        m_Scene;
     Aether::EditorCamera m_Camera;
     Aether::AssetManager* m_AssetManager = nullptr;
+    Aether::Importer* m_Importer = nullptr;
 
     Aether::Ref<Aether::Shader> m_MainShader;
     Aether::Ref<Aether::Shader> m_VolShader;

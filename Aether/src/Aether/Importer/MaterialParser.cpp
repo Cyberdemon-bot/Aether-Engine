@@ -6,7 +6,7 @@
 namespace Aether {
     Ref<MaterialParser> MaterialParser::Create()
     {
-        switch (Importer::Get_GLB_API())
+        switch (GLBAssembler::GetAPI())
 		{
 			case GLBAssembler::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for GLBAssembler!"); return nullptr;
 			case GLBAssembler::API::Cgltf:  return CreateRef<GLTF_MaterialParser>();

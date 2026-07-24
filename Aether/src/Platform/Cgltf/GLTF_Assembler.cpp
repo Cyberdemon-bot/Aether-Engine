@@ -3,41 +3,38 @@
 #include "Platform/Cgltf/GLTF_Assembler.h"
 
 namespace Aether {
-    Ref<ParsedScene> GLTF_Assembler::Import(const std::string& path)
+    Ref<ParsedScene> GLTF_Assembler::Import(FileData data)
     {
         Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
-        SceneData->FilePath = path;
 
         cgltf_options options = {};
         cgltf_data* gltf = nullptr;
-        cgltf_result result = cgltf_parse_file(&options, path.c_str(), &gltf);
-        
+        cgltf_result result = cgltf_parse(&options, data.bytes, data.size, &gltf);
+
         if (result != cgltf_result_success)
         {
-            AE_CORE_ERROR("Failed to parse GLTF file: {0}", path);
+            AE_CORE_ERROR("Failed to parse GLB data");
             return SceneData;
         }
-        
-        result = cgltf_load_buffers(&options, gltf, path.c_str());
+
+        result = cgltf_load_buffers(&options, gltf, nullptr);
         if (result != cgltf_result_success)
         {
-            AE_CORE_ERROR("Failed to load GLTF buffers: {0}", path);
+            AE_CORE_ERROR("Failed to load GLB buffers");
             cgltf_free(gltf);
             return SceneData;
         }
 
-        void* data = static_cast<void*>(gltf);
-        auto anim = m_AnimationParser->ParseRigAnim(data);
-        auto matRes = m_MaterialParser->Parsing(data);
-        auto meshRes = m_MeshParser->Parsing(data);
-        SceneData->Hierarchy = m_SceneParser->Parsing(data);
+        void* raw = static_cast<void*>(gltf);
+        auto anim = m_AnimationParser->ParseRigAnim(raw);
+        auto matRes = m_MaterialParser->Parsing(raw);
+        auto meshRes = m_MeshParser->Parsing(raw);
+        SceneData->Hierarchy = m_SceneParser->Parsing(raw);
         SceneData->Meshes = std::move(meshRes->meshesInfo);
         SceneData->Materials = std::move(matRes->matsInfo);
         SceneData->Images = std::move(matRes->imgsInfo);
         SceneData->Skeletons = std::move(anim->rigs);
         SceneData->Clips = std::move(anim->clips);
-
-        AE_CORE_INFO("Parsed {0}", path);
         return SceneData;
     }
 }

@@ -27,6 +27,8 @@ namespace Aether {
         if (value.size() < prefix.size()) return false;
         if (value.compare(0, prefix.size(), prefix) != 0) return false;
 
+        if (prefix.empty()) return true;
+
         if (value.size() == prefix.size()) return true;           
         if (!prefix.empty() && prefix.back() == '/') return true; 
         return value[prefix.size()] == '/';                      
