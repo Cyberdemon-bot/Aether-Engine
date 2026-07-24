@@ -34,6 +34,7 @@ target("Aether")
     add_defines("AETHER_SHARED")
     add_defines("AETHER_BUILD_DLL")
     add_defines("MSDFGEN_USE_CPP11", "MSDFGEN_EXTENSIONS")
+    add_defines("GLM_ENABLE_EXPERIMENTAL", {public = true})
     --set_policy("build.sanitizer.address", true)
 
     if is_mode("debug") then

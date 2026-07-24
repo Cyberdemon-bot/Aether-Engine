@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Aether/Importer/ImporterAPI.h"
+#include "Aether/Importer/GLBAssembler.h"
 #include <string>
 
 namespace Aether {
 
-	class GLTF_ImporterAPI : public ImporterAPI
+	class GLTF_Assembler : public GLBAssembler
 	{
 	public:
 		virtual Ref<ParsedScene> Import(const std::string& path) override;

@@ -1,8 +1,11 @@
 #pragma once
 
-#include "Aether/Renderer/ResourceManager.h"
+#include "Aether/Core/Base.h"
+#include "Aether/Renderer/Resource.h"
 
 namespace Aether {
+
+	class ResourceManager;
 
 	enum class ImageFormat
 	{

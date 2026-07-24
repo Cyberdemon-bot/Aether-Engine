@@ -10,13 +10,13 @@ namespace Aether {
         cgltf_data* gltf = static_cast<cgltf_data*>(data);
         auto result = CreateRef<ParsedMaterialInfo>();
         result->matsInfo.resize(gltf->materials_count);
-        result->texsInfo.resize(gltf->images_count);
+        result->imgsInfo.resize(gltf->images_count);
 
         // Load textures
         for (size_t i = 0; i < gltf->images_count; i++)
         {
             const cgltf_image* image = &gltf->images[i];
-            TextureCreateInfo& texInfo = result->texsInfo[i];
+            ImageCreateInfo& texInfo = result->imgsInfo[i];
             texInfo.DebugName = image->name ? image->name : ("Texture_" + std::to_string(i));
             stbi_set_flip_vertically_on_load(0);
             

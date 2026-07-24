@@ -1,9 +1,9 @@
 #include "aepch.h"
 #include <cgltf.h>
-#include "Platform/Cgltf/GLTF_ImporterAPI.h"
+#include "Platform/Cgltf/GLTF_Assembler.h"
 
 namespace Aether {
-    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path)
+    Ref<ParsedScene> GLTF_Assembler::Import(const std::string& path)
     {
         Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
         SceneData->FilePath = path;
@@ -33,8 +33,8 @@ namespace Aether {
         SceneData->Hierarchy = m_SceneParser->Parsing(data);
         SceneData->Meshes = std::move(meshRes->meshesInfo);
         SceneData->Materials = std::move(matRes->matsInfo);
-        SceneData->Textures = std::move(matRes->texsInfo);
-        SceneData->Rigs = std::move(anim->rigs);
+        SceneData->Images = std::move(matRes->imgsInfo);
+        SceneData->Skeletons = std::move(anim->rigs);
         SceneData->Clips = std::move(anim->clips);
 
         AE_CORE_INFO("Parsed {0}", path);

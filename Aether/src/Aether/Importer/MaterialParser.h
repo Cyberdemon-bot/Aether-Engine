@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 
 namespace Aether {
-    struct TextureCreateInfo
+    struct ImageCreateInfo
     {
         std::string DebugName;
         TextureSpec Spec;
@@ -31,7 +31,7 @@ namespace Aether {
     struct ParsedMaterialInfo
     {
         std::vector<MaterialCreateInfo> matsInfo;
-        std::vector<TextureCreateInfo> texsInfo;
+        std::vector<ImageCreateInfo> imgsInfo;
     };
 
     class MaterialParser

@@ -6,10 +6,10 @@
 #include <unordered_map>
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Timestep.h"
-#include "Aether/Importer/ImporterAPI.h"
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Scene/Component.h"
+#include "Aether/Importer/GLBAssembler.h"
 
 namespace Aether {
 

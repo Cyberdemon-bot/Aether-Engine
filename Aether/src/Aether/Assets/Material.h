@@ -22,9 +22,9 @@ namespace Aether {
 
     struct Material : public Asset
     {
-        Material() {};
+        Material() = default;
 
-        void AddTexture(const std::string& name, Handle<Resource> handle);
+        void AddImage(const std::string& name, Handle<Asset> handle);
         void AddFloat(const std::string& name, float value);
         void AddInt(const std::string& name, int value);
         void AddIntArray(const std::string& name, int* values, uint32_t count);
@@ -41,7 +41,7 @@ namespace Aether {
         std::vector<std::pair<std::string, glm::vec4>> m_Vec4Uniforms;
         std::vector<std::pair<std::string, glm::vec3>> m_Vec3Uniforms;
         std::vector<std::pair<std::string, std::vector<int>>> m_IntArrayUniforms;
-        std::vector<std::pair<std::string, Handle<Resource>>> m_Textures;
+        std::vector<std::pair<std::string, Handle<Asset>>> m_Images;
         std::vector<std::pair<std::string, int>> m_IntUniforms;
         std::vector<std::pair<std::string, float>> m_FloatUniforms;
 
@@ -50,6 +50,7 @@ namespace Aether {
 
     struct Sheet : public Asset
     {
+        Sheet() = default;
 
         void Resize(uint32_t size)
         {

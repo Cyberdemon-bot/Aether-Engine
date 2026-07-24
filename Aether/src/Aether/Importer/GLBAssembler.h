@@ -11,6 +11,8 @@
 
 namespace Aether {
 
+    struct Asset;
+
     struct Animator
     {
         Handle<Asset> skeleton;
@@ -20,10 +22,10 @@ namespace Aether {
     struct ParsedScene
     {
         std::string FilePath;
-        std::vector<TextureCreateInfo> Textures;
+        std::vector<ImageCreateInfo> Images;
         std::vector<MaterialCreateInfo> Materials;
         std::vector<MeshCreateInfo> Meshes;
-        std::vector<RigCreateInfo> Rigs;      
+        std::vector<SkeletonCreateInfo> Skeletons;      
         std::vector<ClipCreateInfo> Clips;
         Ref<SceneHierarchy> Hierarchy;
     };
@@ -37,7 +39,7 @@ namespace Aether {
         Ref<SceneHierarchy> hierarchy;
     };
 
-    class AETHER_API ImporterAPI 
+    class AETHER_API GLBAssembler 
     {
     public:
         enum class API {
@@ -45,12 +47,12 @@ namespace Aether {
         };
 
     public:
-        virtual ~ImporterAPI() = default;
+        virtual ~GLBAssembler() = default;
 		virtual  Ref<ParsedScene> Import(const std::string& path) = 0;
         
         RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
         static API GetAPI() { return s_API; }
-        static Scope<ImporterAPI> Create();
+        static Scope<GLBAssembler> Create();
 
     public: 
         static Ref<MeshParser> m_MeshParser;

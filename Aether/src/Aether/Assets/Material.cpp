@@ -6,9 +6,9 @@
 
 namespace Aether {
 
-    void Material::AddTexture(const std::string& name, Handle<Resource> handle) 
+    void Material::AddImage(const std::string& name, Handle<Asset> handle) 
     { 
-        m_Textures.push_back({name, handle}); 
+        m_Images.push_back({name, handle}); 
     }
 
     void Material::AddFloat(const std::string& name, float value) 

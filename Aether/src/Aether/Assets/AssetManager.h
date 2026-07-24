@@ -9,6 +9,7 @@
 #include "Aether/Assets/Material.h"
 #include "Aether/Assets/Rig.h"
 #include "Aether/Assets/Script.h"
+#include "Aether/Assets/Image.h"
 #include "Aether/Container/ResourcePool.h"
 #include <unordered_map>
 #include <tuple>
@@ -22,6 +23,7 @@ namespace Aether {
     template<> struct GetAssetType<Skeleton> { static constexpr AssetType value = AssetType::Skeleton; };
     template<> struct GetAssetType<Clip> { static constexpr AssetType value = AssetType::Clip; };
     template<> struct GetAssetType<Script> { static constexpr AssetType value = AssetType::Script; };
+    template<> struct GetAssetType<Image> { static constexpr AssetType value = AssetType::Image; };
 
     struct Route
     {
@@ -101,7 +103,8 @@ namespace Aether {
             ResourcePool<Handle<Skeleton>, Skeleton>,
             ResourcePool<Handle<Clip>, Clip>,
             ResourcePool<Handle<Sheet>, Sheet>,
-            ResourcePool<Handle<Script>, Script>
+            ResourcePool<Handle<Script>, Script>,
+            ResourcePool<Handle<Image>, Image>
         > m_AssetContainers;
     };
 }

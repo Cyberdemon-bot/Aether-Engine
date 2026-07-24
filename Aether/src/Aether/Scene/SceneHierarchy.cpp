@@ -2,6 +2,9 @@
 #include "Aether/Scene/Scene.h"
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Animation/AnimationSystem.h"
+#include "Aether/Animation/RigModule.h"
+#include "Aether/Scripting/ScriptEngine.h"
 
 namespace Aether {
     void Scene::MarkDirty(Entity entity)

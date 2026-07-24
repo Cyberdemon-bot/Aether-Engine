@@ -436,6 +436,7 @@ namespace Aether {
 
 	void Renderer::Flush(const RenderPass& pass)
 	{
+		auto* asset_manager = ServiceManager::GetService<AssetManager>();
 		Mesh* currentMesh = nullptr;
 		Material* currentMaterial = nullptr;
 		int startSlot = 3;
@@ -515,9 +516,10 @@ namespace Aether {
 					for (const auto& [name, vec3] : material->m_Vec3Uniforms) shader->SetFloat3(name, vec3);
 					for (const auto& [name, vec4] : material->m_Vec4Uniforms) shader->SetFloat4(name, vec4);
 					for (const auto& [name, mat4] : material->m_Mat4Uniforms) shader->SetMat4(name, mat4);
-					for (const auto& [name, texture] : material->m_Textures)
+					for (const auto& [name, img] : material->m_Images)
 					{
-						ResourceManager::GetResource<Texture2D>(texture)->Bind(startSlot);
+						auto* asset = asset_manager->GetAsset<Image>(img); if (!asset) continue;
+						ResourceManager::GetResource<Texture2D>(asset->m_Handle)->Bind(startSlot);
 						shader->SetInt(name, startSlot);
 						startSlot++;
 					}

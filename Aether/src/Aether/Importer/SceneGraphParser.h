@@ -12,8 +12,8 @@ namespace Aether {
     {
         std::string name;
         glm::vec3 translation = glm::vec3(0.0f);
-        glm::quat rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-        glm::vec3 scale       = glm::vec3(1.0f);
+        glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        glm::vec3 scale = glm::vec3(1.0f);
         int meshIdx = -1;
         int animatorIdx = -1;
         std::vector<int> children;

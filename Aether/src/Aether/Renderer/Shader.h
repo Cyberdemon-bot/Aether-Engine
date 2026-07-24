@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Aether/Renderer/Resource.h"
 #include "glm/glm.hpp"
+#include "Aether/Renderer/Resource.h"
 
 namespace Aether {
 

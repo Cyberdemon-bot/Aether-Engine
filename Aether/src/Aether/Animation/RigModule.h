@@ -10,11 +10,11 @@
 
 namespace Aether {
 
-    struct SkeletonCache;
-    struct Clip;
-    struct Skeleton;
+    struct RClip;
+    struct RSkeleton;
     struct Pose;
     struct Mask;
+    struct SkeletonCache;
 
     struct SkeletonSpec
     {
@@ -55,7 +55,7 @@ namespace Aether {
 
     struct TwoBoneIKSpec
     {
-        Handle<Skeleton> Skeleton;
+        Handle<RSkeleton> Skeleton;
         Handle<Pose> Pose;
         int Root, Mid, End;
         glm::vec3 Target, Pole;
@@ -64,7 +64,7 @@ namespace Aether {
 
     struct LookAtSpec
     {
-        Handle<Skeleton> Skeleton;
+        Handle<RSkeleton> Skeleton;
         Handle<Pose> Pose;
         int Bone;
         glm::vec3 Target, Forward, Up;
@@ -82,29 +82,29 @@ namespace Aether {
     public:
         virtual ~RigModule() = default;
         
-        virtual Handle<Skeleton> CreateSkeleton(const SkeletonSpec& data) = 0;
-        virtual Handle<Clip> CreateClip(const ClipSpec& data, Handle<Skeleton> skeleton) = 0;
+        virtual Handle<RSkeleton> CreateSkeleton(const SkeletonSpec& data) = 0;
+        virtual Handle<RClip> CreateClip(const ClipSpec& data, Handle<RSkeleton> skeleton) = 0;
 
-        virtual Handle<SkeletonCache> CreateCache(Handle<Clip> clip) = 0;
+        virtual Handle<SkeletonCache> CreateCache(Handle<RClip> clip) = 0;
         virtual void DestroyCache(Handle<SkeletonCache> cache) = 0;
-        virtual void RepairCache(Handle<SkeletonCache> cache, Handle<Clip> clip) = 0;
+        virtual void RepairCache(Handle<SkeletonCache> cache, Handle<RClip> clip) = 0;
 
-        virtual Handle<Pose> CreatePose(Handle<Skeleton> skeleton) = 0;
+        virtual Handle<Pose> CreatePose(Handle<RSkeleton> skeleton) = 0;
         virtual void DestroyPose(Handle<Pose> pose) = 0;
 
-        virtual Handle<Mask> CreateMask(Handle<Skeleton> skeleton, float* weights, size_t size) = 0;
+        virtual Handle<Mask> CreateMask(Handle<RSkeleton> skeleton, float* weights, size_t size) = 0;
         virtual void DestroyMask(Handle<Mask> mask) = 0;
-        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<Skeleton> skeleton, const std::string& boneName, float weight) = 0;
+        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<RSkeleton> skeleton, const std::string& boneName, float weight) = 0;
 
-        virtual int GetJointIndex(Handle<Skeleton> skeleton, const std::string& name) const = 0;
-        virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const = 0;
-        virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
-        virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const = 0;
+        virtual int GetJointIndex(Handle<RSkeleton> skeleton, const std::string& name) const = 0;
+        virtual std::string GetJointName(Handle<RSkeleton> skeleton, int index) const = 0;
+        virtual bool GetIBM(Handle<RSkeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
+        virtual void GetRestPoseMatrices(Handle<RSkeleton> skeleton, glm::mat4* arr, size_t size) const = 0;
         virtual PoseData GetPose(Handle<Pose> pose) = 0;
 
         virtual void ScheduleSample(  
-            Handle<Skeleton> skeleton,
-            Handle<Clip> clip, 
+            Handle<RSkeleton> skeleton,
+            Handle<RClip> clip, 
             Handle<SkeletonCache> cache, 
             Handle<Pose> poseOut,
             float time) = 0;
@@ -131,7 +131,7 @@ namespace Aether {
         virtual void ScheduleLookAt(const LookAtSpec& spec) = 0;
 
         virtual void ScheduleFinalize(
-            Handle<Skeleton> skeleton,
+            Handle<RSkeleton> skeleton,
             Handle<Pose> pose) = 0;
 
         virtual void ProcessTasks() = 0;
