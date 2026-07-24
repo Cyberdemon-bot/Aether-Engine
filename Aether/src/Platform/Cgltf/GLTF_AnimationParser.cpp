@@ -23,7 +23,7 @@ namespace Aether {
         {
             const cgltf_skin* skin = &gltf->skins[skinIdx];
             
-            RigCreateInfo rigInfo;
+            SkeletonCreateInfo rigInfo;
             rigInfo.AssetID = UUID();
             rigInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
             rigInfo.spec.Joints.resize(skin->joints_count);

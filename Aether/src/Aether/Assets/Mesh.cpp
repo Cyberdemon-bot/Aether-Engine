@@ -1,6 +1,7 @@
 #include "aepch.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Renderer/VertexArray.h"
+#include "Aether/Renderer/ResourceManager.h"
 
 namespace Aether {
 

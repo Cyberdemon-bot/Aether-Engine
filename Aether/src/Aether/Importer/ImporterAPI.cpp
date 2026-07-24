@@ -3,10 +3,9 @@
 #include "Platform/Cgltf/GLTF_ImporterAPI.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
+#include "Aether/Assets/Image.h"
 #include "Aether/Assets/AssetsRegister.h"
 #include "Aether/Assets/AssetManager.h"
-#include "Aether/Renderer/Texture.h"
-#include "Aether/Renderer/Shader.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Renderer/ResourceManager.h"
@@ -40,18 +39,21 @@ namespace Aether {
     RegisteredScene ImporterAPI::Upload(const Ref<ParsedScene>& sceneData)
     {
         RegisteredScene res;
-        std::vector<Handle<Resource>> texHandle;
-        std::vector<UUID> rigIDs;     
-        std::vector<UUID> clipIDs; 
+
+        std::vector<Handle<Asset>> imgs;
+        std::vector<Handle<Asset>> skels;
         auto* asset_manager = ServiceManager::GetService<AssetManager>();
         // Upload textures
-        for (const auto& texInfo : sceneData->Textures) 
+        for (const auto& img : sceneData->Images) 
         {
-            auto handle = ResourceManager::CreateResource<Texture2D>(texInfo.Spec);
+            auto handle = ResourceManager::CreateResource<Texture2D>(img.Spec);
             auto resource = ResourceManager::GetResource<Texture2D>(handle);
             if (!resource) AE_CORE_ERROR("Fail to Create texture while uploading");
-            resource->SetData((void*)texInfo.RawData.data(), texInfo.RawData.size());
-            texHandle.push_back(handle);
+            resource->SetData((void*)img.RawData.data(), img.RawData.size());
+            auto imgHandle = asset_manager->CreateAsset<Image>(UUID());
+            Image* asset = asset_manager->GetAsset<Image>(imgHandle);
+            asset->m_Handle = handle;
+            imgs.push_back(imgHandle);
         }
         // Upload materials
         for (const auto& matInfo : sceneData->Materials)
@@ -62,18 +64,18 @@ namespace Aether {
             if (!material) AE_CORE_ERROR("Fail to Create material while uploading");
             
             // Set textures
-            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < texHandle.size())
-                material->AddTexture("u_AlbedoMap", texHandle[matInfo.AlbedoMapIdx]);
+            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < imgs.size())
+                material->AddImage("u_AlbedoMap", imgs[matInfo.AlbedoMapIdx]);
             
-            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < texHandle.size())
+            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < imgs.size())
             {
-                material->AddTexture("u_NormalMap", texHandle[matInfo.NormalMapIdx]);
+                material->AddImage("u_NormalMap", imgs[matInfo.NormalMapIdx]);
                 material->AddInt("u_HasNormalMap", 1);
             }
             else  material->AddInt("u_HasNormalMap", 0);
 
-            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < texHandle.size())
-                material->AddTexture("u_MetallicRoughnessMap", texHandle[matInfo.MetallicRoughnessMapIdx]);
+            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < imgs.size())
+                material->AddImage("u_MetallicRoughnessMap", imgs[matInfo.MetallicRoughnessMapIdx]);
             
             // Set material properties
             material->AddVec4("u_AlbedoColor", matInfo.AlbedoColor);
@@ -83,26 +85,32 @@ namespace Aether {
         }
         auto animSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
 
-        for (size_t rigIdx = 0; rigIdx < sceneData->Rigs.size(); rigIdx++)
+        for (size_t i = 0; i < sceneData->Skeletons.size(); i++)
         {
-            auto& rigInfo = sceneData->Rigs[rigIdx];
-            UUID rigID = AssetsRegister::Register(rigInfo.DebugName, rigInfo.AssetID);
-            rigIDs.push_back(rigID);
+            auto& skelInfo = sceneData->Skeletons[i];
+
+            auto skeleton = asset_manager->CreateAsset<Skeleton>(AssetsRegister::Register(skelInfo.DebugName, skelInfo.AssetID));
+            auto* asset = asset_manager->GetAsset<Skeleton>(skeleton);
+            asset->m_Handle = animSystem->CreateSkeleton(skelInfo.spec);
+            asset->m_JointCount = skelInfo.spec.Joints.size();
+
             res.animators.push_back({});
-            auto rig = asset_manager->CreateAsset<Skeleton>(rigID, std::move(rigInfo.spec));
-            res.animators[rigIdx].skeleton = rig;
+            res.animators[i].skeleton = skeleton;
+            skels.push_back(skeleton);
         }
 
-        for (size_t clipIdx = 0; clipIdx < sceneData->Clips.size(); clipIdx++)
+        for (size_t i = 0; i < sceneData->Clips.size(); i++)
         {
-            auto& clipInfo = sceneData->Clips[clipIdx];
-            UUID clipID = AssetsRegister::Register(clipInfo.DebugName, clipInfo.AssetID); clipIDs.push_back(clipID);
-            
+            auto& clipInfo = sceneData->Clips[i];
             uint32_t targetRigIdx = clipInfo.rigIdx; 
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
-                auto skeletonHandle = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->m_Handle;
-                auto clip = asset_manager->CreateAsset<Clip>(clipID, std::move(clipInfo.spec), skeletonHandle);
+                auto skeleton = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->m_Handle;
+                auto clip = asset_manager->CreateAsset<Clip>(AssetsRegister::Register(clipInfo.DebugName, clipInfo.AssetID));
+                auto* asset = asset_manager->GetAsset<Clip>(clip);
+                asset->m_Handle = animSystem->CreateClip(clipInfo.spec, skeleton);
+                asset->m_Duration = clipInfo.spec.Duration;
+
                 res.animators[targetRigIdx].clips.push_back(clip);
             }
         }
@@ -169,7 +177,7 @@ namespace Aether {
             spec.Submeshes = submeshes;
             if (rigIdx >= 0)
             {
-                auto asset = asset_manager->GetAsset<Skeleton>(rigIDs[rigIdx]);
+                auto asset = asset_manager->GetAsset<Skeleton>(skels[rigIdx]);
                 auto handle = asset->m_Handle;
                 spec.RigPoseMats.resize(asset->m_JointCount);
                 animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());

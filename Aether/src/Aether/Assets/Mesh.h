@@ -3,12 +3,14 @@
 #include "Aether/Core/Base.h"
 #include "Aether/Renderer/Buffer.h"
 #include "Aether/Assets/Asset.h"
-#include "Aether/Renderer/ResourceManager.h"
+#include "Aether/Container/Handle.h"
 
 #include <vector>
 #include <unordered_map>
 
 namespace Aether {
+
+    class Resource;
     struct SubMesh
     {
         uint32_t BaseVertex = 0;

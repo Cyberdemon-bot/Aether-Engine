@@ -14,6 +14,7 @@ namespace Aether {
         Skeleton,
         Clip,
         Script,
+        Image,
         Count 
     };
 

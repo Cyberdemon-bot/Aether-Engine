@@ -81,6 +81,13 @@ namespace Aether {
                 pool.DestroyResource(Handle<Script>::FromBlend(route->handle));
                 break;
             }
+            case AssetType::Image:
+            {
+                using TargetPoolType = ResourcePool<Handle<Image>, Image>;
+                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
+                pool.DestroyResource(Handle<Image>::FromBlend(route->handle));
+                break;
+            }
             case AssetType::None:
             default:
                 AE_CORE_ASSERT(false, "Unknown or invalid asset type in Unload!");

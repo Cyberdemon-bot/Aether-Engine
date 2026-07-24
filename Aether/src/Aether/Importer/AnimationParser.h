@@ -2,19 +2,16 @@
 
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
-#include "Aether/Assets/Rig.h"
+#include "Aether/Animation/RigModule.h"
+
 #include <vector>
 #include <string>
-#include <unordered_map>
-#include <map>
-#include <set>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 namespace Aether {
 
-    struct RigCreateInfo
+    struct SkeletonCreateInfo
     {
         UUID AssetID;
         std::string DebugName;
@@ -31,7 +28,7 @@ namespace Aether {
 
     struct RigAnimsCreateInfo
     {
-        std::vector<RigCreateInfo> rigs;
+        std::vector<SkeletonCreateInfo> rigs;
         std::vector<ClipCreateInfo> clips;
     };
 

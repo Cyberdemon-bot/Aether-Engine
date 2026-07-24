@@ -1,13 +1,16 @@
 #pragma once
 
-#include "aepch.h"
-#include "Aether/Renderer/ResourceManager.h"
+#include "Aether/Core/Base.h"
+#include "Aether/Renderer/Resource.h"
 #include "Aether/Core/Assert.h"
 
 #include <vector>
 #include <initializer_list>
 
 namespace Aether {
+
+    class ResourceManager;
+
     enum class ShaderDataType
     {
         None = 0, Float, Float2, Float3, Float4, Int, Int2, Int3, Int4, Uint, Uint2, Uint3, Uint4, Mat3, Mat4, Bool

@@ -277,15 +277,15 @@ namespace Aether {
             auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(animComp.Skeleton);
             if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
-                Handle<Skeleton> skelHnd = skeletonAsset->m_Handle;
+                Handle<RSkeleton> skel = skeletonAsset->m_Handle;
                 if (attach.JointIndex < 0) 
-                    attach.JointIndex = rigModule->GetJointIndex(skelHnd, attach.JointName);
+                    attach.JointIndex = rigModule->GetJointIndex(skel, attach.JointName);
                 
                 auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentPose);
                 if (poseData && attach.JointIndex >= 0 && (size_t)attach.JointIndex < poseCount)
                 {
                     glm::mat4 ibm; 
-                    rigModule->GetIBM(skelHnd, attach.JointIndex, ibm);
+                    rigModule->GetIBM(skel, attach.JointIndex, ibm);
                     
                     glm::mat4 modelSpaceMat = poseData[attach.JointIndex] * glm::inverse(ibm);
                     glm::mat4 boneWorld = animatorWorld * modelSpaceMat;
