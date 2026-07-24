@@ -39,7 +39,7 @@ namespace Aether {
         Ref<SceneHierarchy> hierarchy;
     };
 
-    class AETHER_API ImporterAPI 
+    class AETHER_API GLBAssembler 
     {
     public:
         enum class API {
@@ -47,12 +47,12 @@ namespace Aether {
         };
 
     public:
-        virtual ~ImporterAPI() = default;
+        virtual ~GLBAssembler() = default;
 		virtual  Ref<ParsedScene> Import(const std::string& path) = 0;
         
         RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
         static API GetAPI() { return s_API; }
-        static Scope<ImporterAPI> Create();
+        static Scope<GLBAssembler> Create();
 
     public: 
         static Ref<MeshParser> m_MeshParser;

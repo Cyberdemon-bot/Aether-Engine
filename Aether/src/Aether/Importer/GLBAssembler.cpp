@@ -1,6 +1,6 @@
 #include "aepch.h"
-#include "Aether/Importer/ImporterAPI.h"
-#include "Platform/Cgltf/GLTF_ImporterAPI.h"
+#include "Aether/Importer/GLBAssembler.h"
+#include "Platform/Cgltf/GLTF_Assembler.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Assets/Image.h"
@@ -13,13 +13,13 @@
 #include "Aether/Core/ServiceManager.h"
 namespace Aether {
 
-	ImporterAPI::API ImporterAPI::s_API = ImporterAPI::API::Cgltf;
-    Ref<MeshParser> ImporterAPI::m_MeshParser;
-    Ref<MaterialParser> ImporterAPI::m_MaterialParser;
-    Ref<AnimationParser> ImporterAPI::m_AnimationParser;
-    Ref<SceneGraphParser> ImporterAPI::m_SceneParser;
+	GLBAssembler::API GLBAssembler::s_API = GLBAssembler::API::Cgltf;
+    Ref<MeshParser> GLBAssembler::m_MeshParser;
+    Ref<MaterialParser> GLBAssembler::m_MaterialParser;
+    Ref<AnimationParser> GLBAssembler::m_AnimationParser;
+    Ref<SceneGraphParser> GLBAssembler::m_SceneParser;
 
-	Scope<ImporterAPI> ImporterAPI::Create()
+	Scope<GLBAssembler> GLBAssembler::Create()
 	{
         m_MeshParser = MeshParser::Create();
         m_MaterialParser = MaterialParser::Create();
@@ -28,15 +28,15 @@ namespace Aether {
         
 		switch (s_API)
 		{
-			case ImporterAPI::API::None: AE_CORE_ASSERT(false, "ImporterAPI::None is currently not supported!"); return nullptr;
-			case ImporterAPI::API::Cgltf: return CreateScope<GLTF_ImporterAPI>();
+			case GLBAssembler::API::None: AE_CORE_ASSERT(false, "GLBAssembler::None is currently not supported!"); return nullptr;
+			case GLBAssembler::API::Cgltf: return CreateScope<GLTF_Assembler>();
 		}
 
 		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
 
-    RegisteredScene ImporterAPI::Upload(const Ref<ParsedScene>& sceneData)
+    RegisteredScene GLBAssembler::Upload(const Ref<ParsedScene>& sceneData)
     {
         RegisteredScene res;
 

@@ -6,13 +6,13 @@
 namespace Aether {
     Ref<MeshParser> MeshParser::Create()
     {
-        switch (Importer::GetAPI())
+        switch (Importer::Get_GLB_API())
 		{
-			case ImporterAPI::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for ImporterAPI!"); return nullptr;
-			case ImporterAPI::API::Cgltf:  return CreateRef<GLTF_MeshParser>();
+			case GLBAssembler::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for GLBAssembler!"); return nullptr;
+			case GLBAssembler::API::Cgltf:  return CreateRef<GLTF_MeshParser>();
 		}
 
-		AE_CORE_ASSERT(false, "Unknown ImporterAPI!");
+		AE_CORE_ASSERT(false, "Unknown GLBAssembler!");
 		return nullptr;
     }
 }

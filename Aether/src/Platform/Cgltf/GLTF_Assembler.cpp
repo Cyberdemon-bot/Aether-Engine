@@ -1,9 +1,9 @@
 #include "aepch.h"
 #include <cgltf.h>
-#include "Platform/Cgltf/GLTF_ImporterAPI.h"
+#include "Platform/Cgltf/GLTF_Assembler.h"
 
 namespace Aether {
-    Ref<ParsedScene> GLTF_ImporterAPI::Import(const std::string& path)
+    Ref<ParsedScene> GLTF_Assembler::Import(const std::string& path)
     {
         Ref<ParsedScene> SceneData = CreateRef<ParsedScene>();
         SceneData->FilePath = path;

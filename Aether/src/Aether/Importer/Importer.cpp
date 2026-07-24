@@ -1,5 +1,5 @@
 #include "Aether/Importer/Importer.h"
 
 namespace Aether {
-    Scope<ImporterAPI> Importer::s_ImporterAPI = ImporterAPI::Create();
+    Scope<GLBAssembler> Importer::s_GLBAssembler = GLBAssembler::Create();
 }

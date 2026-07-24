@@ -5,6 +5,7 @@
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
 #include "Aether/Core/JobSystem.h"
+#include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Core/ServiceManager.h"
 #include <glm/gtx/matrix_decompose.hpp>

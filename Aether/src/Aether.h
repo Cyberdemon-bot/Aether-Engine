@@ -33,5 +33,6 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
+#include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/FileSystem/FileSystem.h"
 #include "Aether/FileSystem/LooseFileProvider.h"
