@@ -37,6 +37,7 @@ private:
     Aether::Scene               m_Scene;
     Aether::EditorCamera        m_Camera;
     Aether::Ref<Aether::Shader> m_MainShader;
+    Aether::Importer* m_Importer;
 
     Aether::Ref<Aether::FrameBuffer> m_MainFbo;
     std::vector<Aether::RenderPass>  m_Pipeline;

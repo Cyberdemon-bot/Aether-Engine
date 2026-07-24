@@ -14,26 +14,25 @@
 namespace Aether {
 
 	GLBAssembler::API GLBAssembler::s_API = GLBAssembler::API::Cgltf;
-    Ref<MeshParser> GLBAssembler::m_MeshParser;
-    Ref<MaterialParser> GLBAssembler::m_MaterialParser;
-    Ref<AnimationParser> GLBAssembler::m_AnimationParser;
-    Ref<SceneGraphParser> GLBAssembler::m_SceneParser;
 
 	Scope<GLBAssembler> GLBAssembler::Create()
 	{
-        m_MeshParser = MeshParser::Create();
-        m_MaterialParser = MaterialParser::Create();
-        m_AnimationParser = AnimationParser::Create();
-        m_SceneParser = SceneGraphParser::Create();
-        
+        Scope<GLBAssembler> assembler;
 		switch (s_API)
 		{
-			case GLBAssembler::API::None: AE_CORE_ASSERT(false, "GLBAssembler::None is currently not supported!"); return nullptr;
-			case GLBAssembler::API::Cgltf: return CreateScope<GLTF_Assembler>();
+			case GLBAssembler::API::Cgltf:
+                assembler = CreateScope<GLTF_Assembler>();
+                break;
+            case GLBAssembler::API::None:
+                AE_CORE_ASSERT(false, "GLBAssembler::None is currently not supported!");
+                return nullptr;
 		}
 
-		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
+        assembler->m_MeshParser = MeshParser::Create();
+        assembler->m_MaterialParser = MaterialParser::Create();
+        assembler->m_AnimationParser = AnimationParser::Create();
+        assembler->m_SceneParser = SceneGraphParser::Create();
+		return assembler;
 	}
 
     RegisteredScene GLBAssembler::Upload(const Ref<ParsedScene>& sceneData)

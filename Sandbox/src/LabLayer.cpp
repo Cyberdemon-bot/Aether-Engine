@@ -17,6 +17,9 @@ LabLayer::LabLayer()
 
 void LabLayer::Attach()
 {
+    m_Importer = Aether::ServiceManager::GetService<Aether::Importer>();
+    auto fs = Aether::ServiceManager::GetService<Aether::FileSystem>();
+    fs->Mount("", Aether::CreateRef<Aether::LooseFileProvider>("."));
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
@@ -147,7 +150,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
         Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, path]()
         {
             AE_CORE_INFO("Worker: Parsing {0}", path);
-            auto parsed = Aether::Importer::Import(path);
+            auto parsed = m_Importer->Import(path);
             {
                 std::lock_guard<std::mutex> lock(m_ParseMutex);
                 m_CompletedParses.push(parsed);
@@ -171,7 +174,7 @@ void LabLayer::DrainParseQueue()
         localQueue.pop();
 
         AE_CORE_INFO("Main thread: Uploading to GPU...");
-        auto result = Aether::Importer::Upload(parsed);
+        auto result = m_Importer->Upload(parsed);
         for (auto& meshID : result.meshIDs) m_MeshIDs.push_back(meshID);
 
         m_Scene.LoadHierarchy(result);

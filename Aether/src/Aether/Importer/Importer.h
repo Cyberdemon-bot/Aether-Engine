@@ -7,21 +7,12 @@ namespace Aether {
     class AETHER_API Importer
     {
     public: 
-        static Ref<ParsedScene> Import(const std::string& path) 
-        {
-            return s_GLBAssembler->Import(path);
-        }
+        void Init();
+        void Shutdown();
 
-        static RegisteredScene Upload(const Ref<ParsedScene>& sceneData) 
-        {
-            return s_GLBAssembler->Upload(sceneData);
-        }
-
-        static GLBAssembler::API Get_GLB_API() 
-        { 
-            return GLBAssembler::GetAPI(); 
-        }
+        Ref<ParsedScene> Import(const std::string& path, bool registerPath = true);
+        RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
     private:
-        static Scope<GLBAssembler> s_GLBAssembler;
+        Scope<GLBAssembler> s_GLBAssembler;
     };
 }

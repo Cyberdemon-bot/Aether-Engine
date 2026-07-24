@@ -8,7 +8,7 @@ namespace Aether {
     {
     public:
         LooseFileProvider(std::string root)
-            : m_Root(std::filesystem::absolute(std::filesystem::path(std::move(root))))
+            : m_Root(std::filesystem::weakly_canonical(std::filesystem::absolute(std::filesystem::path(std::move(root)))))
         {}
 
         virtual bool Exists(std::string_view relative_path) const override;

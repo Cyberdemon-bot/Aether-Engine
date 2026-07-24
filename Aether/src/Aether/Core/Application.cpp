@@ -10,6 +10,7 @@
 #include "Aether/Audio/AudioSystem.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/FileSystem/FileSystem.h"
+#include "Aether/Importer/Importer.h"
 
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
@@ -34,6 +35,7 @@ namespace Aether {
         InitService<JobSystem>();
         InitService<PhysicsSystem>();
         InitService<FileSystem>();
+        InitService<Importer>();
 
         m_ImGuiLayer = new ImGuiLayer();
         m_Console = new ConsoleLayer();
@@ -45,6 +47,7 @@ namespace Aether {
     {
         m_LayerStack.Clear();
         
+        ShutdownService<Importer>();
         ShutdownService<FileSystem>();
         ShutdownService<PhysicsSystem>();
         ShutdownService<JobSystem>();
