@@ -20,31 +20,42 @@ namespace Aether {
         if (task) task->DoneFlag.store(true, std::memory_order_release);
     }
 
-    void ScriptEngine::DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount)
+    void ScriptEngine::ParseJobDispatch(sol::protected_function_result& result, int rc, int& jobCount, float& timeout)
+    {
+        jobCount = rc - 1;
+        timeout = -1.0f;
+        if (jobCount > 0 && result[jobCount - 1].get_type() == sol::type::number)
+        {
+            timeout = result[jobCount - 1].get<float>();
+            jobCount -= 1;
+        }
+    }
+
+    void ScriptEngine::DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount, float timeout)
     {
         auto task = m_Coroutines.GetResource(handle);
         if (!task) return;
 
         task->JobResults.assign(jobCount, ScriptValue{});
         task->PendingJobs.store(jobCount, std::memory_order_relaxed);
-        task->Timer = -1.0f;
+        task->Timer = timeout;
 
         if (jobCount == 0) { MarkCoroutineDone(handle); return; }
 
         for (int i = 0; i < jobCount; i++)
         {
             sol::table jobSpec = result[i];
-            std::string funcName = jobSpec[1].get<std::string>();
+            uint64_t funcRef = jobSpec[1].get<uint64_t>();
             size_t tblSize = jobSpec.size();
 
             ScriptArgs args;
             for (size_t j = 2; j <= tblSize; j++)
                 args.Pushback(FromSolObject(jobSpec[j]));
 
-            auto it = std::find_if(m_NativeFuncs.begin(), m_NativeFuncs.end(),
-                [&funcName](const NativeFunc& f) { return f.name == funcName; });
+            NativeFunc* it = nullptr;
+            if (funcRef < m_NativeFuncs.size()) it = &m_NativeFuncs[funcRef];
 
-            if (it != m_NativeFuncs.end())
+            if (it != nullptr)
             {
                 auto nativeFunc = it->native;
                 int jobIndex = i;
@@ -62,7 +73,7 @@ namespace Aether {
             }
             else
             {
-                AE_CORE_ERROR("[Script] WaitJob: native function '{0}' not found", funcName);
+                AE_CORE_ERROR("[Script] WaitJob: native function at index '{0}' not found", funcRef);
                 if (task->PendingJobs.fetch_sub(1, std::memory_order_acq_rel) == 1)
                     MarkCoroutineDone(handle);
             }
@@ -168,8 +179,9 @@ namespace Aether {
                 else if (stored->Type == WaitType::EventAll) RegisterEventWait(selfHandle, result, rc, false);
                 else if (stored->Type == WaitType::Job)
                 {
-                    int jobCount = rc - 1;
-                    DispatchJobBatch(selfHandle, result, jobCount);
+                    int jobCount; float timeout;
+                    ParseJobDispatch(result, rc, jobCount, timeout);
+                    DispatchJobBatch(selfHandle, result, jobCount, timeout);
                 }
             }
             return handle;
@@ -259,13 +271,18 @@ namespace Aether {
                         m_EventManager.RemoveNativeListener(task.EventCbHandles[i], task.AwaitEvents[i]);
 
                     sol::table resultsTable = LuaState.lua.create_table(int(task.EventResults.size()), 0);
+                    sol::table firedTable = LuaState.lua.create_table(int(task.EventFired.size()), 0);
                     for (size_t i = 0; i < task.EventResults.size(); i++)
+                    {
                         resultsTable[i + 1] = ArgsToTable(task.EventResults[i]);
+                        firedTable[i + 1] = (bool)task.EventFired[i];
+                    }
 
-                    result = task.Co(resultsTable);
+                    result = task.Co(resultsTable, firedTable);
                     task.AwaitEvents.clear();
                     task.EventCbHandles.clear();
                     task.EventResults.clear();
+                    task.EventFired.clear();
                 }
                 else result = task.Co();
 
@@ -287,8 +304,9 @@ namespace Aether {
                     else if (task.Type == WaitType::EventAll) RegisterEventWait(task.Self, result, rc, false);
                     else if (task.Type == WaitType::Job)
                     {
-                        int jobCount = rc - 1;
-                        DispatchJobBatch(task.Self, result, jobCount);
+                        int jobCount; float timeout;
+                        ParseJobDispatch(result, rc, jobCount, timeout);
+                        DispatchJobBatch(task.Self, result, jobCount, timeout);
                     }
                 }
                 else KillCoroutineAPI(task.Self);

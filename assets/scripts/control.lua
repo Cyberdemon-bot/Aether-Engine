@@ -9,7 +9,7 @@ function OnStart()
         print("waited any")
         Async.WaitAllEvent({"J", "L"}, 10.0)
         print("waited all")
-        result = Async.WaitJob({"PrintTest", 10}, {"PrintTest", 30})
+        result = Async.WaitJob({Native.IRef.PrintTest, 10}, {Native.IRef.PrintTest, 30})
         print(result[1], result[2])
     end)
 end

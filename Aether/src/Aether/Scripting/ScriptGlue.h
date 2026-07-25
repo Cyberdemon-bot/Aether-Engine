@@ -619,6 +619,16 @@ namespace Aether {
         using Type = AsyncContext;
         static constexpr const char* get_name() { return "AsyncContext"; }
         static constexpr auto get_methods() {
+            // WARNING: every AE_MAKE_LAMBDA below that ends in `return lua_yield(L, n);`
+            // yields directly across this C++ call frame. Do not introduce any
+            // local with a non-trivial destructor (sol::table, std::string,
+            // std::vector, etc.) before the lua_yield call in these lambdas -
+            // depending on the Lua build, yielding here can bypass those
+            // destructors entirely (this is only safe today because every
+            // local before the yield is a plain lua_State* pointer). Build any
+            // needed data on the Lua stack directly (lua_push*) instead of in
+            // a C++ container, or push it via a helper called *before* this
+            // lambda captures anything that would need cleanup.
             return AE_REFLECT_LIST(
                 AE_REFLECT("Start",
                     AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), Handle<Coroutine>,

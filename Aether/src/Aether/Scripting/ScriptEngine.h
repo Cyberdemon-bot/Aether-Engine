@@ -247,7 +247,8 @@ namespace Aether {
         bool IsExecOrderChanged();
         int GetExecOrder(Handle<ScriptInstance> handle);
         void RegisterBinding();
-        void DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount);
+        void DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount, float timeout = -1.0f);
+        void ParseJobDispatch(sol::protected_function_result& result, int rc, int& jobCount, float& timeout);
         void RegisterEventWait(Handle<Coroutine> handle, sol::protected_function_result& result, int rc, bool isRace);
         sol::table ArgsToTable(const ScriptArgs& args);
 
@@ -396,4 +397,4 @@ namespace Aether {
         friend struct SceneBinding;
         friend class Scene;
     };
-} 
+}

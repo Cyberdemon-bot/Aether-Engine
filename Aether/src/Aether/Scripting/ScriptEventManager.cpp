@@ -66,12 +66,8 @@ namespace Aether {
 
     void ScriptEventManager::RemoveListener(Handle<ScriptInstance> script)
     {
-        for (auto& event : m_Queue)
+        for (auto& [name, listeners] : m_Listeners)
         {
-            auto it = m_Listeners.find(event.name);
-            if (it == m_Listeners.end()) continue;
-
-            auto& listeners = it->second;
             for (size_t i = 0; i < listeners.size(); i++)
             {
                 auto& listener = listeners[i];
@@ -82,18 +78,6 @@ namespace Aether {
                     break;
                 }
             }
-        }
-    }
-
-    void ScriptEventManager::RemoveNativeListener(Handle<ScriptCallback> handle)
-    {
-        for (auto& event : m_Queue)
-        {
-            auto it = m_NativeListeners.find(event.name);
-            if (it == m_NativeListeners.end()) continue;
-
-            auto& listeners = it->second;
-            listeners.DestroyResource(handle);
         }
     }
 
