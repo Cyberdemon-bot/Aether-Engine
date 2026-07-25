@@ -647,17 +647,28 @@ namespace Aether {
                         return lua_yield(L, 2);
                     )
                 ),
-
-                AE_REFLECT("WaitEvent",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, std::string event_name), int,
+                AE_REFLECT("WaitAnyEvent",
+                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events), int,
                         lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::Event);
-                        return lua_yield(L, 2);
+                        lua_pushinteger(L, (int)WaitType::EventAny);
+                        return lua_yield(L, 2); 
                     ),
-                    AE_MAKE_LAMBDA((), (sol::this_state s, std::string event_name, float timeout), int,
+                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events, float timeout), int,
                         lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::Event);
-                        return lua_yield(L, 3);
+                        lua_pushinteger(L, (int)WaitType::EventAny);
+                        return lua_yield(L, 3); 
+                    )
+                ),
+                AE_REFLECT("WaitAllEvent",
+                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events), int,
+                        lua_State* L = s.lua_state();
+                        lua_pushinteger(L, (int)WaitType::EventAll);
+                        return lua_yield(L, 2); 
+                    ),
+                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events, float timeout), int,
+                        lua_State* L = s.lua_state();
+                        lua_pushinteger(L, (int)WaitType::EventAll);
+                        return lua_yield(L, 3); 
                     )
                 ),
                 AE_REFLECT("WaitJob",

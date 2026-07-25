@@ -30,6 +30,8 @@ namespace Aether {
     class AETHER_API ScriptArgs
     {
     public:
+        ScriptArgs() = default;
+
         ScriptValueList GetArgs() const;
         void Pushback(const ScriptValue& val);
 

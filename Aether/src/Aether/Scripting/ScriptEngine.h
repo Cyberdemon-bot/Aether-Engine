@@ -36,7 +36,7 @@ namespace Aether {
 
     enum class WaitType
     {
-        None, Time, Frame, Event, Job 
+        None, Time, Frame, Job, EventAny, EventAll
     };
 
     struct CoroutineTask
@@ -49,10 +49,19 @@ namespace Aether {
         float Timer = 0.0f;
         int Frames = 0;
         std::atomic<bool> DoneFlag{false}; 
-        Handle<ScriptCallback> EventCbHandle; 
-        std::string AwaitEvent;
+
+        std::vector<std::string> AwaitEvents;       
+        std::vector<Handle<ScriptCallback>> EventCbHandles; 
+        
         std::vector<ScriptValue> JobResults;   
         std::atomic<int> PendingJobs{0};
+
+        std::atomic<int> FiredEventIndex{-1};  
+        ScriptArgs FiredEventArgs;  
+
+        std::atomic<int> PendingEvents{0};
+        std::vector<ScriptArgs> EventResults; 
+        std::vector<bool> EventFired;
 
         CoroutineTask() = default;
         CoroutineTask(const CoroutineTask&) = delete;
@@ -66,13 +75,20 @@ namespace Aether {
             Type(other.Type),
             Timer(other.Timer),
             Frames(other.Frames),
-            EventCbHandle(other.EventCbHandle),
-            AwaitEvent(std::move(other.AwaitEvent)),
-            JobResults(std::move(other.JobResults))
+            EventCbHandles(std::move(other.EventCbHandles)),
+            AwaitEvents(std::move(other.AwaitEvents)),
+            JobResults(std::move(other.JobResults)),
+            EventResults(std::move(other.EventResults)),
+            FiredEventArgs(std::move(other.FiredEventArgs)),
+            EventFired(std::move(other.EventFired))
         {
             DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
             PendingJobs.store(other.PendingJobs.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+            FiredEventIndex.store(other.FiredEventIndex.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+            PendingEvents.store(other.PendingEvents.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
             other.Owner = {};
             other.Self = {};
@@ -91,11 +107,18 @@ namespace Aether {
                 Type = other.Type;
                 Timer = other.Timer;
                 Frames = other.Frames;
-                EventCbHandle = other.EventCbHandle;
-                AwaitEvent = std::move(other.AwaitEvent);
+                EventCbHandles = std::move(other.EventCbHandles);
+                AwaitEvents = std::move(other.AwaitEvents);
+                EventResults = std::move(other.EventResults);
+                FiredEventArgs = std::move(other.FiredEventArgs);
+                EventFired = std::move(other.EventFired);
                 DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
                             std::memory_order_relaxed);
                 PendingJobs.store(other.PendingJobs.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+                FiredEventIndex.store(other.FiredEventIndex.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+                PendingEvents.store(other.PendingEvents.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
                 other.Owner = {};
                 other.Self = {};
@@ -225,6 +248,8 @@ namespace Aether {
         int GetExecOrder(Handle<ScriptInstance> handle);
         void RegisterBinding();
         void DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount);
+        void RegisterEventWait(Handle<Coroutine> handle, sol::protected_function_result& result, int rc, bool isRace);
+        sol::table ArgsToTable(const ScriptArgs& args);
 
         template<typename Binder>
         void BindType(const std::string& Namespace = "")
