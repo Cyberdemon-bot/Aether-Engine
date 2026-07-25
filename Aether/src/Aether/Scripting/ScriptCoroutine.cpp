@@ -10,6 +10,59 @@ namespace Aether {
         if (task) task->DoneFlag.store(true, std::memory_order_release);
     }
 
+    void ScriptEngine::DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount)
+    {
+        auto task = m_Coroutines.GetResource(handle);
+        if (!task) return;
+
+        task->JobResults.assign(jobCount, ScriptValue{});
+        task->PendingJobs.store(jobCount, std::memory_order_relaxed);
+        task->Timer = -1.0f;
+
+        if (jobCount == 0) 
+        { 
+            MarkCoroutineDone(handle); 
+            return; 
+        }
+
+        for (int i = 0; i < jobCount; i++)
+        {
+            sol::table jobSpec = result[i];
+            std::string funcName = jobSpec[1].get<std::string>();
+            size_t tblSize = jobSpec.size();
+
+            ScriptArgs args;
+            for (size_t j = 2; j <= tblSize; j++)
+                args.Pushback(FromSolObject(jobSpec[j]));
+
+            auto it = std::find_if(m_NativeFuncs.begin(), m_NativeFuncs.end(),
+                [&funcName](const NativeFunc& f) { return f.name == funcName; });
+
+            if (it != m_NativeFuncs.end())
+            {
+                auto nativeFunc = it->native;
+                int jobIndex = i;
+                ServiceManager::GetService<JobSystem>()->SubmitJob([handle, args, nativeFunc, jobIndex, this]() mutable
+                {
+                    ScriptValue ret = nativeFunc(args);
+                    auto t = this->m_Coroutines.GetResource(handle);
+                    if (t)
+                    {
+                        t->JobResults[jobIndex] = ret;
+                        if (t->PendingJobs.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                            this->MarkCoroutineDone(handle);
+                    }
+                });
+            }
+            else
+            {
+                AE_CORE_ERROR("[Script] WaitJob: native function '{0}' not found", funcName);
+                if (task->PendingJobs.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                    MarkCoroutineDone(handle);
+            }
+        }
+    }
+
     Handle<Coroutine> ScriptEngine::StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func)
     {
         sol::thread runner = sol::thread::create(LuaState.lua.lua_state());
@@ -52,28 +105,8 @@ namespace Aether {
                 }
                 if (stored->Type == WaitType::Job)
                 {
-                    std::string funcName = result[0].get<std::string>();
-                    ScriptArgs args;
-                    for (int i = 1; i < rc - 1; i++)
-                        args.Pushback(FromSolObject(result[i]));
-
-                    auto it = std::find_if(m_NativeFuncs.begin(), m_NativeFuncs.end(),
-                        [&funcName](const NativeFunc& f) { return f.name == funcName; });
-
-                    if (it != m_NativeFuncs.end())
-                    {
-                        auto nativeFunc = it->native;
-                        ServiceManager::GetService<JobSystem>()->SubmitJob([selfHandle, args, nativeFunc, this]() mutable
-                        {
-                            ScriptValue ret = nativeFunc(args);
-                            auto task = this->m_Coroutines.GetResource(selfHandle);
-                            if (task)
-                            {
-                                task->JobResult = ret;
-                                this->MarkCoroutineDone(task->Self);
-                            }
-                        });
-                    }
+                    int jobCount = rc - 1;
+                    DispatchJobBatch(selfHandle, result, jobCount);
                 }
             }
             return handle;
@@ -128,13 +161,15 @@ namespace Aether {
             {
                 task.DoneFlag.store(false);
                 sol::protected_function_result result;
-                if (task.JobResult.type != ScriptValue::Type::Nil) 
+                if (task.Type == WaitType::Job)
                 {
-                    sol::object obj = ToSolObject(LuaState.lua, task.JobResult);
-                    result = task.Co(obj);
-                } 
+                    sol::table resultsTable = LuaState.lua.create_table(int(task.JobResults.size()), 0);
+                    for (size_t i = 0; i < task.JobResults.size(); i++)
+                        resultsTable[i + 1] = ToSolObject(LuaState.lua, task.JobResults[i]);
+                    result = task.Co(resultsTable);
+                    task.JobResults.clear();
+                }
                 else result = task.Co();
-                task.JobResult = ScriptValue{};
 
                 if (task.Type == WaitType::Event) 
                 {
@@ -166,29 +201,8 @@ namespace Aether {
                     }
                     else if (task.Type == WaitType::Job)
                     {
-                        std::string funcName = result[0].get<std::string>();
-                        ScriptArgs args;
-                        for (int i = 1; i < rc - 1; i++)
-                            args.Pushback(FromSolObject(result[i]));
-
-                        auto it = std::find_if(m_NativeFuncs.begin(), m_NativeFuncs.end(),
-                            [&funcName](const NativeFunc& f) { return f.name == funcName; });
-
-                        if (it != m_NativeFuncs.end())
-                        {
-                            auto nativeFunc = it->native;
-                            Handle<Coroutine> selfHandle = task.Self;
-                            ServiceManager::GetService<JobSystem>()->SubmitJob([selfHandle, args, nativeFunc, this]() mutable
-                            {
-                                ScriptValue ret = nativeFunc(args);
-                                auto t = this->m_Coroutines.GetResource(selfHandle);
-                                if (t)
-                                {
-                                    t->JobResult = ret;
-                                    this->MarkCoroutineDone(t->Self);
-                                }
-                            });
-                        }
+                        int jobCount = rc - 1;
+                        DispatchJobBatch(task.Self, result, jobCount);
                     }
                 }
                 else KillCoroutineAPI(task.Self);
