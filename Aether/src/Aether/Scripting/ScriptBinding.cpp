@@ -31,6 +31,8 @@ namespace Aether {
         auto& lua = LuaState.lua;
         sol::table native = lua["Native"].get_or_create<sol::table>();
         m_NativeFuncs.push_back({name, func});
+        uint64_t index = static_cast<uint64_t>(m_NativeFuncs.size() - 1);
+        
         native.set_function(name, [func, &lua](sol::variadic_args va) -> sol::object
         {
             ScriptArgs args;
@@ -43,5 +45,8 @@ namespace Aether {
             ScriptValue result = func(args);
             return ToSolObject(lua, result);
         });
+
+        sol::table iref = native["IRef"].get_or_create<sol::table>();
+        iref[name] = index;
     }
 }

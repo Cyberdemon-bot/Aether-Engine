@@ -46,7 +46,6 @@ namespace Aether {
         Handle<ScriptCallback> AddNativeListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
         void RemoveListener(Handle<ScriptInstance> script);
         void RemoveListener(Handle<ScriptInstance> script, const std::string& event_name);
-        void RemoveNativeListener(Handle<ScriptCallback> handle);
         void RemoveNativeListener(Handle<ScriptCallback> handle, const std::string& event_name);
 
         void Flush();
