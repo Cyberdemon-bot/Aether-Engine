@@ -51,7 +51,8 @@ namespace Aether {
         std::atomic<bool> DoneFlag{false}; 
         Handle<ScriptCallback> EventCbHandle; 
         std::string AwaitEvent;
-        ScriptValue JobResult;
+        std::vector<ScriptValue> JobResults;   
+        std::atomic<int> PendingJobs{0};
 
         CoroutineTask() = default;
         CoroutineTask(const CoroutineTask&) = delete;
@@ -67,9 +68,11 @@ namespace Aether {
             Frames(other.Frames),
             EventCbHandle(other.EventCbHandle),
             AwaitEvent(std::move(other.AwaitEvent)),
-            JobResult(std::move(other.JobResult))
+            JobResults(std::move(other.JobResults))
         {
             DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
+            PendingJobs.store(other.PendingJobs.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
             other.Owner = {};
             other.Self = {};
@@ -84,7 +87,7 @@ namespace Aether {
                 Self = other.Self;
                 Runner = std::move(other.Runner);
                 Co = std::move(other.Co);
-                JobResult = std::move(other.JobResult);
+                JobResults = std::move(other.JobResults);
                 Type = other.Type;
                 Timer = other.Timer;
                 Frames = other.Frames;
@@ -92,6 +95,8 @@ namespace Aether {
                 AwaitEvent = std::move(other.AwaitEvent);
                 DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
                             std::memory_order_relaxed);
+                PendingJobs.store(other.PendingJobs.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
                 other.Owner = {};
                 other.Self = {};
                 other.Type = WaitType::None;
@@ -219,6 +224,7 @@ namespace Aether {
         bool IsExecOrderChanged();
         int GetExecOrder(Handle<ScriptInstance> handle);
         void RegisterBinding();
+        void DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount);
 
         template<typename Binder>
         void BindType(const std::string& Namespace = "")

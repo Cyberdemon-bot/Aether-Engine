@@ -661,10 +661,10 @@ namespace Aether {
                     )
                 ),
                 AE_REFLECT("WaitJob",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, std::string func_name, sol::variadic_args va), int,
+                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::variadic_args va), int,
                         lua_State* L = s.lua_state();
                         lua_pushinteger(L, (int)WaitType::Job);
-                        return lua_yield(L, (int)va.size() + 2);
+                        return lua_yield(L, (int)va.size() + 1);
                     )
                 )
             );
