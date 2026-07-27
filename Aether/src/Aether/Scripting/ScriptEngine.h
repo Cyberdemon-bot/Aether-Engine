@@ -12,7 +12,7 @@
 #include "Aether/Scene/Entity.h"
 #include "Aether/Core/Timestep.h"
 #include "Aether/Container/ResourcePool.h"
-#include "Aether/Scripting/ScriptEventManager.h"
+#include "Aether/Scripting/EventManager.h"
 namespace Aether {
 
     template <typename T, typename = void> struct HasGetProps : std::false_type {};
@@ -30,103 +30,8 @@ namespace Aether {
     struct ScriptInstance;
     struct Environment;
     struct Bytecode;
-    struct Coroutine;
     enum class CollisionType;
     class Scene;
-
-    enum class WaitType
-    {
-        None, Time, Frame, Job, EventAny, EventAll
-    };
-
-    struct CoroutineTask
-    {
-        Handle<ScriptInstance> Owner;
-        Handle<Coroutine> Self;
-        sol::thread Runner;
-        sol::coroutine Co;
-        WaitType Type = WaitType::None;
-        float Timer = 0.0f;
-        int Frames = 0;
-        std::atomic<bool> DoneFlag{false}; 
-
-        std::vector<std::string> AwaitEvents;       
-        std::vector<Handle<ScriptCallback>> EventCbHandles; 
-        
-        std::vector<ScriptValue> JobResults;   
-        std::atomic<int> PendingJobs{0};
-
-        std::atomic<int> FiredEventIndex{-1};  
-        ScriptArgs FiredEventArgs;  
-
-        std::atomic<int> PendingEvents{0};
-        std::vector<ScriptArgs> EventResults; 
-        std::vector<bool> EventFired;
-
-        CoroutineTask() = default;
-        CoroutineTask(const CoroutineTask&) = delete;
-        CoroutineTask& operator=(const CoroutineTask&) = delete;
-
-        CoroutineTask(CoroutineTask&& other) noexcept
-            : Owner(other.Owner),
-            Self(other.Self),
-            Runner(std::move(other.Runner)),
-            Co(std::move(other.Co)),
-            Type(other.Type),
-            Timer(other.Timer),
-            Frames(other.Frames),
-            EventCbHandles(std::move(other.EventCbHandles)),
-            AwaitEvents(std::move(other.AwaitEvents)),
-            JobResults(std::move(other.JobResults)),
-            EventResults(std::move(other.EventResults)),
-            FiredEventArgs(std::move(other.FiredEventArgs)),
-            EventFired(std::move(other.EventFired))
-        {
-            DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-            PendingJobs.store(other.PendingJobs.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-            FiredEventIndex.store(other.FiredEventIndex.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-            PendingEvents.store(other.PendingEvents.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-            other.Owner = {};
-            other.Self = {};
-            other.Type = WaitType::None;
-        }
-
-        CoroutineTask& operator=(CoroutineTask&& other) noexcept
-        {
-            if (this != &other)
-            {
-                Owner = other.Owner;
-                Self = other.Self;
-                Runner = std::move(other.Runner);
-                Co = std::move(other.Co);
-                JobResults = std::move(other.JobResults);
-                Type = other.Type;
-                Timer = other.Timer;
-                Frames = other.Frames;
-                EventCbHandles = std::move(other.EventCbHandles);
-                AwaitEvents = std::move(other.AwaitEvents);
-                EventResults = std::move(other.EventResults);
-                FiredEventArgs = std::move(other.FiredEventArgs);
-                EventFired = std::move(other.EventFired);
-                DoneFlag.store(other.DoneFlag.load(std::memory_order_relaxed),
-                            std::memory_order_relaxed);
-                PendingJobs.store(other.PendingJobs.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-                FiredEventIndex.store(other.FiredEventIndex.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-                PendingEvents.store(other.PendingEvents.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
-                other.Owner = {};
-                other.Self = {};
-                other.Type = WaitType::None;
-            }
-            return *this;
-        }
-    };
 
     struct Exposed
     {
@@ -139,7 +44,6 @@ namespace Aether {
         Handle<Environment> env_handle = Handle<Environment>::MakeInvalid();
         Handle<Bytecode> code_handle = Handle<Bytecode>::MakeInvalid();
         bool has_error = false;
-        bool is_active = true;
         int exec_order = 0;
         Scene* ctx = nullptr;
         std::vector<Exposed> exposed_funcs;
@@ -186,7 +90,7 @@ namespace Aether {
     struct NativeFunc
     {
         std::string name;
-        Delegate<ScriptValue(const ScriptArgs&)> native;
+        Delegate<ScriptTable(const ScriptTable&)> native;
     };
 
 
@@ -211,32 +115,20 @@ namespace Aether {
         }
 
         template<typename... Args>
-        ScriptValue CallMethod(Handle<ScriptInstance> handle, const std::string func_name, Args&&... args)
+        ScriptTable CallMethod(Handle<ScriptInstance> handle, const std::string func_name, Args&&... args)
         {
             auto& obj = CallDirectInstanceAPI(handle, func_name, std::forward<Args>(args)...);
-            return FromSolObject(obj);
+            return ScriptTable::FromSolObject(obj);
         }
 
-        Handle<ScriptCallback> AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
-        void RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name);
-        void ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func);
-        Handle<Bytecode> LoadScript(const std::string& path);
-        Handle<Bytecode> LoadScriptSource(const std::string& source);
-
-        void SetActiveStage(Handle<ScriptInstance> handle, bool active);
-        bool GetActiveStage(Handle<ScriptInstance> handle);
-
-        Handle<Coroutine> StartCoroutineAPI(Handle<ScriptInstance> owner, sol::function func);
-        void KillCoroutineAPI(Handle<Coroutine> handle);
-        void UpdateCoroutines(Timestep ts);
-        void MarkCoroutineDone(Handle<Coroutine> handle);
+        void ImportNativeFunc(const std::string& name, Delegate<ScriptTable(const ScriptTable&)> func);
+        Handle<Bytecode> LoadScript(const std::string& source);
     private:
         LuaWorker LuaState;
-        ScriptEventManager m_EventManager;
+        EventManager m_EventManager;
         sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
-        ResourcePool<Handle<Coroutine>, CoroutineTask> m_Coroutines;
         std::vector<Handle<ScriptInstance>> m_DestroyQueue;
         std::vector<NativeFunc> m_NativeFuncs;
         bool IsExecChanged = false;
@@ -247,10 +139,6 @@ namespace Aether {
         bool IsExecOrderChanged();
         int GetExecOrder(Handle<ScriptInstance> handle);
         void RegisterBinding();
-        void DispatchJobBatch(Handle<Coroutine> handle, sol::protected_function_result& result, int jobCount, float timeout = -1.0f);
-        void ParseJobDispatch(sol::protected_function_result& result, int rc, int& jobCount, float& timeout);
-        void RegisterEventWait(Handle<Coroutine> handle, sol::protected_function_result& result, int rc, bool isRace);
-        sol::table ArgsToTable(const ScriptArgs& args);
 
         template<typename Binder>
         void BindType(const std::string& Namespace = "")
@@ -393,7 +281,6 @@ namespace Aether {
         }
 
         friend struct ScriptSelfBinding;
-        friend struct AsyncBinding;
         friend struct SceneBinding;
         friend class Scene;
     };

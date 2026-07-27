@@ -532,7 +532,6 @@ namespace Aether {
             }
 
             script_engine->FlushEvent();
-            script_engine->UpdateCoroutines(ts);
         }
 
         {

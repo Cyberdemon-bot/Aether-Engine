@@ -3,7 +3,7 @@
 #include "Aether/Core/Delegate.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
-#include "Aether/Scripting/ScriptValue.h"
+#include "Aether/Scripting/ScriptTable.h"
 #include <sol/sol.hpp>
 #include <glm/glm.hpp>
 #include <unordered_map>
@@ -13,7 +13,7 @@
 
 namespace Aether {
     struct ScriptInstance;
-    struct ScriptCallback;
+    struct ListenerList;
 
     struct ScriptEvent 
     {
@@ -27,15 +27,10 @@ namespace Aether {
         sol::main_protected_function callback;
     };
 
-    struct NativeListener
-    {
-        Delegate<void(const ScriptArgs& args)> callback;
-    };
-
-    class ScriptEventManager
+    class EventManager
     {
     public:
-        ScriptEventManager() = default;
+        EventManager() = default;
 
         void Init();
         void Shutdown();
@@ -43,20 +38,22 @@ namespace Aether {
         void FireEvent(const std::string& event_name, const std::vector<sol::object>& args);
 
         void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::main_protected_function callback);
-        Handle<ScriptCallback> AddNativeListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback);
         void RemoveListener(Handle<ScriptInstance> script);
         void RemoveListener(Handle<ScriptInstance> script, const std::string& event_name);
-        void RemoveNativeListener(Handle<ScriptCallback> handle, const std::string& event_name);
 
+        void SetRecursionDepth(uint32_t depth);
         void Flush();
     private:
-        ScriptEventManager(const ScriptEventManager&) = delete;
-        ScriptEventManager& operator=(const ScriptEventManager&) = delete;
-        ScriptEventManager(ScriptEventManager&&) = default;
-        ScriptEventManager& operator=(ScriptEventManager&&) = default;
+        EventManager(const EventManager&) = delete;
+        EventManager& operator=(const EventManager&) = delete;
+        EventManager(EventManager&&) = default;
+        EventManager& operator=(EventManager&&) = default;
 
-        std::unordered_map<std::string, std::vector<EventListener>> m_Listeners;
-        std::unordered_map<std::string, ResourcePool<Handle<ScriptCallback>, NativeListener>> m_NativeListeners;
+        std::unordered_map<std::string, Handle<ListenerList>> m_KeyTable;
+        ResourcePool<Handle<ListenerList>, std::vector<EventListener>> m_Listeners;
         std::vector<ScriptEvent> m_Queue;
+        std::vector<ScriptEvent> m_NextQueue;
+
+        uint32_t m_RecursionDepth = 3;
     };
 }

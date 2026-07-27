@@ -29,7 +29,6 @@ namespace Aether {
        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
        m_Instances.Init();
        m_Sources.Init();
-       m_Coroutines.Init();
        m_EventManager.Init();
        m_DestroyQueue.reserve(32);
        RegisterBinding();
@@ -40,32 +39,11 @@ namespace Aether {
     {
         m_Instances.Shutdown();
         m_Sources.Shutdown();
-        m_Coroutines.Shutdown();
         m_EventManager.Shutdown();
         m_DestroyQueue.clear();
     }
 
-    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& path)
-    {
-        auto& lua = LuaState.lua;
-
-        std::ifstream file(path);
-        std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-        sol::load_result res = lua.load(source);
-        if (!res.valid())
-        {
-            sol::error err = res;
-            AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
-            return Handle<Bytecode>::MakeInvalid();
-        }
-
-        sol::bytecode bytecode = res.get<sol::function>().dump();
-        auto handle = m_Sources.SaveResource({bytecode});
-        return handle;
-    }
-
-    Handle<Bytecode> ScriptEngine::LoadScriptSource(const std::string& source)
+    Handle<Bytecode> ScriptEngine::LoadScript(const std::string& source)
     {
         auto& lua = LuaState.lua;
 
@@ -99,12 +77,10 @@ namespace Aether {
         SceneContext sceneCtx{ scene };
         EventContext eventCtx{ handle, &m_EventManager };
         PhysicsContext physicsCtx{ scene, entity };
-        AsyncContext asyncCtx{ handle };
         env["self"] = self;
         env["Scene"] = sceneCtx;
         env["Event"] = eventCtx;
         env["Physics"] = physicsCtx;
-        env["Async"] = asyncCtx;
 
         slot->env_handle = env_handle;
         slot->ctx = scene;
@@ -132,20 +108,6 @@ namespace Aether {
     void ScriptEngine::UpdateInstance(Handle<ScriptInstance> handle, Timestep ts)
     {
         CallDirectInstanceAPI(handle, "OnUpdate", (float)ts);
-    }
-
-    void ScriptEngine::SetActiveStage(Handle<ScriptInstance> handle, bool active)
-    {
-        auto slot = m_Instances.GetResource(handle);
-        if (slot == nullptr) return;
-        slot->is_active = active;
-    }
-
-    bool ScriptEngine::GetActiveStage(Handle<ScriptInstance> handle)
-    {
-        auto slot = m_Instances.GetResource(handle);
-        if (slot == nullptr) return false;
-        return slot->is_active;
     }
 
     void ScriptEngine::FlushEvent()
@@ -181,15 +143,5 @@ namespace Aether {
             return true;
         }
         return false;
-    }
-
-    Handle<ScriptCallback> ScriptEngine::AddListener(const std::string& event_name, Delegate<void(const ScriptArgs& args)> callback)
-    {
-        return m_EventManager.AddNativeListener(event_name, callback);
-    }
-
-    void ScriptEngine::RemoveListener(Handle<ScriptCallback> handle, const std::string& event_name)
-    {
-        m_EventManager.RemoveNativeListener(handle, event_name);
     }
 }

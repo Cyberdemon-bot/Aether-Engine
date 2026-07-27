@@ -107,14 +107,11 @@ void LabLayer::Attach()
     Aether::ConsoleLayer::RegisterCommand("add",       AE_BIND_CONSOLE_FN(AddEntity));
 
     auto* script_engine = Aether::ServiceManager::GetService<Aether::ScriptEngine>();
-    script_engine->AddListener("test func", [](const Aether::ScriptArgs& args){
-        AE_WARN("Tested successfully {0}", args.GetElement<int>(0));
-    });
 
-    script_engine->ImportNativeFunc("PrintTest", [](const Aether::ScriptArgs& args) -> Aether::ScriptValue
+    script_engine->ImportNativeFunc("PrintTest", [](const Aether::ScriptTable& args) -> Aether::ScriptTable
     {
         AE_WARN("printTested successfully with value {0}", args.GetElement<int>(0));
-        return Aether::ScriptValue::Make(args.GetElement<int>(0) * 2);
+        return Aether::ScriptTable::Make(args.GetElement<int>(0) * 2);
     });
 
     AE_CORE_INFO("LabLayer initialized!");
@@ -150,7 +147,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
         Aether::ServiceManager::GetService<Aether::JobSystem>()->SubmitJob([this, path]()
         {
             AE_CORE_INFO("Worker: Parsing {0}", path);
-            auto parsed = m_Importer->Import(path);
+            auto parsed = m_Importer->ImportScene(path);
             {
                 std::lock_guard<std::mutex> lock(m_ParseMutex);
                 m_CompletedParses.push(parsed);
@@ -174,7 +171,7 @@ void LabLayer::DrainParseQueue()
         localQueue.pop();
 
         AE_CORE_INFO("Main thread: Uploading to GPU...");
-        auto result = m_Importer->Upload(parsed);
+        auto result = m_Importer->UploadScene(parsed);
         for (auto& meshID : result.meshIDs) m_MeshIDs.push_back(meshID);
 
         m_Scene.LoadHierarchy(result);
@@ -472,7 +469,7 @@ void LabLayer::DrawScriptingPanel()
                     m_Scene.RemoveComponent<ScriptComponent>(m_ScriptTargetEntity);
                 }
 
-                auto script = Aether::ServiceManager::GetService<Aether::ScriptEngine>()->LoadScript(m_ScriptPath);
+                auto script = Aether::ServiceManager::GetService<Aether::ScriptEngine>()->LoadScript(m_Importer->ImportText(m_ScriptPath));
                 Handle<ScriptInstance> handle = Aether::ServiceManager::GetService<Aether::ScriptEngine>()->CreateInstance(
                     &m_Scene, m_ScriptTargetEntity, script);
 

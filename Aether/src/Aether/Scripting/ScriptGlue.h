@@ -578,7 +578,7 @@ namespace Aether {
     struct EventContext
     {
         Handle<ScriptInstance> handle;
-        ScriptEventManager* event_manager = nullptr;
+        EventManager* event_manager = nullptr;
     };
 
     struct EventManagerBinding
@@ -603,89 +603,6 @@ namespace Aether {
                 AE_REFLECT("Unlisten",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), void,
                         ctx.event_manager->RemoveListener(ctx.handle, name);
-                    )
-                )
-            );
-        }
-    };
-
-    struct AsyncContext
-    {
-        Handle<ScriptInstance> handle;
-    };
-
-    struct AsyncBinding 
-    {
-        using Type = AsyncContext;
-        static constexpr const char* get_name() { return "AsyncContext"; }
-        static constexpr auto get_methods() {
-            // WARNING: every AE_MAKE_LAMBDA below that ends in `return lua_yield(L, n);`
-            // yields directly across this C++ call frame. Do not introduce any
-            // local with a non-trivial destructor (sol::table, std::string,
-            // std::vector, etc.) before the lua_yield call in these lambdas -
-            // depending on the Lua build, yielding here can bypass those
-            // destructors entirely (this is only safe today because every
-            // local before the yield is a plain lua_State* pointer). Build any
-            // needed data on the Lua stack directly (lua_push*) instead of in
-            // a C++ container, or push it via a helper called *before* this
-            // lambda captures anything that would need cleanup.
-            return AE_REFLECT_LIST(
-                AE_REFLECT("Start",
-                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), Handle<Coroutine>,
-                        return ServiceManager::GetService<ScriptEngine>()->StartCoroutineAPI(ctx.handle, func);
-                    )
-                ),
-
-                AE_REFLECT("Kill",
-                    AE_MAKE_LAMBDA((), (Type& ctx, Handle<Coroutine> co), void,
-                        ServiceManager::GetService<ScriptEngine>()->KillCoroutineAPI(co);
-                    )
-                ),
-
-                AE_REFLECT("Wait",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, float seconds), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::Time);
-                        return lua_yield(L, 2);
-                    )
-                ),
-
-                AE_REFLECT("WaitFrame",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, int frames), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::Frame);
-                        return lua_yield(L, 2);
-                    )
-                ),
-                AE_REFLECT("WaitAnyEvent",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::EventAny);
-                        return lua_yield(L, 2); 
-                    ),
-                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events, float timeout), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::EventAny);
-                        return lua_yield(L, 3); 
-                    )
-                ),
-                AE_REFLECT("WaitAllEvent",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::EventAll);
-                        return lua_yield(L, 2); 
-                    ),
-                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::table events, float timeout), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::EventAll);
-                        return lua_yield(L, 3); 
-                    )
-                ),
-                AE_REFLECT("WaitJob",
-                    AE_MAKE_LAMBDA((), (sol::this_state s, sol::variadic_args va), int,
-                        lua_State* L = s.lua_state();
-                        lua_pushinteger(L, (int)WaitType::Job);
-                        return lua_yield(L, (int)va.size() + 1);
                     )
                 )
             );

@@ -89,7 +89,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // MAP
     // =========================================================================
-    m_UploadMap = m_Importer->Upload(m_Importer->Import("assets/models/map.glb"));
+    m_UploadMap = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/map.glb"));
     m_BaseMapMesh = asset_manager->GetHandle(m_UploadMap.meshIDs[0]);
     m_SheetHandle = asset_manager->GetHandle(m_UploadMap.sheetIDs[0]);
 
@@ -103,7 +103,7 @@ void MainGameLayer::Attach()
     pTransform.Rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     pTransform.Dirty       = true;
 
-    auto uploadPlayer = m_Importer->Upload(m_Importer->Import("assets/models/humanv2.glb"));
+    auto uploadPlayer = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/humanv2.glb"));
     m_Scene.LoadHierarchy(uploadPlayer, m_Player);
 
     // =========================================================================
@@ -129,7 +129,7 @@ void MainGameLayer::Attach()
     // =========================================================================
     // ZOMBIES
     // =========================================================================
-    m_ZombieSceneData = m_Importer->Upload(m_Importer->Import("assets/models/zombie.glb"));
+    m_ZombieSceneData = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/zombie.glb"));
 
     // =========================================================================
     // GUN
@@ -140,7 +140,7 @@ void MainGameLayer::Attach()
     gTransform.Scale       = { 1.0f, 1.0f, 1.0f };
     gTransform.Dirty       = true;
 
-    auto uploadGun = m_Importer->Upload(m_Importer->Import("assets/models/gun.glb"));
+    auto uploadGun = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/gun.glb"));
     m_Scene.LoadHierarchy(uploadGun, m_Gun);
 
     if (!uploadGun.animators.empty())
