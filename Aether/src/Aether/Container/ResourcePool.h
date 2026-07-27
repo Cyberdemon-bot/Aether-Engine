@@ -148,6 +148,11 @@ namespace Aether {
             return &slot.asset;
         }
 
+        bool IsValid(HandleType handle)
+        {
+            return GetResource(handle) != nullptr;
+        }
+
         template<typename Fn>
         requires std::invocable<Fn, DataType&>
         void Loop(Fn action)

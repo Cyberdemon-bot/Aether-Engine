@@ -23,10 +23,9 @@ namespace Aether {
         BindType<CollisionBinding>();
         BindType<RaycastHitBinding>();
         BindType<PhysicsBinding>();
-        BindType<AsyncBinding>();
     }
 
-    void ScriptEngine::ImportNativeFunc(const std::string& name, Delegate<ScriptValue(const ScriptArgs&)> func)
+    void ScriptEngine::ImportNativeFunc(const std::string& name, Delegate<ScriptTable(const ScriptTable&)> func)
     {
         auto& lua = LuaState.lua;
         sol::table native = lua["Native"].get_or_create<sol::table>();
@@ -35,15 +34,15 @@ namespace Aether {
         
         native.set_function(name, [func, &lua](sol::variadic_args va) -> sol::object
         {
-            ScriptArgs args;
+            ScriptTable args;
             for (const auto& v : va)
             {
                 sol::object obj = v;
-                args.Pushback(FromSolObject(obj));
+                args.Pushback(ScriptTable::FromSolObject(obj));
             }
             
-            ScriptValue result = func(args);
-            return ToSolObject(lua, result);
+            ScriptTable result = func(args);
+            return ScriptTable::ToSolObject(lua, result);
         });
 
         sol::table iref = native["IRef"].get_or_create<sol::table>();
