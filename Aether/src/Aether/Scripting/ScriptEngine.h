@@ -11,8 +11,10 @@
 #include "Aether/Core/UUID.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Core/Timestep.h"
+#include "Aether/Scripting/PromiseManager.h"
 #include "Aether/Container/ResourcePool.h"
 #include "Aether/Scripting/EventManager.h"
+#include "Aether/Scripting/CoroutineManager.h"
 namespace Aether {
 
     template <typename T, typename = void> struct HasGetProps : std::false_type {};
@@ -104,6 +106,14 @@ namespace Aether {
         void DestroyInstance(Handle<ScriptInstance> handle);
         void StartInstance(Handle<ScriptInstance> handle);
 
+        void Update(Timestep ts);
+
+        Handle<Promise> CreatePromise();
+        Promise* GetPromise(Handle<Promise> handle);
+        void DestroyPromise(Handle<Promise> handle);
+        CoroutineManager& GetCoroutineManager() { return m_CoroutineManager; }
+        PromiseManager& GetPromiseManager() { return m_PromiseManager; }
+
         template<typename... Args>
         void FireEvent(const std::string& event_name, Args&&... args)
         {
@@ -126,9 +136,11 @@ namespace Aether {
     private:
         LuaWorker LuaState;
         EventManager m_EventManager;
+        CoroutineManager m_CoroutineManager;
         sol::meta_function OpNameToMeta(std::string_view name);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
+        PromiseManager m_PromiseManager;
         std::vector<Handle<ScriptInstance>> m_DestroyQueue;
         std::vector<NativeFunc> m_NativeFuncs;
         bool IsExecChanged = false;

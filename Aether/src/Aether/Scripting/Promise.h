@@ -7,30 +7,49 @@
 
 namespace Aether {
 
+    class PromiseManager;
+
     class Promise
     {
     public:
         Promise() = default;
 
-        void OnSuccess(const Delegate<void(const ScriptTable&)>& func);
-        void OnError(const Delegate<void(const ScriptTable&)>& func);
+        Handle<Promise> Then(const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
+                            const Delegate<ScriptTable(const ScriptTable&)>& onRejected = {});
+        Handle<Promise> Catch(const Delegate<ScriptTable(const ScriptTable&)>& onRejected);
+        void Finally(const Delegate<void()>& onFinally);
 
-        void Resolve(bool isSuccessed, ScriptTable result);
+        void Resolve(ScriptTable result);
+        void Reject(ScriptTable error);
+        void Settle(bool isSuccessed, ScriptTable result);
 
         const ScriptTable& GetResult() const { return m_Result; }
         bool IsFulfilled() const { return m_State == State::Fulfilled; }
         bool IsRejected() const { return m_State == State::Rejected; }
         bool IsSettled() const { return m_State != State::Pending; }
+
     private:
-        enum class State
-        {
-            Pending, Fulfilled, Rejected
+        enum class State 
+        { 
+            Pending, Fulfilled, Rejected 
         };
 
+        struct Handler
+        {
+            Delegate<ScriptTable(const ScriptTable&)> OnFulfilled;
+            Delegate<ScriptTable(const ScriptTable&)> OnRejected;
+            Handle<Promise> NextPromise = Handle<Promise>::MakeInvalid();
+        };
+        
+        void QueueDispatch();
+
+        Handle<Promise> m_SelfHandle = Handle<Promise>::MakeInvalid();
         State m_State = State::Pending;
         ScriptTable m_Result;
 
-        std::vector<Delegate<void(const ScriptTable&)>> m_OnFulfilled;
-        std::vector<Delegate<void(const ScriptTable&)>> m_OnRejected;
+        std::vector<Handler> m_Handlers;
+        std::vector<Delegate<void()>> m_OnFinally;
+
+        friend class PromiseManager;
     };
 }

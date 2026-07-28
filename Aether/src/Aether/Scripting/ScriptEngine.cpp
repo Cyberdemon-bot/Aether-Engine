@@ -29,7 +29,9 @@ namespace Aether {
        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
        m_Instances.Init();
        m_Sources.Init();
+       m_PromiseManager.Init();
        m_EventManager.Init();
+       m_CoroutineManager.Init(LuaState.lua);
        m_DestroyQueue.reserve(32);
        RegisterBinding();
        AE_CORE_INFO("ScriptEngine initialized with {0}/Sol {1}", LUA_VERSION, SOL_VERSION_MAJOR);
@@ -37,10 +39,34 @@ namespace Aether {
 
     void ScriptEngine::Shutdown()
     {
+        m_CoroutineManager.Shutdown(); 
+        m_PromiseManager.Shutdown();
         m_Instances.Shutdown();
         m_Sources.Shutdown();
         m_EventManager.Shutdown();
         m_DestroyQueue.clear();
+    }
+
+    void ScriptEngine::Update(Timestep ts)
+    {
+        FlushEvent();
+        m_CoroutineManager.Update(ts);
+        m_PromiseManager.Flush();
+    }
+
+    Handle<Promise> ScriptEngine::CreatePromise()
+    {
+        return m_PromiseManager.CreatePromise();
+    }
+
+    Promise* ScriptEngine::GetPromise(Handle<Promise> handle)
+    {
+        return m_PromiseManager.GetPromise(handle);
+    }
+
+    void ScriptEngine::DestroyPromise(Handle<Promise> handle)
+    {
+        m_PromiseManager.DestroyPromise(handle);
     }
 
     Handle<Bytecode> ScriptEngine::LoadScript(const std::string& source)

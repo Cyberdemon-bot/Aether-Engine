@@ -531,7 +531,7 @@ namespace Aether {
                     script_engine->UpdateInstance(instance, ts);
             }
 
-            script_engine->FlushEvent();
+            script_engine->Update(ts);
         }
 
         {

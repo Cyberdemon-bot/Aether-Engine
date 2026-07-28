@@ -474,9 +474,10 @@ namespace Aether {
                 ), 
                 AE_REFLECT("ExecOrder",
                     AE_MAKE_LAMBDA((), (const Type& self), int,
-                        ServiceManager::GetService<ScriptEngine>()->IsExecChanged = true; return self.slot->exec_order;
+                        return self.slot->exec_order;
                     ),
                     AE_MAKE_LAMBDA((), (Type& self, int val), void,
+                        ServiceManager::GetService<ScriptEngine>()->IsExecChanged = true; 
                         self.slot->exec_order = val;
                     )
                 )
@@ -557,8 +558,7 @@ namespace Aether {
                         if (!ctx.scene->IsValid(target)) return sol::lua_nil;
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
-                        std::vector<sol::object> collected(args.begin(), args.end());
-                        return ServiceManager::GetService<ScriptEngine>()->CallSafeInstanceAPI(sc.ScriptHandle, name, collected);
+                        return ServiceManager::GetService<ScriptEngine>()->CallSafeInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
                     )
                 ),
                 AE_REFLECT("DirectCall",
@@ -567,8 +567,7 @@ namespace Aether {
                         if (!ctx.scene->IsValid(target)) return sol::lua_nil;
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
-                        std::vector<sol::object> collected(args.begin(), args.end());
-                        return ServiceManager::GetService<ScriptEngine>()->CallDirectInstanceAPI(sc.ScriptHandle, name, collected);
+                        return ServiceManager::GetService<ScriptEngine>()->CallDirectInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
                     )
                 )
             );

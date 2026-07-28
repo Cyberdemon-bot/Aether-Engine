@@ -1,31 +1,65 @@
 #include "aepch.h"
 #include "Aether/Scripting/Promise.h"
+#include "Aether/Scripting/PromiseManager.h"
+#include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Core/ServiceManager.h"
 
 namespace Aether {
 
-    void Promise::OnSuccess(const Delegate<void(const ScriptTable&)>& func)
+    Handle<Promise> Promise::Then(const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
+                                const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
     {
-        if (IsFulfilled()) func(m_Result);
-        if (!IsSettled()) m_OnFulfilled.push_back(func);
+        auto* script_engine = ServiceManager::GetService<ScriptEngine>();
+        Handle<Promise> next = script_engine->CreatePromise();
+
+        Promise* self = script_engine->GetPromise(m_SelfHandle);
+        if (self == nullptr) return next;
+
+        Handler handler;
+        handler.OnFulfilled = onFulfilled;
+        handler.OnRejected = onRejected;
+        handler.NextPromise = next;
+        self->m_Handlers.push_back(handler);
+        if (self->IsSettled()) self->QueueDispatch();
+
+        return next;
     }
-    
-    void Promise::OnError(const Delegate<void(const ScriptTable&)>& func)
+
+    Handle<Promise> Promise::Catch(const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
     {
-        if (IsRejected()) func(m_Result);
-        if (!IsSettled()) m_OnRejected.push_back(func);
+        return Then(nullptr, onRejected);
     }
-    
-    void Promise::Resolve(bool isSuccessed, ScriptTable result)
+
+    void Promise::Finally(const Delegate<void()>& onFinally)
+    {
+        if (!onFinally) return;
+
+        m_OnFinally.push_back(onFinally);
+        if (IsSettled()) QueueDispatch();
+    }
+
+    void Promise::Resolve(ScriptTable result)
+    {
+        Settle(true, result);
+    }
+
+    void Promise::Reject(ScriptTable error)
+    {
+        Settle(false, error);
+    }
+
+    void Promise::Settle(bool isSuccessed, ScriptTable result)
     {
         if (IsSettled()) return;
-
-        m_Result = result;
         m_State = isSuccessed ? State::Fulfilled : State::Rejected;
+        m_Result = result;
 
-        auto container = std::move(isSuccessed ? m_OnFulfilled : m_OnRejected);
-        m_OnFulfilled.clear();
-        m_OnRejected.clear();
+        QueueDispatch();
+    }
 
-        for (auto& cb : container) cb(m_Result);
+    void Promise::QueueDispatch()
+    {
+        auto* script_engine = ServiceManager::GetService<ScriptEngine>();
+        script_engine->GetPromiseManager().QueueSettle(m_SelfHandle);
     }
 }

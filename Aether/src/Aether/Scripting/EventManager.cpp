@@ -114,7 +114,8 @@ namespace Aether {
         while(!m_NextQueue.empty() && ++guard < m_RecursionDepth);
 
         if (!m_NextQueue.empty())
-            AE_CORE_WARN("[Events] Flush hit recursion depth {0} with {1} events still pending", m_RecursionDepth, m_NextQueue.size());
+            AE_CORE_WARN("[Events] Flush hit recursion depth {0} with {1} events still pending", 
+                        m_RecursionDepth, m_NextQueue.size());
 
         m_Queue.clear();
     }
