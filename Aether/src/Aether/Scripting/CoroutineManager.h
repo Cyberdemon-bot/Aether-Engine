@@ -24,6 +24,7 @@ namespace Aether {
     struct CoroutineTask
     {
         sol::thread thread;
+        sol::main_reference ref;
         sol::coroutine co;
         Handle<ScriptInstance> owner;
         Handle<CoroutineTask> self_handle;

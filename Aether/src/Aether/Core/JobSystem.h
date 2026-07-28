@@ -4,29 +4,18 @@
 #include <condition_variable>
 #include <vector>
 #include <atomic>
-#include <array>
 #include <thread>
 #include <deque> 
 
+#include "Aether/Core/Base.h"
+#include "Aether/Container/MSPCQueue.h"
+#include "Aether/Container/SPMCDeque.h"
 #include "Aether/Core/Semaphore.h"
 #include "Aether/Core/Delegate.h"
 
 namespace Aether {
 
     using Job = Delegate<void()>;
-
-    class JobQueue
-    {
-    public:
-        void Push(Job job);
-        bool Pop(Job& out);
-        bool Steal(Job& out);
-    private:
-        static constexpr size_t CAPACITY = 4096;
-        std::array<Job, CAPACITY> m_Buffer;
-        alignas(64) std::atomic<int64_t> m_Top{0};
-        alignas(64) std::atomic<int64_t> m_Bottom{0};
-    };
 
     class AETHER_API JobSystem
     {
@@ -35,6 +24,9 @@ namespace Aether {
         void Shutdown();
 
         void SubmitJob(Job job);
+        void SubmitJob(Job job, Delegate<void()> callback);
+
+        void FlushCompletions();
         void WaitAll();
 
         template<typename Func, typename Arr>
@@ -68,7 +60,8 @@ namespace Aether {
         bool TryPopInjector(Job& out);
 
         std::vector<std::thread> s_Workers;
-        std::vector<std::unique_ptr<JobQueue>> s_Queues;
+        std::vector<Scope<SPMCDeque<Job, 4096>>> s_Queues;
+        MSPCQueue<Delegate<void()>, 1024> s_Completions;
 
         std::deque<Job> s_Injector;
         std::mutex s_InjectorMutex;

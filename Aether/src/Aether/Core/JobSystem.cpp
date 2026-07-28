@@ -9,54 +9,6 @@ namespace Aether {
         thread_local int t_ThreadIndex = -1;
     }
 
-    void JobQueue::Push(Job job)
-    {
-        int64_t b = m_Bottom.load(std::memory_order_relaxed);
-        int64_t t = m_Top.load(std::memory_order_acquire);
-        AE_CORE_ASSERT(b - t < static_cast<int64_t>(CAPACITY), "JobQueue overflow");
-        m_Buffer[b % CAPACITY] = std::move(job);
-        std::atomic_thread_fence(std::memory_order_release);
-        m_Bottom.store(b + 1, std::memory_order_relaxed);
-    }
-
-    bool JobQueue::Pop(Job& out)
-    {
-        int64_t b = m_Bottom.load(std::memory_order_relaxed) - 1;
-        m_Bottom.store(b, std::memory_order_relaxed);
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-        int64_t t = m_Top.load(std::memory_order_relaxed);
-
-        if (t > b)
-        {
-            m_Bottom.store(b + 1, std::memory_order_relaxed);
-            return false;
-        }
-
-        out = m_Buffer[b % CAPACITY];
-        if (t == b)
-        {
-            if (!m_Top.compare_exchange_strong(t, t + 1))
-            {
-                m_Bottom.store(b + 1, std::memory_order_relaxed);
-                return false;
-            }
-            m_Bottom.store(b + 1, std::memory_order_relaxed);
-        }
-
-        return true;
-    }
-
-    bool JobQueue::Steal(Job& out)
-    {
-        int64_t t = m_Top.load(std::memory_order_acquire);
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-        int64_t b = m_Bottom.load(std::memory_order_acquire);
-
-        if (t >= b) return false;
-        out = m_Buffer[t % CAPACITY];
-        return m_Top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst);
-    }
-
     void JobSystem::Init(uint32_t numThreads)
     {
         s_ActiveJobCount = 0;
@@ -64,7 +16,7 @@ namespace Aether {
 
         s_Queues.reserve(numThreads);
         for (uint32_t i = 0; i < numThreads; ++i)
-            s_Queues.emplace_back(std::make_unique<JobQueue>());
+            s_Queues.emplace_back(CreateScope<SPMCDeque<Job, 4096>>());
 
         s_Workers.reserve(numThreads);
         for (uint32_t i = 0; i < numThreads; ++i)
@@ -108,6 +60,21 @@ namespace Aether {
         }
 
         s_Semaphore.Release();
+    }
+
+    void JobSystem::SubmitJob(Job job, Delegate<void()> callback) 
+    {
+        SubmitJob([this, job = std::move(job), cb = std::move(callback)]() mutable 
+        {
+            job();
+            s_Completions.Push(std::move(cb));
+        });
+    }
+
+    void JobSystem::FlushCompletions() 
+    {
+        Delegate<void()> cb;
+        while (s_Completions.Pop(cb)) cb();
     }
 
     bool JobSystem::TryPopInjector(Job& out)
