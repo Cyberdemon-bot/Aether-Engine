@@ -25,16 +25,16 @@ namespace Aether {
 
     void ScriptEngine::Init()
     {   
-       auto& lua = LuaState.lua;
-       lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
-       m_Instances.Init();
-       m_Sources.Init();
-       m_PromiseManager.Init();
-       m_EventManager.Init();
-       m_CoroutineManager.Init(LuaState.lua);
-       m_DestroyQueue.reserve(32);
-       RegisterBinding();
-       AE_CORE_INFO("ScriptEngine initialized with {0}/Sol {1}", LUA_VERSION, SOL_VERSION_MAJOR);
+        auto& lua = LuaState.lua;
+        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
+        m_Instances.Init();
+        m_Sources.Init();
+        m_PromiseManager.Init();
+        m_EventManager.Init();
+        m_CoroutineManager.Init(LuaState.lua);
+        m_DestroyQueue.reserve(32);
+        RegisterBinding();
+        AE_CORE_INFO("ScriptEngine initialized with {0}/Sol {1}", LUA_VERSION, SOL_VERSION_MAJOR);
     }
 
     void ScriptEngine::Shutdown()

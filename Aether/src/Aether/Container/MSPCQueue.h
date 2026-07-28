@@ -13,8 +13,15 @@ namespace Aether {
     public:
         bool Push(T item)
         {
-            uint64_t index = m_Tail.fetch_add(1, std::memory_order_relaxed);
-            auto& slot = m_Buffer[index & (Capacity - 1)];
+            uint64_t tail = m_Tail.load(std::memory_order_relaxed);
+            while (true)
+            {
+                if (tail - m_Head >= Capacity) return false; // Queue đầy
+                if (m_Tail.compare_exchange_weak(tail, tail + 1, std::memory_order_relaxed))
+                    break;
+            }
+            
+            auto& slot = m_Buffer[tail & (Capacity - 1)];
             slot.data = std::move(item);
             slot.ready.store(true, std::memory_order_release);
             return true;

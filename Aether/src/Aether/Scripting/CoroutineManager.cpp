@@ -26,7 +26,7 @@ namespace Aether {
         auto* task = m_Tasks.GetResource(handle);
         if (task == nullptr) return Handle<CoroutineTask>::MakeInvalid();
 
-        task->thread = sol::thread::create(m_LuaState);
+        task->thread = sol::thread::create(*m_LuaState);
         task->ref = task->thread;
         sol::state_view state = task->thread.state();
         task->co = sol::coroutine(state, func);

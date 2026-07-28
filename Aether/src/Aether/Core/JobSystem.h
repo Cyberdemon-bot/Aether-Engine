@@ -47,7 +47,7 @@ namespace Aether {
                 uint32_t startIdx = i * chunkSize;
                 uint32_t endIdx = std::min(startIdx + chunkSize, totalCount);
 
-                SubmitJob(AE_MAKE_LAMBDA((&task, startIdx, endIdx, arr), (), void,
+                SubmitJob(AE_MAKE_LAMBDA((task, startIdx, endIdx, arr), (), void,
                     for (uint32_t j = startIdx; j < endIdx; ++j) task(arr[j]);
                 ));
             }
@@ -60,8 +60,8 @@ namespace Aether {
         bool TryPopInjector(Job& out);
 
         std::vector<std::thread> s_Workers;
-        std::vector<Scope<SPMCDeque<Job, 4096>>> s_Queues;
-        MSPCQueue<Delegate<void()>, 1024> s_Completions;
+        std::vector<Scope<SPMCDeque<Job, 2>>> s_Queues;
+        MSPCQueue<Delegate<void()>, 2> s_Completions;
 
         std::deque<Job> s_Injector;
         std::mutex s_InjectorMutex;
