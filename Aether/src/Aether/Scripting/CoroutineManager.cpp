@@ -27,6 +27,7 @@ namespace Aether {
         if (task == nullptr) return Handle<CoroutineTask>::MakeInvalid();
 
         task->thread = sol::thread::create(m_LuaState);
+        task->ref = task->thread;
         sol::state_view state = task->thread.state();
         task->co = sol::coroutine(state, func);
         task->owner = owner;
@@ -167,6 +168,9 @@ namespace Aether {
         auto* task = m_Tasks.GetResource(handle);
         if (task == nullptr || task->state == CoroutineState::Dead) return; 
         task->state = CoroutineState::Dead;
+        task->ref.reset(); 
+        task->co = sol::coroutine(); 
+        task->thread = sol::thread();
         m_StopQueue.push_back(handle);
     }
 }
