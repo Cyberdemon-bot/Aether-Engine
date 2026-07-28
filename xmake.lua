@@ -13,7 +13,11 @@ target("Sandbox")
     add_files("Sandbox/src/**.cpp")
     add_deps("Aether")
     add_defines("AETHER_SHARED")
-    --set_policy("build.sanitizer.address", true)
+    
+
+    if is_mode("debug") then
+        set_policy("build.sanitizer.address", true)
+    end
 
     if is_mode("release") then
         --set_symbols("debug")     

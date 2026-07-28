@@ -1,11 +1,8 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Core/Log.h"
 #include <filesystem>
-
-namespace Aether {
-    class Log;
-}
 
 #ifdef AE_ENABLE_ASSERTS
 

@@ -15,7 +15,7 @@ namespace Aether {
             int64_t b = m_Bottom.load(std::memory_order_relaxed);
             int64_t t = m_Top.load(std::memory_order_acquire);
             AE_CORE_ASSERT(b - t < static_cast<int64_t>(Capacity), "JobQueue overflow");
-            m_Buffer[b % Capacity] = std::move(item);
+            m_Buffer[b & (Capacity - 1)] = std::move(item);
             std::atomic_thread_fence(std::memory_order_release);
             m_Bottom.store(b + 1, std::memory_order_relaxed);
         }
@@ -33,7 +33,6 @@ namespace Aether {
                 return false;
             }
 
-            out = m_Buffer[b % Capacity];
             if (t == b)
             {
                 if (!m_Top.compare_exchange_strong(t, t + 1))
@@ -41,8 +40,10 @@ namespace Aether {
                     m_Bottom.store(b + 1, std::memory_order_relaxed);
                     return false;
                 }
+                out = std::move(m_Buffer[b & (Capacity - 1)]);
                 m_Bottom.store(b + 1, std::memory_order_relaxed);
             }
+            else out = std::move(m_Buffer[b & (Capacity - 1)]);
 
             return true;
         }
@@ -54,8 +55,13 @@ namespace Aether {
             int64_t b = m_Bottom.load(std::memory_order_acquire);
 
             if (t >= b) return false;
-            out = m_Buffer[t % Capacity];
-            return m_Top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst);
+            T item = m_Buffer[t % (Capacity - 1)];
+            if (m_Top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst))
+            {
+                out = std::move(item);
+                return true;
+            }
+            return false;
         }
     private:
         std::array<T, Capacity> m_Buffer;

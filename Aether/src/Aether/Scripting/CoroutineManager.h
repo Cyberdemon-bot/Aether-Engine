@@ -62,8 +62,7 @@ namespace Aether {
         Handle<CoroutineTask> GetCurrentRunningTask(sol::thread target);
     private:
         void MarkForStop(Handle<CoroutineTask> handle);
-
-        sol::state_view m_LuaState = nullptr;
+        std::optional<sol::state_view> m_LuaState;
         ResourcePool<Handle<CoroutineTask>, CoroutineTask> m_Tasks;
         std::vector<Handle<CoroutineTask>> m_StopQueue;
         std::vector<Handle<CoroutineTask>> m_ResumeQueue;
