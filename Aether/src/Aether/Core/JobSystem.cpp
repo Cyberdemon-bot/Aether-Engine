@@ -16,7 +16,7 @@ namespace Aether {
 
         s_Queues.reserve(numThreads);
         for (uint32_t i = 0; i < numThreads; ++i)
-            s_Queues.emplace_back(CreateScope<SPMCDeque<Job, 2>>());
+            s_Queues.emplace_back(CreateScope<SPMCDeque<Job, 4096>>());
 
         s_Workers.reserve(numThreads);
         for (uint32_t i = 0; i < numThreads; ++i)
