@@ -4,15 +4,14 @@
 #include <sol/coroutine.hpp>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
-#include <unordered_map>
 #include <string>
 
 #include "Aether/Core/Delegate.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Core/Timestep.h"
-#include "Aether/Scripting/PromiseManager.h"
 #include "Aether/Container/ResourcePool.h"
+#include "Aether/Scripting/PromiseManager.h"
 #include "Aether/Scripting/EventManager.h"
 #include "Aether/Scripting/CoroutineManager.h"
 namespace Aether {
