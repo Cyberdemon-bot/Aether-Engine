@@ -19,15 +19,11 @@ namespace Aether {
         m_DestroyQueue.clear();
     }
 
-    Handle<Promise> PromiseManager::CreatePromise(PromiseOwnership ownership)
+    Handle<Promise> PromiseManager::CreatePromise()
     {
         auto handle = m_Promises.CreateResource();
         auto* p = m_Promises.GetResource(handle);
-        if (p != nullptr)
-        {
-            p->m_SelfHandle = handle;
-            p->m_Ownership = ownership;
-        }
+        if (p != nullptr) p->m_SelfHandle = handle;
         return handle;
     }
 
@@ -90,7 +86,7 @@ namespace Aether {
 
                 for (auto& cb : finallyCbs) cb();
 
-                if (p->m_Ownership == PromiseOwnership::AutoReap) m_DestroyQueue.push_back(handle);
+                m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
         } 

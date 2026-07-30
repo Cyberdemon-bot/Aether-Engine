@@ -790,8 +790,7 @@ namespace Aether {
 
                 AE_REFLECT("Sleep",
                     AE_MAKE_LAMBDA((), (Type& ctx, float seconds), Result,
-                        auto promise_handle = ctx.promise_manager->CreatePromise(PromiseOwnership::AutoReap);
-                        return std::make_tuple(promise_handle.Blend(), 1, seconds);  
+                        return std::make_tuple(Handle<Promise>::MakeInvalid().Blend(), 1, seconds);  
                     )
                 )
             );

@@ -11,7 +11,7 @@ namespace Aether {
     {
         auto* script_engine = ServiceManager::GetService<ScriptEngine>();
         auto* promise_manager = script_engine->GetPromiseManager();
-        Handle<Promise> next = promise_manager->CreatePromise(PromiseOwnership::AutoReap);
+        Handle<Promise> next = promise_manager->CreatePromise();
 
         Promise* self = promise_manager->GetPromise(m_SelfHandle);
         if (self == nullptr) return next;
