@@ -35,6 +35,7 @@ namespace Aether {
         task->owner = owner;
         task->self_handle = handle;
         task->state = CoroutineState::Suspended;
+        task->pendingResume = false;
 
         ResumeTask(handle);
 
@@ -43,6 +44,12 @@ namespace Aether {
 
     void CoroutineManager::ResumeTask(Handle<CoroutineTask> handle, sol::object result)
     {
+        auto* task = m_Tasks.GetResource(handle);
+        if (task == nullptr || task->state == CoroutineState::Dead) return;
+        if (task->pendingResume) return; 
+        task->pendingResume = true;
+        task->condition = WaitType::Manual;
+
         ResumeRequest request;
         request.handle = handle;
         request.results.push_back(result);
@@ -61,6 +68,7 @@ namespace Aether {
     {
         auto* task = m_Tasks.GetResource(handle);
         if (task == nullptr || task->state == CoroutineState::Dead) return false;
+        task->pendingResume = false;
         if (!task->co.valid())
         {
             MarkForStop(handle);

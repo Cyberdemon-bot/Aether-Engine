@@ -736,7 +736,7 @@ namespace Aether {
     struct CoroutineBinding
     {
         using Type = CoroutineContext;
-        using IntFloatTuple = std::tuple<int, float>;
+        using Result = std::tuple<uint32_t, float>;
         static constexpr const char* get_name() { return "CoroutineContext"; }
 
         static constexpr auto get_methods()
@@ -757,11 +757,13 @@ namespace Aether {
                         ctx.coroutine_manager->YieldTask(task);
                         return lua_yield(L, 0);
                     ),
-                    AE_MAKE_LAMBDA((), (Type& ctx, int type, float param, sol::this_state ts), int,
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function resolver, sol::variadic_args args, sol::this_state ts), int,
                         lua_State* L = ts;
                         lua_pushthread(L);
                         sol::thread current = sol::stack::pop<sol::thread>(L);
                         auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
+                        auto [type, param] = resolver.call<uint32_t, float>(task.Blend(), sol::as_args(args));
+                        
                         switch(type)
                         {
                             case 1: ctx.coroutine_manager->WaitForSeconds(task, param); break;
@@ -773,8 +775,8 @@ namespace Aether {
                 ),
 
                 AE_REFLECT("Sleep",
-                    AE_MAKE_LAMBDA((), (Type& ctx, float seconds), IntFloatTuple,
-                        return std::make_tuple(1, seconds);
+                    AE_MAKE_LAMBDA((), (uint64_t task, float seconds), Result,
+                        return std::make_tuple(1, seconds);  
                     )
                 )
             );
