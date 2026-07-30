@@ -11,8 +11,6 @@ namespace Aether {
     {
         auto* script_engine = ServiceManager::GetService<ScriptEngine>();
         Handle<Promise> next = script_engine->CreatePromise();
-        auto* nextit = script_engine->GetPromise(next);
-        if (nextit) nextit->m_IsChained = true;
 
         Promise* self = script_engine->GetPromise(m_SelfHandle);
         if (self == nullptr) return next;

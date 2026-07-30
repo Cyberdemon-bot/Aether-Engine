@@ -43,7 +43,7 @@ namespace Aether {
         return v;
     }
 
-    sol::object ScriptTable::ToSolObject(sol::state& lua, const ScriptTable& val)
+    sol::object ScriptTable::ToSolObject(sol::state_view lua, const ScriptTable& val)
     {
         switch (val.m_Type)
         {
