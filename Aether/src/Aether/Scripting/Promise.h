@@ -9,6 +9,15 @@ namespace Aether {
 
     class PromiseManager;
 
+    struct AggregateState
+    {
+        uint32_t total = 0;
+        uint32_t counter = 0;
+        bool rejected = false;
+        bool settled = false;
+        std::vector<ScriptTable> results;
+    };
+
     class Promise
     {
     public:
@@ -50,6 +59,7 @@ namespace Aether {
 
         std::vector<Handler> m_Handlers;
         std::vector<Delegate<void()>> m_OnFinally;
+        std::optional<AggregateState> m_AggregateState;
 
         friend class PromiseManager;
     };
