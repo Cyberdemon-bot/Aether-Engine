@@ -4,14 +4,17 @@ _script = 0
 
 function OnStart()
     _speed = 5.0
-    -- Async:Start(function()
-    --     Async.WaitAnyEvent({"K", "J"}, 10.0)
-    --     print("waited any")
-    --     Async.WaitAllEvent({"J", "L"}, 10.0)
-    --     print("waited all")
-    --     result = Async.WaitJob({Native.IRef.PrintTest, 10}, {Native.IRef.PrintTest, 30})
-    --     print(result[1], result[2])
-    -- end)
+    Coroutine:async(function()
+        print("Step 1 - starting")
+        
+        Coroutine:await()
+        print("Step 2 - resumed after one frame")
+        
+        Coroutine:await(Coroutine:Sleep(3))
+        print("Step 3 - resumed after 3 seconds")
+        
+        print("Done!")
+    end)
 end
 
 function OnUpdate(ts)
@@ -21,7 +24,6 @@ function OnUpdate(ts)
     if Input.IsKeyPressed(Key.Up) then
         move = move + Math.Vec3(0.0, 0.0, -1.0)
         Physics:AddForce(Math.Vec3(0.0, 100000.0, 0.0))
-        Event:Fire("test func", 10)
         Native.PrintTest()
     end
     if Input.IsKeyPressed(Key.Down) then

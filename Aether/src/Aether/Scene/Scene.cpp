@@ -454,9 +454,10 @@ namespace Aether {
 
     void Scene::Update(Timestep ts, EditorCamera* camera)
     {
-        auto* jobsys = ServiceManager::GetService<JobSystem>();
+        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
         auto* physys = ServiceManager::GetService<PhysicsSystem>();
-        {   
+
+        { // destroy queue flush
             for (auto& info : m_DestroyQueue)
             {
                 if (info.clearHierarchy) ExcDestroyHierarchy(info.entity);
@@ -465,7 +466,7 @@ namespace Aether {
             m_DestroyQueue.clear();
         }
 
-        {
+        { // update transform
             m_CurrentFrame++;
             DirtyScan();
             BreadthFirstSearch();
@@ -475,7 +476,7 @@ namespace Aether {
                 ));
         }
 
-        {
+        { // update physics
             auto view = View<ColliderComponent>();
             for (auto entity : view)
             {
@@ -511,7 +512,7 @@ namespace Aether {
             physys->UpdateInstance(m_PhysicsInstance, ts);
         }
 
-        {
+        { // update scirpts
             auto scriptView = View<ScriptComponent>();
             auto* script_engine = ServiceManager::GetService<ScriptEngine>();
             if (script_engine->IsExecOrderChanged())
@@ -534,7 +535,7 @@ namespace Aether {
             script_engine->Update(ts);
         }
 
-        {
+        { //update audio
             auto audioView = View<AudioSourceComponent>();
             auto* audsys = ServiceManager::GetService<AudioSystem>();
             for (auto entity : audioView)
