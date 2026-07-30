@@ -103,10 +103,13 @@ namespace Aether {
         SceneContext sceneCtx{ scene };
         EventContext eventCtx{ handle, &m_EventManager };
         PhysicsContext physicsCtx{ scene, entity };
+        CoroutineContext coroutineCtx{ handle, &m_CoroutineManager };
+        
         env["self"] = self;
         env["Scene"] = sceneCtx;
         env["Event"] = eventCtx;
         env["Physics"] = physicsCtx;
+        env["Coroutine"] = coroutineCtx;
 
         slot->env_handle = env_handle;
         slot->ctx = scene;

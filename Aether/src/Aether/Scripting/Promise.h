@@ -45,6 +45,7 @@ namespace Aether {
 
         Handle<Promise> m_SelfHandle = Handle<Promise>::MakeInvalid();
         State m_State = State::Pending;
+        bool m_IsChained = false;
         ScriptTable m_Result;
 
         std::vector<Handler> m_Handlers;

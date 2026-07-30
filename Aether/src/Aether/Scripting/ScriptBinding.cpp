@@ -23,6 +23,7 @@ namespace Aether {
         BindType<CollisionBinding>();
         BindType<RaycastHitBinding>();
         BindType<PhysicsBinding>();
+        BindType<CoroutineBinding>();
     }
 
     void ScriptEngine::ImportNativeFunc(const std::string& name, Delegate<ScriptTable(const ScriptTable&)> func)

@@ -38,6 +38,12 @@ namespace Aether {
         }
     };
 
+    struct ResumeRequest
+    {
+        Handle<CoroutineTask> handle;
+        std::vector<sol::object> results;
+    };
+
     class CoroutineManager
     {
     public:
@@ -51,20 +57,28 @@ namespace Aether {
         void WaitForSeconds(Handle<CoroutineTask> handle, float seconds);
         void WaitForManual(Handle<CoroutineTask> handle);
 
-        bool ResumeTask(Handle<CoroutineTask> handle, sol::object result = sol::lua_nil);
-        bool ResumeTask(Handle<CoroutineTask> handle, std::vector<sol::object> results);
         void StopCoroutine(Handle<CoroutineTask> handle);
         void StopAllCoroutines(Handle<ScriptInstance> owner);
+
+        void ResumeTask(Handle<CoroutineTask> handle, sol::object result = sol::lua_nil);
+        void ResumeTask(Handle<CoroutineTask> handle, std::vector<sol::object> results);
 
         void Update(Timestep ts);
         void Clear();
 
         Handle<CoroutineTask> GetCurrentRunningTask(sol::thread target);
+
+        void SetRecursionDepth(uint32_t depth);
     private:
         void MarkForStop(Handle<CoroutineTask> handle);
         std::optional<sol::state_view> m_LuaState;
         ResourcePool<Handle<CoroutineTask>, CoroutineTask> m_Tasks;
         std::vector<Handle<CoroutineTask>> m_StopQueue;
-        std::vector<Handle<CoroutineTask>> m_ResumeQueue;
+        std::vector<ResumeRequest> m_ResumeQueue;
+        std::vector<ResumeRequest> m_NextResumeQueue;
+
+        uint32_t m_RecursionDepth = 3;
+
+        bool ExecuteResume(Handle<CoroutineTask> handle, std::vector<sol::object> results);
     };
 }

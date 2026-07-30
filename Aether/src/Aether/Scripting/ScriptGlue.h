@@ -726,4 +726,58 @@ namespace Aether {
             );
         }
     };
+
+    struct CoroutineContext
+    {
+        Handle<ScriptInstance> handle;
+        CoroutineManager* coroutine_manager = nullptr;
+    };
+
+    struct CoroutineBinding
+    {
+        using Type = CoroutineContext;
+        using IntFloatTuple = std::tuple<int, float>;
+        static constexpr const char* get_name() { return "CoroutineContext"; }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("async",
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), void,
+                        ctx.coroutine_manager->StartCoroutine(func, ctx.handle);
+                    )
+                ),
+
+                AE_REFLECT("await",
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::this_state ts), int,
+                        lua_State* L = ts;
+                        lua_pushthread(L);
+                        sol::thread current = sol::stack::pop<sol::thread>(L);
+                        auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
+                        ctx.coroutine_manager->YieldTask(task);
+                        return lua_yield(L, 0);
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& ctx, int type, float param, sol::this_state ts), int,
+                        lua_State* L = ts;
+                        lua_pushthread(L);
+                        sol::thread current = sol::stack::pop<sol::thread>(L);
+                        auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
+                        switch(type)
+                        {
+                            case 1: ctx.coroutine_manager->WaitForSeconds(task, param); break;
+                            case 2: ctx.coroutine_manager->WaitForManual(task); break;
+                            default: ctx.coroutine_manager->YieldTask(task); break;
+                        }
+                        return lua_yield(L, 0);
+                    )
+                ),
+
+                AE_REFLECT("Sleep",
+                    AE_MAKE_LAMBDA((), (Type& ctx, float seconds), IntFloatTuple,
+                        return std::make_tuple(1, seconds);
+                    )
+                )
+            );
+        }
+    };
 }

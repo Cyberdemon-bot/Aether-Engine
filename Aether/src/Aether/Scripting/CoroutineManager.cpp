@@ -9,6 +9,7 @@ namespace Aether {
         m_Tasks.Init();
         m_StopQueue.reserve(32);
         m_ResumeQueue.reserve(32);
+        m_NextResumeQueue.reserve(32);
     }
 
     void CoroutineManager::Shutdown()
@@ -16,6 +17,7 @@ namespace Aether {
         m_Tasks.Shutdown();
         m_StopQueue.clear();
         m_ResumeQueue.clear();
+        m_NextResumeQueue.clear();
     }
 
     Handle<CoroutineTask> CoroutineManager::StartCoroutine(sol::function func, Handle<ScriptInstance> owner)
@@ -39,12 +41,23 @@ namespace Aether {
         return handle;
     }
 
-    bool CoroutineManager::ResumeTask(Handle<CoroutineTask> handle, sol::object result)
+    void CoroutineManager::ResumeTask(Handle<CoroutineTask> handle, sol::object result)
     {
-        return ResumeTask(handle, std::vector<sol::object>{ result });
+        ResumeRequest request;
+        request.handle = handle;
+        request.results.push_back(result);
+        m_NextResumeQueue.push_back(std::move(request));
     }
 
-    bool CoroutineManager::ResumeTask(Handle<CoroutineTask> handle, std::vector<sol::object> results)
+    void CoroutineManager::ResumeTask(Handle<CoroutineTask> handle, std::vector<sol::object> results)
+    {
+        ResumeRequest request;
+        request.handle = handle;
+        request.results = std::move(results);
+        m_NextResumeQueue.push_back(std::move(request));
+    }
+
+    bool CoroutineManager::ExecuteResume(Handle<CoroutineTask> handle, std::vector<sol::object> results)
     {
         auto* task = m_Tasks.GetResource(handle);
         if (task == nullptr || task->state == CoroutineState::Dead) return false;
@@ -66,7 +79,6 @@ namespace Aether {
         if (!res.valid())
         {
             sol::error err = res;
-            AE_CORE_ERROR("[Coroutine] Task {0} got execution error {1}", handle.Blend(), err.what());
             MarkForStop(handle);
             return false;
         }
@@ -105,7 +117,7 @@ namespace Aether {
 
     void CoroutineManager::Update(Timestep ts)
     {
-        m_ResumeQueue.clear();
+        uint32_t guard = 0;
         m_Tasks.Loop([ts, this](CoroutineTask& task)
         {
             if (task.state == CoroutineState::Dead) return; 
@@ -113,20 +125,27 @@ namespace Aether {
             if (task.condition == WaitType::Seconds)
             {
                 task.timer -= ts.GetSeconds();
-                if (task.timer <= 0.0f)
-                    m_ResumeQueue.push_back(task.self_handle);
+                if (task.timer <= 0.0f) ResumeTask(task.self_handle);
             }
-            else if (task.condition == WaitType::None)
-            {
-                m_ResumeQueue.push_back(task.self_handle);
-            }
+            else if (task.condition == WaitType::None) ResumeTask(task.self_handle);
         });
 
-        for (auto& handle : m_ResumeQueue)
+        if (!m_NextResumeQueue.empty())
         {
-            auto* task = m_Tasks.GetResource(handle);
-            if (task && task->state != CoroutineState::Dead) ResumeTask(handle);
+            do
+            {
+                std::swap(m_NextResumeQueue, m_ResumeQueue);
+                m_NextResumeQueue.clear();
+                for (auto& request : m_ResumeQueue)
+                {
+                    auto* task = m_Tasks.GetResource(request.handle);
+                    if (task && task->state != CoroutineState::Dead) 
+                        ExecuteResume(request.handle, request.results);
+                }
+            } 
+            while (!m_NextResumeQueue.empty() && ++guard < m_RecursionDepth);
         }
+        m_ResumeQueue.clear();
 
         for (auto& handle : m_StopQueue) m_Tasks.DestroyResource(handle);
         m_StopQueue.clear();
@@ -151,14 +170,16 @@ namespace Aether {
         m_Tasks.Clear();
         m_StopQueue.clear();
         m_ResumeQueue.clear();
+        m_NextResumeQueue.clear();
     }
 
     Handle<CoroutineTask> CoroutineManager::GetCurrentRunningTask(sol::thread target)
     {
         Handle<CoroutineTask> found = Handle<CoroutineTask>::MakeInvalid();
-        m_Tasks.Loop([&target, &found](CoroutineTask& task)
+        lua_State* targetL = target.state();
+        m_Tasks.Loop([&targetL, &found](CoroutineTask& task)
         {
-            if (task.thread == target && task.state == CoroutineState::Running) found = task.self_handle;
+            if (task.thread.state() == targetL && task.state == CoroutineState::Running) found = task.self_handle;
         });
         return found;
     }
@@ -172,5 +193,10 @@ namespace Aether {
         task->co = sol::coroutine(); 
         task->thread = sol::thread();
         m_StopQueue.push_back(handle);
+    }
+
+    void CoroutineManager::SetRecursionDepth(uint32_t depth)
+    {
+        m_RecursionDepth = depth;
     }
 }

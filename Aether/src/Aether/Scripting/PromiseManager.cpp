@@ -8,6 +8,7 @@ namespace Aether {
         m_Promises.Init();
         m_Queue.reserve(32);
         m_NextQueue.reserve(32);
+        m_DestroyQueue.reserve(32);
     }
 
     void PromiseManager::Shutdown()
@@ -15,6 +16,7 @@ namespace Aether {
         m_Promises.Shutdown();
         m_Queue.clear();
         m_NextQueue.clear();
+        m_DestroyQueue.clear();
     }
 
     Handle<Promise> PromiseManager::CreatePromise()
@@ -83,10 +85,15 @@ namespace Aether {
                 }
 
                 for (auto& cb : finallyCbs) cb();
+
+                if (p->m_IsChained) m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
         } 
         while(!m_NextQueue.empty() && ++guard < m_RecursionDepth);
+
+        for (auto& handle : m_DestroyQueue) m_Promises.DestroyResource(handle);
+        m_DestroyQueue.clear();
 
         if (!m_NextQueue.empty())
             AE_CORE_WARN("[Promise] Flush hit max recursion depth {0} with {1} promises still pending for next frame.", 

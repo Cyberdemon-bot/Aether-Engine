@@ -31,6 +31,7 @@ namespace Aether {
         ResourcePool<Handle<Promise>, Promise> m_Promises;
         std::vector<Handle<Promise>> m_Queue;
         std::vector<Handle<Promise>> m_NextQueue;
+        std::vector<Handle<Promise>> m_DestroyQueue;
 
         uint32_t m_RecursionDepth = 3;
     };
