@@ -18,6 +18,12 @@ namespace Aether {
         std::vector<ScriptTable> results;
     };
 
+    enum class PromiseOwnership
+    {
+        Owned,      
+        AutoReap    
+    };
+
     class Promise
     {
     public:
@@ -36,7 +42,6 @@ namespace Aether {
         bool IsFulfilled() const { return m_State == State::Fulfilled; }
         bool IsRejected() const { return m_State == State::Rejected; }
         bool IsSettled() const { return m_State != State::Pending; }
-
     private:
         enum class State 
         { 
@@ -54,6 +59,7 @@ namespace Aether {
 
         Handle<Promise> m_SelfHandle = Handle<Promise>::MakeInvalid();
         State m_State = State::Pending;
+        PromiseOwnership m_Ownership = PromiseOwnership::Owned;
         ScriptTable m_Result;
 
         std::vector<Handler> m_Handlers;

@@ -15,7 +15,7 @@ namespace Aether {
         void Init();
         void Shutdown();
 
-        Handle<Promise> CreatePromise();
+        Handle<Promise> CreatePromise(PromiseOwnership ownership = PromiseOwnership::Owned);
         Promise* GetPromise(Handle<Promise> handle);
         void DestroyPromise(Handle<Promise> handle);
         void QueueSettle(Handle<Promise> handle);

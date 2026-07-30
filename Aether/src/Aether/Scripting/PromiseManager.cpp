@@ -19,11 +19,15 @@ namespace Aether {
         m_DestroyQueue.clear();
     }
 
-    Handle<Promise> PromiseManager::CreatePromise()
+    Handle<Promise> PromiseManager::CreatePromise(PromiseOwnership ownership)
     {
         auto handle = m_Promises.CreateResource();
         auto* p = m_Promises.GetResource(handle);
-        if (p != nullptr) p->m_SelfHandle = handle;
+        if (p != nullptr)
+        {
+            p->m_SelfHandle = handle;
+            p->m_Ownership = ownership;
+        }
         return handle;
     }
 
@@ -86,7 +90,7 @@ namespace Aether {
 
                 for (auto& cb : finallyCbs) cb();
 
-                m_DestroyQueue.push_back(handle);
+                if (p->m_Ownership == PromiseOwnership::AutoReap) m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
         } 
@@ -172,8 +176,6 @@ namespace Aether {
         auto aggregate = CreatePromise();
         if (promises.empty()) return aggregate;
 
-        auto settled = CreateRef<bool>(false);
-
         uint32_t total = 0;
         for (auto& handle : promises)
             if (GetPromise(handle) != nullptr) total++;
@@ -184,6 +186,14 @@ namespace Aether {
             return aggregate;
         }
         
+        Promise* aggPtr = GetPromise(aggregate);
+        if (aggPtr)
+        {
+            AggregateState state;
+            state.total = total;
+            state.settled = false;
+            aggPtr->m_AggregateState = state;
+        }
 
         for (auto& handle : promises)
         {
@@ -191,18 +201,24 @@ namespace Aether {
             if (p == nullptr) continue;
 
             p->Then(
-                [this, aggregate, settled](const ScriptTable& result) -> ScriptTable {
-                    if (*settled) return {};
-                    *settled = true;
+                [this, aggregate](const ScriptTable& result) -> ScriptTable 
+                {
                     Promise* agg = GetPromise(aggregate);
-                    if (agg) agg->Resolve(result);
+                    if (!agg || !agg->m_AggregateState) return {};
+                    auto& state = *agg->m_AggregateState;
+                    if (state.settled) return {};
+                    state.settled = true;
+                    agg->Resolve(result);
                     return {};
                 },
-                [this, aggregate, settled](const ScriptTable& error) -> ScriptTable {
-                    if (*settled) return {};
-                    *settled = true;
+                [this, aggregate](const ScriptTable& error) -> ScriptTable 
+                {
                     Promise* agg = GetPromise(aggregate);
-                    if (agg) agg->Reject(error);
+                    if (!agg || !agg->m_AggregateState) return {};
+                    auto& state = *agg->m_AggregateState;
+                    if (state.settled) return {};
+                    state.settled = true;
+                    agg->Reject(error);
                     return {};
                 }
             );

@@ -10,9 +10,10 @@ namespace Aether {
                                 const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
     {
         auto* script_engine = ServiceManager::GetService<ScriptEngine>();
-        Handle<Promise> next = script_engine->CreatePromise();
+        auto* promise_manager = script_engine->GetPromiseManager();
+        Handle<Promise> next = promise_manager->CreatePromise(PromiseOwnership::AutoReap);
 
-        Promise* self = script_engine->GetPromise(m_SelfHandle);
+        Promise* self = promise_manager->GetPromise(m_SelfHandle);
         if (self == nullptr) return next;
 
         Handler handler;
@@ -60,6 +61,6 @@ namespace Aether {
     void Promise::QueueDispatch()
     {
         auto* script_engine = ServiceManager::GetService<ScriptEngine>();
-        script_engine->GetPromiseManager().QueueSettle(m_SelfHandle);
+        script_engine->GetPromiseManager()->QueueSettle(m_SelfHandle);
     }
 }
