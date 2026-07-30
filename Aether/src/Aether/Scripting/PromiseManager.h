@@ -20,6 +20,9 @@ namespace Aether {
         void DestroyPromise(Handle<Promise> handle);
         void QueueSettle(Handle<Promise> handle);
 
+        Handle<Promise> All(std::vector<Handle<Promise>> promises);
+        Handle<Promise> Race(std::vector<Handle<Promise>> promises);
+
         void Flush();
         void SetRecursionDepth(uint32_t depth);
     private:

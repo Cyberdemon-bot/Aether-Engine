@@ -99,6 +99,116 @@ namespace Aether {
             AE_CORE_WARN("[Promise] Flush hit max recursion depth {0} with {1} promises still pending for next frame.", 
                         m_RecursionDepth, m_NextQueue.size());
     }
+
+    Handle<Promise> PromiseManager::All(std::vector<Handle<Promise>> promises)
+    {
+        auto aggregate = CreatePromise();
+        
+        if (promises.empty())
+        {
+            GetPromise(aggregate)->Resolve({});
+            return aggregate;
+        }
+
+        uint32_t total = 0;
+        for (auto& handle : promises)
+            if (GetPromise(handle) != nullptr) total++;
+
+        if (total == 0)
+        {
+            GetPromise(aggregate)->Resolve({});
+            return aggregate;
+        }
+
+        Promise* aggPtr = GetPromise(aggregate);
+        if (aggPtr)
+        {
+            AggregateState state;
+            state.total = total;
+            state.counter = 0;
+            state.rejected = false;
+            state.settled = false;
+            state.results.resize(total);
+            aggPtr->m_AggregateState = state;
+        }
+
+        uint32_t validIdx = 0;
+        for (uint32_t i = 0; i < (uint32_t)promises.size(); i++)
+        {
+            Promise* p = GetPromise(promises[i]);
+            if (p == nullptr) continue;
+
+            uint32_t capturedIdx = validIdx++;
+
+            p->Then(
+                [this, aggregate, capturedIdx](const ScriptTable& result) -> ScriptTable 
+                {
+                    Promise* agg = GetPromise(aggregate);
+                    if (!agg || !agg->m_AggregateState) return {};
+                    auto& state = *agg->m_AggregateState;
+                    if (state.rejected) return {};
+                    state.results[capturedIdx] = result;
+                    if (++state.counter == state.total)
+                        agg->Resolve(ScriptTable::Make(state.results));
+                    return {};
+                },
+                [this, aggregate](const ScriptTable& error) -> ScriptTable 
+                {
+                    Promise* agg = GetPromise(aggregate);
+                    if (!agg || !agg->m_AggregateState) return {};
+                    auto& state = *agg->m_AggregateState;
+                    if (state.rejected) return {};
+                    state.rejected = true;
+                    agg->Reject(error);
+                    return {};
+                }
+            );
+        }
+        return aggregate;
+    }
+
+    Handle<Promise> PromiseManager::Race(std::vector<Handle<Promise>> promises)
+    {
+        auto aggregate = CreatePromise();
+        if (promises.empty()) return aggregate;
+
+        auto settled = CreateRef<bool>(false);
+
+        uint32_t total = 0;
+        for (auto& handle : promises)
+            if (GetPromise(handle) != nullptr) total++;
+
+        if (total == 0)
+        {
+            GetPromise(aggregate)->Resolve({});
+            return aggregate;
+        }
+        
+
+        for (auto& handle : promises)
+        {
+            Promise* p = GetPromise(handle);
+            if (p == nullptr) continue;
+
+            p->Then(
+                [this, aggregate, settled](const ScriptTable& result) -> ScriptTable {
+                    if (*settled) return {};
+                    *settled = true;
+                    Promise* agg = GetPromise(aggregate);
+                    if (agg) agg->Resolve(result);
+                    return {};
+                },
+                [this, aggregate, settled](const ScriptTable& error) -> ScriptTable {
+                    if (*settled) return {};
+                    *settled = true;
+                    Promise* agg = GetPromise(aggregate);
+                    if (agg) agg->Reject(error);
+                    return {};
+                }
+            );
+        }
+        return aggregate;
+    }
     
     void PromiseManager::SetRecursionDepth(uint32_t depth)
     {
