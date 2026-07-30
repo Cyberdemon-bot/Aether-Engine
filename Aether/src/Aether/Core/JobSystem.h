@@ -59,18 +59,18 @@ namespace Aether {
         bool TryStealJob(Job& out, uint32_t selfIndex);
         bool TryPopInjector(Job& out);
 
-        std::vector<std::thread> s_Workers;
-        std::vector<Scope<SPMCDeque<Job, 4096>>> s_Queues;
-        MSPCQueue<Delegate<void()>, 1024> s_Completions;
+        std::vector<std::thread> m_Workers;
+        std::vector<Scope<SPMCDeque<Job, 4096>>> m_Queues;
+        MSPCQueue<Delegate<void()>, 1024> m_Completions;
 
-        std::deque<Job> s_Injector;
-        std::mutex s_InjectorMutex;
+        std::deque<Job> m_Injector;
+        std::mutex m_InjectorMutex;
 
-        Semaphore s_Semaphore{0};
-        std::atomic<bool> s_Stop{false};
+        Semaphore m_Semaphore{0};
+        std::atomic<bool> m_Stop{false};
 
-        std::atomic<uint32_t> s_ActiveJobCount{0};
-        std::condition_variable s_WaitCondition;
-        std::mutex s_WaitMutex;
+        std::atomic<uint32_t> m_ActiveJobCount{0};
+        std::condition_variable m_WaitCondition;
+        std::mutex m_WaitMutex;
     };
 }

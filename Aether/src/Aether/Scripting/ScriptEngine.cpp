@@ -55,21 +55,6 @@ namespace Aether {
         m_PromiseManager.Flush();
     }
 
-    Handle<Promise> ScriptEngine::CreatePromise()
-    {
-        return m_PromiseManager.CreatePromise();
-    }
-
-    Promise* ScriptEngine::GetPromise(Handle<Promise> handle)
-    {
-        return m_PromiseManager.GetPromise(handle);
-    }
-
-    void ScriptEngine::DestroyPromise(Handle<Promise> handle)
-    {
-        m_PromiseManager.DestroyPromise(handle);
-    }
-
     Handle<Bytecode> ScriptEngine::LoadScript(const std::string& source)
     {
         auto& lua = LuaState.lua;

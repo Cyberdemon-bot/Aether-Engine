@@ -52,12 +52,17 @@ namespace Aether {
 
         ResumeRequest request;
         request.handle = handle;
-        request.results.push_back(result);
+        if (result != sol::lua_nil) request.results.push_back(result);
         m_NextResumeQueue.push_back(std::move(request));
     }
 
     void CoroutineManager::ResumeTask(Handle<CoroutineTask> handle, std::vector<sol::object> results)
     {
+        auto* task = m_Tasks.GetResource(handle);
+        if (task == nullptr || task->state == CoroutineState::Dead) return;
+        if (task->pendingResume) return; 
+        task->pendingResume = true;
+
         ResumeRequest request;
         request.handle = handle;
         request.results = std::move(results);
