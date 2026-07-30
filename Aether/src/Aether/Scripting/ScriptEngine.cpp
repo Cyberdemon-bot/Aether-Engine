@@ -27,6 +27,7 @@ namespace Aether {
     {   
         auto& lua = LuaState.lua;
         lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::coroutine);
+        lua_gc(lua, LUA_GCGEN, 0, 0);
         m_Instances.Init();
         m_Sources.Init();
         m_PromiseManager.Init();
@@ -103,8 +104,8 @@ namespace Aether {
         SceneContext sceneCtx{ scene };
         EventContext eventCtx{ handle, &m_EventManager };
         PhysicsContext physicsCtx{ scene, entity };
-        CoroutineContext coroutineCtx{ handle, &m_CoroutineManager };
-        
+        CoroutineContext coroutineCtx{ handle, &m_CoroutineManager, &m_PromiseManager };
+
         env["self"] = self;
         env["Scene"] = sceneCtx;
         env["Event"] = eventCtx;

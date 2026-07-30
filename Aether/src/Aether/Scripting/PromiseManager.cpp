@@ -86,7 +86,7 @@ namespace Aether {
 
                 for (auto& cb : finallyCbs) cb();
 
-                if (p->m_IsChained) m_DestroyQueue.push_back(handle);
+                m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
         } 

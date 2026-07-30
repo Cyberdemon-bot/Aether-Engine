@@ -731,12 +731,13 @@ namespace Aether {
     {
         Handle<ScriptInstance> handle;
         CoroutineManager* coroutine_manager = nullptr;
+        PromiseManager* promise_manager = nullptr;
     };
 
     struct CoroutineBinding
     {
         using Type = CoroutineContext;
-        using Result = std::tuple<uint32_t, float>;
+        using Result = std::tuple<uint64_t, uint32_t, float>;
         static constexpr const char* get_name() { return "CoroutineContext"; }
 
         static constexpr auto get_methods()
@@ -757,16 +758,29 @@ namespace Aether {
                         ctx.coroutine_manager->YieldTask(task);
                         return lua_yield(L, 0);
                     ),
-                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function resolver, sol::variadic_args args, sol::this_state ts), int,
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t handle, uint32_t type, float timeout, sol::this_state ts), int,
                         lua_State* L = ts;
                         lua_pushthread(L);
                         sol::thread current = sol::stack::pop<sol::thread>(L);
                         auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
-                        auto [type, param] = resolver.call<uint32_t, float>(task.Blend(), sol::as_args(args));
+                        auto promise = ctx.promise_manager->GetPromise(Handle<Promise>::FromBlend(handle));
+
+                        if (promise)
+                        {
+                            sol::state_view lua_view(L);
+                            lua_State* main_L = lua_view.lua_state(); 
+                            promise->Then([coroutine_manager = ctx.coroutine_manager, task, main_L]
+                                            (const ScriptTable& result) -> ScriptTable
+                            {
+                                sol::object luaResult = ScriptTable::ToSolObject(main_L, result);
+                                coroutine_manager->ResumeTask(task, luaResult);
+                                return {};
+                            });
+                        }
                         
                         switch(type)
                         {
-                            case 1: ctx.coroutine_manager->WaitForSeconds(task, param); break;
+                            case 1: ctx.coroutine_manager->WaitForSeconds(task, timeout); break;
                             case 2: ctx.coroutine_manager->WaitForManual(task); break;
                             default: ctx.coroutine_manager->YieldTask(task); break;
                         }
@@ -775,8 +789,9 @@ namespace Aether {
                 ),
 
                 AE_REFLECT("Sleep",
-                    AE_MAKE_LAMBDA((), (uint64_t task, float seconds), Result,
-                        return std::make_tuple(1, seconds);  
+                    AE_MAKE_LAMBDA((), (Type& ctx, float seconds), Result,
+                        auto promise_handle = ctx.promise_manager->CreatePromise();
+                        return std::make_tuple(promise_handle.Blend(), 1, seconds);  
                     )
                 )
             );

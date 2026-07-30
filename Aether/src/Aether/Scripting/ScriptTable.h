@@ -20,7 +20,7 @@ namespace Aether {
         bool IsList() const { return m_Type == Type::List; }
 
         static ScriptTable FromSolObject(const sol::object& obj);
-        static sol::object ToSolObject(sol::state& lua, const ScriptTable& val);
+        static sol::object ToSolObject(sol::state_view lua, const ScriptTable& val);
 
         template<typename T> T As() const;
 
