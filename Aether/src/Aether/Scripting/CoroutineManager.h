@@ -30,6 +30,7 @@ namespace Aether {
         Handle<CoroutineTask> self_handle;
         CoroutineState state = CoroutineState::Suspended;
         WaitType condition = WaitType::None;
+        bool pendingResume = false;
         float timer = 0.0f;
 
         bool IsValid()

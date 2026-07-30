@@ -10,7 +10,7 @@ function OnStart()
         Coroutine:await()
         print("Step 2 - resumed after one frame")
         
-        Coroutine:await(Coroutine:Sleep(3))
+        Coroutine:await(Coroutine.Sleep, 3)
         print("Step 3 - resumed after 3 seconds")
         
         print("Done!")
