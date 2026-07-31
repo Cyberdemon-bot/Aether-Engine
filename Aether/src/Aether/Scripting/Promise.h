@@ -32,7 +32,6 @@ namespace Aether {
         void Reject(ScriptTable error);
         void Settle(bool isSuccessed, ScriptTable result);
 
-        const ScriptTable& GetResult() const { return m_Result; }
         bool IsFulfilled() const { return m_State == State::Fulfilled; }
         bool IsRejected() const { return m_State == State::Rejected; }
         bool IsSettled() const { return m_State != State::Pending; }
