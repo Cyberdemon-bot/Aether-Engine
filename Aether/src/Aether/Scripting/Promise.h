@@ -1,45 +1,24 @@
 #pragma once
 
 #include <vector>
+#include <optional>
 #include "Aether/Container/Handle.h"
 #include "Aether/Scripting/ScriptTable.h"
 #include "Aether/Core/Delegate.h"
 
 namespace Aether {
 
-    class PromiseManager;
-
     struct AggregateState
     {
-        uint32_t total = 0;
-        uint32_t counter = 0;
+        uint32_t total    = 0;
+        uint32_t counter  = 0;
         bool rejected = false;
-        bool settled = false;
+        bool settled  = false;
         std::vector<ScriptTable> results;
     };
-
-    class Promise
+    struct Promise
     {
-    public:
-        Promise() = default;
-
-        Handle<Promise> Then(const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
-                            const Delegate<ScriptTable(const ScriptTable&)>& onRejected = {});
-        Handle<Promise> Catch(const Delegate<ScriptTable(const ScriptTable&)>& onRejected);
-        void Finally(const Delegate<void()>& onFinally);
-
-        void Resolve(ScriptTable result);
-        void Reject(ScriptTable error);
-        void Settle(bool isSuccessed, ScriptTable result);
-
-        bool IsFulfilled() const { return m_State == State::Fulfilled; }
-        bool IsRejected() const { return m_State == State::Rejected; }
-        bool IsSettled() const { return m_State != State::Pending; }
-    private:
-        enum class State 
-        { 
-            Pending, Fulfilled, Rejected 
-        };
+        enum class State { Pending, Fulfilled, Rejected };
 
         struct Handler
         {
@@ -47,17 +26,20 @@ namespace Aether {
             Delegate<ScriptTable(const ScriptTable&)> OnRejected;
             Handle<Promise> NextPromise = Handle<Promise>::MakeInvalid();
         };
-        
-        void QueueDispatch();
 
-        Handle<Promise> m_SelfHandle = Handle<Promise>::MakeInvalid();
-        State m_State = State::Pending;
-        ScriptTable m_Result;
+        Handle<Promise> SelfHandle = Handle<Promise>::MakeInvalid();
 
-        std::vector<Handler> m_Handlers;
-        std::vector<Delegate<void()>> m_OnFinally;
-        std::optional<AggregateState> m_AggregateState;
+        State CurrentState = State::Pending;
+        ScriptTable Result;
+        std::vector<Handler> Handlers;
+        std::vector<Delegate<void()>> FinallyCallbacks;
 
-        friend class PromiseManager;
+        std::optional<AggregateState>   Aggregate;
+
+        bool IsPending() const { return CurrentState == State::Pending;   }
+        bool IsFulfilled() const { return CurrentState == State::Fulfilled; }
+        bool IsRejected() const { return CurrentState == State::Rejected;  }
+        bool IsSettled() const { return CurrentState != State::Pending;   }
     };
-}
+
+} 

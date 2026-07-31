@@ -23,7 +23,7 @@ namespace Aether {
     {
         auto handle = m_Promises.CreateResource();
         auto* p = m_Promises.GetResource(handle);
-        if (p != nullptr) p->m_SelfHandle = handle;
+        if (p != nullptr) p->SelfHandle = handle;
         return handle;
     }
 
@@ -37,9 +37,67 @@ namespace Aether {
         m_Promises.DestroyResource(handle);
     }
 
+    void PromiseManager::Resolve(Handle<Promise> handle, ScriptTable result)
+    {
+        Settle(handle, true, result);
+    }
+
+    void PromiseManager::Reject(Handle<Promise> handle, ScriptTable error)
+    {
+        Settle(handle, false, error);
+    }
+
+    void PromiseManager::Settle(Handle<Promise> handle, bool success, ScriptTable result)
+    {
+        Promise* p = m_Promises.GetResource(handle);
+        if (p == nullptr || p->IsSettled()) return;
+
+        p->CurrentState = success ? Promise::State::Fulfilled : Promise::State::Rejected;
+        p->Result = result;
+
+        QueueSettle(handle);
+    }
+
     void PromiseManager::QueueSettle(Handle<Promise> handle)
     {
         m_NextQueue.push_back(handle);
+    }
+
+    Handle<Promise> PromiseManager::Then(Handle<Promise> handle,
+                                         const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
+                                         const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
+    {
+        Handle<Promise> next = CreatePromise();
+
+        Promise* p = m_Promises.GetResource(handle);
+        if (p == nullptr) return next;
+
+        Promise::Handler handler;
+        handler.OnFulfilled = onFulfilled;
+        handler.OnRejected  = onRejected;
+        handler.NextPromise = next;
+        p->Handlers.push_back(handler);
+
+        if (p->IsSettled()) QueueSettle(handle);
+
+        return next;
+    }
+
+    Handle<Promise> PromiseManager::Catch(Handle<Promise> handle,
+                                           const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
+    {
+        return Then(handle, nullptr, onRejected);
+    }
+
+    void PromiseManager::Finally(Handle<Promise> handle, const Delegate<void()>& onFinally)
+    {
+        if (!onFinally) return;
+
+        Promise* p = m_Promises.GetResource(handle);
+        if (p == nullptr) return;
+
+        p->FinallyCallbacks.push_back(onFinally);
+        if (p->IsSettled()) QueueSettle(handle);
     }
 
     void PromiseManager::Flush()
@@ -47,7 +105,7 @@ namespace Aether {
         uint32_t guard = 0;
         if (m_NextQueue.empty()) return;
 
-        do 
+        do
         {
             std::swap(m_Queue, m_NextQueue);
             m_NextQueue.clear();
@@ -57,29 +115,38 @@ namespace Aether {
                 Handle<Promise> handle = m_Queue[i];
 
                 Promise* p = m_Promises.GetResource(handle);
-                if (p == nullptr) continue; 
+                if (p == nullptr) continue;
 
-                const ScriptTable result = p->m_Result;
-                const bool success = p->IsFulfilled();
-                auto handlers = std::move(p->m_Handlers);
-                auto finallyCbs = std::move(p->m_OnFinally);
-                p->m_Handlers.clear();
-                p->m_OnFinally.clear();
+                const ScriptTable result  = p->Result;
+                const bool        success = p->IsFulfilled();
+                auto handlers     = std::move(p->Handlers);
+                auto finallyCbs   = std::move(p->FinallyCallbacks);
+                p->Handlers.clear();
+                p->FinallyCallbacks.clear();
 
                 for (auto& handler : handlers)
                 {
-                    bool handlerRan = false;
-                    ScriptTable out = result;
-                    if (success && handler.OnFulfilled) { out = handler.OnFulfilled(result); handlerRan = true; }
-                    else if (!success && handler.OnRejected) { out = handler.OnRejected(result); handlerRan = true; }
+                    bool        handlerRan = false;
+                    ScriptTable out        = result;
+
+                    if (success && handler.OnFulfilled)
+                    {
+                        out        = handler.OnFulfilled(result);
+                        handlerRan = true;
+                    }
+                    else if (!success && handler.OnRejected)
+                    {
+                        out        = handler.OnRejected(result);
+                        handlerRan = true;
+                    }
 
                     if (handler.NextPromise.IsValid())
                     {
                         Promise* next = m_Promises.GetResource(handler.NextPromise);
                         if (next != nullptr)
                         {
-                            if (handlerRan || success) next->Resolve(out);
-                            else next->Reject(out);
+                            if (handlerRan || success) Resolve(handler.NextPromise, out);
+                            else                       Reject(handler.NextPromise, out);
                         }
                     }
                 }
@@ -89,34 +156,34 @@ namespace Aether {
                 m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
-        } 
-        while(!m_NextQueue.empty() && ++guard < m_RecursionDepth);
+        }
+        while (!m_NextQueue.empty() && ++guard < m_RecursionDepth);
 
         for (auto& handle : m_DestroyQueue) m_Promises.DestroyResource(handle);
         m_DestroyQueue.clear();
 
         if (!m_NextQueue.empty())
-            AE_CORE_WARN("[Promise] Flush hit max recursion depth {0} with {1} promises still pending for next frame.", 
-                        m_RecursionDepth, m_NextQueue.size());
+            AE_CORE_WARN("[Promise] Flush hit max recursion depth {0} with {1} promises still pending for next frame.",
+                         m_RecursionDepth, m_NextQueue.size());
     }
 
     Handle<Promise> PromiseManager::All(std::vector<Handle<Promise>> promises)
     {
         auto aggregate = CreatePromise();
-        
+
         if (promises.empty())
         {
-            GetPromise(aggregate)->Resolve({});
+            Resolve(aggregate, {});
             return aggregate;
         }
 
         uint32_t total = 0;
-        for (auto& handle : promises)
-            if (GetPromise(handle) != nullptr) total++;
+        for (auto& h : promises)
+            if (GetPromise(h) != nullptr) total++;
 
         if (total == 0)
         {
-            GetPromise(aggregate)->Resolve({});
+            Resolve(aggregate, {});
             return aggregate;
         }
 
@@ -124,12 +191,12 @@ namespace Aether {
         if (aggPtr)
         {
             AggregateState state;
-            state.total = total;
-            state.counter = 0;
+            state.total    = total;
+            state.counter  = 0;
             state.rejected = false;
-            state.settled = false;
+            state.settled  = false;
             state.results.resize(total);
-            aggPtr->m_AggregateState = state;
+            aggPtr->Aggregate = state;
         }
 
         uint32_t validIdx = 0;
@@ -140,26 +207,26 @@ namespace Aether {
 
             uint32_t capturedIdx = validIdx++;
 
-            p->Then(
-                [this, aggregate, capturedIdx](const ScriptTable& result) -> ScriptTable 
+            Then(promises[i],
+                [this, aggregate, capturedIdx](const ScriptTable& result) -> ScriptTable
                 {
                     Promise* agg = GetPromise(aggregate);
-                    if (!agg || !agg->m_AggregateState) return {};
-                    auto& state = *agg->m_AggregateState;
+                    if (!agg || !agg->Aggregate) return {};
+                    auto& state = *agg->Aggregate;
                     if (state.rejected) return {};
                     state.results[capturedIdx] = result;
                     if (++state.counter == state.total)
-                        agg->Resolve(ScriptTable::Make(state.results));
+                        Resolve(aggregate, ScriptTable::Make(state.results));
                     return {};
                 },
-                [this, aggregate](const ScriptTable& error) -> ScriptTable 
+                [this, aggregate](const ScriptTable& error) -> ScriptTable
                 {
                     Promise* agg = GetPromise(aggregate);
-                    if (!agg || !agg->m_AggregateState) return {};
-                    auto& state = *agg->m_AggregateState;
+                    if (!agg || !agg->Aggregate) return {};
+                    auto& state = *agg->Aggregate;
                     if (state.rejected) return {};
                     state.rejected = true;
-                    agg->Reject(error);
+                    Reject(aggregate, error);
                     return {};
                 }
             );
@@ -173,57 +240,58 @@ namespace Aether {
         if (promises.empty()) return aggregate;
 
         uint32_t total = 0;
-        for (auto& handle : promises)
-            if (GetPromise(handle) != nullptr) total++;
+        for (auto& h : promises)
+            if (GetPromise(h) != nullptr) total++;
 
         if (total == 0)
         {
-            GetPromise(aggregate)->Resolve({});
+            Resolve(aggregate, {});
             return aggregate;
         }
-        
+
         Promise* aggPtr = GetPromise(aggregate);
         if (aggPtr)
         {
             AggregateState state;
-            state.total = total;
+            state.total   = total;
             state.settled = false;
-            aggPtr->m_AggregateState = state;
+            aggPtr->Aggregate = state;
         }
 
-        for (auto& handle : promises)
+        for (auto& h : promises)
         {
-            Promise* p = GetPromise(handle);
+            Promise* p = GetPromise(h);
             if (p == nullptr) continue;
 
-            p->Then(
-                [this, aggregate](const ScriptTable& result) -> ScriptTable 
+            Then(h,
+                [this, aggregate](const ScriptTable& result) -> ScriptTable
                 {
                     Promise* agg = GetPromise(aggregate);
-                    if (!agg || !agg->m_AggregateState) return {};
-                    auto& state = *agg->m_AggregateState;
+                    if (!agg || !agg->Aggregate) return {};
+                    auto& state = *agg->Aggregate;
                     if (state.settled) return {};
                     state.settled = true;
-                    agg->Resolve(result);
+                    Resolve(aggregate, result);
                     return {};
                 },
-                [this, aggregate](const ScriptTable& error) -> ScriptTable 
+                [this, aggregate](const ScriptTable& error) -> ScriptTable
                 {
                     Promise* agg = GetPromise(aggregate);
-                    if (!agg || !agg->m_AggregateState) return {};
-                    auto& state = *agg->m_AggregateState;
+                    if (!agg || !agg->Aggregate) return {};
+                    auto& state = *agg->Aggregate;
                     if (state.settled) return {};
                     state.settled = true;
-                    agg->Reject(error);
+                    Reject(aggregate, error);
                     return {};
                 }
             );
         }
         return aggregate;
     }
-    
+
     void PromiseManager::SetRecursionDepth(uint32_t depth)
     {
         m_RecursionDepth = depth;
     }
-}
+
+} 

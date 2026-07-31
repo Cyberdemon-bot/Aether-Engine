@@ -17,14 +17,26 @@ namespace Aether {
 
         Handle<Promise> CreatePromise();
         Promise* GetPromise(Handle<Promise> handle);
-        void DestroyPromise(Handle<Promise> handle);
-        void QueueSettle(Handle<Promise> handle);
+        void  DestroyPromise(Handle<Promise> handle);
+
+        void Resolve(Handle<Promise> handle, ScriptTable result);
+        void Reject(Handle<Promise> handle, ScriptTable error);
+        void Settle(Handle<Promise> handle, bool success, ScriptTable result);
+        Handle<Promise> Then(Handle<Promise> handle,
+                             const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
+                             const Delegate<ScriptTable(const ScriptTable&)>& onRejected = {});
+        Handle<Promise> Catch(Handle<Promise> handle,
+                              const Delegate<ScriptTable(const ScriptTable&)>& onRejected);
+        void Finally(Handle<Promise> handle,
+                                const Delegate<void()>& onFinally);
 
         Handle<Promise> All(std::vector<Handle<Promise>> promises);
         Handle<Promise> Race(std::vector<Handle<Promise>> promises);
 
         void Flush();
+        void QueueSettle(Handle<Promise> handle);
         void SetRecursionDepth(uint32_t depth);
+
     private:
         PromiseManager(const PromiseManager&) = delete;
         PromiseManager& operator=(const PromiseManager&) = delete;
@@ -38,4 +50,5 @@ namespace Aether {
 
         uint32_t m_RecursionDepth = 3;
     };
-}
+
+} // namespace Aether

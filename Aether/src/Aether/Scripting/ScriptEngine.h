@@ -107,9 +107,6 @@ namespace Aether {
 
         void Update(Timestep ts);
 
-        CoroutineManager* GetCoroutineManager() { return &m_CoroutineManager; }
-        PromiseManager* GetPromiseManager() { return &m_PromiseManager; }
-
         template<typename... Args>
         void FireEvent(const std::string& event_name, Args&&... args)
         {

@@ -763,20 +763,18 @@ namespace Aether {
                         lua_pushthread(L);
                         sol::thread current = sol::stack::pop<sol::thread>(L);
                         auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
-                        auto promise = ctx.promise_manager->GetPromise(Handle<Promise>::FromBlend(handle));
 
-                        if (promise)
-                        {
-                            sol::state_view lua_view(L);
-                            lua_State* main_L = lua_view.lua_state(); 
-                            promise->Then([coroutine_manager = ctx.coroutine_manager, task, main_L]
-                                            (const ScriptTable& result) -> ScriptTable
+                        sol::state_view lua_view(L);
+                        lua_State* main_L = lua_view.lua_state(); 
+                        ctx.promise_manager->Then(Handle<Promise>::FromBlend(handle),
+                            [coroutine_manager = ctx.coroutine_manager, task, main_L]
+                            (const ScriptTable& result) -> ScriptTable
                             {
                                 sol::object luaResult = ScriptTable::ToSolObject(main_L, result);
                                 coroutine_manager->ResumeTask(task, luaResult);
                                 return {};
-                            });
-                        }
+                            }
+                        );
                         
                         switch(type)
                         {
