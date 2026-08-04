@@ -26,22 +26,20 @@ namespace Aether {
     {
         if (value.size() < prefix.size()) return false;
         if (value.compare(0, prefix.size(), prefix) != 0) return false;
-
         if (prefix.empty()) return true;
-
-        if (value.size() == prefix.size()) return true;           
-        if (!prefix.empty() && prefix.back() == '/') return true; 
-        return value[prefix.size()] == '/';                      
+        if (value.size() == prefix.size()) return true;
+        if (!prefix.empty() && prefix.back() == '/') return true;
+        return value[prefix.size()] == '/';
     }
 
     void FileSystem::Mount(const std::string& virtual_prefix, Ref<FileProvider> provider, int priority)
     {
         std::string fixed_prefix = virtual_prefix;
         if (!fixed_prefix.empty() && fixed_prefix.back() != '/') fixed_prefix += '/';
-        m_Mounts.push_back({fixed_prefix, std::move(provider), priority}); 
+        m_Mounts.push_back({fixed_prefix, std::move(provider), priority});
         std::sort(m_Mounts.begin(), m_Mounts.end(), [](const MountPoint& a, const MountPoint& b)
         {
-            return a.priority > b.priority; 
+            return a.priority > b.priority;
         });
     }
 
@@ -50,9 +48,9 @@ namespace Aether {
         std::string fixed_prefix = virtual_prefix;
         if (!fixed_prefix.empty() && fixed_prefix.back() != '/') fixed_prefix += '/';
         m_Mounts.erase(
-            std::remove_if(m_Mounts.begin(), m_Mounts.end(), [&](const MountPoint& m) 
-            { 
-                return m.virtual_prefix == fixed_prefix; 
+            std::remove_if(m_Mounts.begin(), m_Mounts.end(), [&](const MountPoint& m)
+            {
+                return m.virtual_prefix == fixed_prefix;
             }),
             m_Mounts.end());
     }
@@ -60,13 +58,11 @@ namespace Aether {
     FileProvider* FileSystem::Resolve(std::string_view virtual_path, std::string_view& out_relative) const
     {
         for (const MountPoint& mount : m_Mounts)
-        {   
+        {
             if (!ValidatePath(virtual_path, mount.virtual_prefix)) continue;
             std::string_view relative = virtual_path.substr(mount.virtual_prefix.size());
-            
             if (!mount.provider->Exists(relative)) continue;
-            
-            out_relative = relative; 
+            out_relative = relative;
             return mount.provider.get();
         }
         return nullptr;
@@ -78,47 +74,41 @@ namespace Aether {
         return Resolve(virtual_path, relative) != nullptr;
     }
 
-    Handle<FileData> FileSystem::Open(const std::string& virtual_path)
+    Handle<FileData> FileSystem::Open(std::string_view virtual_path)
     {
-        uint64_t hash_code = fnv1a_64(virtual_path);
-        return Open(hash_code); 
-    }
-
-    Handle<FileData> FileSystem::Open(uint64_t hash_code)
-    {
-        auto* it = m_Registry.Query(hash_code);
+        auto* it = m_Registry.Query(virtual_path);
         if (!it) return Handle<FileData>::MakeInvalid();
 
-        if (it->handle.IsValid())
+        if (it->file_handle.IsValid())
         {
-            auto* entry = m_Table.GetResource(it->handle);
+            auto* entry = m_Table.GetResource(it->file_handle);
             if (entry)
             {
                 entry->ref_count++;
-                return it->handle;
+                return it->file_handle;
             }
-            it->handle = Handle<FileData>::MakeInvalid();
+            it->file_handle = Handle<FileData>::MakeInvalid();
         }
 
         std::string_view relative;
-        std::string_view virtual_path = m_Registry.GetView(it->byte_offset);
-        FileProvider* provider = Resolve(virtual_path, relative);
+        std::string_view path = m_Registry.GetView(*it);
+        FileProvider* provider = Resolve(path, relative);
         if (!provider)
         {
-            AE_CORE_WARN("FileSystem::Open: no mount resolves '{}'", virtual_path);
+            AE_CORE_WARN("FileSystem::Open: no mount resolves '{}'", path);
             return Handle<FileData>::MakeInvalid();
         }
 
         FileData data;
         if (!provider->Read(relative, data))
         {
-            AE_CORE_ERROR("FileSystem::Open: provider failed to read '{}'", virtual_path);
+            AE_CORE_ERROR("FileSystem::Open: provider failed to read '{}'", path);
             return Handle<FileData>::MakeInvalid();
         }
 
-        Entry entry{data, 1};
+        Entry entry{ data, 1 };
         Handle<FileData> handle = m_Table.CreateResource(entry);
-        it->handle = handle; 
+        it->file_handle = handle;
 
         return handle;
     }
@@ -145,7 +135,7 @@ namespace Aether {
     FileData FileSystem::GetBytes(Handle<FileData> handle)
     {
         Entry* entry = m_Table.GetResource(handle);
-        if (!entry) return FileData{}; 
+        if (!entry) return FileData{};
         return entry->data;
     }
 

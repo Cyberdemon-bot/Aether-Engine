@@ -8,9 +8,8 @@ class Sandbox : public Aether::Application
 public:
     Sandbox() 
     { 
-        //SetIcon("assets/textures/wood.jpg");
-        PushLayer(new LabLayer());
-        //PushLayer(new MainGameLayer());
+        //PushLayer(new LabLayer());
+        PushLayer(new MainGameLayer());
         //PushLayer(new TestLayer());
     }
     ~Sandbox() {}

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <string_view>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
 #include "Aether/Core/Base.h"
@@ -94,9 +94,9 @@ namespace Aether {
 
         virtual Handle<Mask> CreateMask(Handle<RSkeleton> skeleton, float* weights, size_t size) = 0;
         virtual void DestroyMask(Handle<Mask> mask) = 0;
-        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<RSkeleton> skeleton, const std::string& boneName, float weight) = 0;
+        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<RSkeleton> skeleton, std::string_view boneName, float weight) = 0;
 
-        virtual int GetJointIndex(Handle<RSkeleton> skeleton, const std::string& name) const = 0;
+        virtual int GetJointIndex(Handle<RSkeleton> skeleton, std::string_view name) const = 0;
         virtual std::string GetJointName(Handle<RSkeleton> skeleton, int index) const = 0;
         virtual bool GetIBM(Handle<RSkeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
         virtual void GetRestPoseMatrices(Handle<RSkeleton> skeleton, glm::mat4* arr, size_t size) const = 0;

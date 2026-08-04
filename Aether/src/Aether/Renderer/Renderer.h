@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string_view>
 #include "Aether/Core/Base.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
@@ -10,7 +11,6 @@
 #include "Aether/Renderer/Shader.h"
 #include "Aether/Renderer/RenderCommand.h"
 #include <glm/glm.hpp>
-#include <tuple>
 
 namespace Aether {
 
@@ -122,7 +122,7 @@ namespace Aether {
 
 		void ActivatePass(uint32_t PassIdx);
 		void DeactivatePass(uint32_t PassIdx);
-		void SetPassAtrib(uint32_t passIdx, const std::string& name, int value);
+		void SetPassAtrib(uint32_t passIdx, std::string_view name, int value);
 		
 		void BeginScene(const Camera& camera, LightParam* lights = nullptr, size_t size = 0);
 		void EndScene();

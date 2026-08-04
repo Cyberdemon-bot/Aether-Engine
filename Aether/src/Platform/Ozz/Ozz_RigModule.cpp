@@ -191,7 +191,7 @@ namespace Aether {
         m_MaskPool.DestroyResource(mask);
     }
 
-    void Ozz_RigModule::FillMaskSubtree(Handle<Mask> mask, Handle<RSkeleton> skeleton, const std::string& boneName, float weight)
+    void Ozz_RigModule::FillMaskSubtree(Handle<Mask> mask, Handle<RSkeleton> skeleton, std::string_view boneName, float weight)
     {
         auto* it  = m_MaskPool.GetResource(mask);
         auto* sk  = m_SkeletonPool.GetResource(skeleton);
@@ -334,7 +334,7 @@ namespace Aether {
 
     // queries
 
-    int Ozz_RigModule::GetJointIndex(Handle<RSkeleton> skeleton, const std::string& name) const
+    int Ozz_RigModule::GetJointIndex(Handle<RSkeleton> skeleton, std::string_view name) const
     {
         auto it = m_SkeletonPool.GetResource(skeleton);
         if (!it) return -1;

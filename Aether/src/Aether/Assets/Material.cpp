@@ -6,22 +6,22 @@
 
 namespace Aether {
 
-    void Material::AddImage(const std::string& name, Handle<Asset> handle) 
+    void Material::AddImage(std::string_view name, Handle<Asset> handle) 
     { 
-        m_Images.push_back({name, handle}); 
+        m_Images.push_back({std::string(name), handle}); 
     }
 
-    void Material::AddFloat(const std::string& name, float value) 
+    void Material::AddFloat(std::string_view name, float value) 
     { 
-        m_FloatUniforms.push_back({name, value}); 
+        m_FloatUniforms.push_back({std::string(name), value}); 
     }
 
-    void Material::AddInt(const std::string& name, int value) 
+    void Material::AddInt(std::string_view name, int value) 
     { 
-        m_IntUniforms.push_back({name, value}); 
+        m_IntUniforms.push_back({std::string(name), value}); 
     }
 
-    void Material::AddIntArray(const std::string& name, int* values, uint32_t count)
+    void Material::AddIntArray(std::string_view name, int* values, uint32_t count)
     {
         auto it = std::find_if(m_IntArrayUniforms.begin(), m_IntArrayUniforms.end(), 
             [&name](const auto& pair) 
@@ -33,19 +33,19 @@ namespace Aether {
             it->second.assign(values, values + count);
     }
 
-    void Material::AddVec3(const std::string& name, const glm::vec3& value) 
+    void Material::AddVec3(std::string_view name, const glm::vec3& value) 
     { 
-        m_Vec3Uniforms.push_back({name, value}); 
+        m_Vec3Uniforms.push_back({std::string(name), value}); 
     }
 
-    void Material::AddVec4(const std::string& name, const glm::vec4& value) 
+    void Material::AddVec4(std::string_view name, const glm::vec4& value) 
     { 
-        m_Vec4Uniforms.push_back({name, value}); 
+        m_Vec4Uniforms.push_back({std::string(name), value}); 
     }
 
-    void Material::AddMat4(const std::string& name, const glm::mat4& value) 
+    void Material::AddMat4(std::string_view name, const glm::mat4& value) 
     { 
-        m_Mat4Uniforms.push_back({name, value}); 
+        m_Mat4Uniforms.push_back({std::string(name), value}); 
     }
 
     void Material::AddFlag(MaterialFlag flag) 

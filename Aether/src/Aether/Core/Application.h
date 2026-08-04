@@ -22,7 +22,6 @@ namespace Aether {
 
         void PushLayer(Layer* Layer);
         void PushOverlay(Layer* layer);
-        void SetIcon(const std::string& path);
 
         template<typename T>
         void InitService()

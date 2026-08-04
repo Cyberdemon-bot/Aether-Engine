@@ -2,7 +2,6 @@
 
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include "Aether/Core/Base.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
@@ -31,8 +30,7 @@ namespace Aether {
         void Init();
         void Shutdown();
 
-        Handle<FileData> Open(const std::string& virtual_path);
-        Handle<FileData> Open(uint64_t hash_code);
+        Handle<FileData> Open(std::string_view virtual_path);
         void Close(Handle<FileData> handle);
         FileData GetBytes(Handle<FileData> handle);
         bool IsValid(Handle<FileData> handle);
@@ -46,6 +44,7 @@ namespace Aether {
     private:
         bool ValidatePath(std::string_view value, std::string_view prefix) const;
         FileProvider* Resolve(std::string_view virtual_path, std::string_view& out_relative) const;
+
         FileRegistry m_Registry;
         ResourcePool<Handle<FileData>, Entry> m_Table;
         std::vector<MountPoint> m_Mounts;

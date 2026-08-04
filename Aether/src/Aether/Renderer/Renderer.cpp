@@ -426,12 +426,12 @@ namespace Aether {
 		}
 	}
 
-	void Renderer::SetPassAtrib(uint32_t passIdx, const std::string& name, int value)
+	void Renderer::SetPassAtrib(uint32_t passIdx, std::string_view name, int value)
 	{
 		auto& pass = s_RenderData->s_PassList[passIdx];
 		for (auto& attrib : pass.attribList)
 			if (attrib.first == name) { attrib.second = value; return; }
-		pass.attribList.emplace_back(name, value);
+		pass.attribList.emplace_back(std::string(name), value);
 	}
 
 	void Renderer::Flush(const RenderPass& pass)

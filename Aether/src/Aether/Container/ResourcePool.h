@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <concepts>
-#include "Aether/Core/Log.h"
 #include "Aether/Container/Handle.h"
 
 namespace Aether {

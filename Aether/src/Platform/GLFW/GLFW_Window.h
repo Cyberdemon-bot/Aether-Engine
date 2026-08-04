@@ -24,7 +24,6 @@ namespace Aether {
 		virtual void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
 		virtual void SetVSync(bool enabled) override;
 		virtual bool IsVSync() const override;
-		virtual void SetIcon(const std::string& path) override;
 
 		virtual void* GetWindow() const override { return m_Window; }
 	private:

@@ -248,7 +248,7 @@ namespace Aether {
         return Null_Entity;
     }
 
-    std::vector<Entity> Scene::FindEntity(const std::string& tag) const
+    std::vector<Entity> Scene::FindEntity(std::string_view tag) const
     {
         std::vector<Entity> entList;
         const auto& view = View<TagComponent>();

@@ -4,6 +4,7 @@
 #include <sol/coroutine.hpp>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
+#include <string_view>
 #include <string>
 
 #include "Aether/Core/Delegate.h"
@@ -124,7 +125,7 @@ namespace Aether {
             return ScriptTable::FromSolObject(obj);
         }
 
-        void ImportNativeFunc(const std::string& name, Delegate<ScriptTable(const ScriptTable&)> func);
+        void ImportNativeFunc(std::string_view name, Delegate<ScriptTable(const ScriptTable&)> func);
         Handle<Bytecode> LoadScript(const std::string& source);
     private:
         LuaWorker LuaState;
