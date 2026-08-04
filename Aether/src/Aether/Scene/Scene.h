@@ -56,7 +56,7 @@ namespace Aether {
         void Update(Timestep ts, EditorCamera* camera = nullptr);
 
         Entity FindEntity(UUID id) const;
-        std::vector<Entity> FindEntity(const std::string& tag) const;
+        std::vector<Entity> FindEntity(std::string_view tag) const;
 
         Handle<PhysicsInstance> GetPhysicsInstance() 
         { 

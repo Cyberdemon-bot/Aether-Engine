@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <string_view>
 #include <algorithm>
 
 namespace Aether {
@@ -24,13 +25,13 @@ namespace Aether {
     {
         Material() = default;
 
-        void AddImage(const std::string& name, Handle<Asset> handle);
-        void AddFloat(const std::string& name, float value);
-        void AddInt(const std::string& name, int value);
-        void AddIntArray(const std::string& name, int* values, uint32_t count);
-        void AddVec3(const std::string& name, const glm::vec3& value);
-        void AddVec4(const std::string& name, const glm::vec4& value);
-        void AddMat4(const std::string& name, const glm::mat4& value);
+        void AddImage(std::string_view name, Handle<Asset> handle);
+        void AddFloat(std::string_view name, float value);
+        void AddInt(std::string_view name, int value);
+        void AddIntArray(std::string_view name, int* values, uint32_t count);
+        void AddVec3(std::string_view name, const glm::vec3& value);
+        void AddVec4(std::string_view name, const glm::vec4& value);
+        void AddMat4(std::string_view name, const glm::mat4& value);
 
         void AddFlag(MaterialFlag flag);
         void RemoveFlag(MaterialFlag flag);

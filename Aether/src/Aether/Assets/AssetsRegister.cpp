@@ -19,9 +19,9 @@ namespace Aether {
         return map[key];
     }
 
-    UUID AssetsRegister::Register(const std::string& name, UUID id)
+    UUID AssetsRegister::Register(std::string_view name, UUID id)
     {
-        GetMap()[id] = name;
+        GetMap()[id] = std::string(name);
         return id;
     }
 
