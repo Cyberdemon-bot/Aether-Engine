@@ -91,18 +91,17 @@ namespace Aether {
         }
 
         std::string_view relative;
-        std::string_view path = m_Registry.GetView(*it);
-        FileProvider* provider = Resolve(path, relative);
+        FileProvider* provider = Resolve(virtual_path, relative);
         if (!provider)
         {
-            AE_CORE_WARN("FileSystem::Open: no mount resolves '{}'", path);
+            AE_CORE_WARN("FileSystem::Open: no mount resolves '{}'", virtual_path);
             return Handle<FileData>::MakeInvalid();
         }
 
         FileData data;
         if (!provider->Read(relative, data))
         {
-            AE_CORE_ERROR("FileSystem::Open: provider failed to read '{}'", path);
+            AE_CORE_ERROR("FileSystem::Open: provider failed to read '{}'", virtual_path);
             return Handle<FileData>::MakeInvalid();
         }
 

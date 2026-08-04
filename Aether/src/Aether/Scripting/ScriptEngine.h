@@ -121,7 +121,7 @@ namespace Aether {
         template<typename... Args>
         ScriptTable CallMethod(Handle<ScriptInstance> handle, const std::string func_name, Args&&... args)
         {
-            auto& obj = CallDirectInstanceAPI(handle, func_name, std::forward<Args>(args)...);
+            auto obj = CallDirectInstanceAPI(handle, func_name, std::forward<Args>(args)...);
             return ScriptTable::FromSolObject(obj);
         }
 

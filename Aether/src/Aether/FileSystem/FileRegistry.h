@@ -1,9 +1,8 @@
 #pragma once
 
 #include <string_view>
-#include <vector>
 #include "Aether/Container/Handle.h"
-#include "Aether/Container/StringTable.h"
+#include "Aether/Container/Table.h"
 #include "Aether/FileSystem/FileData.h"
 
 namespace Aether {
@@ -12,8 +11,7 @@ namespace Aether {
 
     struct PathEntry
     {
-        Handle<StringData> string_handle;  
-        Handle<FileData> file_handle;   
+        Handle<FileData> file_handle;
     };
 
     class FileRegistry
@@ -24,12 +22,12 @@ namespace Aether {
 
         void RegisterPath(std::string_view virtual_path);
         void CommitTable();
+
     private:
         PathEntry* Query(std::string_view virtual_path);
-        std::string_view GetView(const PathEntry& entry) const;
+        std::string_view GetView(const Handle<PathEntry>& handle) const;
 
-        StringTable m_Strings;
-        std::vector<PathEntry> m_Entries;
+        Table<Handle<PathEntry>, PathEntry> m_Table;
 
         friend class FileSystem;
     };
