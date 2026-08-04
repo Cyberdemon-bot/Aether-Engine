@@ -7,61 +7,38 @@ namespace Aether {
 
     void FileRegistry::Init()
     {
-        m_Strings.Init();
-        m_Entries.reserve(16);
+        m_Table.Init();
     }
 
     void FileRegistry::Shutdown()
     {
-        m_Strings.Shutdown();
-        m_Entries.clear();
+        m_Table.Shutdown();
     }
 
     void FileRegistry::RegisterPath(std::string_view virtual_path)
     {
-        Handle<StringData> string_handle = m_Strings.Get(virtual_path);
-        if (!string_handle.IsValid()) return; 
-
-        uint32_t idx = string_handle.index;
-        if (idx >= m_Entries.size())
-            m_Entries.resize(idx + 1);
-
-        if (m_Entries[idx].string_handle.Blend() == string_handle.Blend()) return;
-        m_Entries[idx] = { string_handle, Handle<FileData>::MakeInvalid() };
+        m_Table.GetOrCreate(virtual_path);
     }
 
     void FileRegistry::CommitTable()
     {
-        m_Strings.Resolve();
+        m_Table.Resolve();
     }
 
     PathEntry* FileRegistry::Query(std::string_view virtual_path)
     {
-        Handle<StringData> string_handle = m_Strings.Search(virtual_path);
-        if (!string_handle.IsValid())
+        Handle<PathEntry> handle = m_Table.Search(virtual_path);
+        if (!handle.IsValid())
         {
             AE_CORE_ERROR("FileRegistry::Query: '{}' is not registered!", virtual_path);
             return nullptr;
         }
 
-        uint32_t idx = string_handle.index;
-        if (idx >= m_Entries.size())
-        {
-            AE_CORE_ERROR("FileRegistry::Query: handle index {} out of range!", idx);
-            return nullptr;
-        }
-
-        if (m_Entries[idx].string_handle.Blend() != string_handle.Blend())
-        {
-            AE_CORE_ERROR("FileRegistry::Query: stale handle for '{}'!", virtual_path);
-            return nullptr;
-        }
-
-        return &m_Entries[idx];
+        return m_Table.GetData(handle);
     }
 
-    std::string_view FileRegistry::GetView(const PathEntry& entry) const
+    std::string_view FileRegistry::GetView(const Handle<PathEntry>& handle) const
     {
-        return m_Strings.GetView(entry.string_handle);
+        return m_Table.GetView(handle);
     }
 }

@@ -23,25 +23,25 @@ namespace Aether {
         void Reject(Handle<Promise> handle, ScriptTable error);
         void Settle(Handle<Promise> handle, bool success, ScriptTable result);
         Handle<Promise> Then(Handle<Promise> handle,
-                             const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
-                             const Delegate<ScriptTable(const ScriptTable&)>& onRejected = {});
+                             Delegate<ScriptTable(const ScriptTable&)> onFulfilled,
+                             Delegate<ScriptTable(const ScriptTable&)> onRejected = {});
         Handle<Promise> Catch(Handle<Promise> handle,
-                              const Delegate<ScriptTable(const ScriptTable&)>& onRejected);
+                              Delegate<ScriptTable(const ScriptTable&)> onRejected);
         void Finally(Handle<Promise> handle,
-                                const Delegate<void()>& onFinally);
+                                Delegate<void()> onFinally);
 
         Handle<Promise> All(std::vector<Handle<Promise>> promises);
         Handle<Promise> Race(std::vector<Handle<Promise>> promises);
 
         void Flush();
-        void QueueSettle(Handle<Promise> handle);
         void SetRecursionDepth(uint32_t depth);
-
     private:
         PromiseManager(const PromiseManager&) = delete;
         PromiseManager& operator=(const PromiseManager&) = delete;
         PromiseManager(PromiseManager&&) = default;
         PromiseManager& operator=(PromiseManager&&) = default;
+
+        void QueueSettle(Handle<Promise> handle);
 
         ResourcePool<Handle<Promise>, Promise> m_Promises;
         std::vector<Handle<Promise>> m_Queue;

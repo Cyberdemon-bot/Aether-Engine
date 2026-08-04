@@ -1,15 +1,15 @@
 #pragma once
 
+#include <string>
+#include <vector>
+#include <string_view>
+#include <sol/sol.hpp>
+#include <glm/glm.hpp>
 #include "Aether/Core/Delegate.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
+#include "Aether/Container/Table.h"
 #include "Aether/Scripting/ScriptTable.h"
-#include <sol/sol.hpp>
-#include <glm/glm.hpp>
-#include <unordered_map>
-#include <string>
-#include <vector>
-#include <tuple>
 
 namespace Aether {
     struct ScriptInstance;
@@ -23,8 +23,14 @@ namespace Aether {
 
     struct EventListener 
     {
-        Handle<ScriptInstance> script;
+        bool is_native = false;
         sol::main_protected_function callback;
+        Delegate<bool(const ScriptTable&)> native_callback;
+    };
+
+    struct ListenerList
+    {
+        std::vector<Handle<EventListener>> list;
     };
 
     class EventManager
@@ -35,11 +41,12 @@ namespace Aether {
         void Init();
         void Shutdown();
 
-        void FireEvent(const std::string& event_name, const std::vector<sol::object>& args);
+        void FireEvent(std::string_view event_name, const std::vector<sol::object>& args);
 
-        void AddListener(Handle<ScriptInstance> script, const std::string& event_name, sol::main_protected_function callback);
-        void RemoveListener(Handle<ScriptInstance> script);
-        void RemoveListener(Handle<ScriptInstance> script, const std::string& event_name);
+        Handle<EventListener> CreateListener(std::string_view event_name, sol::main_protected_function callback);
+        Handle<EventListener> CreateListener(std::string_view event_name, const Delegate<bool(const ScriptTable&)>& native_callback);
+        void DestroyListener(Handle<EventListener> handle);
+        void RemoveEvent(std::string_view event_name);
 
         void SetRecursionDepth(uint32_t depth);
         void Flush();
@@ -48,11 +55,14 @@ namespace Aether {
         EventManager& operator=(const EventManager&) = delete;
         EventManager(EventManager&&) = default;
         EventManager& operator=(EventManager&&) = default;
-
-        std::unordered_map<std::string, Handle<ListenerList>> m_KeyTable;
-        ResourcePool<Handle<ListenerList>, std::vector<EventListener>> m_Listeners;
+        
+        Table<Handle<ListenerList>, ListenerList> m_Keys;
+        ResourcePool<Handle<EventListener>, EventListener> m_Listeners;
+        
         std::vector<ScriptEvent> m_Queue;
         std::vector<ScriptEvent> m_NextQueue;
+        std::vector<Handle<EventListener>> m_DestroyQueue;
+        std::vector<ScriptTable> m_ArgsBuffer;
 
         uint32_t m_RecursionDepth = 3;
     };

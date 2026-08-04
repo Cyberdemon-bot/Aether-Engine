@@ -19,7 +19,7 @@ namespace Aether {
         BindType<SceneCameraBinding>();
         BindType<ScriptSelfBinding>();
         BindType<SceneBinding>();
-        BindType<EventManagerBinding>();
+        //BindType<EventManagerBinding>();
         BindType<CollisionBinding>();
         BindType<RaycastHitBinding>();
         BindType<PhysicsBinding>();

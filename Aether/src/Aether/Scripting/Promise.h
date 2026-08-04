@@ -10,8 +10,8 @@ namespace Aether {
 
     struct AggregateState
     {
-        uint32_t total    = 0;
-        uint32_t counter  = 0;
+        uint32_t total = 0;
+        uint32_t counter = 0;
         bool rejected = false;
         bool settled  = false;
         std::vector<ScriptTable> results;
@@ -34,7 +34,7 @@ namespace Aether {
         std::vector<Handler> Handlers;
         std::vector<Delegate<void()>> FinallyCallbacks;
 
-        std::optional<AggregateState>   Aggregate;
+        std::optional<AggregateState> Aggregate;
 
         bool IsPending() const { return CurrentState == State::Pending;   }
         bool IsFulfilled() const { return CurrentState == State::Fulfilled; }

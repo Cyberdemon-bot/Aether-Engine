@@ -64,17 +64,16 @@ namespace Aether {
     }
 
     Handle<Promise> PromiseManager::Then(Handle<Promise> handle,
-                                         const Delegate<ScriptTable(const ScriptTable&)>& onFulfilled,
-                                         const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
+                                        Delegate<ScriptTable(const ScriptTable&)> onFulfilled,
+                                        Delegate<ScriptTable(const ScriptTable&)> onRejected)
     {
-        Handle<Promise> next = CreatePromise();
-
         Promise* p = m_Promises.GetResource(handle);
-        if (p == nullptr) return next;
+        if (p == nullptr) return Handle<Promise>::MakeInvalid();
 
+        Handle<Promise> next = CreatePromise();
         Promise::Handler handler;
-        handler.OnFulfilled = onFulfilled;
-        handler.OnRejected  = onRejected;
+        handler.OnFulfilled = std::move(onFulfilled);
+        handler.OnRejected = std::move(onRejected);
         handler.NextPromise = next;
         p->Handlers.push_back(handler);
 
@@ -84,19 +83,19 @@ namespace Aether {
     }
 
     Handle<Promise> PromiseManager::Catch(Handle<Promise> handle,
-                                           const Delegate<ScriptTable(const ScriptTable&)>& onRejected)
+                                        Delegate<ScriptTable(const ScriptTable&)> onRejected)
     {
-        return Then(handle, nullptr, onRejected);
+        return Then(handle, nullptr, std::move(onRejected));
     }
 
-    void PromiseManager::Finally(Handle<Promise> handle, const Delegate<void()>& onFinally)
+    void PromiseManager::Finally(Handle<Promise> handle, Delegate<void()> onFinally)
     {
         if (!onFinally) return;
 
         Promise* p = m_Promises.GetResource(handle);
         if (p == nullptr) return;
 
-        p->FinallyCallbacks.push_back(onFinally);
+        p->FinallyCallbacks.emplace_back(std::move(onFinally));
         if (p->IsSettled()) QueueSettle(handle);
     }
 
@@ -118,25 +117,23 @@ namespace Aether {
                 if (p == nullptr) continue;
 
                 const ScriptTable result  = p->Result;
-                const bool        success = p->IsFulfilled();
-                auto handlers     = std::move(p->Handlers);
-                auto finallyCbs   = std::move(p->FinallyCallbacks);
-                p->Handlers.clear();
-                p->FinallyCallbacks.clear();
+                const bool success = p->IsFulfilled();
+                auto handlers = std::move(p->Handlers);
+                auto finallyCbs = std::move(p->FinallyCallbacks);
 
                 for (auto& handler : handlers)
                 {
-                    bool        handlerRan = false;
-                    ScriptTable out        = result;
+                    bool handlerRan = false;
+                    ScriptTable out = result;
 
                     if (success && handler.OnFulfilled)
                     {
-                        out        = handler.OnFulfilled(result);
+                        out = handler.OnFulfilled(result);
                         handlerRan = true;
                     }
                     else if (!success && handler.OnRejected)
                     {
-                        out        = handler.OnRejected(result);
+                        out = handler.OnRejected(result);
                         handlerRan = true;
                     }
 
@@ -146,13 +143,12 @@ namespace Aether {
                         if (next != nullptr)
                         {
                             if (handlerRan || success) Resolve(handler.NextPromise, out);
-                            else                       Reject(handler.NextPromise, out);
+                            else Reject(handler.NextPromise, out);
                         }
                     }
                 }
 
                 for (auto& cb : finallyCbs) cb();
-
                 m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
@@ -177,9 +173,7 @@ namespace Aether {
             return aggregate;
         }
 
-        uint32_t total = 0;
-        for (auto& h : promises)
-            if (GetPromise(h) != nullptr) total++;
+        uint32_t total = static_cast<uint32_t>(promises.size());
 
         if (total == 0)
         {
@@ -203,9 +197,20 @@ namespace Aether {
         for (uint32_t i = 0; i < (uint32_t)promises.size(); i++)
         {
             Promise* p = GetPromise(promises[i]);
-            if (p == nullptr) continue;
+            if (p == nullptr)
+            {
+                Promise* agg = GetPromise(aggregate);
+                if (agg && agg->Aggregate)
+                {
+                    auto& state = *agg->Aggregate;
+                    state.results[i] = {}; 
+                    if (++state.counter == state.total)
+                        Resolve(aggregate, ScriptTable::Make(state.results));
+                }
+                continue;
+            }
 
-            uint32_t capturedIdx = validIdx++;
+            uint32_t capturedIdx = i;
 
             Then(promises[i],
                 [this, aggregate, capturedIdx](const ScriptTable& result) -> ScriptTable
