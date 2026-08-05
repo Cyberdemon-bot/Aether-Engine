@@ -25,8 +25,6 @@ namespace Aether {
 
     private:
         PathEntry* Query(std::string_view virtual_path);
-        std::string_view GetView(const Handle<PathEntry>& handle) const;
-
         Table<Handle<PathEntry>, PathEntry> m_Table;
 
         friend class FileSystem;

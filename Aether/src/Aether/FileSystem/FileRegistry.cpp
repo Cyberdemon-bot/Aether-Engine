@@ -36,9 +36,4 @@ namespace Aether {
 
         return m_Table.GetData(handle);
     }
-
-    std::string_view FileRegistry::GetView(const Handle<PathEntry>& handle) const
-    {
-        return m_Table.GetView(handle);
-    }
 }
