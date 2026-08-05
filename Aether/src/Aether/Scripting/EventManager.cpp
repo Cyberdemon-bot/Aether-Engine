@@ -11,6 +11,7 @@ namespace Aether {
         m_Queue.reserve(32);
         m_ArgsBuffer.reserve(32);
         m_NextQueue.reserve(32);
+        m_DestroyQueue.reserve(32);
     }
 
     void EventManager::Shutdown()
@@ -18,6 +19,7 @@ namespace Aether {
         m_Queue.clear();
         m_NextQueue.clear();
         m_ArgsBuffer.clear();
+        m_DestroyQueue.clear();
         m_Keys.Shutdown();
         m_Listeners.Shutdown();
     }
@@ -30,24 +32,32 @@ namespace Aether {
     Handle<EventListener> EventManager::CreateListener(std::string_view event_name, sol::main_protected_function callback)
     {
         Handle<ListenerList> list = m_Keys.GetOrCreate(event_name);
-        Handle<EventListener> listener = m_Listeners.CreateResource();
-        auto listenerIt = m_Listeners.GetResource(listener);
-        listenerIt->is_native = false;
-        listenerIt->callback = callback;
-        m_Keys.GetData(list)->list.push_back(listener);
+        auto* listIt = m_Keys.GetData(list);
+        if (!listIt) return Handle<EventListener>::MakeInvalid();
 
+        Handle<EventListener> listener = m_Listeners.CreateResource();
+        auto* listenerIt = m_Listeners.GetResource(listener);
+        if (!listenerIt) return Handle<EventListener>::MakeInvalid();
+
+        listenerIt->is_native = false;
+        listenerIt->callback = std::move(callback);
+        listIt->list.push_back(listener);
         return listener;
     }
 
     Handle<EventListener> EventManager::CreateListener(std::string_view event_name, const Delegate<bool(const ScriptTable&)>& native_callback)
     {
         Handle<ListenerList> list = m_Keys.GetOrCreate(event_name);
+        auto* listIt = m_Keys.GetData(list);
+        if (!listIt) return Handle<EventListener>::MakeInvalid();
+
         Handle<EventListener> listener = m_Listeners.CreateResource();
-        auto listenerIt = m_Listeners.GetResource(listener);
+        auto* listenerIt = m_Listeners.GetResource(listener);
+        if (!listenerIt) return Handle<EventListener>::MakeInvalid();
+
         listenerIt->is_native = true;
         listenerIt->native_callback = native_callback;
-        m_Keys.GetData(list)->list.push_back(listener);
-
+        listIt->list.push_back(listener);
         return listener;
     }
 
@@ -80,31 +90,22 @@ namespace Aether {
         do
         {
             std::swap(m_Queue, m_NextQueue);
-            m_NextQueue.clear();    
-            
+            m_NextQueue.clear();
+
             for (auto& event : m_Queue)
             {
                 Handle<ListenerList> list = m_Keys.Search(event.name);
                 if (!list.IsValid()) continue;
 
-                auto listIt = m_Keys.GetData(list);
+                auto* listIt = m_Keys.GetData(list);
                 if (!listIt) continue;
-
-                std::erase_if(listIt->list, [this](auto handle) 
-                {
-                    if (!m_Listeners.GetResource(handle)) 
-                    {
-                        DestroyListener(handle);
-                        return true;
-                    }
-                    return false;
-                });
 
                 for (auto handle : listIt->list)
                 {
                     auto* listener = m_Listeners.GetResource(handle);
+                    if (!listener) continue;
 
-                    if (!listener->is_native) 
+                    if (!listener->is_native)
                     {
                         auto result = listener->callback(sol::as_args(event.args));
                         if (!result.valid())
@@ -117,24 +118,31 @@ namespace Aether {
                     {
                         for (auto& arg : event.args)
                             m_ArgsBuffer.push_back(ScriptTable::FromSolObject(arg));
-                            
+
                         bool isContinue = listener->native_callback(ScriptTable::Make(m_ArgsBuffer));
                         m_ArgsBuffer.clear();
-                        if (!isContinue) DestroyListener(handle); 
+                        if (!isContinue) DestroyListener(handle);
                     }
                 }
             }
         }
-        while(!m_NextQueue.empty() && ++guard < m_RecursionDepth);
+        while (!m_NextQueue.empty() && ++guard < m_RecursionDepth);
 
         if (!m_NextQueue.empty())
-            AE_CORE_WARN("[Events] Flush hit recursion depth {0} with {1} events still pending", 
+            AE_CORE_WARN("[Events] Flush hit recursion depth {0} with {1} events still pending",
                         m_RecursionDepth, m_NextQueue.size());
 
-        for (auto& handle : m_DestroyQueue) 
+        for (auto& handle : m_DestroyQueue)
             m_Listeners.DestroyResource(handle);
 
         m_DestroyQueue.clear();
-        m_Queue.clear();
+
+        m_Keys.ForEach([this](ListenerList& listIt)
+        {
+            std::erase_if(listIt.list, [this](auto handle)
+            {
+                return !m_Listeners.GetResource(handle);
+            });
+        });
     }
 }
