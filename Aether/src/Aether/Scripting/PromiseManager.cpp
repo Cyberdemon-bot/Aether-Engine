@@ -88,7 +88,7 @@ namespace Aether {
         return Then(handle, nullptr, std::move(onRejected));
     }
 
-    void PromiseManager::Finally(Handle<Promise> handle, Delegate<void()> onFinally)
+    void PromiseManager::Finally(Handle<Promise> handle, Delegate<void(const ScriptTable&)> onFinally)
     {
         if (!onFinally) return;
 
@@ -112,11 +112,10 @@ namespace Aether {
             for (size_t i = 0; i < m_Queue.size(); i++)
             {
                 Handle<Promise> handle = m_Queue[i];
-
                 Promise* p = m_Promises.GetResource(handle);
                 if (p == nullptr) continue;
 
-                const ScriptTable result  = p->Result;
+                const ScriptTable result = p->Result;
                 const bool success = p->IsFulfilled();
                 auto handlers = std::move(p->Handlers);
                 auto finallyCbs = std::move(p->FinallyCallbacks);
@@ -148,7 +147,14 @@ namespace Aether {
                     }
                 }
 
-                for (auto& cb : finallyCbs) cb();
+                for (auto& cb : finallyCbs) cb(result);
+
+                if (p->Aggregate)
+                {
+                    for (auto& child : p->Aggregate->children)
+                        Reject(child, {});
+                    p->Aggregate->children.clear();
+                }
                 m_DestroyQueue.push_back(handle);
             }
             m_Queue.clear();
@@ -236,6 +242,7 @@ namespace Aether {
                 }
             );
         }
+        aggPtr->Aggregate->children = std::move(promises);
         return aggregate;
     }
 
@@ -291,6 +298,7 @@ namespace Aether {
                 }
             );
         }
+        aggPtr->Aggregate->children = std::move(promises);
         return aggregate;
     }
 

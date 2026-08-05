@@ -87,15 +87,17 @@ namespace Aether {
 
         ScriptSelf self{ scene, entity, slot};
         SceneContext sceneCtx{ scene };
-        //EventContext eventCtx{ handle, &m_EventManager };
+        EventContext eventCtx{ handle, &m_EventManager, &m_PromiseManager };
         PhysicsContext physicsCtx{ scene, entity };
         CoroutineContext coroutineCtx{ handle, &m_CoroutineManager, &m_PromiseManager };
+        PromiseContext promiseCtx{ &m_PromiseManager };
 
         env["self"] = self;
         env["Scene"] = sceneCtx;
-        //env["Event"] = eventCtx;
+        env["Event"] = eventCtx;
         env["Physics"] = physicsCtx;
         env["Coroutine"] = coroutineCtx;
+        env["Promise"] = promiseCtx;
 
         slot->env_handle = env_handle;
         slot->ctx = scene;
@@ -137,7 +139,6 @@ namespace Aether {
 
             LuaState.RemoveEnvironment(slot->env_handle);
             m_Instances.DestroyResource(handle);
-            //m_EventManager.DestroyListener(handle);
             IsExecChanged = true;
         }
         m_DestroyQueue.clear();

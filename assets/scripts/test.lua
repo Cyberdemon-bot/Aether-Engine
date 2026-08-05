@@ -9,6 +9,8 @@ function OnUpdate(ts)
         Event:Fire("J")
     elseif Input.IsKeyPressed(Key.L) then
         Event:Fire("L")
+    elseif Input.IsKeyPressed(Key.R) then
+        Event:Fire("R")
     end
 end
 
