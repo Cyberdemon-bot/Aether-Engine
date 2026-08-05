@@ -574,39 +574,70 @@ namespace Aether {
         }
     };
 
-    // struct EventContext
-    // {
-    //     Handle<ScriptInstance> handle;
-    //     EventManager* event_manager = nullptr;
-    // };
+    struct EventContext
+    {
+        Handle<ScriptInstance> handle;
+        EventManager* event_manager = nullptr;
+        PromiseManager* promise_manager = nullptr;
+    };
 
-    // struct EventManagerBinding
-    // {
-    //     using Type = EventContext;
-    //     static constexpr const char* get_name() { return "EventContext"; }
+    struct EventBinding
+    {
+        using Type = EventContext;
+        using Result = std::tuple<uint64_t, uint32_t, float>;
+        static constexpr const char* get_name() { return "EventContext"; }
 
-    //     static constexpr auto get_methods()
-    //     {
-    //         return AE_REFLECT_LIST(
-    //             AE_REFLECT("Fire",
-    //                 AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::variadic_args args), void,
-    //                     std::vector<sol::object> collected(args.begin(), args.end());
-    //                     ctx.event_manager->FireEvent(name, std::move(collected));
-    //                 )
-    //             ),
-    //             AE_REFLECT("Listen",
-    //                 AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::protected_function cb), void,
-    //                     ctx.event_manager->AddListener(ctx.handle, name, std::move(cb));
-    //                 )
-    //             ),
-    //             AE_REFLECT("Unlisten",
-    //                 AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), void,
-    //                     ctx.event_manager->RemoveListener(ctx.handle, name);
-    //                 )
-    //             )
-    //         );
-    //     }
-    // };
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Fire",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::variadic_args args), void,
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        ctx.event_manager->FireEvent(name, collected);
+                    )
+                ),
+
+                AE_REFLECT("OnEvent",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), Result,
+                        Handle<Promise> promise = ctx.promise_manager->CreatePromise();
+                        uint64_t blend = promise.Blend();
+                        Handle<EventListener> listener = ctx.event_manager->CreateListener(name,
+                            [pm = ctx.promise_manager, promise](const ScriptTable& args) -> bool
+                            {
+                                pm->Resolve(promise, args);
+                                return false;
+                            }
+                        );
+                        ctx.promise_manager->Finally(promise,
+                            [em = ctx.event_manager, listener](const ScriptTable& result)
+                            {
+                                em->DestroyListener(listener);
+                            }
+                        );
+                        return std::make_tuple(blend, 2, 0.0f);
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, float timeout), Result,
+                        Handle<Promise> promise = ctx.promise_manager->CreatePromise();
+                        uint64_t blend = promise.Blend();
+                        Handle<EventListener> listener = ctx.event_manager->CreateListener(name,
+                            [pm = ctx.promise_manager, promise](const ScriptTable& args) -> bool
+                            {
+                                pm->Resolve(promise, args);
+                                return false;
+                            }
+                        );
+                        ctx.promise_manager->Finally(promise,
+                            [em = ctx.event_manager, listener](const ScriptTable& result)
+                            {
+                                em->DestroyListener(listener);
+                            }
+                        );
+                        return std::make_tuple(blend, 1, timeout); 
+                    )
+                )
+            );
+        }
+    };
 
     struct InputBinding
     {
@@ -766,13 +797,13 @@ namespace Aether {
 
                         sol::state_view lua_view(L);
                         lua_State* main_L = lua_view.lua_state(); 
-                        ctx.promise_manager->Then(Handle<Promise>::FromBlend(handle),
+                        ctx.promise_manager->Finally(Handle<Promise>::FromBlend(handle),
                             [coroutine_manager = ctx.coroutine_manager, task, main_L]
-                            (const ScriptTable& result) -> ScriptTable
+                            (const ScriptTable& result)
                             {
                                 sol::object luaResult = ScriptTable::ToSolObject(main_L, result);
                                 coroutine_manager->ResumeTask(task, luaResult);
-                                return {};
+                                return;
                             }
                         );
                         
@@ -789,6 +820,75 @@ namespace Aether {
                 AE_REFLECT("Sleep",
                     AE_MAKE_LAMBDA((), (Type& ctx, float seconds), Result,
                         return std::make_tuple(Handle<Promise>::MakeInvalid().Blend(), 1, seconds);  
+                    )
+                )
+            );
+        }
+    };
+
+    struct PromiseContext
+    {
+        PromiseManager* promise_manager = nullptr;
+    };
+
+    struct PromiseBinding
+    {
+        using Type = PromiseContext;
+        using Result = std::tuple<uint64_t, uint32_t, float>;
+        static constexpr const char* get_name() { return "PromiseContext"; }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Race",
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::variadic_args tuples), Result,
+                        std::vector<Handle<Promise>> promises;
+                        uint32_t final_type = 2; 
+                        float final_timeout = std::numeric_limits<float>::max();
+
+                        for (auto t : tuples)
+                        {
+                            if (!t.is<Result>()) continue;
+                            auto [blend, type, timeout] = t.as<Result>();
+                            promises.push_back(Handle<Promise>::FromBlend(blend));
+                            if (type == 1) 
+                            {
+                                final_type = 1;
+                                final_timeout = std::min(final_timeout, timeout);
+                            }
+                        }
+
+                        if (final_type == 1 && final_timeout == std::numeric_limits<float>::max())
+                            final_timeout = 0.0f;
+
+                        Handle<Promise> race = ctx.promise_manager->Race(std::move(promises));
+                        return std::make_tuple(race.Blend(), final_type, final_timeout);
+                    )
+                ),
+
+                AE_REFLECT("All",
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::variadic_args tuples), Result,
+                        std::vector<Handle<Promise>> promises;
+                        uint32_t final_type = 2;
+                        float final_timeout = std::numeric_limits<float>::max();
+
+                        for (auto t : tuples)
+                        {
+                            if (!t.is<Result>()) continue;
+                            auto [blend, type, timeout] = t.as<Result>();
+                            promises.push_back(Handle<Promise>::FromBlend(blend));
+                            if (type == 1)
+                            {
+                                final_type = 1;
+                                final_timeout = std::min(final_timeout, timeout);
+                            }
+                        }
+
+                        if (final_type == 1 && final_timeout == std::numeric_limits<float>::max())
+                            final_timeout = 0.0f;
+
+                        Handle<Promise> all = ctx.promise_manager->All(std::move(promises));
+                        return std::make_tuple(all.Blend(), final_type, final_timeout);
                     )
                 )
             );

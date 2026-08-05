@@ -8,6 +8,8 @@
 
 namespace Aether {
 
+    struct Promise;
+
     struct AggregateState
     {
         uint32_t total = 0;
@@ -15,7 +17,9 @@ namespace Aether {
         bool rejected = false;
         bool settled  = false;
         std::vector<ScriptTable> results;
+        std::vector<Handle<Promise>> children;
     };
+
     struct Promise
     {
         enum class State { Pending, Fulfilled, Rejected };
@@ -32,7 +36,7 @@ namespace Aether {
         State CurrentState = State::Pending;
         ScriptTable Result;
         std::vector<Handler> Handlers;
-        std::vector<Delegate<void()>> FinallyCallbacks;
+        std::vector<Delegate<void(const ScriptTable&)>> FinallyCallbacks;
 
         std::optional<AggregateState> Aggregate;
 

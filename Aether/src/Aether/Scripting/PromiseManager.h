@@ -28,7 +28,7 @@ namespace Aether {
         Handle<Promise> Catch(Handle<Promise> handle,
                               Delegate<ScriptTable(const ScriptTable&)> onRejected);
         void Finally(Handle<Promise> handle,
-                                Delegate<void()> onFinally);
+                                Delegate<void(const ScriptTable&)> onFinally);
 
         Handle<Promise> All(std::vector<Handle<Promise>> promises);
         Handle<Promise> Race(std::vector<Handle<Promise>> promises);

@@ -12,6 +12,15 @@ function OnStart()
         
         Coroutine:await(Coroutine:Sleep(3))
         print("Step 3 - resumed after 3 seconds")
+
+        Coroutine:await(Event:OnEvent("K"))
+        print("Step 4 - wait event K")
+
+        Coroutine:await(Promise:Race(Event:OnEvent("J"), Event:OnEvent("L")))
+        print("Step 5 - wait race event j and l")
+
+        Coroutine:await(Promise:All(Event:OnEvent("K"), Event:OnEvent("R")))
+        print("Step 6 - wait all event k and r")
         
         print("Done!")
     end)

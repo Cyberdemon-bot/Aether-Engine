@@ -19,11 +19,12 @@ namespace Aether {
         BindType<SceneCameraBinding>();
         BindType<ScriptSelfBinding>();
         BindType<SceneBinding>();
-        //BindType<EventManagerBinding>();
+        BindType<EventBinding>();
         BindType<CollisionBinding>();
         BindType<RaycastHitBinding>();
         BindType<PhysicsBinding>();
         BindType<CoroutineBinding>();
+        BindType<PromiseBinding>();
     }
 
     void ScriptEngine::ImportNativeFunc(std::string_view name, Delegate<ScriptTable(const ScriptTable&)> func)
