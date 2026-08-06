@@ -26,7 +26,6 @@
 
 #include "Aether/Scene/Component.h"
 #include "Aether/Scene/Scene.h"
-#include "Aether/Scene/SceneSerializer.h"
 
 #include "Aether/Importer/Importer.h"
 #include "Aether/Animation/AnimationSystem.h"
