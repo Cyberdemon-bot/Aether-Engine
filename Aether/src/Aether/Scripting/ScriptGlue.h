@@ -718,8 +718,15 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("async",
-                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), void,
-                        ctx.coroutine_manager->StartCoroutine(func, ctx.handle);
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), uint64_t,
+                        auto handle = ctx.coroutine_manager->StartCoroutine(func, ctx.handle);
+                        return handle.Blend();
+                    )
+                ),
+
+                AE_REFLECT("stop",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t handle), void,
+                        ctx.coroutine_manager->StopCoroutine(Handle<CoroutineTask>::FromBlend(handle));
                     )
                 ),
 
