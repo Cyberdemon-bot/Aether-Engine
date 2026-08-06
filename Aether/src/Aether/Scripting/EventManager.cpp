@@ -86,6 +86,7 @@ namespace Aether {
     void EventManager::Flush()
     {
         uint32_t guard = 0;
+        m_Keys.Resolve();
         if (m_RecursionDepth == 0) return;
         do
         {
@@ -136,7 +137,6 @@ namespace Aether {
             m_Listeners.DestroyResource(handle);
 
         m_DestroyQueue.clear();
-
         m_Keys.ForEach([this](ListenerList& listIt)
         {
             std::erase_if(listIt.list, [this](auto handle)
