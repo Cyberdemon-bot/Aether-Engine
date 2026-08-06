@@ -41,9 +41,9 @@ namespace Aether {
         void Shutdown()
         {
             m_Pool.Shutdown();
-            m_Map.clear();
-            m_Queue.clear();
-            m_Buffer.clear();
+            m_Map.clear(); m_Map.shrink_to_fit();
+            m_Queue.clear(); m_Queue.shrink_to_fit();
+            m_Buffer.clear(); m_Buffer.shrink_to_fit();
         }
 
         HandleType Search(std::string_view key) const
@@ -112,12 +112,45 @@ namespace Aether {
             return &it->data;
         }
 
+        const DataType* GetData(HandleType handle) const
+        {
+            const TableElement* it = m_Pool.GetResource(handle);
+            if (!it) return nullptr;
+            return &it->data;
+        }
+
+        void Clear()
+        {
+            m_Pool.Clear();
+            m_Map.clear();
+            m_Queue.clear();
+            m_Buffer.clear(); 
+        }
+
         void Resolve()
         {
             if (m_Queue.empty()) return;
+
+            std::sort(m_Queue.begin(), m_Queue.end(), 
+            [](const HashData& a, const HashData& b) 
+            {
+                return a.hash_code < b.hash_code;
+            });
+
+            if (m_Map.empty())
+            {
+                m_Map = std::move(m_Queue);
+                m_Queue.clear();
+                m_Queue.reserve(16);
+                return;
+            }
+
+            size_t old_size = m_Map.size();
             m_Map.insert(m_Map.end(), m_Queue.begin(), m_Queue.end());
             m_Queue.clear();
-            std::sort(m_Map.begin(), m_Map.end(), [](const HashData& a, const HashData& b)
+
+            std::inplace_merge(m_Map.begin(), m_Map.begin() + old_size, m_Map.end(), 
+            [](const HashData& a, const HashData& b) 
             {
                 return a.hash_code < b.hash_code;
             });
