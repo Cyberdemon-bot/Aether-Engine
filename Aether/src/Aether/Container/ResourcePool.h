@@ -39,6 +39,8 @@ namespace Aether {
         void Shutdown()
         {
             Clear();
+            m_Resources.shrink_to_fit();
+            m_FreeList.shrink_to_fit();
         }
 
         void DestroyResource(HandleType handle)
