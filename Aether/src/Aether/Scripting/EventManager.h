@@ -25,6 +25,7 @@ namespace Aether {
     {
         bool is_native = false;
         sol::main_protected_function callback;
+        Handle<ScriptInstance> script_owner;
         Delegate<bool(const ScriptTable&)> native_callback;
     };
 
@@ -43,9 +44,10 @@ namespace Aether {
 
         void FireEvent(std::string_view event_name, const std::vector<sol::object>& args);
 
-        Handle<EventListener> CreateListener(std::string_view event_name, sol::main_protected_function callback);
+        Handle<EventListener> CreateListener(std::string_view event_name, sol::main_protected_function callback, Handle<ScriptInstance> owner);
         Handle<EventListener> CreateListener(std::string_view event_name, const Delegate<bool(const ScriptTable&)>& native_callback);
         void DestroyListener(Handle<EventListener> handle);
+        void RemoveScript(Handle<ScriptInstance> owner);
         void RemoveEvent(std::string_view event_name);
 
         void SetRecursionDepth(uint32_t depth);
@@ -63,6 +65,7 @@ namespace Aether {
         std::vector<ScriptEvent> m_NextQueue;
         std::vector<Handle<EventListener>> m_DestroyQueue;
         std::vector<ScriptTable> m_ArgsBuffer;
+        std::vector<ListenerList> m_OwnershipMap;
 
         uint32_t m_RecursionDepth = 3;
     };

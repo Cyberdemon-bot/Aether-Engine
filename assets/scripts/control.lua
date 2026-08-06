@@ -4,6 +4,9 @@ _script = 0
 
 function OnStart()
     _speed = 5.0
+    Event:Listen("K", function()
+        print("got K event")
+    end)
     Coroutine:async(function()
         print("Step 1 - starting")
         

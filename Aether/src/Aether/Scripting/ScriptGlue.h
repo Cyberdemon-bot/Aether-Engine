@@ -900,7 +900,17 @@ namespace Aether {
                         ctx.event_manager->FireEvent(name, collected);
                     )
                 ),
-
+                AE_REFLECT("Listen",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::main_protected_function callback), uint64_t,
+                        auto handle = ctx.event_manager->CreateListener(name, callback, ctx.handle);
+                        return handle.Blend();
+                    )
+                ),
+                AE_REFLECT("Unlisten",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t handle), void,
+                        ctx.event_manager->DestroyListener(Handle<EventListener>::FromBlend(handle));
+                    )
+                ),
                 AE_REFLECT("OnEvent",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::this_state ts), sol::table,
                         return Base(ctx, name, 2, 0.0f, ts);

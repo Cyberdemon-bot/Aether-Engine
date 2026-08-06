@@ -141,6 +141,8 @@ namespace Aether {
 
             LuaState.RemoveEnvironment(slot->env_handle);
             m_Instances.DestroyResource(handle);
+            m_CoroutineManager.StopAllCoroutines(handle);
+            m_EventManager.RemoveScript(handle);
             IsExecChanged = true;
         }
         m_DestroyQueue.clear();

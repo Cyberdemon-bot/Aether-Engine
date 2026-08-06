@@ -12,6 +12,7 @@ namespace Aether {
         m_ArgsBuffer.reserve(32);
         m_NextQueue.reserve(32);
         m_DestroyQueue.reserve(32);
+        m_OwnershipMap.reserve(32);
     }
 
     void EventManager::Shutdown()
@@ -20,6 +21,7 @@ namespace Aether {
         m_NextQueue.clear();
         m_ArgsBuffer.clear();
         m_DestroyQueue.clear();
+        m_OwnershipMap.clear();
         m_Keys.Shutdown();
         m_Listeners.Shutdown();
     }
@@ -29,7 +31,7 @@ namespace Aether {
         m_NextQueue.push_back({std::string(event_name), args});
     }
 
-    Handle<EventListener> EventManager::CreateListener(std::string_view event_name, sol::main_protected_function callback)
+    Handle<EventListener> EventManager::CreateListener(std::string_view event_name, sol::main_protected_function callback, Handle<ScriptInstance> owner)
     {
         Handle<ListenerList> list = m_Keys.GetOrCreate(event_name);
         auto* listIt = m_Keys.GetData(list);
@@ -42,6 +44,9 @@ namespace Aether {
         listenerIt->is_native = false;
         listenerIt->callback = std::move(callback);
         listIt->list.push_back(listener);
+
+        if (owner.index >= m_OwnershipMap.size()) m_OwnershipMap.resize(owner.index);
+        m_OwnershipMap[owner.index].list.push_back(listener);
         return listener;
     }
 
@@ -76,6 +81,13 @@ namespace Aether {
 
         for (auto& handle : listIt->list) DestroyListener(handle);
         listIt->list.clear();
+    }
+
+    void EventManager::RemoveScript(Handle<ScriptInstance> owner)
+    {
+        if (owner.index >= m_OwnershipMap.size()) return;
+        for (auto& handle : m_OwnershipMap[owner.index].list) DestroyListener(handle);
+        m_OwnershipMap[owner.index].list.clear();
     }
 
     void EventManager::SetRecursionDepth(uint32_t depth)
