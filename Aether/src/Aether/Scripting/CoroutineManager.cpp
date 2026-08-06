@@ -131,6 +131,7 @@ namespace Aether {
     void CoroutineManager::Update(Timestep ts)
     {
         uint32_t guard = 0;
+        for (auto& handle : m_StopQueue) m_Tasks.DestroyResource(handle);
         m_Tasks.Loop([ts, this](CoroutineTask& task)
         {
             if (task.state == CoroutineState::Dead) return; 
@@ -159,8 +160,6 @@ namespace Aether {
             while (!m_NextResumeQueue.empty() && ++guard < m_RecursionDepth);
         }
         m_ResumeQueue.clear();
-
-        for (auto& handle : m_StopQueue) m_Tasks.DestroyResource(handle);
         m_StopQueue.clear();
     }
 
