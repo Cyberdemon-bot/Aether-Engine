@@ -22,7 +22,6 @@ namespace Aether {
 
         void RegisterPath(std::string_view virtual_path);
         void CommitTable();
-
     private:
         PathEntry* Query(std::string_view virtual_path);
         Table<Handle<PathEntry>, PathEntry> m_Table;
