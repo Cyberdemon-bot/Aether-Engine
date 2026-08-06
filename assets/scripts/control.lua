@@ -21,6 +21,9 @@ function OnStart()
 
         Coroutine:await(Promise:All(Event:OnEvent("K"), Event:OnEvent("R")))
         print("Step 6 - wait all event k and r")
+
+        Coroutine:await(Job:Run(Native.IRef.PrintTest, 10))
+        print("Step 7 - print test")
         
         print("Done!")
     end)

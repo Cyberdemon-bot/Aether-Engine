@@ -288,6 +288,7 @@ namespace Aether {
 
         friend struct ScriptSelfBinding;
         friend struct SceneBinding;
+        friend struct JobBinding;
         friend class Scene;
     };
 }

@@ -9,8 +9,8 @@ namespace Aether {
         ScriptTable v;
         if (!obj.valid()) { v.m_Type = ScriptTable::Type::Nil; return v; }
         if (obj.is<bool>()) { v.m_Type = ScriptTable::Type::Bool; v.b = obj.as<bool>(); return v; }
-        if (obj.is<float>()) { v.m_Type = ScriptTable::Type::Float; v.f = obj.as<float>(); return v; }
         if (obj.is<int>()) { v.m_Type = ScriptTable::Type::Int; v.i = obj.as<int>(); return v; }
+        if (obj.is<float>()) { v.m_Type = ScriptTable::Type::Float; v.f = obj.as<float>(); return v; }
         if (obj.is<std::string>()) { v.m_Type = ScriptTable::Type::String; v.m_Str = obj.as<std::string>(); return v; }
         if (obj.is<glm::vec3>())
         {
@@ -49,8 +49,8 @@ namespace Aether {
         {
             case ScriptTable::Type::Nil: return sol::lua_nil;
             case ScriptTable::Type::Bool: return sol::make_object(lua, val.b);
-            case ScriptTable::Type::Float: return sol::make_object(lua, val.f);
             case ScriptTable::Type::Int: return sol::make_object(lua, val.i);
+            case ScriptTable::Type::Float: return sol::make_object(lua, val.f);
             case ScriptTable::Type::String: return sol::make_object(lua, val.m_Str);
             case ScriptTable::Type::Vec3: return sol::make_object(lua, glm::vec3(val.vec3.x, val.vec3.y, val.vec3.z));
             case ScriptTable::Type::Quat: return sol::make_object(lua, glm::quat(val.quat.w, val.quat.x, val.quat.y, val.quat.z));

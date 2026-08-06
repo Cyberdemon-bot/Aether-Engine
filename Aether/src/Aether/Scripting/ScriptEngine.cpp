@@ -91,6 +91,7 @@ namespace Aether {
         PhysicsContext physicsCtx{ scene, entity };
         CoroutineContext coroutineCtx{ handle, &m_CoroutineManager, &m_PromiseManager };
         PromiseContext promiseCtx{ &m_PromiseManager };
+        JobContext jobCtx{ &m_NativeFuncs, &m_PromiseManager };
 
         env["self"] = self;
         env["Scene"] = sceneCtx;
@@ -98,6 +99,7 @@ namespace Aether {
         env["Physics"] = physicsCtx;
         env["Coroutine"] = coroutineCtx;
         env["Promise"] = promiseCtx;
+        env["Job"] = jobCtx;
 
         slot->env_handle = env_handle;
         slot->ctx = scene;

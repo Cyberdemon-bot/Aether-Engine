@@ -115,7 +115,7 @@ namespace Aether {
                 Promise* p = m_Promises.GetResource(handle);
                 if (p == nullptr) continue;
 
-                const ScriptTable result = p->Result;
+                ScriptTable result = std::move(p->Result);
                 const bool success = p->IsFulfilled();
                 auto handlers = std::move(p->Handlers);
                 auto finallyCbs = std::move(p->FinallyCallbacks);
@@ -123,7 +123,7 @@ namespace Aether {
                 for (auto& handler : handlers)
                 {
                     bool handlerRan = false;
-                    ScriptTable out = result;
+                    ScriptTable out;
 
                     if (success && handler.OnFulfilled)
                     {
@@ -141,8 +141,9 @@ namespace Aether {
                         Promise* next = m_Promises.GetResource(handler.NextPromise);
                         if (next != nullptr)
                         {
-                            if (handlerRan || success) Resolve(handler.NextPromise, out);
-                            else Reject(handler.NextPromise, out);
+                            if (handlerRan) Resolve(handler.NextPromise, std::move(out));
+                            else if (success) Resolve(handler.NextPromise, result);
+                            else Reject(handler.NextPromise, result); 
                         }
                     }
                 }
@@ -199,17 +200,17 @@ namespace Aether {
             aggPtr->Aggregate = state;
         }
 
-        uint32_t validIdx = 0;
         for (uint32_t i = 0; i < (uint32_t)promises.size(); i++)
         {
             Promise* p = GetPromise(promises[i]);
             if (p == nullptr)
             {
+                AE_CORE_WARN("[Promise] All: child promise handle invalid at index {0}, skipping", i);
                 Promise* agg = GetPromise(aggregate);
                 if (agg && agg->Aggregate)
                 {
                     auto& state = *agg->Aggregate;
-                    state.results[i] = {}; 
+                    state.results[i] = {};
                     if (++state.counter == state.total)
                         Resolve(aggregate, ScriptTable::Make(state.results));
                 }

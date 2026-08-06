@@ -574,71 +574,6 @@ namespace Aether {
         }
     };
 
-    struct EventContext
-    {
-        Handle<ScriptInstance> handle;
-        EventManager* event_manager = nullptr;
-        PromiseManager* promise_manager = nullptr;
-    };
-
-    struct EventBinding
-    {
-        using Type = EventContext;
-        using Result = std::tuple<uint64_t, uint32_t, float>;
-        static constexpr const char* get_name() { return "EventContext"; }
-
-        static constexpr auto get_methods()
-        {
-            return AE_REFLECT_LIST(
-                AE_REFLECT("Fire",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::variadic_args args), void,
-                        std::vector<sol::object> collected(args.begin(), args.end());
-                        ctx.event_manager->FireEvent(name, collected);
-                    )
-                ),
-
-                AE_REFLECT("OnEvent",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), Result,
-                        Handle<Promise> promise = ctx.promise_manager->CreatePromise();
-                        uint64_t blend = promise.Blend();
-                        Handle<EventListener> listener = ctx.event_manager->CreateListener(name,
-                            [pm = ctx.promise_manager, promise](const ScriptTable& args) -> bool
-                            {
-                                pm->Resolve(promise, args);
-                                return false;
-                            }
-                        );
-                        ctx.promise_manager->Finally(promise,
-                            [em = ctx.event_manager, listener](const ScriptTable& result)
-                            {
-                                em->DestroyListener(listener);
-                            }
-                        );
-                        return std::make_tuple(blend, 2, 0.0f);
-                    ),
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, float timeout), Result,
-                        Handle<Promise> promise = ctx.promise_manager->CreatePromise();
-                        uint64_t blend = promise.Blend();
-                        Handle<EventListener> listener = ctx.event_manager->CreateListener(name,
-                            [pm = ctx.promise_manager, promise](const ScriptTable& args) -> bool
-                            {
-                                pm->Resolve(promise, args);
-                                return false;
-                            }
-                        );
-                        ctx.promise_manager->Finally(promise,
-                            [em = ctx.event_manager, listener](const ScriptTable& result)
-                            {
-                                em->DestroyListener(listener);
-                            }
-                        );
-                        return std::make_tuple(blend, 1, timeout); 
-                    )
-                )
-            );
-        }
-    };
-
     struct InputBinding
     {
         using Vec2Tuple = std::tuple<float, float>;
@@ -768,8 +703,16 @@ namespace Aether {
     struct CoroutineBinding
     {
         using Type = CoroutineContext;
-        using Result = std::tuple<uint64_t, uint32_t, float>;
         static constexpr const char* get_name() { return "CoroutineContext"; }
+
+        static inline sol::table MakeAwaitable(sol::state_view lua, uint64_t blend, uint32_t type, float timeout)
+        {
+            sol::table t = lua.create_table(3, 0);
+            t[1] = blend;
+            t[2] = type;
+            t[3] = timeout;
+            return t;
+        }
 
         static constexpr auto get_methods()
         {
@@ -789,7 +732,11 @@ namespace Aether {
                         ctx.coroutine_manager->YieldTask(task);
                         return lua_yield(L, 0);
                     ),
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t handle, uint32_t type, float timeout, sol::this_state ts), int,
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::table awaitable, sol::this_state ts), int,
+                        uint64_t handle = awaitable[1];
+                        uint32_t type = awaitable[2];
+                        float timeout = awaitable[3];
+
                         lua_State* L = ts;
                         lua_pushthread(L);
                         sol::thread current = sol::stack::pop<sol::thread>(L);
@@ -797,29 +744,37 @@ namespace Aether {
 
                         sol::state_view lua_view(L);
                         lua_State* main_L = lua_view.lua_state(); 
-                        ctx.promise_manager->Finally(Handle<Promise>::FromBlend(handle),
-                            [coroutine_manager = ctx.coroutine_manager, task, main_L]
-                            (const ScriptTable& result)
-                            {
-                                sol::object luaResult = ScriptTable::ToSolObject(main_L, result);
-                                coroutine_manager->ResumeTask(task, luaResult);
-                                return;
-                            }
-                        );
-                        
-                        switch(type)
+                        auto promise_handle = Handle<Promise>::FromBlend(handle);
+                        if (promise_handle.IsValid() && ctx.promise_manager->GetPromise(promise_handle))
                         {
-                            case 1: ctx.coroutine_manager->WaitForSeconds(task, timeout); break;
-                            case 2: ctx.coroutine_manager->WaitForManual(task); break;
-                            default: ctx.coroutine_manager->YieldTask(task); break;
+                            ctx.promise_manager->Finally(promise_handle,
+                                [coroutine_manager = ctx.coroutine_manager, task, main_L]
+                                (const ScriptTable& result)
+                                {
+                                    sol::object luaResult = ScriptTable::ToSolObject(main_L, result);
+                                    coroutine_manager->ResumeTask(task, luaResult);
+                                }
+                            );
+
+                            switch(type)
+                            {
+                                case 1: ctx.coroutine_manager->WaitForSeconds(task, timeout); break;
+                                case 2: ctx.coroutine_manager->WaitForManual(task); break;
+                                default: ctx.coroutine_manager->YieldTask(task); break;
+                            }
+                            return lua_yield(L, 0);
                         }
+
+                        if (type != 1)
+                            AE_CORE_WARN("[Await] Invalid promise handle={0}, yielding one frame", handle);
+                        ctx.coroutine_manager->WaitForSeconds(task, type == 1 ? timeout : 0.0f);
                         return lua_yield(L, 0);
                     )
                 ),
 
-                AE_REFLECT("Sleep",
-                    AE_MAKE_LAMBDA((), (Type& ctx, float seconds), Result,
-                        return std::make_tuple(Handle<Promise>::MakeInvalid().Blend(), 1, seconds);  
+               AE_REFLECT("Sleep",
+                    AE_MAKE_LAMBDA((), (Type& ctx, float seconds, sol::this_state ts), sol::table,
+                        return MakeAwaitable(sol::state_view(ts), Handle<Promise>::MakeInvalid().Blend(), 1, seconds);
                     )
                 )
             );
@@ -834,23 +789,27 @@ namespace Aether {
     struct PromiseBinding
     {
         using Type = PromiseContext;
-        using Result = std::tuple<uint64_t, uint32_t, float>;
         static constexpr const char* get_name() { return "PromiseContext"; }
 
         static constexpr auto get_methods()
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("Race",
-                    AE_MAKE_LAMBDA((), (Type& ctx, sol::variadic_args tuples), Result,
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::variadic_args tables, sol::this_state ts), sol::table,
                         std::vector<Handle<Promise>> promises;
                         uint32_t final_type = 2; 
                         float final_timeout = std::numeric_limits<float>::max();
 
-                        for (auto t : tuples)
+                        for (auto t : tables)
                         {
-                            if (!t.is<Result>()) continue;
-                            auto [blend, type, timeout] = t.as<Result>();
-                            promises.push_back(Handle<Promise>::FromBlend(blend));
+                            if (!t.is<sol::table>()) continue;
+                            sol::table tbl = t.as<sol::table>();
+                            uint64_t blend = tbl[1];
+                            uint32_t type = tbl[2];
+                            float timeout = tbl[3];
+                            auto h = Handle<Promise>::FromBlend(blend);
+                            if (!h.IsValid()) continue;
+                            promises.push_back(h);
                             if (type == 1) 
                             {
                                 final_type = 1;
@@ -862,21 +821,26 @@ namespace Aether {
                             final_timeout = 0.0f;
 
                         Handle<Promise> race = ctx.promise_manager->Race(std::move(promises));
-                        return std::make_tuple(race.Blend(), final_type, final_timeout);
+                        return CoroutineBinding::MakeAwaitable(sol::state_view(ts), race.Blend(), final_type, final_timeout);
                     )
                 ),
 
                 AE_REFLECT("All",
-                    AE_MAKE_LAMBDA((), (Type& ctx, sol::variadic_args tuples), Result,
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::variadic_args tables, sol::this_state ts), sol::table,
                         std::vector<Handle<Promise>> promises;
                         uint32_t final_type = 2;
                         float final_timeout = std::numeric_limits<float>::max();
 
-                        for (auto t : tuples)
+                        for (auto t : tables)
                         {
-                            if (!t.is<Result>()) continue;
-                            auto [blend, type, timeout] = t.as<Result>();
-                            promises.push_back(Handle<Promise>::FromBlend(blend));
+                            if (!t.is<sol::table>()) continue;
+                            sol::table tbl = t.as<sol::table>();
+                            uint64_t blend = tbl[1];
+                            uint32_t type = tbl[2];
+                            float timeout = tbl[3];
+                            auto h = Handle<Promise>::FromBlend(blend);
+                            if (!h.IsValid()) continue;
+                            promises.push_back(h);
                             if (type == 1)
                             {
                                 final_type = 1;
@@ -888,7 +852,118 @@ namespace Aether {
                             final_timeout = 0.0f;
 
                         Handle<Promise> all = ctx.promise_manager->All(std::move(promises));
-                        return std::make_tuple(all.Blend(), final_type, final_timeout);
+                        return CoroutineBinding::MakeAwaitable(sol::state_view(ts), all.Blend(), final_type, final_timeout);
+                    )
+                )
+            );
+        }
+    };
+
+    struct EventContext
+    {
+        Handle<ScriptInstance> handle;
+        EventManager* event_manager = nullptr;
+        PromiseManager* promise_manager = nullptr;
+    };
+
+    struct EventBinding
+    {
+        using Type = EventContext;
+        static constexpr const char* get_name() { return "EventContext"; }
+
+        static sol::table Base(Type& ctx, const std::string& name, uint32_t type, float timeout, sol::this_state ts)
+        {
+            Handle<Promise> promise = ctx.promise_manager->CreatePromise();
+            uint64_t blend = promise.Blend();
+            Handle<EventListener> listener = ctx.event_manager->CreateListener(name,
+                [pm = ctx.promise_manager, promise](const ScriptTable& args) -> bool
+                {
+                    pm->Resolve(promise, args);
+                    return false;
+                }
+            );
+            ctx.promise_manager->Finally(promise,
+                [em = ctx.event_manager, listener](const ScriptTable& result)
+                {
+                    em->DestroyListener(listener);
+                }
+            );
+            return CoroutineBinding::MakeAwaitable(sol::state_view(ts), blend, type, timeout);
+        }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Fire",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::variadic_args args), void,
+                        std::vector<sol::object> collected(args.begin(), args.end());
+                        ctx.event_manager->FireEvent(name, collected);
+                    )
+                ),
+
+                AE_REFLECT("OnEvent",
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::this_state ts), sol::table,
+                        return Base(ctx, name, 2, 0.0f, ts);
+                    ),
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, float timeout, sol::this_state ts), sol::table,
+                        return Base(ctx, name, 1, timeout, ts);
+                    )
+                )
+            );
+        }
+    };
+
+    struct JobContext
+    {
+        std::vector<NativeFunc>* native_funcs = nullptr;
+        PromiseManager* promise_manager = nullptr;
+    };
+
+    struct JobBinding
+    {
+        using Type = JobContext;
+        static constexpr const char* get_name() { return "JobContext"; }
+
+        static sol::table Base(Type& ctx, uint64_t idx, uint32_t type, float timeout, sol::variadic_args args, sol::this_state ts)
+        {
+            if (idx >= ctx.native_funcs->size())
+            {
+                AE_CORE_ERROR("Native index {0} not found", idx);
+                return CoroutineBinding::MakeAwaitable(sol::state_view(ts), Handle<Promise>::MakeInvalid().Blend(), type, timeout);
+            }
+            auto func = (*ctx.native_funcs)[idx].native;
+
+            std::vector<ScriptTable> collected;
+            for (auto arg : args)
+                collected.push_back(ScriptTable::FromSolObject(arg));
+            ScriptTable input = ScriptTable::Make(collected);
+            auto output = CreateRef<ScriptTable>();
+            Handle<Promise> promise = ctx.promise_manager->CreatePromise();
+            ServiceManager::GetService<JobSystem>()->SubmitJob(
+                [func, input = std::move(input), output]() mutable
+                {
+                    *output = func(input);
+                },
+                [pm = ctx.promise_manager, promise, output]()
+                {
+                    pm->Resolve(promise, std::move(*output));
+                }
+            );
+
+            return CoroutineBinding::MakeAwaitable(sol::state_view(ts), promise.Blend(), type, timeout);
+        }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("Run",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t idx, sol::variadic_args args, sol::this_state ts), sol::table,
+                        return Base(ctx, idx, 2, 0.0f, args, ts);
+                    )
+                ),
+                AE_REFLECT("RunTimeout",
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t idx, float timeout, sol::variadic_args args, sol::this_state ts), sol::table,
+                        return Base(ctx, idx, 1, timeout, args, ts);
                     )
                 )
             );

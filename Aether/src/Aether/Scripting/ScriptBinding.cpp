@@ -25,6 +25,7 @@ namespace Aether {
         BindType<PhysicsBinding>();
         BindType<CoroutineBinding>();
         BindType<PromiseBinding>();
+        BindType<JobBinding>();
     }
 
     void ScriptEngine::ImportNativeFunc(std::string_view name, Delegate<ScriptTable(const ScriptTable&)> func)
