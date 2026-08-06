@@ -81,7 +81,7 @@ namespace Aether {
         v.quat.x = val.x; v.quat.y = val.y; v.quat.z = val.z; v.quat.w = val.w;
         return v;
     }
-    ScriptTable ScriptTable::Make(const std::vector<ScriptTable>& val) { ScriptTable v; v.m_Type = Type::List; v.m_List = val; return v; }
+    ScriptTable ScriptTable::Make(const std::vector<ScriptTable>& val) { ScriptTable v; v.m_Type = Type::List; v.m_List = std::move(val); return v; }
 
 
     void ScriptTable::Set(bool val) { m_Type = Type::Bool; b = val; }
