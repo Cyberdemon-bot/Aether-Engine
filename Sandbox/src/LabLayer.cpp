@@ -597,30 +597,6 @@ void LabLayer::DrawScenePanel()
         {
             UI::TransformInspector(m_Scene, m_SelectedEntity);
         }
-
-        if (auto h = UI::Header("Export"))
-        {
-            UI::InputText("Path##export", m_SceneSavePath, sizeof(m_SceneSavePath));
-            if (UI::Button("Export Scene"))
-            {
-                if (SceneSerializer::Serialize(m_Scene, m_SceneSavePath))
-                    AE_CORE_INFO("Scene exported to '{0}'", m_SceneSavePath);
-                else
-                    AE_CORE_ERROR("Failed to export scene to '{0}'", m_SceneSavePath);
-            }
-        }
-
-        if (auto h = UI::Header("Load"))
-        {
-            UI::InputText("Path##load", m_SceneLoadPath, sizeof(m_SceneLoadPath));
-            if (UI::Button("Load Scene"))
-            {
-                if (SceneSerializer::DeserializeInto(m_SceneLoadPath, m_Scene))
-                    AE_CORE_INFO("Scene loaded from '{0}'", m_SceneLoadPath);
-                else
-                    AE_CORE_ERROR("Failed to load scene from '{0}'", m_SceneLoadPath);
-            }
-        }
     }
 }
 
