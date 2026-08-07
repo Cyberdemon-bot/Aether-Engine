@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "Platform/JoltPhys/Jolt_PhysicsAPI.h"
+#include "Aether/Container/MSPCQueue.h"
 #include <Jolt/Core/Memory.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
@@ -71,14 +72,21 @@ namespace JPH {
             return false;
         }
     };
+
+    struct InternalCollisionEvent
+    {
+        Aether::CollisionType type;
+        JPH::BodyID bodyA;
+        JPH::BodyID bodyB;
+        glm::vec3 contactPoint;
+        glm::vec3 contactNormal;
+    };
     class Listener final : public ContactListener 
     {
     public:
         Listener(PhysicsSystem* system)
             : m_System(system)
         {
-            m_QueueA.reserve(64);
-            m_QueueB.reserve(64);
         }
 
         virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override 
@@ -90,14 +98,16 @@ namespace JPH {
         {
             JPH::RVec3 joltContactPoint = inManifold.GetWorldSpaceContactPointOn1(0);
             JPH::Vec3 joltNormal = inManifold.mWorldSpaceNormal;
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            m_WriteQueue->push_back({
-                Aether::CollisionType::Enter, 
-                Aether::Handle<Aether::RigidBody>::FromBlend(inBody1.GetUserData()), 
-                Aether::Handle<Aether::RigidBody>::FromBlend(inBody2.GetUserData()),
-                glm::vec3(joltContactPoint.GetX(), joltContactPoint.GetY(), joltContactPoint.GetZ()),
-                glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ())
-            });
+
+            InternalCollisionEvent ev;
+            ev.type = Aether::CollisionType::Enter;
+            ev.bodyA = inBody1.GetID();     
+            ev.bodyB = inBody2.GetID();
+            ev.contactPoint = glm::vec3(joltContactPoint.GetX(), joltContactPoint.GetY(), joltContactPoint.GetZ());
+            ev.contactNormal = glm::vec3(joltNormal.GetX(), joltNormal.GetY(), joltNormal.GetZ());
+
+            bool pushed = m_EventQueue.Push(std::move(ev));
+            if (!pushed) AE_CORE_WARN("Collision event queue full, dropping event");
         }
 
         virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override 
@@ -106,44 +116,41 @@ namespace JPH {
 
         virtual void OnContactRemoved(const JPH::SubShapeIDPair& inSubShapePair) override
         {
-            if (!m_System) return;
-            const JPH::BodyLockInterface &lockInterface = m_System->GetBodyLockInterface();
+            InternalCollisionEvent ev;
+            ev.type = Aether::CollisionType::Exit;
+            ev.bodyA = inSubShapePair.GetBody1ID(); 
+            ev.bodyB = inSubShapePair.GetBody2ID();
 
-            JPH::BodyLockRead lock1(lockInterface, inSubShapePair.GetBody1ID());
-            if (!lock1.Succeeded()) return; 
-            const JPH::Body &body1 = lock1.GetBody();
-
-            JPH::BodyLockRead lock2(lockInterface, inSubShapePair.GetBody2ID());
-            if (!lock2.Succeeded()) return; 
-            const JPH::Body &body2 = lock2.GetBody();
-
-            std::lock_guard<std::mutex> lock(m_Mutex);
-            m_WriteQueue->push_back({
-                Aether::CollisionType::Exit,
-                Aether::Handle<Aether::RigidBody>::FromBlend(body1.GetUserData()),
-                Aether::Handle<Aether::RigidBody>::FromBlend(body2.GetUserData()),
-                glm::vec3(0.0f),
-                glm::vec3(0.0f)
-            });
+            if (!m_EventQueue.Push(std::move(ev))) AE_CORE_WARN("Collision event queue full, dropping exit event");
         }
 
         void ProcessEvents(const Aether::CollisionCallbackRef& callback) 
         {
-            std::vector<Aether::CollisionEvent>* readQueue;
+            if (!m_System) return;
+            const JPH::BodyLockInterface& lockInterface = m_System->GetBodyLockInterface();
+
+            m_EventQueue.Drain([this, &callback, &lockInterface](InternalCollisionEvent&& internalEv) 
             {
-                std::lock_guard<std::mutex> lock(m_Mutex);
-                readQueue = m_WriteQueue;
-                m_WriteQueue = (m_WriteQueue == &m_QueueA) ? &m_QueueB : &m_QueueA;
-            } 
-            for (const auto& ev : *readQueue) callback(ev);
-            readQueue->clear();
+                Aether::CollisionEvent ev;
+                ev.type = internalEv.type;
+                ev.bodyA = get_handle(internalEv.bodyA, lockInterface);
+                ev.bodyB = get_handle(internalEv.bodyB, lockInterface);
+                ev.contactPoint = internalEv.contactPoint;
+                ev.contactNormal = internalEv.contactNormal;
+                callback(ev);
+            });
         }
     private:
-        std::vector<Aether::CollisionEvent> m_QueueA;
-        std::vector<Aether::CollisionEvent> m_QueueB;
-        std::vector<Aether::CollisionEvent>* m_WriteQueue = &m_QueueA; 
+        Aether::Handle<Aether::RigidBody> get_handle(JPH::BodyID id, const JPH::BodyLockInterface& lockInterface)
+        {
+            JPH::BodyLockRead lock(lockInterface, id);
+            if (!lock.Succeeded()) return Aether::Handle<Aether::RigidBody>::MakeInvalid();
+            const JPH::Body& body = lock.GetBody();
+            return Aether::Handle<Aether::RigidBody>::FromBlend(body.GetUserData());
+        }
+
+        Aether::MSPCQueue<InternalCollisionEvent, 1024> m_EventQueue;
         PhysicsSystem* m_System = nullptr;
-        std::mutex m_Mutex;
     };
 }
 

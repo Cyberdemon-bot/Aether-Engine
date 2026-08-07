@@ -45,7 +45,7 @@ namespace Aether {
         listenerIt->callback = std::move(callback);
         listIt->list.push_back(listener);
 
-        if (owner.index >= m_OwnershipMap.size()) m_OwnershipMap.resize(owner.index);
+        if (owner.index >= m_OwnershipMap.size()) m_OwnershipMap.resize(owner.index + 1);
         m_OwnershipMap[owner.index].list.push_back(listener);
         return listener;
     }

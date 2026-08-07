@@ -523,7 +523,7 @@ void LabLayer::DrawScriptingPanel()
 
 void LabLayer::DrawHierarchyPanel()
 {
-    //Aether::UI::SceneHierarchy("Hierarchy", m_Scene, m_SelectedEntity);
+    Aether::UI::SceneHierarchy("Hierarchy", m_Scene, m_SelectedEntity);
 }
 
 // =============================================================================

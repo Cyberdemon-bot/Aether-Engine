@@ -329,18 +329,6 @@ namespace Aether::UI
     }
 
     // =========================================================================
-    //  PhysicsBodyEntry  —  one row in a physics body list
-    // =========================================================================
-
-    struct PhysBodyEntry
-    {
-        std::string      label;
-        bool&            enabled;
-        bool             isDynamic;
-        Handle<RigidBody>  bodyHandle;
-    };
-
-    // =========================================================================
     //  PerformanceOverlay  —  FPS + frame time pinned to a screen corner
     //
     //  corner: 0=TL  1=TR  2=BL  3=BR
@@ -368,47 +356,6 @@ namespace Aether::UI
             Text("FPS        %.1f",    io);
             Text("Frame time %.2f ms", 1000.f / io);
         }
-    }
-
-    // =========================================================================
-    //  HealthBar  —  drawn directly on foreground draw list (no window needed)
-    // =========================================================================
-
-    inline void HealthBar(float hp, float maxHp,
-                          glm::vec2 pos  = {},
-                          glm::vec2 size = {200.f, 18.f},
-                          const char* label = "HP",
-                          float rounding = 4.f)
-    {
-        if (pos.x == 0 && pos.y == 0)
-        {
-            auto vp = Screen::Pos();
-            pos = {vp.x + 30.f, vp.y + 40.f};
-        }
-
-        float frac = glm::clamp(hp / maxHp, 0.f, 1.f);
-        auto  c    = Foreground();
-
-        c.RectFill({pos.x,          pos.y},
-                   {pos.x + size.x, pos.y + size.y},
-                   Col32(30, 30, 30, 180), rounding);
-
-        if (frac > 0.f)
-        {
-            ImU32 fill = Col32(
-                (uint8_t)((1.f - frac) * 255),
-                (uint8_t)( frac        * 220),
-                0, 220);
-            c.RectFill({pos.x,                 pos.y},
-                       {pos.x + size.x * frac, pos.y + size.y},
-                       fill, rounding);
-        }
-
-        c.Rect({pos.x, pos.y}, {pos.x + size.x, pos.y + size.y},
-               Col32(180, 180, 180, 200), rounding, 1.5f);
-
-        c.Text({pos.x, pos.y - 22.f},
-               Col32(220, 220, 220, 230), label, 18.f);
     }
 
 } // namespace UI

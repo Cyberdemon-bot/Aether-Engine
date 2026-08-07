@@ -92,6 +92,7 @@ namespace Aether {
         if (!res.valid())
         {
             sol::error err = res;
+            AE_CORE_ERROR("[Coroutine] runtime error: {0}", err.what());
             MarkForStop(handle);
             return false;
         }
@@ -131,9 +132,16 @@ namespace Aether {
     void CoroutineManager::Update(Timestep ts)
     {
         uint32_t guard = 0;
-        for (auto& handle : m_StopQueue) m_Tasks.DestroyResource(handle);
+        for (auto& handle : m_StopQueue)
+        {
+            auto* task = m_Tasks.GetResource(handle); if (!task) return;
+            task->thread = sol::thread();    
+            task->co = sol::lua_nil;
+            m_Tasks.DestroyResource(handle);
+        }
         m_Tasks.Loop([ts, this](CoroutineTask& task)
         {
+            if (!task.thread.valid()) return;
             if (task.state == CoroutineState::Dead) return; 
 
             if (task.condition == WaitType::Seconds)
@@ -153,6 +161,7 @@ namespace Aether {
                 for (auto& request : m_ResumeQueue)
                 {
                     auto* task = m_Tasks.GetResource(request.handle);
+                    if (!task->thread.valid()) continue;
                     if (task && task->state != CoroutineState::Dead) 
                         ExecuteResume(request.handle, request.results);
                 }
@@ -188,10 +197,12 @@ namespace Aether {
     Handle<CoroutineTask> CoroutineManager::GetCurrentRunningTask(sol::thread target)
     {
         Handle<CoroutineTask> found = Handle<CoroutineTask>::MakeInvalid();
+        if (!target.valid()) return found;
         lua_State* targetL = target.state();
+        if (!targetL) return found;
         m_Tasks.Loop([&targetL, &found](CoroutineTask& task)
         {
-            if (task.thread.state() == targetL && task.state == CoroutineState::Running) found = task.self_handle;
+            if (task.thread.valid() && task.thread.state() == targetL && task.state == CoroutineState::Running) found = task.self_handle;
         });
         return found;
     }

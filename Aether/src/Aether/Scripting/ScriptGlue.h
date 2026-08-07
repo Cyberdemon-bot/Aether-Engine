@@ -18,6 +18,38 @@
 
 namespace Aether {
 
+    struct U64
+    {
+        uint64_t value = 0;
+        U64() = default;
+        U64(uint64_t v) : value(v) {}
+    };
+
+    struct U64Binding
+    {
+        using Type = U64;
+        static constexpr const char* get_name() { return "U64"; }
+
+        static constexpr auto get_props()
+        {
+            return AE_REFLECT_LIST();
+        }
+
+        static constexpr auto get_ops()
+        {
+            return AE_REFLECT_LIST();
+        }
+
+        static constexpr auto get_methods()
+        {
+            return AE_REFLECT_LIST(
+                AE_REFLECT("ToString", 
+                    AE_MAKE_LAMBDA((), (const Type& self), std::string, return std::to_string(self.value);)
+                )
+            );
+        }
+    };
+
     struct Vec3Binding
     {
         using Type = glm::vec3;
@@ -535,26 +567,26 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("FindByTag",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), std::vector<uint64_t>,
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), std::vector<U64>,
                         auto results = ctx.scene->FindEntity(name);
-                        std::vector<uint64_t> ids;
+                        std::vector<U64> ids;
                         ids.reserve(results.size());
                         for (auto& e : results)
                             if (ctx.scene->HasComponent<ScriptComponent>(e))
-                                ids.push_back(uint64_t(ctx.scene->GetComponent<IDComponent>(e).ID));
+                                ids.push_back(U64(ctx.scene->GetComponent<IDComponent>(e).ID));
                         return ids;
                     )
                 ),
 
                 AE_REFLECT("IsValid",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t id), bool,
-                        Entity e = ctx.scene->FindEntity(UUID(id));
+                    AE_MAKE_LAMBDA((), (Type& ctx, U64 id), bool,
+                        Entity e = ctx.scene->FindEntity(UUID(id.value));
                         return ctx.scene->IsValid(e);
                     )
                 ),
                 AE_REFLECT("SafeCall",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = ctx.scene->FindEntity((UUID(targetId)));
+                    AE_MAKE_LAMBDA((), (Type& ctx, U64 targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = ctx.scene->FindEntity((UUID(targetId.value)));
                         if (!ctx.scene->IsValid(target)) return sol::lua_nil;
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
@@ -562,8 +594,8 @@ namespace Aether {
                     )
                 ),
                 AE_REFLECT("DirectCall",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = ctx.scene->FindEntity((UUID(targetId)));
+                    AE_MAKE_LAMBDA((), (Type& ctx, U64 targetId, const std::string& name, sol::variadic_args args), sol::object,
+                        Entity target = ctx.scene->FindEntity((UUID(targetId.value)));
                         if (!ctx.scene->IsValid(target)) return sol::lua_nil;
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
@@ -708,7 +740,7 @@ namespace Aether {
         static inline sol::table MakeAwaitable(sol::state_view lua, uint64_t blend, uint32_t type, float timeout)
         {
             sol::table t = lua.create_table(3, 0);
-            t[1] = blend;
+            t[1] = U64(blend);
             t[2] = type;
             t[3] = timeout;
             return t;
@@ -718,15 +750,15 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("async",
-                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), uint64_t,
+                    AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), U64,
                         auto handle = ctx.coroutine_manager->StartCoroutine(func, ctx.handle);
-                        return handle.Blend();
+                        return U64(handle.Blend());
                     )
                 ),
 
                 AE_REFLECT("stop",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t handle), void,
-                        ctx.coroutine_manager->StopCoroutine(Handle<CoroutineTask>::FromBlend(handle));
+                    AE_MAKE_LAMBDA((), (Type& ctx, U64 handle), void,
+                        ctx.coroutine_manager->StopCoroutine(Handle<CoroutineTask>::FromBlend(handle.value));
                     )
                 ),
 
@@ -740,7 +772,7 @@ namespace Aether {
                         return lua_yield(L, 0);
                     ),
                     AE_MAKE_LAMBDA((), (Type& ctx, sol::table awaitable, sol::this_state ts), int,
-                        uint64_t handle = awaitable[1];
+                        uint64_t handle = awaitable.get<U64>(1).value;
                         uint32_t type = awaitable[2];
                         float timeout = awaitable[3];
 
@@ -811,7 +843,7 @@ namespace Aether {
                         {
                             if (!t.is<sol::table>()) continue;
                             sol::table tbl = t.as<sol::table>();
-                            uint64_t blend = tbl[1];
+                            uint64_t blend = tbl.get<U64>(1).value;
                             uint32_t type = tbl[2];
                             float timeout = tbl[3];
                             auto h = Handle<Promise>::FromBlend(blend);
@@ -842,7 +874,7 @@ namespace Aether {
                         {
                             if (!t.is<sol::table>()) continue;
                             sol::table tbl = t.as<sol::table>();
-                            uint64_t blend = tbl[1];
+                            uint64_t blend = tbl.get<U64>(1).value;
                             uint32_t type = tbl[2];
                             float timeout = tbl[3];
                             auto h = Handle<Promise>::FromBlend(blend);
@@ -908,14 +940,14 @@ namespace Aether {
                     )
                 ),
                 AE_REFLECT("Listen",
-                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::main_protected_function callback), uint64_t,
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::main_protected_function callback), U64,
                         auto handle = ctx.event_manager->CreateListener(name, callback, ctx.handle);
-                        return handle.Blend();
+                        return U64(handle.Blend());
                     )
                 ),
                 AE_REFLECT("Unlisten",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t handle), void,
-                        ctx.event_manager->DestroyListener(Handle<EventListener>::FromBlend(handle));
+                    AE_MAKE_LAMBDA((), (Type& ctx, U64 handle), void,
+                        ctx.event_manager->DestroyListener(Handle<EventListener>::FromBlend(handle.value));
                     )
                 ),
                 AE_REFLECT("OnEvent",
@@ -941,7 +973,7 @@ namespace Aether {
         using Type = JobContext;
         static constexpr const char* get_name() { return "JobContext"; }
 
-        static sol::table Base(Type& ctx, uint64_t idx, uint32_t type, float timeout, sol::variadic_args args, sol::this_state ts)
+        static sol::table Base(Type& ctx, uint32_t idx, uint32_t type, float timeout, sol::variadic_args args, sol::this_state ts)
         {
             if (idx >= ctx.native_funcs->size())
             {
@@ -974,12 +1006,12 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("Run",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t idx, sol::variadic_args args, sol::this_state ts), sol::table,
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t idx, sol::variadic_args args, sol::this_state ts), sol::table,
                         return Base(ctx, idx, 2, 0.0f, args, ts);
                     )
                 ),
                 AE_REFLECT("RunTimeout",
-                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t idx, float timeout, sol::variadic_args args, sol::this_state ts), sol::table,
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint32_t idx, float timeout, sol::variadic_args args, sol::this_state ts), sol::table,
                         return Base(ctx, idx, 1, timeout, args, ts);
                     )
                 )
