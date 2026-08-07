@@ -15,6 +15,7 @@ namespace Aether {
         Clip,
         Script,
         Image,
+        Audio,
         Count 
     };
 

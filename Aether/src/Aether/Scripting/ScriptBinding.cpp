@@ -10,6 +10,7 @@ namespace Aether {
         BindEnum<CollisionType>("CollisionType");
         BindEnum<LightType>("LightType"); 
         BindEnum<SceneCamera::ProjectionType>("CameraProjection");
+        BindType<U64Binding>();
         BindType<Vec3Binding>("Math");
         BindType<QuatBinding>("Math");
         BindModule<MathBinding>("Math");

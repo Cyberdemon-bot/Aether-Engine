@@ -16,5 +16,14 @@ namespace Aether {
             return h;
         }
         uint64_t Blend() const { return ((uint64_t)index << 32) | generation; }
+
+        Handle& operator=(const Handle& other)
+        {
+            if (this == &other) return *this;
+            index = other.index;
+            generation = other.generation;
+
+            return *this;
+        }
     };
 }

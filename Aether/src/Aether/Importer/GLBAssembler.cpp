@@ -3,7 +3,7 @@
 #include "Platform/Cgltf/GLTF_Assembler.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
-#include "Aether/Assets/Image.h"
+#include "Aether/Assets/Media.h"
 #include "Aether/Assets/AssetsRegister.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Animation/AnimationSystem.h"
@@ -49,9 +49,7 @@ namespace Aether {
             auto resource = ResourceManager::GetResource<Texture2D>(handle);
             if (!resource) AE_CORE_ERROR("Fail to Create texture while uploading");
             resource->SetData((void*)img.RawData.data(), img.RawData.size());
-            auto imgHandle = asset_manager->CreateAsset<Image>(UUID());
-            Image* asset = asset_manager->GetAsset<Image>(imgHandle);
-            asset->m_Handle = handle;
+            auto imgHandle = asset_manager->CreateAsset<Image>(UUID(), handle);
             imgs.push_back(imgHandle);
         }
         // Upload materials
@@ -87,12 +85,9 @@ namespace Aether {
         for (size_t i = 0; i < sceneData->Skeletons.size(); i++)
         {
             auto& skelInfo = sceneData->Skeletons[i];
-
-            auto skeleton = asset_manager->CreateAsset<Skeleton>(AssetsRegister::Register(skelInfo.DebugName, skelInfo.AssetID));
-            auto* asset = asset_manager->GetAsset<Skeleton>(skeleton);
-            asset->m_Handle = animSystem->CreateSkeleton(skelInfo.spec);
-            asset->m_JointCount = skelInfo.spec.Joints.size();
-
+            auto skeleton = asset_manager->CreateAsset<Skeleton>(AssetsRegister::Register(skelInfo.DebugName, skelInfo.AssetID), 
+                                                                animSystem->CreateSkeleton(skelInfo.spec),
+                                                                skelInfo.spec.Joints.size());
             res.animators.push_back({});
             res.animators[i].skeleton = skeleton;
             skels.push_back(skeleton);
@@ -105,11 +100,9 @@ namespace Aether {
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
                 auto skeleton = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->m_Handle;
-                auto clip = asset_manager->CreateAsset<Clip>(AssetsRegister::Register(clipInfo.DebugName, clipInfo.AssetID));
-                auto* asset = asset_manager->GetAsset<Clip>(clip);
-                asset->m_Handle = animSystem->CreateClip(clipInfo.spec, skeleton);
-                asset->m_Duration = clipInfo.spec.Duration;
-
+                auto clip = asset_manager->CreateAsset<Clip>(AssetsRegister::Register(clipInfo.DebugName, clipInfo.AssetID), 
+                                                            animSystem->CreateClip(clipInfo.spec, skeleton), 
+                                                            clipInfo.spec.Duration);
                 res.animators[targetRigIdx].clips.push_back(clip);
             }
         }

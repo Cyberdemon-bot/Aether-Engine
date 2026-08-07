@@ -48,8 +48,6 @@ namespace Aether {
         void MarkDirty(Entity entity);
         glm::vec3 GetWorldPosition(Entity entity);
 
-        void ImportPrefab(Entity entity, const Prefab& prefab, bool override = false);
-        Prefab ExportPrefab(Entity entity) const;
         Entity LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
 
         bool IsValid(Entity entity) const;
@@ -154,19 +152,5 @@ namespace Aether {
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
-
-        template<typename T>
-        void LoadComponent(Entity entity, const ComponentInfo<T>& info, bool override)
-        {
-            if (!info.IsExits) return;
-            if (m_Registry.any_of<T>(entity))
-            {
-                if (override) m_Registry.get<T>(entity) = info.data;
-            }
-            else
-            {
-                m_Registry.emplace<T>(entity) = info.data;
-            }
-        }
     };
 }
