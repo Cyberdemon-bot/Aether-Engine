@@ -203,14 +203,14 @@ void MainGameLayer::Attach()
     // =========================================================================
     // AUDIO
     // =========================================================================
-    auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
-    m_BgmSource    = audsys->CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
-    m_GunSource    = audsys->CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);   
-    m_ReloadSource = audsys->CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
-    m_BiteSource   = audsys->CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
+    // auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
+    // m_BgmSource    = audsys->CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
+    // m_GunSource    = audsys->CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);   
+    // m_ReloadSource = audsys->CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
+    // m_BiteSource   = audsys->CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
 
-    audsys->SetLooping(m_BgmSource, true);
-    audsys->Play(m_BgmSource);
+    // audsys->SetLooping(m_BgmSource, true);
+    // audsys->Play(m_BgmSource);
 
     AE_INFO("MainGameLayer started.");
 }
@@ -346,8 +346,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
         {
             m_IsReloading = true;
             m_ReloadTimer = m_ReloadDuration;
-            audsys->Stop(m_ReloadSource);
-            audsys->Play(m_ReloadSource);
+            // audsys->Stop(m_ReloadSource);
+            // audsys->Play(m_ReloadSource);
             AE_INFO("Reloading...");
         }
 
@@ -549,8 +549,8 @@ void MainGameLayer::Update(Aether::Timestep ts)
                 m_PlayerHealth   -= 10.0f;
                 m_DamageCooldown  = 1.0f;
                 Aether::UUID src;
-                audsys->Stop(m_BiteSource);
-                audsys->Play(m_BiteSource);
+                // audsys->Stop(m_BiteSource);
+                // audsys->Play(m_BiteSource);
                 AE_WARN("Player bit! HP remaining: {0}", m_PlayerHealth);
                 break;
             }
@@ -1023,10 +1023,10 @@ void MainGameLayer::OnEvent(Aether::Event& event)
                 animComp.IsPlaying   = true;
             }
         }
-        auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
-        audsys->Stop(m_GunSource);
-        audsys->SetVolume(m_GunSource, 0.3f);
-        audsys->Play(m_GunSource);
+        // auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
+        // audsys->Stop(m_GunSource);
+        // audsys->SetVolume(m_GunSource, 0.3f);
+        // audsys->Play(m_GunSource);
 
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());

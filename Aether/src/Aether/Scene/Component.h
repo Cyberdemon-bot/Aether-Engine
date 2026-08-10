@@ -108,25 +108,24 @@ namespace Aether {
         void SetClip(int idx);
     };
 
-    struct AudioSourceComponent
-    {
-        Handle<AudioSource> SourceHandle = Handle<AudioSource>::MakeInvalid();
+    // struct AudioSourceComponent
+    // {
+    //     Handle<AudioSource> SourceHandle = Handle<AudioSource>::MakeInvalid();
  
-        std::string Path;
-        AudioType Type = AudioType::Audio2D;
-        float Volume = 1.0f;
-        float Pan = 0.0f;
-        float PlaybackSpeed = 1.0f;
-        bool Looping = false;
-        bool PlayOnStart = false;
-        bool IsPlaying = false;
-        Audio3DConfig Config3D;
+    //     std::string Path;
+    //     AudioType Type = AudioType::Audio2D;
+    //     float Volume = 1.0f;
+    //     float Pan = 0.0f;
+    //     float PlaybackSpeed = 1.0f;
+    //     bool Looping = false;
+    //     bool PlayOnStart = false;
+    //     bool IsPlaying = false;
  
-        AudioSourceComponent() = default;
-        AudioSourceComponent(const AudioSourceComponent&) = default;
-        AudioSourceComponent(const std::string& path, AudioType type = AudioType::Audio2D)
-            : Path(path), Type(type) {}
-    };
+    //     AudioSourceComponent() = default;
+    //     AudioSourceComponent(const AudioSourceComponent&) = default;
+    //     AudioSourceComponent(const std::string& path, AudioType type = AudioType::Audio2D)
+    //         : Path(path), Type(type) {}
+    // };
 
     struct ScriptComponent
     {
