@@ -68,6 +68,26 @@ namespace Aether {
 
     void EventManager::DestroyListener(Handle<EventListener> handle)
     {
+        auto* listener = m_Listeners.GetResource(handle);
+        if (!listener) return;
+
+        if (!listener->is_native)
+        {
+            auto owner = listener->script_owner;
+            if (owner.index >= m_OwnershipMap.size()) return;
+            auto& list = m_OwnershipMap[owner.index].list;
+            uint64_t target = handle.Blend();
+            auto it = std::find_if(list.begin(), list.end(), [target](const auto& item) 
+            {
+                return item.Blend() == target;
+            });
+
+            if (it != list.end())
+            {
+                *it = list.back(); 
+                list.pop_back(); 
+            }
+        }
         m_DestroyQueue.push_back(handle);
     }
 

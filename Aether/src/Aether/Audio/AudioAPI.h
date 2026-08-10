@@ -7,6 +7,7 @@
 namespace Aether {
 
     struct AudioSource; 
+    struct AudioPlayer; 
 
     enum class AudioType
     {
@@ -29,10 +30,12 @@ namespace Aether {
         glm::vec3 up;
     };
 
-    struct Audio3DConfig
+    struct Audio3DInfo
     {
         float minDistance = 1.0f;
         float maxDistance = 50.0f;
+        glm::vec3 position = glm::vec3(0.0f);
+        glm::vec3 velocity = glm::vec3(0.0f);
         AudioAttenuation attenuation = AudioAttenuation::INVERSE_DISTANCE;
     };
 
@@ -43,51 +46,43 @@ namespace Aether {
         float volume = 1.0f;
         float pan = 0.0f;
         float playback_speed = 1.0f;
-        glm::vec3 position = glm::vec3(0.0f);
-        glm::vec3 velocity = glm::vec3(0.0f);
+        Audio3DInfo _3dinfo;
     };
 
     class AudioAPI
     {
     public:
-        enum class API {
-            None = 0, SoLoud = 1
-        };
-
         virtual ~AudioAPI() = default;
+
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
-
-        virtual Handle<AudioSource> CreateSource(const std::string& path, AudioType type) = 0;
+        virtual void Update() = 0;
+        
+        virtual Handle<AudioSource> CreateSource(const std::string& path) = 0;
         virtual void DestroySource(Handle<AudioSource> handle) = 0;
-        virtual bool IsActive(Handle<AudioSource> handle) = 0;
+       
+        virtual Handle<AudioPlayer> CreatePlayer(Handle<AudioSource> source, AudioType type) = 0;
+        virtual void DestroyPlayer(Handle<AudioPlayer> handle) = 0;
 
-        virtual void Play(Handle<AudioSource> handle) = 0;
-        virtual void Pause(Handle<AudioSource> handle) = 0;
-        virtual void Stop(Handle<AudioSource> handle) = 0;
+        virtual void Play(Handle<AudioPlayer> handle) = 0;
+        virtual void Pause(Handle<AudioPlayer> handle) = 0;
+        virtual void Stop(Handle<AudioPlayer> handle) = 0;
+        virtual void Seek(Handle<AudioPlayer> handle, float value) = 0;
 
-        virtual void SetGlobalVolume(float value) = 0;
-        virtual void SetMaxActiveSource(uint32_t value) = 0;
-
-        virtual void SetVolume(Handle<AudioSource> handle, float value) = 0;
-        virtual void SetPan(Handle<AudioSource> handle, float value) = 0;
-        virtual void SetLooping(Handle<AudioSource> handle, bool value) = 0;
-        virtual void SetPlaybackSpeed(Handle<AudioSource> handle, float value) = 0;
-        virtual void Seek(Handle<AudioSource> handle, float value) = 0;
-
-        // 3D only
-        virtual void SetSpeedSound(float value) = 0;
-        virtual void SetPosition(Handle<AudioSource> handle, const glm::vec3& position) = 0;
-        virtual void SetVelocity(Handle<AudioSource> handle, const glm::vec3& velocity) = 0;
-        virtual void SetDistance(Handle<AudioSource> handle, float minDist, float maxDist) = 0;
-        virtual void SetAttenuation(Handle<AudioSource> handle, AudioAttenuation attenuation) = 0;
-
+        virtual AudioState* GetState(Handle<AudioPlayer> player) = 0;
         virtual void UpdateListener(const AudioListener& listener) = 0;
 
-        static API GetAPI() { return s_API; }
         static Scope<AudioAPI> Create();
-
     private:
+        enum class API 
+        {
+            None = 0, SoLoud = 1
+        };
         static API s_API;
+
+        static API GetAPI() 
+        { 
+            return s_API; 
+        }
     };
 }

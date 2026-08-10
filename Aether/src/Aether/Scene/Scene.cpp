@@ -346,12 +346,12 @@ namespace Aether {
             if (!hasRecalculatedWorld)
                 transform.WorldTransform = pTransform * transform.GetLocalTransform();
 
-            if (HasComponent<AudioSourceComponent>(entity))
-            {
-                auto& audio = GetComponent<AudioSourceComponent>(entity);
-                if (audio.SourceHandle.IsValid())
-                    ServiceManager::GetService<AudioSystem>()->SetPosition(audio.SourceHandle, glm::vec3(transform.WorldTransform[3]));
-            }
+            // if (HasComponent<AudioSourceComponent>(entity))
+            // {
+            //     auto& audio = GetComponent<AudioSourceComponent>(entity);
+            //     if (audio.SourceHandle.IsValid())
+            //         ServiceManager::GetService<AudioSystem>()->SetPosition(audio.SourceHandle, glm::vec3(transform.WorldTransform[3]));
+            // }
 
             if (HasComponent<LightComponent>(entity))
                 GetComponent<LightComponent>(entity).Config.position = glm::vec3(transform.WorldTransform[3]);
@@ -463,43 +463,43 @@ namespace Aether {
             script_engine->Update(ts);
         }
 
-        { //update audio
-            auto audioView = View<AudioSourceComponent>();
-            auto* audsys = ServiceManager::GetService<AudioSystem>();
-            for (auto entity : audioView)
-            {
-                auto& audio = GetComponent<AudioSourceComponent>(entity);
-                if (!audio.SourceHandle.IsValid() && !audio.Path.empty())
-                {
-                    audio.SourceHandle = audsys->CreateSource(audio.Path, audio.Type);
-                    if (audio.SourceHandle.IsValid())
-                    {
-                        audsys->SetVolume(audio.SourceHandle, audio.Volume);
-                        audsys->SetPan(audio.SourceHandle, audio.Pan);
-                        audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-                        audsys->SetLooping(audio.SourceHandle, audio.Looping);
-                        if (audio.Type == AudioType::Audio3D)
-                        {
-                            audsys->SetDistance(audio.SourceHandle,
-                                audio.Config3D.minDistance, audio.Config3D.maxDistance);
-                            audsys->SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
-                        }
-                        if (audio.PlayOnStart)
-                        {
-                            audsys->Play(audio.SourceHandle);
-                            audio.IsPlaying = true;
-                        }
-                    }
-                }
-                else if (audio.SourceHandle.IsValid())
-                {
-                    audsys->SetVolume(audio.SourceHandle,        audio.Volume);
-                    audsys->SetPan(audio.SourceHandle,           audio.Pan);
-                    audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-                    audsys->SetLooping(audio.SourceHandle,       audio.Looping);
-                }
-            }
-        }
+        // { //update audio
+        //     auto audioView = View<AudioSourceComponent>();
+        //     auto* audsys = ServiceManager::GetService<AudioSystem>();
+        //     for (auto entity : audioView)
+        //     {
+        //         auto& audio = GetComponent<AudioSourceComponent>(entity);
+        //         if (!audio.SourceHandle.IsValid() && !audio.Path.empty())
+        //         {
+        //             audio.SourceHandle = audsys->CreateSource(audio.Path, audio.Type);
+        //             if (audio.SourceHandle.IsValid())
+        //             {
+        //                 audsys->SetVolume(audio.SourceHandle, audio.Volume);
+        //                 audsys->SetPan(audio.SourceHandle, audio.Pan);
+        //                 audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
+        //                 audsys->SetLooping(audio.SourceHandle, audio.Looping);
+        //                 if (audio.Type == AudioType::Audio3D)
+        //                 {
+        //                     audsys->SetDistance(audio.SourceHandle,
+        //                         audio.Config3D.minDistance, audio.Config3D.maxDistance);
+        //                     audsys->SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
+        //                 }
+        //                 if (audio.PlayOnStart)
+        //                 {
+        //                     audsys->Play(audio.SourceHandle);
+        //                     audio.IsPlaying = true;
+        //                 }
+        //             }
+        //         }
+        //         else if (audio.SourceHandle.IsValid())
+        //         {
+        //             audsys->SetVolume(audio.SourceHandle,        audio.Volume);
+        //             audsys->SetPan(audio.SourceHandle,           audio.Pan);
+        //             audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
+        //             audsys->SetLooping(audio.SourceHandle,       audio.Looping);
+        //         }
+        //     }
+        // }
 
         { // render
             auto camView = View<CameraComponent>();

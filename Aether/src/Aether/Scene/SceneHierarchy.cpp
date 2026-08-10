@@ -75,12 +75,12 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
             ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
-        if (HasComponent<AudioSourceComponent>(entity))
-        {
-            auto& audio = GetComponent<AudioSourceComponent>(entity);
-            if (audio.SourceHandle.IsValid())
-                ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
-        }
+        // if (HasComponent<AudioSourceComponent>(entity))
+        // {
+        //     auto& audio = GetComponent<AudioSourceComponent>(entity);
+        //     if (audio.SourceHandle.IsValid())
+        //         ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
+        // }
 
         if (HasComponent<ScriptComponent>(entity))
         {
@@ -128,12 +128,12 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
             ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
-        if (HasComponent<AudioSourceComponent>(entity))
-        {
-            auto& audio = GetComponent<AudioSourceComponent>(entity);
-            if (audio.SourceHandle.IsValid())
-                ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
-        }
+        // if (HasComponent<AudioSourceComponent>(entity))
+        // {
+        //     auto& audio = GetComponent<AudioSourceComponent>(entity);
+        //     if (audio.SourceHandle.IsValid())
+        //         ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
+        // }
 
         if (HasComponent<ScriptComponent>(entity))
         {
