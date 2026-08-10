@@ -1,6 +1,13 @@
 #include "aepch.h"
 #include "Aether/Assets/AssetManager.h"
 
+#define UnloadAsset(type) \
+    { \
+        using TargetPoolType = ResourcePool<Handle<type>, type>; \
+        auto& pool = std::get<TargetPoolType>(m_AssetContainers); \
+        pool.DestroyResource(Handle<type>::FromBlend(route->handle)); \
+    }
+
 namespace Aether {
 
     void AssetManager::Init()
@@ -39,55 +46,14 @@ namespace Aether {
 
         switch (route->type)
         {
-            case AssetType::Mesh:
-            {
-                using TargetPoolType = ResourcePool<Handle<Mesh>, Mesh>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Mesh>::FromBlend(route->handle));
-                break;
-            }
-            case AssetType::Material:
-            {
-                using TargetPoolType = ResourcePool<Handle<Material>, Material>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Material>::FromBlend(route->handle));
-                break;
-            }
-            case AssetType::Sheet:
-            {
-                using TargetPoolType = ResourcePool<Handle<Sheet>, Sheet>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Sheet>::FromBlend(route->handle));
-                break;
-            }
-            case AssetType::Skeleton:
-            {
-                using TargetPoolType = ResourcePool<Handle<Skeleton>, Skeleton>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Skeleton>::FromBlend(route->handle));
-                break;
-            }
-            case AssetType::Clip:
-            {
-                using TargetPoolType = ResourcePool<Handle<Clip>, Clip>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Clip>::FromBlend(route->handle));
-                break;
-            }
-            case AssetType::Script:
-            {
-                using TargetPoolType = ResourcePool<Handle<Script>, Script>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Script>::FromBlend(route->handle));
-                break;
-            }
-            case AssetType::Image:
-            {
-                using TargetPoolType = ResourcePool<Handle<Image>, Image>;
-                auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-                pool.DestroyResource(Handle<Image>::FromBlend(route->handle));
-                break;
-            }
+            case AssetType::Mesh: UnloadAsset(Mesh); break;
+            case AssetType::Material: UnloadAsset(Material); break;
+            case AssetType::Sheet: UnloadAsset(Sheet); break;
+            case AssetType::Skeleton: UnloadAsset(Skeleton); break;
+            case AssetType::Clip: UnloadAsset(Clip); break;
+            case AssetType::Script: UnloadAsset(Script); break;
+            case AssetType::Image: UnloadAsset(Image); break;
+            case AssetType::Audio: UnloadAsset(Audio); break;
             case AssetType::None:
             default:
                 AE_CORE_ASSERT(false, "Unknown or invalid asset type in Unload!");
