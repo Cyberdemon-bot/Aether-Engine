@@ -38,13 +38,13 @@ namespace Aether {
         glm::quat rotation;
     };
 
-    struct RaycastHit
+    struct RaycastResult
     {
         bool Hit = false;
         glm::vec3 Position{0.0f}; 
         glm::vec3 Normal{0.0f};  
         float Distance = 0.0f;    
-        Handle<RigidBody> HitEntityHandle;
+        Handle<RigidBody> HitBody;
     };
 
     struct BodyConfig
@@ -94,8 +94,8 @@ namespace Aether {
 
         virtual BodyConfig GetBodyInfo(Handle<RigidBody> handle) const = 0;
 
-        virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
-        virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
+        virtual RaycastResult CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
+        virtual std::vector<RaycastResult> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual bool CanMove(Handle<RigidBody> handle, const PhysTransform& target) = 0;
 
         virtual void SetActive(Handle<RigidBody> handle, bool active) = 0;

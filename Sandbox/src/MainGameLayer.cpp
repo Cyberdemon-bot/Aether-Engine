@@ -1028,10 +1028,10 @@ void MainGameLayer::OnEvent(Aether::Event& event)
 
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
-        Aether::RaycastHit hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
+        Aether::RaycastResult hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
         if (hit.Hit)
         {
-            Aether::Entity target = Aether::Scene::FromNumber(physys->GetUserData(m_Scene.GetPhysicsInstance(), hit.HitEntityHandle));
+            Aether::Entity target = Aether::Scene::FromNumber(physys->GetUserData(m_Scene.GetPhysicsInstance(), hit.HitBody));
             if (target != Aether::Null_Entity && target != m_Player)
             {
                 m_Scene.DestroyHierarchy(target);

@@ -4,11 +4,9 @@
 #include "Aether/Events/Event.h"
 #include "Aether/Scene/Component.h"
 #include "Aether/Core/Input.h"
-#include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Scene/SceneCamera.h"
-#include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Core/JobSystem.h"
+#include "Aether/Scripting/ScriptEngine.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -444,14 +442,6 @@ namespace Aether {
         }
     };
 
-    struct ScriptSelf
-    {
-        Scene* scene = nullptr;
-        ScriptEngine* engine = nullptr;
-        Entity entity = Null_Entity;
-        InstanceSlot* slot = nullptr;
-    };
-
     struct ScriptSelfBinding
     {
         using Type = ScriptSelf;
@@ -553,12 +543,6 @@ namespace Aether {
         }
     };
 
-    struct SceneContext
-    {
-        Scene* scene;
-        ScriptEngine* engine;
-    };
-
     struct SceneBinding
     {
         using Type = SceneContext;
@@ -634,11 +618,11 @@ namespace Aether {
         }
     };
 
-    struct RaycastHitBinding
+    struct RaycastResultBinding
     {
-        using Type = RaycastHit;
+        using Type = RaycastResult;
         using VType = glm::vec3;
-        static constexpr const char* get_name() { return "RaycastHit"; }
+        static constexpr const char* get_name() { return "RaycastResult"; }
 
         static constexpr auto get_props()
         {
@@ -657,18 +641,11 @@ namespace Aether {
                 ),
                 AE_REFLECT("HitBody",
                     AE_MAKE_LAMBDA((), (const Type& self), U64,
-                        return U64(self.HitEntityHandle.Blend());
+                        return U64(self.HitBody.Blend());
                     )
                 )
             );
         }
-    };
-
-    struct PhysicsContext
-    {
-        Scene* scene  = nullptr;
-        PhysicsSystem* physys = nullptr;
-        Entity entity = Null_Entity;
     };
 
     struct PhysicsBinding
@@ -711,13 +688,13 @@ namespace Aether {
                 ),
 
                 AE_REFLECT("CastRay",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), RaycastHit,
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), RaycastResult,
                         return self.physys->CastRay(self.scene->GetPhysicsInstance(), origin, direction, distance);
                     )
                 ),
 
                 AE_REFLECT("CastRayAll",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastHit>,
+                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastResult>,
                         return self.physys->CastRayAll(self.scene->GetPhysicsInstance(), origin, direction, distance);
                     )
                 ),
@@ -730,13 +707,6 @@ namespace Aether {
                 )
             );
         }
-    };
-
-    struct CoroutineContext
-    {
-        Handle<ScriptInstance> handle;
-        CoroutineManager* coroutine_manager = nullptr;
-        PromiseManager* promise_manager = nullptr;
     };
 
     struct CoroutineBinding
@@ -827,11 +797,6 @@ namespace Aether {
         }
     };
 
-    struct PromiseContext
-    {
-        PromiseManager* promise_manager = nullptr;
-    };
-
     struct PromiseBinding
     {
         using Type = PromiseContext;
@@ -905,13 +870,6 @@ namespace Aether {
         }
     };
 
-    struct EventContext
-    {
-        Handle<ScriptInstance> handle;
-        EventManager* event_manager = nullptr;
-        PromiseManager* promise_manager = nullptr;
-    };
-
     struct EventBinding
     {
         using Type = EventContext;
@@ -967,13 +925,6 @@ namespace Aether {
                 )
             );
         }
-    };
-
-    struct JobContext
-    {
-        std::vector<NativeFunc>* native_funcs = nullptr;
-        PromiseManager* promise_manager = nullptr;
-        JobSystem* jobsys = nullptr;
     };
 
     struct JobBinding

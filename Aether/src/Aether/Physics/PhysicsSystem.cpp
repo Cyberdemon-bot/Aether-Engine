@@ -81,14 +81,14 @@ namespace Aether {
         api->RemoveCallback(handle);
     }
 
-    RaycastHit PhysicsSystem::CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance)
+    RaycastResult PhysicsSystem::CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
         PhysicsAPI* api = GetAPI(world);
         if (api == nullptr) return {};
         return api->CastRay(origin, direction, distance);
     }
 
-    std::vector<RaycastHit> PhysicsSystem::CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance)
+    std::vector<RaycastResult> PhysicsSystem::CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
         PhysicsAPI* api = GetAPI(world);
         if (api == nullptr) return {};

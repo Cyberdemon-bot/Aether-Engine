@@ -1,7 +1,6 @@
 #include "aepch.h"
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
 #include "Aether/Physics/PhysicsAPI.h"
 #include "Aether/Scene/Scene.h"

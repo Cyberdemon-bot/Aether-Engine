@@ -40,8 +40,8 @@ namespace Aether {
 
         virtual BodyConfig GetBodyInfo(Handle<RigidBody> handle) const override;
 
-        virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
-        virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
+        virtual RaycastResult CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
+        virtual std::vector<RaycastResult> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
         virtual bool CanMove(Handle<RigidBody> handle, const PhysTransform& target) override;
 
         virtual void SetActive(Handle<RigidBody> handle, bool active) override;

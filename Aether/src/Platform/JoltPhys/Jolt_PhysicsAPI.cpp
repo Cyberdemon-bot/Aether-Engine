@@ -442,9 +442,9 @@ namespace Aether {
         return data->bodyInfo;
     }
 
-    RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
+    RaycastResult Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
-        RaycastHit result;
+        RaycastResult result;
         if (!m_PhysicsSystem) return result;
 
         const JPH::NarrowPhaseQuery& query = m_PhysicsSystem->GetNarrowPhaseQuery();
@@ -469,7 +469,7 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                result.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
+                result.HitBody = Handle<RigidBody>::FromBlend(id);
 
                 JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
                 JPH::Vec3 localHitPos = body.GetInverseCenterOfMassTransform() * joltHitPos;
@@ -483,9 +483,9 @@ namespace Aether {
         return result;
     }
 
-    std::vector<RaycastHit> Jolt_PhysicsAPI::CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance)
+    std::vector<RaycastResult> Jolt_PhysicsAPI::CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance)
     {
-        std::vector<RaycastHit> results;
+        std::vector<RaycastResult> results;
         if (!m_PhysicsSystem) return results;
 
         const JPH::NarrowPhaseQuery& query = m_PhysicsSystem->GetNarrowPhaseQuery();
@@ -504,7 +504,7 @@ namespace Aether {
 
         for (const JPH::RayCastResult& hit : collector.mHits)
         {
-            RaycastHit res;
+            RaycastResult res;
             res.Hit = true;
             res.Position = origin + (normDir * (distance * hit.mFraction));
             res.Distance = glm::distance(origin, res.Position);
@@ -515,7 +515,7 @@ namespace Aether {
             {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
-                res.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
+                res.HitBody = Handle<RigidBody>::FromBlend(id);
                 
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
                 JPH::Vec3 localHitPos = body.GetInverseCenterOfMassTransform() * joltHitPos;
@@ -527,7 +527,7 @@ namespace Aether {
             results.push_back(res);
         }
 
-        std::sort(results.begin(), results.end(), [](const RaycastHit& a, const RaycastHit& b) 
+        std::sort(results.begin(), results.end(), [](const RaycastResult& a, const RaycastResult& b) 
         {
             return a.Distance < b.Distance;
         });

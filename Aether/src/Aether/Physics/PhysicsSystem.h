@@ -25,8 +25,8 @@ namespace Aether {
         Handle<CollisionCallback> RegisterCallback(Handle<PhysicsInstance> world, const CollisionCallbackRef& callback);
         void RemoveCallback(Handle<PhysicsInstance> world, Handle<CollisionCallback> handle);
 
-        RaycastHit CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
-        std::vector<RaycastHit> CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
+        RaycastResult CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
+        std::vector<RaycastResult> CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
 
         void SetActive(Handle<PhysicsInstance> world, Handle<RigidBody> handle, bool active);
         void SetUserData(Handle<PhysicsInstance> world, Handle<RigidBody> handle, uint64_t ud);

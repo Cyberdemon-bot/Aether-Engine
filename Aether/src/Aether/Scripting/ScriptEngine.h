@@ -34,6 +34,8 @@ namespace Aether {
     struct Bytecode;
     enum class CollisionType;
     class Scene;
+    class PhysicsSystem;
+    class JobSystem;
 
     struct Exposed
     {
@@ -94,7 +96,6 @@ namespace Aether {
         std::string name;
         Delegate<ScriptTable(const ScriptTable&)> native;
     };
-
 
     class AETHER_API ScriptEngine
     {
@@ -290,5 +291,52 @@ namespace Aether {
         friend struct SceneBinding;
         friend struct JobBinding;
         friend class Scene;
+    };
+
+    struct ScriptSelf
+    {
+        Scene* scene = nullptr;
+        ScriptEngine* engine = nullptr;
+        Entity entity = Null_Entity;
+        InstanceSlot* slot = nullptr;
+    };
+
+    struct SceneContext
+    {
+        Scene* scene;
+        ScriptEngine* engine;
+    };
+
+    struct PhysicsContext
+    {
+        Scene* scene  = nullptr;
+        PhysicsSystem* physys = nullptr;
+        Entity entity = Null_Entity;
+    };
+
+    struct CoroutineContext
+    {
+        Handle<ScriptInstance> handle;
+        CoroutineManager* coroutine_manager = nullptr;
+        PromiseManager* promise_manager = nullptr;
+    };
+
+    struct PromiseContext
+    {
+        PromiseManager* promise_manager = nullptr;
+    };
+
+    struct JobContext
+    {
+        std::vector<NativeFunc>* native_funcs = nullptr;
+        PromiseManager* promise_manager = nullptr;
+        JobSystem* jobsys = nullptr;
+    };
+
+    struct EventContext
+    {
+        Handle<ScriptInstance> handle;
+        EventManager* event_manager = nullptr;
+        PromiseManager* promise_manager = nullptr;
     };
 }

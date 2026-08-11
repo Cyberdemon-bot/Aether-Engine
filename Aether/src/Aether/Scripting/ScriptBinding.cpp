@@ -1,5 +1,7 @@
 #include "aepch.h"
 #include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Core/JobSystem.h"
 #include "Aether/Scripting/ScriptGlue.h"
 
 namespace Aether {
@@ -22,7 +24,7 @@ namespace Aether {
         BindType<SceneBinding>();
         BindType<EventBinding>();
         BindType<CollisionBinding>();
-        BindType<RaycastHitBinding>();
+        BindType<RaycastResultBinding>();
         BindType<PhysicsBinding>();
         BindType<CoroutineBinding>();
         BindType<PromiseBinding>();
