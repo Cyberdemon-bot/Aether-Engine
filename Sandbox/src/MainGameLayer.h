@@ -132,8 +132,6 @@ private:
     Aether::Handle<Aether::AudioSource> m_ReloadSource;
     Aether::Handle<Aether::AudioSource> m_BiteSource;
 
-    Aether::Prefab m_ZombiePrefab;
-    Aether::Prefab m_ChunkPrefab;
     Aether::RegisteredScene m_UploadMap;
     Aether::Handle<Aether::Asset> m_SheetHandle;
 

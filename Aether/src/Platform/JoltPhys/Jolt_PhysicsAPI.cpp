@@ -203,7 +203,7 @@ namespace Aether {
         m_PhysicsSystem->SetContactListener(m_ContactListener);
         m_PhysicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
-        m_IDList.reserve(32);
+        m_UDList.reserve(32);
         m_BodyPool.Init();
         m_CallbackPool.Init();
     }
@@ -261,7 +261,7 @@ namespace Aether {
             JPH::Factory::sInstance = nullptr;
         }
 
-        m_IDList.clear();
+        m_UDList.clear();
         m_BodyPool.Shutdown();
         m_CallbackPool.Shutdown();
     }
@@ -403,8 +403,8 @@ namespace Aether {
         m_BodyPool.GetResource(handle)->joltID = body->GetID();
         m_BodyPool.GetResource(handle)->bodyInfo = config;
         body->SetUserData(handle.Blend());
-        m_IDList.resize(m_BodyPool.GetLen());
-        m_IDList[handle.index] = UUID(0);
+        m_UDList.resize(m_BodyPool.GetLen());
+        m_UDList[handle.index] = 0;
         return handle;
     }
 
@@ -434,12 +434,12 @@ namespace Aether {
         m_CallbackPool.DestroyResource(handle);
     }
 
-    const BodyConfig* Jolt_PhysicsAPI::GetBodyInfo(Handle<RigidBody> handle) const
+    BodyConfig Jolt_PhysicsAPI::GetBodyInfo(Handle<RigidBody> handle) const
     {
-        if (!m_PhysicsSystem) return nullptr;
+        if (!m_PhysicsSystem) return {};
         auto data = m_BodyPool.GetResource(handle);
-        if (!data) return nullptr;
-        return &data->bodyInfo;
+        if (!data) return {};
+        return data->bodyInfo;
     }
 
     RaycastHit Jolt_PhysicsAPI::CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance)
@@ -470,7 +470,6 @@ namespace Aether {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
                 result.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
-                result.HitEntityID = GetUUID(result.HitEntityHandle);
 
                 JPH::RVec3 joltHitPos(result.Position.x, result.Position.y, result.Position.z);
                 JPH::Vec3 localHitPos = body.GetInverseCenterOfMassTransform() * joltHitPos;
@@ -517,7 +516,6 @@ namespace Aether {
                 const JPH::Body& body = lock.GetBody();
                 uint64_t id = body.GetUserData();
                 res.HitEntityHandle = Handle<RigidBody>::FromBlend(id);
-                res.HitEntityID = GetUUID(res.HitEntityHandle);
                 
                 JPH::RVec3 joltHitPos(res.Position.x, res.Position.y, res.Position.z);
                 JPH::Vec3 localHitPos = body.GetInverseCenterOfMassTransform() * joltHitPos;
@@ -568,7 +566,8 @@ namespace Aether {
         JPH::ShapeCastSettings settings;
         settings.mReturnDeepestPoint = false;
 
-        class IgnoreSelf : public JPH::BodyFilter {
+        class IgnoreSelf : public JPH::BodyFilter 
+        {
         public:
             JPH::BodyID selfID;
             bool ShouldCollide(const JPH::BodyID& id) const override { return id != selfID; }
@@ -602,19 +601,19 @@ namespace Aether {
         else bodyInterface.DeactivateBody(id);
     }
 
-    void Jolt_PhysicsAPI::SetUUID(Handle<RigidBody> handle, UUID id)
+    void Jolt_PhysicsAPI::SetUserData(Handle<RigidBody> handle, uint64_t ud)
     {
         if (!m_PhysicsSystem) return;
         if (!m_BodyPool.GetResource(handle)) return;
-        m_IDList[handle.index] = id;
+        m_UDList[handle.index] = ud;
     }
 
 
-    UUID Jolt_PhysicsAPI::GetUUID(Handle<RigidBody> handle) 
+    uint64_t Jolt_PhysicsAPI::GetUserData(Handle<RigidBody> handle) 
     {
         if (!m_PhysicsSystem) return 0;
         if (!m_BodyPool.GetResource(handle)) return 0;
-        return m_IDList[handle.index];
+        return m_UDList[handle.index];
     }
 
     void Jolt_PhysicsAPI::SetPhysTransform(Handle<RigidBody> handle, const PhysTransform& transform)

@@ -45,7 +45,6 @@ namespace Aether {
         glm::vec3 Normal{0.0f};  
         float Distance = 0.0f;    
         Handle<RigidBody> HitEntityHandle;
-        UUID HitEntityID;
     };
 
     struct BodyConfig
@@ -93,15 +92,15 @@ namespace Aether {
         virtual Handle<CollisionCallback> RegisterCallback(const CollisionCallbackRef& callback) = 0;
         virtual void RemoveCallback(Handle<CollisionCallback> handle) = 0;
 
-        virtual const BodyConfig* GetBodyInfo(Handle<RigidBody> handle) const = 0;
+        virtual BodyConfig GetBodyInfo(Handle<RigidBody> handle) const = 0;
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) = 0;
         virtual bool CanMove(Handle<RigidBody> handle, const PhysTransform& target) = 0;
 
         virtual void SetActive(Handle<RigidBody> handle, bool active) = 0;
-        virtual void SetUUID(Handle<RigidBody> handle, UUID id) = 0;
-        virtual UUID GetUUID(Handle<RigidBody> handle) = 0;
+        virtual void SetUserData(Handle<RigidBody> handle, uint64_t ud) = 0;
+        virtual uint64_t GetUserData(Handle<RigidBody> handle) = 0;
         
         virtual void SetPhysTransform(Handle<RigidBody> handle, const PhysTransform& transform) = 0;
         virtual PhysTransform GetPhysTransform(Handle<RigidBody> handle) const = 0;

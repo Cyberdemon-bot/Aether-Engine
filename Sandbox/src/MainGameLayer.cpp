@@ -159,9 +159,7 @@ void MainGameLayer::Attach()
         cfg.restitution = 0.0f;
         m_PlayerBodyHandle = physys->CreateBody(m_Scene.GetPhysicsInstance(), cfg);
         m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle);
-
-        Aether::UUID playerID = m_Scene.GetComponent<Aether::IDComponent>(m_Player).ID;
-        physys->SetUUID(m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle, playerID);
+        physys->SetUserData(m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle, Aether::Scene::ToNumber(m_Player));
     }
     m_Scene.GetComponent<Aether::AnimatorComponent>(FindAnimatorEntity(m_Scene, m_Player)).IsPlaying = false;
 
@@ -1033,8 +1031,7 @@ void MainGameLayer::OnEvent(Aether::Event& event)
         Aether::RaycastHit hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
         if (hit.Hit)
         {
-            Aether::UUID   bodyID = physys->GetUUID(m_Scene.GetPhysicsInstance(), hit.HitEntityHandle);
-            Aether::Entity target = m_Scene.FindEntity(bodyID);
+            Aether::Entity target = Aether::Scene::FromNumber(physys->GetUserData(m_Scene.GetPhysicsInstance(), hit.HitEntityHandle));
             if (target != Aether::Null_Entity && target != m_Player)
             {
                 m_Scene.DestroyHierarchy(target);

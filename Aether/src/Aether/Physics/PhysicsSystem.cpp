@@ -102,18 +102,18 @@ namespace Aether {
         api->SetActive(handle, active);
     }
 
-    void PhysicsSystem::SetUUID(Handle<PhysicsInstance> world, Handle<RigidBody> handle, UUID id)
+    void PhysicsSystem::SetUserData(Handle<PhysicsInstance> world, Handle<RigidBody> handle, uint64_t ud)
     {
         PhysicsAPI* api = GetAPI(world);
         if (api == nullptr) return;
-        api->SetUUID(handle, id);
+        api->SetUserData(handle, ud);
     }
 
-    UUID PhysicsSystem::GetUUID(Handle<PhysicsInstance> world, Handle<RigidBody> handle)
+    uint64_t PhysicsSystem::GetUserData(Handle<PhysicsInstance> world, Handle<RigidBody> handle)
     {
         PhysicsAPI* api = GetAPI(world);
-        if (api == nullptr) return UUID(0);
-        return api->GetUUID(handle);
+        if (api == nullptr) return 0;
+        return api->GetUserData(handle);
     }
 
     void PhysicsSystem::SetPhysTransform(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const PhysTransform& transform)
@@ -158,10 +158,10 @@ namespace Aether {
         return api->CanMove(handle, target);
     }
 
-    const BodyConfig* PhysicsSystem::GetBodyInfo(Handle<PhysicsInstance> world, Handle<RigidBody> handle)
+    BodyConfig PhysicsSystem::GetBodyInfo(Handle<PhysicsInstance> world, Handle<RigidBody> handle)
     {
         PhysicsAPI* api = GetAPI(world);
-        if (api == nullptr) return nullptr;
+        if (api == nullptr) return {};
         return api->GetBodyInfo(handle);
     }
 }

@@ -28,6 +28,7 @@ namespace Aether {
 
         m_Sources.Init();
         m_Players.Init();
+        m_DestroyQueue.reserve(32);
     }
 
     void SoLoudAPI::Shutdown()
@@ -37,6 +38,7 @@ namespace Aether {
         soloud.deinit();
         m_Sources.Shutdown();
         m_Players.Shutdown();
+        m_DestroyQueue.clear(); m_DestroyQueue.shrink_to_fit();
     }
 
     Handle<AudioSource> SoLoudAPI::CreateSource(const std::string& path)
@@ -73,6 +75,7 @@ namespace Aether {
 
         auto handle = m_Players.CreateResource();
         auto* player = m_Players.GetResource(handle);
+        player->self_handle = handle;
         player->source = source;
         player->type = type;
 
@@ -81,6 +84,11 @@ namespace Aether {
 
     void SoLoudAPI::DestroyPlayer(Handle<AudioPlayer> handle)
     {
+        if (!m_Initialized) return;
+        auto* player = m_Players.GetResource(handle);
+        if (!player) return;
+
+        soloud.stop(player->voice);
         m_Players.DestroyResource(handle);
     }
 
@@ -95,8 +103,11 @@ namespace Aether {
             auto& _3d = s._3dinfo;
             auto* source = m_Sources.GetResource(player->source);
             if (!source) return;
-            if (player->type == AudioType::Audio2D) player->voice = soloud.play(source->wav);
-            else player->voice = soloud.play3d(source->wav, _3d.position.x, _3d.position.y, _3d.position.z);
+            bool startPaused = player->state.pausing;
+            if (player->type == AudioType::Audio2D) player->voice = soloud.play(source->wav, s.volume, s.pan, startPaused);
+            else player->voice = soloud.play3d(source->wav, _3d.position.x, _3d.position.y, _3d.position.z, 
+                                            _3d.velocity.x, _3d.velocity.y, _3d.velocity.z, 
+                                            s.volume, startPaused);
 
             int voice = player->voice;
             soloud.setVolume(voice, s.volume);
@@ -147,30 +158,60 @@ namespace Aether {
     void SoLoudAPI::Update()
     {
         if (!m_Initialized) return;
-        m_Players.Loop([this](const SoloudPlayer& player)
+        bool has3DChanged = false;
+        m_Players.Loop([this, &has3DChanged](SoloudPlayer& player)
         {
+            if (!m_Sources.GetResource(player.source)) 
+            {
+                m_DestroyQueue.push_back(player.self_handle);
+                return;
+            }
+            if (player.dirty_flags == AudioDirtyFlags::DIRTY_NONE) return;
+            if (!soloud.isValidVoiceHandle(player.voice)) return;
+
             int voice = player.voice;
             auto& state = player.state;
             auto& _3d = state._3dinfo;
-            if (!soloud.isValidVoiceHandle(player.voice)) return;
+            uint16_t f = player.dirty_flags;
 
-            soloud.setVolume(voice, state.volume);
-            soloud.setPan(voice, state.pan);
-            soloud.setLooping(voice, state.looping);
-            soloud.setRelativePlaySpeed(voice, state.playback_speed);
-            soloud.set3dSourcePosition(voice, _3d.position.x, _3d.position.y, _3d.position.z);
-            soloud.set3dSourceVelocity(voice, _3d.velocity.x, _3d.velocity.y, _3d.velocity.z);
-            soloud.set3dSourceMinMaxDistance(voice, _3d.minDistance, _3d.minDistance);
-            soloud.set3dSourceAttenuation(voice, ToSoLoudAttenuation(_3d.attenuation), 1.0f);
+            if (f & AudioDirtyFlags::DIRTY_VOLUME) soloud.setVolume(voice, state.volume);
+            if (f & AudioDirtyFlags::DIRTY_PAN) soloud.setPan(voice, state.pan);
+            if (f & AudioDirtyFlags::DIRTY_SPEED) soloud.setRelativePlaySpeed(voice, state.playback_speed);
+            if (f & AudioDirtyFlags::DIRTY_LOOP) soloud.setLooping(voice, state.looping);
+            if (f & AudioDirtyFlags::DIRTY_PAUSE) soloud.setPause(voice, state.pausing);
+            if (player.type == AudioType::Audio3D)
+            {   
+                if (f & AudioDirtyFlags::DIRTY_3D_POS) soloud.set3dSourcePosition(voice, _3d.position.x, _3d.position.y, _3d.position.z);
+                if (f & AudioDirtyFlags::DIRTY_3D_VEL) soloud.set3dSourceVelocity(voice, _3d.velocity.x, _3d.velocity.y, _3d.velocity.z);
+                if (f & AudioDirtyFlags::DIRTY_3D_DIST) soloud.set3dSourceMinMaxDistance(voice, _3d.minDistance, _3d.maxDistance);
+                if (f & AudioDirtyFlags::DIRTY_3D_ATT) soloud.set3dSourceAttenuation(voice, ToSoLoudAttenuation(_3d.attenuation), 1.0f);
+                if (f & (AudioDirtyFlags::DIRTY_3D_POS | AudioDirtyFlags::DIRTY_3D_VEL)) has3DChanged = true;
+            }
+
+            player.dirty_flags = AudioDirtyFlags::DIRTY_NONE;
         });
+
+        if (has3DChanged) soloud.update3dAudio();
+        for (auto& handle : m_DestroyQueue) DestroyPlayer(handle);
+        m_DestroyQueue.clear();
     }
 
-    AudioState* SoLoudAPI::GetState(Handle<AudioPlayer> player)
+    bool SoLoudAPI::Modify(Handle<AudioPlayer> handle, Delegate<void(PlayerEditProxy&)> modifier)
     {
-        auto* p = GetPlayerAndValidate(player);
-        if (!p) return nullptr;
-        return &p->state;
-    }
+        auto* p = GetPlayerAndValidate(handle);
+        if (!p) return false;
+
+        PlayerEditProxy proxy(p->state);
+        modifier(proxy);
+
+        if (proxy.dirty_flags != AudioDirtyFlags::DIRTY_NONE) 
+        {
+            p->state = proxy.temp;
+            p->dirty_flags |= proxy.dirty_flags;
+        }
+
+        return true;
+    }   
 
     void SoLoudAPI::UpdateListener(const AudioListener& listener)
     {
@@ -187,13 +228,6 @@ namespace Aether {
         if (!m_Initialized) return nullptr;
         auto* player = m_Players.GetResource(handle);
         if (!player) return nullptr;
-
-        auto* source = m_Sources.GetResource(player->source);
-        if (!source)
-        {
-            m_Players.DestroyResource(handle);
-            return nullptr;
-        }
 
         return player;
     }

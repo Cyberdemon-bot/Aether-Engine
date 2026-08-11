@@ -9,7 +9,6 @@
 #include "Aether/Scene/SceneCamera.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Core/JobSystem.h"
-#include "Aether/Core/ServiceManager.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp> 
@@ -202,8 +201,8 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("EntityID", 
-                    AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
-                        return uint64_t(self.entityID);
+                    AE_MAKE_LAMBDA((), (const Type& self), U64,
+                        return U64(self.entityID);
                     )
                 ),
 
@@ -448,6 +447,7 @@ namespace Aether {
     struct ScriptSelf
     {
         Scene* scene = nullptr;
+        ScriptEngine* engine = nullptr;
         Entity entity = Null_Entity;
         InstanceSlot* slot = nullptr;
     };
@@ -509,7 +509,7 @@ namespace Aether {
                         return self.slot->exec_order;
                     ),
                     AE_MAKE_LAMBDA((), (Type& self, int val), void,
-                        ServiceManager::GetService<ScriptEngine>()->IsExecChanged = true; 
+                        self.engine->IsExecChanged = true; 
                         self.slot->exec_order = val;
                     )
                 )
@@ -556,6 +556,7 @@ namespace Aether {
     struct SceneContext
     {
         Scene* scene;
+        ScriptEngine* engine;
     };
 
     struct SceneBinding
@@ -571,9 +572,7 @@ namespace Aether {
                         auto results = ctx.scene->FindEntity(name);
                         std::vector<U64> ids;
                         ids.reserve(results.size());
-                        for (auto& e : results)
-                            if (ctx.scene->HasComponent<ScriptComponent>(e))
-                                ids.push_back(U64(ctx.scene->GetComponent<IDComponent>(e).ID));
+                        for (auto& e : results) ids.push_back(U64(ctx.scene->GetComponent<IDComponent>(e).ID));
                         return ids;
                     )
                 ),
@@ -590,7 +589,7 @@ namespace Aether {
                         if (!ctx.scene->IsValid(target)) return sol::lua_nil;
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
-                        return ServiceManager::GetService<ScriptEngine>()->CallSafeInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
+                        return ctx.engine->CallSafeInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
                     )
                 ),
                 AE_REFLECT("DirectCall",
@@ -599,7 +598,7 @@ namespace Aether {
                         if (!ctx.scene->IsValid(target)) return sol::lua_nil;
                         if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
                         auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
-                        return ServiceManager::GetService<ScriptEngine>()->CallDirectInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
+                        return ctx.engine->CallDirectInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
                     )
                 )
             );
@@ -656,9 +655,9 @@ namespace Aether {
                 AE_REFLECT("Distance",
                     AE_MAKE_LAMBDA((), (const Type& self), float, return self.Distance;)
                 ),
-                AE_REFLECT("HitEntity",
-                    AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
-                        return self.HitEntityID;
+                AE_REFLECT("HitBody",
+                    AE_MAKE_LAMBDA((), (const Type& self), U64,
+                        return U64(self.HitEntityHandle.Blend());
                     )
                 )
             );
@@ -668,6 +667,7 @@ namespace Aether {
     struct PhysicsContext
     {
         Scene* scene  = nullptr;
+        PhysicsSystem* physys = nullptr;
         Entity entity = Null_Entity;
     };
 
@@ -684,7 +684,7 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& self, const VType& force), void,
                         if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
                         auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        ServiceManager::GetService<PhysicsSystem>()->AddForce(self.scene->GetPhysicsInstance(), handle, force);
+                        self.physys->AddForce(self.scene->GetPhysicsInstance(), handle, force);
                     )
                 ),
 
@@ -692,13 +692,13 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& self, const VType& velocity), void,
                         if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
                         auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        ServiceManager::GetService<PhysicsSystem>()->SetVelocity(self.scene->GetPhysicsInstance(), handle, velocity);
+                        self.physys->SetVelocity(self.scene->GetPhysicsInstance(), handle, velocity);
                     )
                 ),
 
                 AE_REFLECT("SetGravity",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& gravity), void,
-                        ServiceManager::GetService<PhysicsSystem>()->SetGravity(self.scene->GetPhysicsInstance(), gravity);
+                        self.physys->SetGravity(self.scene->GetPhysicsInstance(), gravity);
                     )
                 ),
 
@@ -706,19 +706,26 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& self, const PhysTransform& target), bool,
                         if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return false;
                         auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        return ServiceManager::GetService<PhysicsSystem>()->CanMove(self.scene->GetPhysicsInstance(), handle, target);
+                        return self.physys->CanMove(self.scene->GetPhysicsInstance(), handle, target);
                     )
                 ),
 
                 AE_REFLECT("CastRay",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), RaycastHit,
-                        return ServiceManager::GetService<PhysicsSystem>()->CastRay(self.scene->GetPhysicsInstance(), origin, direction, distance);
+                        return self.physys->CastRay(self.scene->GetPhysicsInstance(), origin, direction, distance);
                     )
                 ),
 
                 AE_REFLECT("CastRayAll",
                     AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastHit>,
-                        return ServiceManager::GetService<PhysicsSystem>()->CastRayAll(self.scene->GetPhysicsInstance(), origin, direction, distance);
+                        return self.physys->CastRayAll(self.scene->GetPhysicsInstance(), origin, direction, distance);
+                    )
+                ),
+
+                AE_REFLECT("GetEntity",
+                    AE_MAKE_LAMBDA((), (Type& self, U64 body), U64,
+                        uint64_t ud = self.physys->GetUserData(self.scene->GetPhysicsInstance(), Handle<RigidBody>::FromBlend(body.value));
+                        return U64(ud);
                     )
                 )
             );
@@ -966,6 +973,7 @@ namespace Aether {
     {
         std::vector<NativeFunc>* native_funcs = nullptr;
         PromiseManager* promise_manager = nullptr;
+        JobSystem* jobsys = nullptr;
     };
 
     struct JobBinding
@@ -988,7 +996,7 @@ namespace Aether {
             ScriptTable input = ScriptTable::Make(collected);
             auto output = CreateRef<ScriptTable>();
             Handle<Promise> promise = ctx.promise_manager->CreatePromise();
-            ServiceManager::GetService<JobSystem>()->SubmitJob(
+            ctx.jobsys->SubmitJob(
                 [func, input = std::move(input), output]() mutable
                 {
                     *output = func(input);

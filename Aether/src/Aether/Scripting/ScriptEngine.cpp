@@ -1,4 +1,5 @@
 #include "aepch.h"
+#include "Aether/Core/ServiceManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
@@ -85,13 +86,13 @@ namespace Aether {
         auto handle = m_Instances.CreateResource();
         auto slot = m_Instances.GetResource(handle);
 
-        ScriptSelf self{ scene, entity, slot};
-        SceneContext sceneCtx{ scene };
+        ScriptSelf self{ scene, this, entity, slot};
+        SceneContext sceneCtx{ scene, this };
         EventContext eventCtx{ handle, &m_EventManager, &m_PromiseManager };
-        PhysicsContext physicsCtx{ scene, entity };
+        PhysicsContext physicsCtx{ scene, ServiceManager::GetService<PhysicsSystem>(), entity };
         CoroutineContext coroutineCtx{ handle, &m_CoroutineManager, &m_PromiseManager };
         PromiseContext promiseCtx{ &m_PromiseManager };
-        JobContext jobCtx{ &m_NativeFuncs, &m_PromiseManager };
+        JobContext jobCtx{ &m_NativeFuncs, &m_PromiseManager, ServiceManager::GetService<JobSystem>() };
 
         env["self"] = self;
         env["Scene"] = sceneCtx;

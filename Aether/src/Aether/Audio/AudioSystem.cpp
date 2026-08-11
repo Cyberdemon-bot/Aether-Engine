@@ -59,9 +59,9 @@ namespace Aether {
         s_AudioAPI->Seek(handle, value); 
     }
 
-	AudioState* AudioSystem::GetState(Handle<AudioPlayer> player)
+	bool AudioSystem::Modify(Handle<AudioPlayer> handle, Delegate<void(PlayerEditProxy&)> modifier)
 	{
-		return s_AudioAPI->GetState(player);
+		return s_AudioAPI->Modify(handle, std::move(modifier));
 	}
 
     void AudioSystem::UpdateListener(const AudioListener& listener) 

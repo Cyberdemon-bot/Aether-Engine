@@ -56,6 +56,16 @@ namespace Aether {
         Entity FindEntity(UUID id) const;
         std::vector<Entity> FindEntity(std::string_view tag) const;
 
+        static uint64_t ToNumber(Entity entity)
+        {
+            return static_cast<uint64_t>(entt::to_integral(entity));
+        }
+
+        static Entity FromNumber(uint64_t number)
+        {
+            return static_cast<Entity>(static_cast<uint32_t>(number));
+        }
+
         Handle<PhysicsInstance> GetPhysicsInstance() 
         { 
             return m_PhysicsInstance; 

@@ -38,15 +38,15 @@ namespace Aether {
         virtual Handle<CollisionCallback> RegisterCallback(const CollisionCallbackRef& callback) override;
         virtual void RemoveCallback(Handle<CollisionCallback> handle) override;
 
-        virtual const BodyConfig* GetBodyInfo(Handle<RigidBody> handle) const override;
+        virtual BodyConfig GetBodyInfo(Handle<RigidBody> handle) const override;
 
         virtual RaycastHit CastRay(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
         virtual std::vector<RaycastHit> CastRayAll(const glm::vec3& origin, const glm::vec3& direction, float distance) override;
         virtual bool CanMove(Handle<RigidBody> handle, const PhysTransform& target) override;
 
         virtual void SetActive(Handle<RigidBody> handle, bool active) override;
-        virtual void SetUUID(Handle<RigidBody> handle, UUID id) override;
-        virtual UUID GetUUID(Handle<RigidBody> handle) override;
+        virtual void SetUserData(Handle<RigidBody> handle, uint64_t ud) override;
+        virtual uint64_t GetUserData(Handle<RigidBody> handle) override;
         
         virtual void SetPhysTransform(Handle<RigidBody> handle, const PhysTransform& transform) override;
         virtual PhysTransform GetPhysTransform(Handle<RigidBody> handle) const override;
@@ -55,7 +55,7 @@ namespace Aether {
         virtual void SetVelocity(Handle<RigidBody> handle, const glm::vec3& velocity) override;
         virtual void SetGravity(const glm::vec3& gravity) override;
     private:
-        std::vector<UUID> m_IDList;
+        std::vector<uint64_t> m_UDList;
         ResourcePool<Handle<RigidBody>, JoltBodyData> m_BodyPool;
         ResourcePool<Handle<CollisionCallback>, CollisionCallbackRef> m_CallbackPool;
         JPH::PhysicsSystem* m_PhysicsSystem = nullptr;
