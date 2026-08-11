@@ -105,10 +105,8 @@ namespace Aether {
         {
             if (ev.type == CollisionType::Enter || ev.type == CollisionType::Exit) 
             {
-                UUID aID = physys->GetUUID(m_PhysicsInstance, ev.bodyA);
-                UUID bID = physys->GetUUID(m_PhysicsInstance, ev.bodyB);
-                Entity a = this->FindEntity(aID);
-                Entity b = this->FindEntity(bID);
+                Entity a = FromNumber(physys->GetUserData(m_PhysicsInstance, ev.bodyA));
+                Entity b = FromNumber(physys->GetUserData(m_PhysicsInstance, ev.bodyB));
 
                 if (a == Null_Entity || b == Null_Entity) return;
                 if (HasComponent<ScriptComponent>(a)) 
@@ -119,7 +117,7 @@ namespace Aether {
                         CollisionData data;
                         data.contactPoint = ev.contactPoint;
                         data.contactNormal = ev.contactNormal;
-                        data.entityID = bID;
+                        data.entityID = GetComponent<IDComponent>(b).ID;
                         data.type = ev.type;
 
                         Handle<ScriptInstance> handle = cmp.ScriptHandle;
@@ -135,7 +133,7 @@ namespace Aether {
                         CollisionData data;
                         data.contactPoint = ev.contactPoint;
                         data.contactNormal = -ev.contactNormal; 
-                        data.entityID = aID;
+                        data.entityID = GetComponent<IDComponent>(a).ID;
                         data.type = ev.type;
 
                         Handle<ScriptInstance> handle = cmp.ScriptHandle;
@@ -279,6 +277,7 @@ namespace Aether {
             auto* physys = ServiceManager::GetService<PhysicsSystem>();
             auto& rbComp = GetComponent<ColliderComponent>(entity);
             Handle<RigidBody>& handle = rbComp.ColliderHandle;
+            MotionType motiontype = physys->GetBodyInfo(m_PhysicsInstance, handle).motionType;
 
             if (handle.IsValid()) 
             {
@@ -291,7 +290,7 @@ namespace Aether {
                     glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
                     glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
                     PhysTransform target = {translation + worldOffset, rotation};
-                    if (physys->GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Kinematic)
+                    if (motiontype == MotionType::Kinematic)
                     {
                         if (physys->CanMove(m_PhysicsInstance, handle, target)) physys->SetPhysTransform(m_PhysicsInstance, handle, target);
                         else
@@ -316,7 +315,7 @@ namespace Aether {
                     }
                     else physys->SetPhysTransform(m_PhysicsInstance, handle, target);
                 }
-                else if (physys->GetBodyInfo(m_PhysicsInstance, handle)->motionType == MotionType::Dynamic)
+                else if (motiontype == MotionType::Dynamic)
                 {
                     PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::vec3 localOffset = rbComp.ColliderOffset;
@@ -410,6 +409,7 @@ namespace Aether {
             {
                 auto& rbComp = GetComponent<ColliderComponent>(entity);
                 Handle<RigidBody>& handle = rbComp.ColliderHandle;
+                physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
 
                 if (!handle.IsValid())
                 {
@@ -433,7 +433,7 @@ namespace Aether {
                     if (rbComp.Type == MotionType::Dynamic)
                         physys->SetActive(m_PhysicsInstance, handle, true);
 
-                    physys->SetUUID(m_PhysicsInstance, handle, GetComponent<IDComponent>(entity).ID);
+                    physys->SetUserData(m_PhysicsInstance, handle, ToNumber(entity));
                 }
                 else physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }

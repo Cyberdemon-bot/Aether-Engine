@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "Aether/Audio/AudioAPI.h"
@@ -10,8 +11,10 @@ namespace Aether {
     struct SoloudPlayer
     {
         Handle<AudioSource> source;
+        Handle<AudioPlayer> self_handle;
         AudioType type = AudioType::Audio2D;
         AudioState state;
+        uint16_t dirty_flags = AudioDirtyFlags::DIRTY_NONE;
         int voice = 0;
     };
 
@@ -38,7 +41,7 @@ namespace Aether {
         virtual void Stop(Handle<AudioPlayer> handle) override;
         virtual void Seek(Handle<AudioPlayer> handle, float value) override;
 
-        virtual AudioState* GetState(Handle<AudioPlayer> player) override;
+        virtual bool Modify(Handle<AudioPlayer> handle, Delegate<void(PlayerEditProxy&)> modifier) override;
         virtual void UpdateListener(const AudioListener& listener) override;
 
     private:
@@ -49,5 +52,7 @@ namespace Aether {
         bool m_Initialized = false;
         ResourcePool<Handle<AudioSource>, SoloudSource> m_Sources;
         ResourcePool<Handle<AudioPlayer>, SoloudPlayer> m_Players;
+
+        std::vector<Handle<AudioPlayer>> m_DestroyQueue;
     };
 }

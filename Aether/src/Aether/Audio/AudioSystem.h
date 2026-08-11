@@ -22,7 +22,7 @@ namespace Aether {
         void Stop(Handle<AudioPlayer> handle);
         void Seek(Handle<AudioPlayer> handle, float value);
 
-        AudioState* GetState(Handle<AudioPlayer> player);
+        bool Modify(Handle<AudioPlayer> handle, Delegate<void(PlayerEditProxy&)> modifier);
         void UpdateListener(const AudioListener& listener);
     private:
         Scope<AudioAPI> s_AudioAPI;

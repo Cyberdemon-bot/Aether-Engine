@@ -25,12 +25,12 @@ namespace Aether {
         Handle<CollisionCallback> RegisterCallback(Handle<PhysicsInstance> world, const CollisionCallbackRef& callback);
         void RemoveCallback(Handle<PhysicsInstance> world, Handle<CollisionCallback> handle);
 
-        RaycastHit CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
-        std::vector<RaycastHit> CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
+        RaycastResult CastRay(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
+        std::vector<RaycastResult> CastRayAll(Handle<PhysicsInstance> world, const glm::vec3& origin, const glm::vec3& direction, float distance);
 
         void SetActive(Handle<PhysicsInstance> world, Handle<RigidBody> handle, bool active);
-        void SetUUID(Handle<PhysicsInstance> world, Handle<RigidBody> handle, UUID id);
-        UUID GetUUID(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
+        void SetUserData(Handle<PhysicsInstance> world, Handle<RigidBody> handle, uint64_t ud);
+        uint64_t GetUserData(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
         void SetPhysTransform(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const PhysTransform& transform);
         PhysTransform GetPhysTransform(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
@@ -40,7 +40,7 @@ namespace Aether {
         void SetGravity(Handle<PhysicsInstance> world, const glm::vec3& gravity);
 
         bool CanMove(Handle<PhysicsInstance> world, Handle<RigidBody> handle, const PhysTransform& target);
-        const BodyConfig* GetBodyInfo(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
+        BodyConfig GetBodyInfo(Handle<PhysicsInstance> world, Handle<RigidBody> handle);
 
     private:
         PhysicsSystem(const PhysicsSystem&) = delete;

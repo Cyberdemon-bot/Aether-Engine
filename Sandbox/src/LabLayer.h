@@ -88,7 +88,7 @@ private:
     glm::vec3                       m_RayOrigin    = glm::vec3(0.0f);
     glm::vec3                       m_RayDirection = glm::vec3(0.0f, -1.0f, 0.0f);
     float                           m_RayDistance  = 100.0f;
-    std::vector<Aether::RaycastHit> m_LastRayHits;
+    std::vector<Aether::RaycastResult> m_LastRayHits;
     bool                            m_RayHasFired  = false;
 
     std::string    m_ScriptPath          = "";

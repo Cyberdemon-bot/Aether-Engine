@@ -42,8 +42,7 @@ namespace Aether {
             : ColliderHandle(handle), Visible(visible)
     {
         auto it = ServiceManager::GetService<PhysicsSystem>()->GetBodyInfo(instance, ColliderHandle);
-        if (it == nullptr) return;
-        auto& info = *it;
+        auto& info = it;
         ColliderOffset = info.offset;
         Shape = info.shape;
         Size = info.size;

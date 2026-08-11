@@ -174,7 +174,7 @@ void LabLayer::DrainParseQueue()
         auto result = m_Importer->UploadScene(parsed);
         for (auto& meshID : result.meshIDs) m_MeshIDs.push_back(meshID);
 
-        m_Scene.LoadHierarchy(result);
+        m_Scene.LoadHierarchy(&result);
 
         AE_CORE_INFO("Loaded: {0} mesh(es)", result.meshIDs.size());
     }

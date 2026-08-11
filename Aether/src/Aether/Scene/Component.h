@@ -165,7 +165,7 @@ namespace Aether {
         glm::vec3 ColliderOffset = glm::vec3(1.0f);
         ColliderShape Shape = ColliderShape::Box;
         MotionType Type = MotionType::Kinematic;
-        glm::vec3 Size = glm::vec3(0.5f); // box: halfx, halfy, halfz --- capsule: radius, height, __ --- sphere: radius, __, __
+        glm::vec3 Size = glm::vec3(0.5f);
         bool Visible = false;
         bool IsActive = true;
         float Mass = 1.0f;
@@ -195,26 +195,5 @@ namespace Aether {
         {}
  
         void Invalidate() const;
-    };
-
-    template<typename Component>
-    struct ComponentInfo
-    {
-        bool IsExits = false;
-        Component data;
-    };
-
-    struct Prefab
-    {
-        ComponentInfo<TagComponent> tag;
-        ComponentInfo<TransformComponent> transform;
-        ComponentInfo<HierarchyComponent> hierarchy;
-        ComponentInfo<MeshComponent> mesh;
-        ComponentInfo<LightComponent> light;
-        ComponentInfo<CameraComponent> camera;
-        ComponentInfo<AnimatorComponent> animator;
-        ComponentInfo<ColliderComponent> collider;
-        ComponentInfo<ScriptComponent> script;
-        ComponentInfo<BoneAttachmentComponent> boneAttach;
     };
 }

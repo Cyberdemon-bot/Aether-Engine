@@ -1,6 +1,6 @@
 #include "aepch.h"
+#include "Aether/Core/ServiceManager.h"
 #include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Scripting/ScriptGlue.h"
 #include "Aether/Core/Log.h"
 #include "Aether/Physics/PhysicsAPI.h"
 #include "Aether/Scene/Scene.h"
@@ -21,6 +21,20 @@ namespace Aether {
         if (name == "UNM") return sol::meta_function::unary_minus;
         AE_CORE_WARN("[ScriptEngine] Unknown op name: {0}", name);
         return sol::meta_function::addition;
+    }
+
+    sol::table ScriptEngine::GetOrCreateNamespace(sol::state_view lua, const std::string& ns) 
+    {
+        sol::table current = lua.globals();
+        if (ns.empty()) return current;
+
+        std::stringstream ss(ns);
+        std::string item;
+        while (std::getline(ss, item, '.')) 
+        {
+            current = current[item].get_or_create<sol::table>();
+        }
+        return current;
     }
 
     void ScriptEngine::Init()
@@ -85,15 +99,30 @@ namespace Aether {
         auto handle = m_Instances.CreateResource();
         auto slot = m_Instances.GetResource(handle);
 
-        ScriptSelf self{ scene, entity, slot};
-        SceneContext sceneCtx{ scene };
-        EventContext eventCtx{ handle, &m_EventManager, &m_PromiseManager };
-        PhysicsContext physicsCtx{ scene, entity };
-        CoroutineContext coroutineCtx{ handle, &m_CoroutineManager, &m_PromiseManager };
-        PromiseContext promiseCtx{ &m_PromiseManager };
-        JobContext jobCtx{ &m_NativeFuncs, &m_PromiseManager };
+        ScriptContext context
+        { 
+            entity,
+            handle,
+            scene,
+            slot,
+            ServiceManager::GetService<ScriptEngine>(),
+            ServiceManager::GetService<PhysicsSystem>(),
+            ServiceManager::GetService<JobSystem>(),
+            &m_CoroutineManager,
+            &m_PromiseManager,
+            &m_EventManager,
+            m_NativeFuncs.data(), static_cast<uint32_t>(m_NativeFuncs.size())
+        };
 
-        env["self"] = self;
+        SelfContext selfCtx{ context };
+        SceneContext sceneCtx{ context };
+        EventContext eventCtx{ context };
+        PhysicsContext physicsCtx{ context };
+        CoroutineContext coroutineCtx{ context };
+        PromiseContext promiseCtx{ context };
+        JobContext jobCtx{ context };
+
+        env["self"] = selfCtx;
         env["Scene"] = sceneCtx;
         env["Event"] = eventCtx;
         env["Physics"] = physicsCtx;

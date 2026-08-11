@@ -2,7 +2,7 @@
 
 #include <string_view>
 #include "Aether/Container/Handle.h"
-#include "Aether/Container/Table.h"
+#include "Aether/Container/StringTable.h"
 #include "Aether/FileSystem/FileData.h"
 
 namespace Aether {
@@ -24,7 +24,7 @@ namespace Aether {
         void CommitTable();
     private:
         PathEntry* Query(std::string_view virtual_path);
-        Table<Handle<PathEntry>, PathEntry> m_Table;
+        StringTable<Handle<PathEntry>, PathEntry> m_Table;
 
         friend class FileSystem;
     };
