@@ -6,7 +6,7 @@
 namespace Aether {
     void Importer::Init()
     {
-        s_GLBAssembler = GLBAssembler::Create();
+        s_GLBAssembler = LegacyAssembler::Create();
     }
 
     void Importer::Shutdown()

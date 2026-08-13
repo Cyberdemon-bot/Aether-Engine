@@ -1,5 +1,5 @@
 #include "aepch.h"
-#include "Aether/Importer/GLBAssembler.h"
+#include "Aether/Importer/LegacyAssembler.h"
 #include "Platform/Cgltf/GLTF_Assembler.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
@@ -13,18 +13,18 @@
 #include "Aether/Core/ServiceManager.h"
 namespace Aether {
 
-	GLBAssembler::API GLBAssembler::s_API = GLBAssembler::API::Cgltf;
+	LegacyAssembler::API LegacyAssembler::s_API = LegacyAssembler::API::Cgltf;
 
-	Scope<GLBAssembler> GLBAssembler::Create()
+	Scope<LegacyAssembler> LegacyAssembler::Create()
 	{
-        Scope<GLBAssembler> assembler;
+        Scope<LegacyAssembler> assembler;
 		switch (s_API)
 		{
-			case GLBAssembler::API::Cgltf:
+			case LegacyAssembler::API::Cgltf:
                 assembler = CreateScope<GLTF_Assembler>();
                 break;
-            case GLBAssembler::API::None:
-                AE_CORE_ASSERT(false, "GLBAssembler::None is currently not supported!");
+            case LegacyAssembler::API::None:
+                AE_CORE_ASSERT(false, "LegacyAssembler::None is currently not supported!");
                 return nullptr;
 		}
 
@@ -35,7 +35,7 @@ namespace Aether {
 		return assembler;
 	}
 
-    RegisteredScene GLBAssembler::Upload(const Ref<ParsedScene>& sceneData)
+    RegisteredScene LegacyAssembler::Upload(const Ref<ParsedScene>& sceneData)
     {
         RegisteredScene res;
 

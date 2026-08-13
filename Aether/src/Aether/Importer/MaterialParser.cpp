@@ -6,13 +6,13 @@
 namespace Aether {
     Ref<MaterialParser> MaterialParser::Create()
     {
-        switch (GLBAssembler::GetAPI())
+        switch (LegacyAssembler::GetAPI())
 		{
-			case GLBAssembler::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for GLBAssembler!"); return nullptr;
-			case GLBAssembler::API::Cgltf:  return CreateRef<GLTF_MaterialParser>();
+			case LegacyAssembler::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for LegacyAssembler!"); return nullptr;
+			case LegacyAssembler::API::Cgltf:  return CreateRef<GLTF_MaterialParser>();
 		}
 
-		AE_CORE_ASSERT(false, "Unknown GLBAssembler!");
+		AE_CORE_ASSERT(false, "Unknown LegacyAssembler!");
 		return nullptr;
     }
 }

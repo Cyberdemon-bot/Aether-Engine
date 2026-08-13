@@ -13,5 +13,6 @@ namespace Aether {
         virtual bool Exists(std::string_view relative_path) const = 0;
         virtual bool Read(std::string_view relative_path, FileData& out) = 0;
         virtual std::vector<std::string> List(std::string_view dir) const = 0;
+        virtual void Free(FileData& data) = 0;
     };
 }

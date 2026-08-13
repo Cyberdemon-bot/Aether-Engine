@@ -17,7 +17,7 @@ namespace Aether {
         m_Mounts.clear();
         m_Table.Loop([](Entry& entry)
         {
-            delete[] entry.data.bytes;
+            if (entry.provider) entry.provider->Free(entry.data);
         });
         m_Table.Shutdown();
     }
@@ -105,7 +105,7 @@ namespace Aether {
             return Handle<FileData>::MakeInvalid();
         }
 
-        Entry entry{ data, 1 };
+        Entry entry{ data, provider, 1 };
         Handle<FileData> handle = m_Table.CreateResource(entry);
         it->file_handle = handle;
 
@@ -126,7 +126,8 @@ namespace Aether {
         entry->ref_count--;
         if (entry->ref_count > 0) return;
 
-        delete[] entry->data.bytes;
+        if (entry->provider) entry->provider->Free(entry->data);
+
         entry->data = {};
         m_Table.DestroyResource(handle);
     }

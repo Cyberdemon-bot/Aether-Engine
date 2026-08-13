@@ -40,7 +40,7 @@ namespace Aether {
         Ref<SceneHierarchy> hierarchy;
     };
 
-    class AETHER_API GLBAssembler 
+    class AETHER_API LegacyAssembler 
     {
     public:
         enum class API {
@@ -48,12 +48,12 @@ namespace Aether {
         };
 
     public:
-        virtual ~GLBAssembler() = default;
+        virtual ~LegacyAssembler() = default;
 		virtual  Ref<ParsedScene> Import(FileData data) = 0;
         
         RegisteredScene Upload(const Ref<ParsedScene>& sceneData);
         static API GetAPI() { return s_API; }
-        static Scope<GLBAssembler> Create();
+        static Scope<LegacyAssembler> Create();
 
     public: 
         Ref<MeshParser> m_MeshParser;
