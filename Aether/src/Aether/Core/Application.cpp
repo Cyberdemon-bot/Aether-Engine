@@ -15,6 +15,8 @@
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/ImGui/ImGuiLayer.h"
+#include "Aether/Console/ConsoleLayer.h"
 
 namespace Aether {
     Application* Application::s_Instance = nullptr;
@@ -101,7 +103,10 @@ namespace Aether {
             m_ImGuiLayer->Begin(); 
             {
                 for (Layer* layer : m_LayerStack)
+                {
+                    if (layer == m_Console && !m_ConsoleOn) continue;
                     layer->OnImGuiRender();
+                }
             }
             m_ImGuiLayer->End();
 
@@ -113,5 +118,10 @@ namespace Aether {
     {
         m_Running = false; 
         return true;
+    }
+
+    void Application::ToggleConsole(bool state)
+    {
+        m_ConsoleOn = state;
     }
 }

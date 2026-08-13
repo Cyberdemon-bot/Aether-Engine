@@ -4,6 +4,58 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+const char* imgui_layout = R"(
+[Window][Debug##Default]
+Pos=60,60
+Size=400,400
+Collapsed=0
+
+[Window][Console]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,6
+
+[Window][Hierarchy]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,4
+
+[Window][Scene]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,5
+
+[Window][Animation]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,2
+
+[Window][Lighting]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,3
+
+[Window][Scripting]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,0
+
+[Window][Bone Attachment]
+Pos=760,9
+Size=610,355
+Collapsed=0
+DockId=0x00000001,1
+
+[Docking][Data]
+DockNode  ID=0x00000001 Pos=760,9 Size=610,355 Selected=0x36FF2379
+)";
+
 LabLayer::LabLayer()
     : Layer("Lab Layer")
     , m_Camera(45.0f, 1.778f, 0.1f, 1000.0f)
@@ -17,11 +69,14 @@ LabLayer::LabLayer()
 
 void LabLayer::Attach()
 {
+    ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
+    if (ctx) ImGui::SetCurrentContext(ctx);
+
+    Aether::ImGuiLayer::LoadLayout(imgui_layout);
+
     m_Importer = Aether::ServiceManager::GetService<Aether::Importer>();
     auto fs = Aether::ServiceManager::GetService<Aether::FileSystem>();
     fs->Mount("", Aether::CreateRef<Aether::LooseFileProvider>("."));
-    ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
-    if (ctx) ImGui::SetCurrentContext(ctx);
 
     auto& window = Aether::Application::Get().GetWindow();
     m_AssetManager = Aether::ServiceManager::GetService<Aether::AssetManager>();

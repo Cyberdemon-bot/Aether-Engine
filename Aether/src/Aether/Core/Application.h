@@ -1,14 +1,16 @@
 #pragma once
 
+#include "Aether/Core/Log.h"
 #include "Aether/Core/Window.h"
 #include "Aether/Core/LayerStack.h"
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Events/Event.h"
 #include "Aether/Events/ApplicationEvent.h"
-#include "Aether/ImGui/ImGuiLayer.h"
-#include "Aether/Console/ConsoleLayer.h"
 
 namespace Aether {
+
+    class ImGuiLayer;
+    class ConsoleLayer;
 
     class AETHER_API Application
     {
@@ -23,6 +25,11 @@ namespace Aether {
         void PushLayer(Layer* Layer);
         void PushOverlay(Layer* layer);
 
+        void ToggleConsole(bool state);
+
+        static Application& Get() { return *s_Instance; }
+        Window& GetWindow() { return *m_Window; }
+    private:
         template<typename T>
         void InitService()
         {
@@ -38,12 +45,10 @@ namespace Aether {
             delete instance;
         }
 
-        static Application& Get() { return *s_Instance; }
-        Window& GetWindow() { return *m_Window; }
-    private:
         bool OnWindowClose(WindowCloseEvent& e);
         static Application* s_Instance;
         bool m_Running = true;
+        bool m_ConsoleOn = true;
         Scope<Window> m_Window; 
         LayerStack m_LayerStack;
         float m_LastFrameTime = 0.0f;

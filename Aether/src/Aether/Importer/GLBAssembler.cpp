@@ -87,7 +87,7 @@ namespace Aether {
             auto& skelInfo = sceneData->Skeletons[i];
             auto skeleton = asset_manager->CreateAsset<Skeleton>(AssetsRegister::Register(skelInfo.DebugName, skelInfo.AssetID), 
                                                                 animSystem->CreateSkeleton(skelInfo.spec),
-                                                                skelInfo.spec.Joints.size());
+                                                                static_cast<uint32_t>(skelInfo.spec.Joints.size()));
             res.animators.push_back({});
             res.animators[i].skeleton = skeleton;
             skels.push_back(skeleton);
