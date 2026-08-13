@@ -14,6 +14,7 @@ namespace Aether {
     struct Entry
     {
         FileData data = {};
+        FileProvider* provider = nullptr;
         uint32_t ref_count = 0;
     };
 

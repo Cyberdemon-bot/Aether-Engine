@@ -12,6 +12,13 @@ namespace Aether {
         return std::filesystem::exists(full, ec) && !std::filesystem::is_directory(full, ec);
     }
 
+    void LooseFileProvider::Free(FileData& data)
+    {
+        delete[] data.bytes;
+        data.bytes = nullptr;
+        data.size = 0;
+    }
+
     bool LooseFileProvider::Read(std::string_view relative_path, FileData& out)
     {
         std::filesystem::path full = ResolvePath(relative_path);

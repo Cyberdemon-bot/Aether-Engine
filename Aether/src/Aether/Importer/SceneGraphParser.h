@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include "Aether/Core/Base.h"
-#include "Aether/Core/UUID.h"
 
 namespace Aether {
     struct Node

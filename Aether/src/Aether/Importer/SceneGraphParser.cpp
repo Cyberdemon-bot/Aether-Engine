@@ -6,13 +6,13 @@
 namespace Aether {
     Ref<SceneGraphParser> SceneGraphParser::Create()
     {
-        switch (GLBAssembler::GetAPI())
+        switch (LegacyAssembler::GetAPI())
 		{
-			case GLBAssembler::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for GLBAssembler!"); return nullptr;
-			case GLBAssembler::API::Cgltf:  return CreateRef<GLTF_SceneGraphParser>();
+			case LegacyAssembler::API::None:    AE_CORE_ASSERT(false, "None is currently not supported api for LegacyAssembler!"); return nullptr;
+			case LegacyAssembler::API::Cgltf:  return CreateRef<GLTF_SceneGraphParser>();
 		}
 
-		AE_CORE_ASSERT(false, "Unknown GLBAssembler!");
+		AE_CORE_ASSERT(false, "Unknown LegacyAssembler!");
 		return nullptr;
     }
 }

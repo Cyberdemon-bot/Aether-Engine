@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
-#include "Aether/Importer/GLBAssembler.h"
+#include "Aether/Importer/LegacyAssembler.h"
 
 namespace Aether {
     class AETHER_API Importer
@@ -17,6 +17,6 @@ namespace Aether {
 
         std::string ImportText(const std::string& path);
     private:
-        Scope<GLBAssembler> s_GLBAssembler;
+        Scope<LegacyAssembler> s_GLBAssembler;
     };
 }
