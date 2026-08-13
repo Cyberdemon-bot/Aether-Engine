@@ -5,6 +5,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Scripting/ScriptEngine.h"
+#include "Aether/Importer/GLBAssembler.h"
 
 namespace Aether {
     void Scene::MarkDirty(Entity entity)
@@ -329,10 +330,10 @@ namespace Aether {
         m_SortDirtyCount = 0;
     }
 
-    Entity Scene::CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity)
+    Entity Scene::CreateNodeEntity(const RegisteredScene* reg, int nodeIdx, Entity parentEntity)
     {
         auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
-        const Node& node = reg.hierarchy->nodes[nodeIdx];
+        const Node& node = reg->hierarchy->nodes[nodeIdx];
         Entity e = CreateEntity(node.name, parentEntity);
         auto& t = GetComponent<TransformComponent>(e);
         t.Translation = node.translation;
@@ -340,16 +341,16 @@ namespace Aether {
         t.Scale = node.scale;
         t.Dirty = true;
 
-        if (node.meshIdx >= 0 && node.meshIdx < (int)reg.meshIDs.size())
+        if (node.meshIdx >= 0 && node.meshIdx < (int)reg->meshIDs.size())
         {
             auto& component = AddComponent<MeshComponent>(e);
-            component.Mesh = asset_manager->GetHandle(reg.meshIDs[node.meshIdx]);
-            component.SharedSheet = asset_manager->GetHandle(reg.sheetIDs[node.meshIdx]);
+            component.Mesh = asset_manager->GetHandle(reg->meshIDs[node.meshIdx]);
+            component.SharedSheet = asset_manager->GetHandle(reg->sheetIDs[node.meshIdx]);
         }
 
-        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg.animators.size())
+        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg->animators.size())
         {
-            const auto& animator = reg.animators[node.animatorIdx];
+            const auto& animator = reg->animators[node.animatorIdx];
             auto& comp = AddComponent<AnimatorComponent>(e);
             comp.Skeleton = animator.skeleton;
             comp.Clips = animator.clips;
@@ -372,11 +373,11 @@ namespace Aether {
         return e;
     }
 
-    Entity Scene::LoadHierarchy(const RegisteredScene& registered, Entity parent)
+    Entity Scene::LoadHierarchy(const RegisteredScene* registered, Entity parent)
     {
         Entity first_child = Null_Entity;
-        if(!registered.hierarchy) return first_child;
-        for (int rootIdx : registered.hierarchy->roots)
+        if(!registered->hierarchy) return first_child;
+        for (int rootIdx : registered->hierarchy->roots)
         {
             auto temp = CreateNodeEntity(registered, rootIdx, parent);
             if (first_child == Null_Entity) first_child = temp;

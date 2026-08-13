@@ -143,7 +143,7 @@ void MainGameLayer::Attach()
     pTransform.Dirty       = true;
 
     auto uploadPlayer = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/humanv2.glb"));
-    m_Scene.LoadHierarchy(uploadPlayer, m_Player);
+    m_Scene.LoadHierarchy(&uploadPlayer, m_Player);
 
     // =========================================================================
     // PLAYER PHYSICS
@@ -178,7 +178,7 @@ void MainGameLayer::Attach()
     gTransform.Dirty       = true;
 
     auto uploadGun = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/gun.glb"));
-    m_Scene.LoadHierarchy(uploadGun, m_Gun);
+    m_Scene.LoadHierarchy(&uploadGun, m_Gun);
 
     if (!uploadGun.animators.empty())
     {
@@ -581,7 +581,7 @@ void MainGameLayer::UpdateMapChunks(const glm::vec3& playerPos)
             chunksToKeep.insert(coord);
             if (m_ActiveChunks.count(coord)) continue;
 
-            Aether::Entity chunk = m_Scene.LoadHierarchy(m_UploadMap);
+            Aether::Entity chunk = m_Scene.LoadHierarchy(&m_UploadMap);
             auto& name = m_Scene.GetComponent<Aether::TagComponent>(chunk);
             name.Tag = "MapGrid_" + std::to_string(coord.first) + "_" + std::to_string(coord.second);
             auto& t = m_Scene.GetComponent<Aether::TransformComponent>(chunk);
@@ -635,7 +635,7 @@ Aether::Entity MainGameLayer::SpawnZombie(const glm::vec3& position)
     zTransform.Rotation          = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     zTransform.Dirty             = true;
 
-    m_Scene.LoadHierarchy(m_ZombieSceneData, newZombie);
+    m_Scene.LoadHierarchy(&m_ZombieSceneData, newZombie);
 
     Aether::Entity zAnimEnt = FindAnimatorEntity(m_Scene, newZombie);
     if (zAnimEnt != Aether::Null_Entity)

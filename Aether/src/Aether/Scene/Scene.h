@@ -9,7 +9,6 @@
 #include "Aether/Renderer/EditorCamera.h"
 #include "Aether/Renderer/Renderer.h"
 #include "Aether/Scene/Component.h"
-#include "Aether/Importer/GLBAssembler.h"
 
 namespace Aether {
 
@@ -21,6 +20,7 @@ namespace Aether {
     struct ComponentInfo;
     struct Prefab;
     struct PhysicsInstance;
+    struct RegisteredScene;
 
     struct DestroyInfo
     {
@@ -48,7 +48,7 @@ namespace Aether {
         void MarkDirty(Entity entity);
         glm::vec3 GetWorldPosition(Entity entity);
 
-        Entity LoadHierarchy(const RegisteredScene& registered, Entity parent = Null_Entity);
+        Entity LoadHierarchy(const RegisteredScene* registered, Entity parent = Null_Entity);
 
         bool IsValid(Entity entity) const;
         void Update(Timestep ts, EditorCamera* camera = nullptr);
@@ -158,7 +158,7 @@ namespace Aether {
         void ExcDestroyEntity(Entity entity, bool repair_hie);
         void ExcDestroyHierarchy(Entity entity);
 
-        Entity CreateNodeEntity(const RegisteredScene& reg, int nodeIdx, Entity parentEntity);
+        Entity CreateNodeEntity(const RegisteredScene* reg, int nodeIdx, Entity parentEntity);
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
