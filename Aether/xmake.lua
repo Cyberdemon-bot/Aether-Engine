@@ -29,10 +29,10 @@ end
 
 target("Aether")
     set_kind("shared")
-    set_languages("c++20")
 
-    add_defines("AETHER_SHARED")
+    add_defines("AETHER_SHARED", {public = true})
     add_defines("AETHER_BUILD_DLL")
+    
     add_defines("MSDFGEN_USE_CPP11", "MSDFGEN_EXTENSIONS")
     add_defines("GLM_ENABLE_EXPERIMENTAL", {public = true})
 
@@ -44,8 +44,8 @@ target("Aether")
     end
 
     if is_mode("release") then
-        --set_symbols("debug")     
-        --set_optimize("fastest")   
+        set_symbols("debug")     
+        set_optimize("fastest")   
     end
 
     add_includedirs("src", {public = true})
@@ -74,5 +74,4 @@ target("Aether")
         add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo", {public = true})
     elseif is_os("linux") then
         add_syslinks("pthread", "dl", {public = true})
-    end 
-
+    end

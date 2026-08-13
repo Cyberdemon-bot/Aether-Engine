@@ -1,0 +1,6 @@
+target("Sandbox")
+    set_kind("binary")
+    set_rundir("$(projectdir)")
+    add_files("src/**.cpp")
+    add_headerfiles("src/**.h")
+    add_deps("Aether")

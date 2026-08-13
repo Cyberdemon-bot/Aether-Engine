@@ -16,6 +16,7 @@ namespace Aether {
         ~ImGuiLayer();
 
         static ImGuiContext* GetContext();
+        static void LoadLayout(const char* layout);
 
         virtual void Attach() override;
         virtual void Detach() override;

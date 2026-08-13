@@ -21,6 +21,11 @@ namespace Aether {
         return ImGui::GetCurrentContext();
     }
 
+    void ImGuiLayer::LoadLayout(const char* layout)
+    {
+        ImGui::LoadIniSettingsFromMemory(layout);
+    }
+
     void ImGuiLayer::OnEvent(Event& e)
 	{
 		if (m_BlockEvents)
@@ -43,6 +48,7 @@ namespace Aether {
 
         io.ConfigViewportsNoAutoMerge = false;
         io.ConfigViewportsNoTaskBarIcon = false;
+        io.IniFilename = nullptr;
         
         // Setup Dear ImGui style
         ImGui::StyleColorsDark();
