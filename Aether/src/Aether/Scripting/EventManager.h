@@ -8,7 +8,7 @@
 #include "Aether/Core/Delegate.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
-#include "Aether/Container/Table.h"
+#include "Aether/Container/StringTable.h"
 #include "Aether/Scripting/ScriptTable.h"
 
 namespace Aether {
@@ -58,7 +58,7 @@ namespace Aether {
         EventManager(EventManager&&) = default;
         EventManager& operator=(EventManager&&) = default;
         
-        Table<Handle<ListenerList>, ListenerList> m_Keys;
+        StringTable<Handle<ListenerList>, ListenerList> m_Keys;
         ResourcePool<Handle<EventListener>, EventListener> m_Listeners;
         
         std::vector<ScriptEvent> m_Queue;

@@ -23,6 +23,20 @@ namespace Aether {
         return sol::meta_function::addition;
     }
 
+    sol::table ScriptEngine::GetOrCreateNamespace(sol::state_view lua, const std::string& ns) 
+    {
+        sol::table current = lua.globals();
+        if (ns.empty()) return current;
+
+        std::stringstream ss(ns);
+        std::string item;
+        while (std::getline(ss, item, '.')) 
+        {
+            current = current[item].get_or_create<sol::table>();
+        }
+        return current;
+    }
+
     void ScriptEngine::Init()
     {   
         auto& lua = LuaState.lua;
@@ -85,15 +99,30 @@ namespace Aether {
         auto handle = m_Instances.CreateResource();
         auto slot = m_Instances.GetResource(handle);
 
-        ScriptSelf self{ scene, this, entity, slot};
-        SceneContext sceneCtx{ scene, this };
-        EventContext eventCtx{ handle, &m_EventManager, &m_PromiseManager };
-        PhysicsContext physicsCtx{ scene, ServiceManager::GetService<PhysicsSystem>(), entity };
-        CoroutineContext coroutineCtx{ handle, &m_CoroutineManager, &m_PromiseManager };
-        PromiseContext promiseCtx{ &m_PromiseManager };
-        JobContext jobCtx{ &m_NativeFuncs, &m_PromiseManager, ServiceManager::GetService<JobSystem>() };
+        ScriptContext context
+        { 
+            entity,
+            handle,
+            scene,
+            slot,
+            ServiceManager::GetService<ScriptEngine>(),
+            ServiceManager::GetService<PhysicsSystem>(),
+            ServiceManager::GetService<JobSystem>(),
+            &m_CoroutineManager,
+            &m_PromiseManager,
+            &m_EventManager,
+            m_NativeFuncs.data(), static_cast<uint32_t>(m_NativeFuncs.size())
+        };
 
-        env["self"] = self;
+        SelfContext selfCtx{ context };
+        SceneContext sceneCtx{ context };
+        EventContext eventCtx{ context };
+        PhysicsContext physicsCtx{ context };
+        CoroutineContext coroutineCtx{ context };
+        PromiseContext promiseCtx{ context };
+        JobContext jobCtx{ context };
+
+        env["self"] = selfCtx;
         env["Scene"] = sceneCtx;
         env["Event"] = eventCtx;
         env["Physics"] = physicsCtx;

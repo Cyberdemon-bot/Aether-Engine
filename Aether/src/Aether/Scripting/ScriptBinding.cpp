@@ -1,34 +1,16 @@
 #include "aepch.h"
+#include "Aether/Scripting/Bindings.h"
 #include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Physics/PhysicsSystem.h"
-#include "Aether/Core/JobSystem.h"
-#include "Aether/Scripting/ScriptGlue.h"
 
 namespace Aether {
     void ScriptEngine::RegisterBinding()
     {
-        BindEnum<Key::KeyCode>("Key");
-        BindEnum<Mouse::MouseCode>("Mouse");
-        BindEnum<CollisionType>("CollisionType");
-        BindEnum<LightType>("LightType"); 
-        BindEnum<SceneCamera::ProjectionType>("CameraProjection");
-        BindType<U64Binding>();
-        BindType<Vec3Binding>("Math");
-        BindType<QuatBinding>("Math");
-        BindModule<MathBinding>("Math");
-        BindModule<InputBinding>("Input"); 
-        BindType<TransformBinding>();
-        BindType<LightParamBinding>();   
-        BindType<SceneCameraBinding>();
-        BindType<ScriptSelfBinding>();
-        BindType<SceneBinding>();
-        BindType<EventBinding>();
-        BindType<CollisionBinding>();
-        BindType<RaycastResultBinding>();
-        BindType<PhysicsBinding>();
-        BindType<CoroutineBinding>();
-        BindType<PromiseBinding>();
-        BindType<JobBinding>();
+        Binder::RegisterEnumBindings(this);
+        Binder::RegisterMathBindings(this);
+        Binder::RegisterCoreBindings(this);
+        Binder::RegisterAsyncBindings(this);
+        Binder::RegisterSceneBindings(this);
+        Binder::RegisterPhysicsBindings(this);
     }
 
     void ScriptEngine::ImportNativeFunc(std::string_view name, Delegate<ScriptTable(const ScriptTable&)> func)

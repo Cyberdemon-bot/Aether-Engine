@@ -1,20 +1,19 @@
 #pragma once
 
-#include <sol/sol.hpp>
-#include <sol/coroutine.hpp>
-#include <type_traits>
-#include <magic_enum/magic_enum.hpp>
-#include <string_view>
 #include <string>
+#include <type_traits>
+#include <string_view>
+#include <sol/sol.hpp>
+#include <magic_enum/magic_enum.hpp>
 
-#include "Aether/Core/Delegate.h"
 #include "Aether/Core/UUID.h"
-#include "Aether/Scene/Entity.h"
+#include "Aether/Core/Delegate.h"
 #include "Aether/Core/Timestep.h"
-#include "Aether/Container/ResourcePool.h"
+#include "Aether/Scene/Entity.h"
 #include "Aether/Scripting/PromiseManager.h"
 #include "Aether/Scripting/EventManager.h"
 #include "Aether/Scripting/CoroutineManager.h"
+#include "Aether/Container/ResourcePool.h"
 namespace Aether {
 
     template <typename T, typename = void> struct HasGetProps : std::false_type {};
@@ -132,7 +131,8 @@ namespace Aether {
         LuaWorker LuaState;
         EventManager m_EventManager;
         CoroutineManager m_CoroutineManager;
-        sol::meta_function OpNameToMeta(std::string_view name);
+        static sol::meta_function OpNameToMeta(std::string_view name);
+        static sol::table GetOrCreateNamespace(sol::state_view lua, const std::string& ns);
         ResourcePool<Handle<ScriptInstance>, InstanceSlot> m_Instances;
         ResourcePool<Handle<Bytecode>, ScriptSource> m_Sources;
         PromiseManager m_PromiseManager;
@@ -148,11 +148,10 @@ namespace Aether {
         void RegisterBinding();
 
         template<typename Binder>
-        void BindType(const std::string& Namespace = "")
+        void BindType(const std::string& ns = "")
         {
             auto& lua = LuaState.lua;
-            sol::table table = lua.globals();
-            if (!Namespace.empty()) table = lua[Namespace].get_or_create<sol::table>();
+            sol::table table = GetOrCreateNamespace(lua, ns);
             using TargetType = typename Binder::Type;
             auto utype = table.new_usertype<TargetType>(Binder::get_name(), sol::call_constructor, sol::constructors<TargetType()>());
 
@@ -185,7 +184,7 @@ namespace Aether {
 
             if constexpr (HasGetOps<Binder>::value) 
             {
-                ForEachTuple(Binder::get_ops(), [&utype, this](auto&& item) 
+                ForEachTuple(Binder::get_ops(), [&utype](auto&& item) 
                 {
                     std::string name = std::get<0>(item);
                     auto lambdas = std::get<1>(item);
@@ -194,17 +193,16 @@ namespace Aether {
                         return sol::overload(std::forward<decltype(fns)>(fns)...);
                     }, lambdas);
 
-                    utype.set_function(this->OpNameToMeta(name), overloaded_ops);
+                    utype.set_function(OpNameToMeta(name), overloaded_ops);
                 });
             }
         }
 
         template<typename Binder>
-        void BindModule(const std::string& Namespace = "")
+        void BindModule(const std::string& ns = "")
         {
             auto& lua = LuaState.lua;
-            sol::table table = lua.globals();
-            if (!Namespace.empty()) table = lua[Namespace].get_or_create<sol::table>();
+            sol::table table = GetOrCreateNamespace(lua, ns);
             if constexpr (HasGetFuncs<Binder>::value) 
             {
                 ForEachTuple(Binder::get_funcs(), [&table](auto&& item) 
@@ -221,7 +219,7 @@ namespace Aether {
         }
 
         template<typename T>
-        void BindEnum(const std::string& Name, const std::string& Namespace = "")
+        void BindEnum(const std::string& name, const std::string& ns = "")
         {
             auto& lua = LuaState.lua;
             sol::table dataTable = lua.create_table();
@@ -233,7 +231,7 @@ namespace Aether {
                 dataTable[name] = intVal;
                 reverseTable[intVal] = name;  
             }
-            dataTable["Name"] = reverseTable; 
+            dataTable["name"] = reverseTable; 
 
             sol::table proxyTable = lua.create_table();
             sol::table mt = lua.create_table();
@@ -245,8 +243,8 @@ namespace Aether {
             proxyTable[sol::metatable_key] = mt;
 
             sol::table targetTable = lua.globals();
-            if (!Namespace.empty()) targetTable = lua[Namespace].get_or_create<sol::table>();
-            targetTable[Name] = proxyTable;
+            if (!ns.empty()) targetTable = lua[ns].get_or_create<sol::table>();
+            targetTable[name] = proxyTable;
         }
 
         template<typename... Args>
@@ -287,56 +285,60 @@ namespace Aether {
             return result;
         }
 
-        friend struct ScriptSelfBinding;
+        friend struct SelfBinding;
         friend struct SceneBinding;
         friend struct JobBinding;
         friend class Scene;
+        friend class Binder;
     };
 
-    struct ScriptSelf
+    struct ScriptContext
     {
-        Scene* scene = nullptr;
-        ScriptEngine* engine = nullptr;
         Entity entity = Null_Entity;
+        Handle<ScriptInstance> handle;
+        Scene* scene = nullptr;
         InstanceSlot* slot = nullptr;
+        ScriptEngine* engine = nullptr;
+        PhysicsSystem* physys = nullptr;
+        JobSystem* jobsys = nullptr;
+        CoroutineManager* coroutine_manager = nullptr;
+        PromiseManager* promise_manager = nullptr;    
+        EventManager* event_manager = nullptr;
+        NativeFunc* native_list = nullptr; uint32_t list_size;
+    };
+
+    struct SelfContext
+    {
+        ScriptContext context;
     };
 
     struct SceneContext
     {
-        Scene* scene;
-        ScriptEngine* engine;
+        ScriptContext context;
     };
 
     struct PhysicsContext
     {
-        Scene* scene  = nullptr;
-        PhysicsSystem* physys = nullptr;
-        Entity entity = Null_Entity;
+        ScriptContext context;
     };
 
     struct CoroutineContext
     {
-        Handle<ScriptInstance> handle;
-        CoroutineManager* coroutine_manager = nullptr;
-        PromiseManager* promise_manager = nullptr;
+        ScriptContext context;
     };
 
     struct PromiseContext
     {
-        PromiseManager* promise_manager = nullptr;
+        ScriptContext context;
     };
 
     struct JobContext
     {
-        std::vector<NativeFunc>* native_funcs = nullptr;
-        PromiseManager* promise_manager = nullptr;
-        JobSystem* jobsys = nullptr;
+        ScriptContext context;
     };
 
     struct EventContext
     {
-        Handle<ScriptInstance> handle;
-        EventManager* event_manager = nullptr;
-        PromiseManager* promise_manager = nullptr;
+        ScriptContext context;
     };
 }

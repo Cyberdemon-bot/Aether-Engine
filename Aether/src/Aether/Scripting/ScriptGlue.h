@@ -442,65 +442,65 @@ namespace Aether {
         }
     };
 
-    struct ScriptSelfBinding
+    struct SelfBinding
     {
-        using Type = ScriptSelf;
-        static constexpr const char* get_name() { return "ScriptSelf"; }
+        using Type = SelfContext;
+        static constexpr const char* get_name() { return "SelfContext"; }
 
         static constexpr auto get_props()
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("Transform",
-                    AE_MAKE_LAMBDA((), (const Type& self), TransformComponent*,
-                        return &self.scene->GetComponent<TransformComponent>(self.entity);
+                    AE_MAKE_LAMBDA((), (const Type& ctx), TransformComponent*,
+                        return &ctx.context.scene->GetComponent<TransformComponent>(ctx.context.entity);
                     ),
-                    AE_MAKE_LAMBDA((), (Type& self, const TransformComponent& val), void,
-                        self.scene->GetComponent<TransformComponent>(self.entity) = val;
+                    AE_MAKE_LAMBDA((), (Type& ctx, const TransformComponent& val), void,
+                        ctx.context.scene->GetComponent<TransformComponent>(ctx.context.entity) = val;
                     )
                 ),
                 AE_REFLECT("LightConfig",
-                    AE_MAKE_LAMBDA((), (const Type& self), LightParam*,
-                        if (!self.scene->HasComponent<LightComponent>(self.entity)) return nullptr;
-                        return &self.scene->GetComponent<LightComponent>(self.entity).Config;
+                    AE_MAKE_LAMBDA((), (const Type& ctx), LightParam*,
+                        if (!ctx.context.scene->HasComponent<LightComponent>(ctx.context.entity)) return nullptr;
+                        return &ctx.context.scene->GetComponent<LightComponent>(ctx.context.entity).Config;
                     ),
-                    AE_MAKE_LAMBDA((), (Type& self, const LightParam& val), void,
-                        if (!self.scene->HasComponent<LightComponent>(self.entity)) return;
-                        self.scene->GetComponent<LightComponent>(self.entity).Config = val;
+                    AE_MAKE_LAMBDA((), (Type& ctx, const LightParam& val), void,
+                        if (!ctx.context.scene->HasComponent<LightComponent>(ctx.context.entity)) return;
+                        ctx.context.scene->GetComponent<LightComponent>(ctx.context.entity).Config = val;
                     )
                 ),
                 AE_REFLECT("Camera",
-                    AE_MAKE_LAMBDA((), (const Type& self), SceneCamera*,
-                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return nullptr;
-                        return &self.scene->GetComponent<CameraComponent>(self.entity).Camera;
+                    AE_MAKE_LAMBDA((), (const Type& ctx), SceneCamera*,
+                        if (!ctx.context.scene->HasComponent<CameraComponent>(ctx.context.entity)) return nullptr;
+                        return &ctx.context.scene->GetComponent<CameraComponent>(ctx.context.entity).Camera;
                     ),
-                    AE_MAKE_LAMBDA((), (Type& self, const SceneCamera& val), void,
-                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return;
-                        self.scene->GetComponent<CameraComponent>(self.entity).Camera = val;
+                    AE_MAKE_LAMBDA((), (Type& ctx, const SceneCamera& val), void,
+                        if (!ctx.context.scene->HasComponent<CameraComponent>(ctx.context.entity)) return;
+                        ctx.context.scene->GetComponent<CameraComponent>(ctx.context.entity).Camera = val;
                     )
                 ),
 
                 AE_REFLECT("IsPrimaryCamera",
-                    AE_MAKE_LAMBDA((), (const Type& self), bool,
-                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return false;
-                        return self.scene->GetComponent<CameraComponent>(self.entity).Primary;
+                    AE_MAKE_LAMBDA((), (const Type& ctx), bool,
+                        if (!ctx.context.scene->HasComponent<CameraComponent>(ctx.context.entity)) return false;
+                        return ctx.context.scene->GetComponent<CameraComponent>(ctx.context.entity).Primary;
                     ),
-                    AE_MAKE_LAMBDA((), (Type& self, bool val), void,
-                        if (!self.scene->HasComponent<CameraComponent>(self.entity)) return;
-                        self.scene->GetComponent<CameraComponent>(self.entity).Primary = val;
+                    AE_MAKE_LAMBDA((), (Type& ctx, bool val), void,
+                        if (!ctx.context.scene->HasComponent<CameraComponent>(ctx.context.entity)) return;
+                        ctx.context.scene->GetComponent<CameraComponent>(ctx.context.entity).Primary = val;
                     )
                 ),
                 AE_REFLECT("EntityID",
-                    AE_MAKE_LAMBDA((), (const Type& self), uint64_t,
-                        return uint64_t(self.scene->GetComponent<IDComponent>(self.entity).ID);
+                    AE_MAKE_LAMBDA((), (const Type& ctx), uint64_t,
+                        return uint64_t(ctx.context.scene->GetComponent<IDComponent>(ctx.context.entity).ID);
                     )
                 ), 
                 AE_REFLECT("ExecOrder",
-                    AE_MAKE_LAMBDA((), (const Type& self), int,
-                        return self.slot->exec_order;
+                    AE_MAKE_LAMBDA((), (const Type& ctx), int,
+                        return ctx.context.slot->exec_order;
                     ),
-                    AE_MAKE_LAMBDA((), (Type& self, int val), void,
-                        self.engine->IsExecChanged = true; 
-                        self.slot->exec_order = val;
+                    AE_MAKE_LAMBDA((), (Type& ctx, int val), void,
+                        ctx.context.engine->IsExecChanged = true; 
+                        ctx.context.slot->exec_order = val;
                     )
                 )
             );
@@ -510,33 +510,33 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("Expose",
-                    AE_MAKE_LAMBDA((), (Type& self, const std::string& name, sol::protected_function func), void,
-                        self.slot->exposed_funcs.push_back({name, func});
+                    AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::protected_function func), void,
+                        ctx.context.slot->exposed_funcs.push_back({name, func});
                     )
                 ),
                 AE_REFLECT("DestroyMyself",
-                    AE_MAKE_LAMBDA((), (Type& self), void,
-                        Entity e = static_cast<Entity>(self.entity);
-                        self.scene->DestroyEntity(e);
+                    AE_MAKE_LAMBDA((), (Type& ctx), void,
+                        Entity e = static_cast<Entity>(ctx.context.entity);
+                        ctx.context.scene->DestroyEntity(e);
                     )
                 ),
                 AE_REFLECT("GetWorldPosition",
-                    AE_MAKE_LAMBDA((), (Type& self), glm::vec3,
-                        Entity e = static_cast<Entity>(self.entity);
-                        return self.scene->GetWorldPosition(e);
+                    AE_MAKE_LAMBDA((), (Type& ctx), glm::vec3,
+                        Entity e = static_cast<Entity>(ctx.context.entity);
+                        return ctx.context.scene->GetWorldPosition(e);
                     )
                 ),
                 AE_REFLECT("BreakParent",
-                    AE_MAKE_LAMBDA((), (Type& self), void,
-                        Entity e = static_cast<Entity>(self.entity);
-                        self.scene->BreakParent(e);
+                    AE_MAKE_LAMBDA((), (Type& ctx), void,
+                        Entity e = static_cast<Entity>(ctx.context.entity);
+                        ctx.context.scene->BreakParent(e);
                     )
                 ),
                 AE_REFLECT("MakeParent",
-                    AE_MAKE_LAMBDA((), (Type& self, uint64_t parentId), void,
-                        Entity e = static_cast<Entity>(self.entity);
-                        Entity parent = self.scene->FindEntity((UUID(parentId)));
-                        self.scene->MakeParent(e, parent);
+                    AE_MAKE_LAMBDA((), (Type& ctx, uint64_t parentId), void,
+                        Entity e = static_cast<Entity>(ctx.context.entity);
+                        Entity parent = ctx.context.scene->FindEntity((UUID(parentId)));
+                        ctx.context.scene->MakeParent(e, parent);
                     )
                 )
             );
@@ -553,36 +553,36 @@ namespace Aether {
             return AE_REFLECT_LIST(
                 AE_REFLECT("FindByTag",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name), std::vector<U64>,
-                        auto results = ctx.scene->FindEntity(name);
+                        auto results = ctx.context.scene->FindEntity(name);
                         std::vector<U64> ids;
                         ids.reserve(results.size());
-                        for (auto& e : results) ids.push_back(U64(ctx.scene->GetComponent<IDComponent>(e).ID));
+                        for (auto& e : results) ids.push_back(U64(ctx.context.scene->GetComponent<IDComponent>(e).ID));
                         return ids;
                     )
                 ),
 
                 AE_REFLECT("IsValid",
                     AE_MAKE_LAMBDA((), (Type& ctx, U64 id), bool,
-                        Entity e = ctx.scene->FindEntity(UUID(id.value));
-                        return ctx.scene->IsValid(e);
+                        Entity e = ctx.context.scene->FindEntity(UUID(id.value));
+                        return ctx.context.scene->IsValid(e);
                     )
                 ),
                 AE_REFLECT("SafeCall",
                     AE_MAKE_LAMBDA((), (Type& ctx, U64 targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = ctx.scene->FindEntity((UUID(targetId.value)));
-                        if (!ctx.scene->IsValid(target)) return sol::lua_nil;
-                        if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
-                        auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
-                        return ctx.engine->CallSafeInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
+                        Entity target = ctx.context.scene->FindEntity((UUID(targetId.value)));
+                        if (!ctx.context.scene->IsValid(target)) return sol::lua_nil;
+                        if (!ctx.context.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
+                        auto& sc = ctx.context.scene->GetComponent<ScriptComponent>(target);
+                        return ctx.context.engine->CallSafeInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
                     )
                 ),
                 AE_REFLECT("DirectCall",
                     AE_MAKE_LAMBDA((), (Type& ctx, U64 targetId, const std::string& name, sol::variadic_args args), sol::object,
-                        Entity target = ctx.scene->FindEntity((UUID(targetId.value)));
-                        if (!ctx.scene->IsValid(target)) return sol::lua_nil;
-                        if (!ctx.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
-                        auto& sc = ctx.scene->GetComponent<ScriptComponent>(target);
-                        return ctx.engine->CallDirectInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
+                        Entity target = ctx.context.scene->FindEntity((UUID(targetId.value)));
+                        if (!ctx.context.scene->IsValid(target)) return sol::lua_nil;
+                        if (!ctx.context.scene->HasComponent<ScriptComponent>(target)) return sol::lua_nil;
+                        auto& sc = ctx.context.scene->GetComponent<ScriptComponent>(target);
+                        return ctx.context.engine->CallDirectInstanceAPI(sc.ScriptHandle, name, sol::as_args(args));
                     )
                 )
             );
@@ -658,50 +658,50 @@ namespace Aether {
             return AE_REFLECT_LIST(
 
                 AE_REFLECT("AddForce",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& force), void,
-                        if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
-                        auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        self.physys->AddForce(self.scene->GetPhysicsInstance(), handle, force);
+                    AE_MAKE_LAMBDA((), (Type& ctx, const VType& force), void,
+                        if (!ctx.context.scene->HasComponent<ColliderComponent>(ctx.context.entity)) return;
+                        auto handle = ctx.context.scene->GetComponent<ColliderComponent>(ctx.context.entity).ColliderHandle;
+                        ctx.context.physys->AddForce(ctx.context.scene->GetPhysicsInstance(), handle, force);
                     )
                 ),
 
                 AE_REFLECT("SetVelocity",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& velocity), void,
-                        if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return;
-                        auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        self.physys->SetVelocity(self.scene->GetPhysicsInstance(), handle, velocity);
+                    AE_MAKE_LAMBDA((), (Type& ctx, const VType& velocity), void,
+                        if (!ctx.context.scene->HasComponent<ColliderComponent>(ctx.context.entity)) return;
+                        auto handle = ctx.context.scene->GetComponent<ColliderComponent>(ctx.context.entity).ColliderHandle;
+                        ctx.context.physys->SetVelocity(ctx.context.scene->GetPhysicsInstance(), handle, velocity);
                     )
                 ),
 
                 AE_REFLECT("SetGravity",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& gravity), void,
-                        self.physys->SetGravity(self.scene->GetPhysicsInstance(), gravity);
+                    AE_MAKE_LAMBDA((), (Type& ctx, const VType& gravity), void,
+                        ctx.context.physys->SetGravity(ctx.context.scene->GetPhysicsInstance(), gravity);
                     )
                 ),
 
                 AE_REFLECT("CanMove",
-                    AE_MAKE_LAMBDA((), (Type& self, const PhysTransform& target), bool,
-                        if (!self.scene->HasComponent<ColliderComponent>(self.entity)) return false;
-                        auto handle = self.scene->GetComponent<ColliderComponent>(self.entity).ColliderHandle;
-                        return self.physys->CanMove(self.scene->GetPhysicsInstance(), handle, target);
+                    AE_MAKE_LAMBDA((), (Type& ctx, const PhysTransform& target), bool,
+                        if (!ctx.context.scene->HasComponent<ColliderComponent>(ctx.context.entity)) return false;
+                        auto handle = ctx.context.scene->GetComponent<ColliderComponent>(ctx.context.entity).ColliderHandle;
+                        return ctx.context.physys->CanMove(ctx.context.scene->GetPhysicsInstance(), handle, target);
                     )
                 ),
 
                 AE_REFLECT("CastRay",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), RaycastResult,
-                        return self.physys->CastRay(self.scene->GetPhysicsInstance(), origin, direction, distance);
+                    AE_MAKE_LAMBDA((), (Type& ctx, const VType& origin, const VType& direction, float distance), RaycastResult,
+                        return ctx.context.physys->CastRay(ctx.context.scene->GetPhysicsInstance(), origin, direction, distance);
                     )
                 ),
 
                 AE_REFLECT("CastRayAll",
-                    AE_MAKE_LAMBDA((), (Type& self, const VType& origin, const VType& direction, float distance), std::vector<RaycastResult>,
-                        return self.physys->CastRayAll(self.scene->GetPhysicsInstance(), origin, direction, distance);
+                    AE_MAKE_LAMBDA((), (Type& ctx, const VType& origin, const VType& direction, float distance), std::vector<RaycastResult>,
+                        return ctx.context.physys->CastRayAll(ctx.context.scene->GetPhysicsInstance(), origin, direction, distance);
                     )
                 ),
 
                 AE_REFLECT("GetEntity",
-                    AE_MAKE_LAMBDA((), (Type& self, U64 body), U64,
-                        uint64_t ud = self.physys->GetUserData(self.scene->GetPhysicsInstance(), Handle<RigidBody>::FromBlend(body.value));
+                    AE_MAKE_LAMBDA((), (Type& ctx, U64 body), U64,
+                        uint64_t ud = ctx.context.physys->GetUserData(ctx.context.scene->GetPhysicsInstance(), Handle<RigidBody>::FromBlend(body.value));
                         return U64(ud);
                     )
                 )
@@ -728,14 +728,14 @@ namespace Aether {
             return AE_REFLECT_LIST(
                 AE_REFLECT("async",
                     AE_MAKE_LAMBDA((), (Type& ctx, sol::function func), U64,
-                        auto handle = ctx.coroutine_manager->StartCoroutine(func, ctx.handle);
+                        auto handle = ctx.context.coroutine_manager->StartCoroutine(func, ctx.context.handle);
                         return U64(handle.Blend());
                     )
                 ),
 
                 AE_REFLECT("stop",
                     AE_MAKE_LAMBDA((), (Type& ctx, U64 handle), void,
-                        ctx.coroutine_manager->StopCoroutine(Handle<CoroutineTask>::FromBlend(handle.value));
+                        ctx.context.coroutine_manager->StopCoroutine(Handle<CoroutineTask>::FromBlend(handle.value));
                     )
                 ),
 
@@ -744,8 +744,8 @@ namespace Aether {
                         lua_State* L = ts;
                         lua_pushthread(L);
                         sol::thread current = sol::stack::pop<sol::thread>(L);
-                        auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
-                        ctx.coroutine_manager->YieldTask(task);
+                        auto task = ctx.context.coroutine_manager->GetCurrentRunningTask(current);
+                        ctx.context.coroutine_manager->YieldTask(task);
                         return lua_yield(L, 0);
                     ),
                     AE_MAKE_LAMBDA((), (Type& ctx, sol::table awaitable, sol::this_state ts), int,
@@ -756,15 +756,15 @@ namespace Aether {
                         lua_State* L = ts;
                         lua_pushthread(L);
                         sol::thread current = sol::stack::pop<sol::thread>(L);
-                        auto task = ctx.coroutine_manager->GetCurrentRunningTask(current);
+                        auto task = ctx.context.coroutine_manager->GetCurrentRunningTask(current);
 
                         sol::state_view lua_view(L);
                         lua_State* main_L = lua_view.lua_state(); 
                         auto promise_handle = Handle<Promise>::FromBlend(handle);
-                        if (promise_handle.IsValid() && ctx.promise_manager->GetPromise(promise_handle))
+                        if (promise_handle.IsValid() && ctx.context.promise_manager->GetPromise(promise_handle))
                         {
-                            ctx.promise_manager->Finally(promise_handle,
-                                [coroutine_manager = ctx.coroutine_manager, task, main_L]
+                            ctx.context.promise_manager->Finally(promise_handle,
+                                [coroutine_manager = ctx.context.coroutine_manager, task, main_L]
                                 (const ScriptTable& result)
                                 {
                                     sol::object luaResult = ScriptTable::ToSolObject(main_L, result);
@@ -774,16 +774,16 @@ namespace Aether {
 
                             switch(type)
                             {
-                                case 1: ctx.coroutine_manager->WaitForSeconds(task, timeout); break;
-                                case 2: ctx.coroutine_manager->WaitForManual(task); break;
-                                default: ctx.coroutine_manager->YieldTask(task); break;
+                                case 1: ctx.context.coroutine_manager->WaitForSeconds(task, timeout); break;
+                                case 2: ctx.context.coroutine_manager->WaitForManual(task); break;
+                                default: ctx.context.coroutine_manager->YieldTask(task); break;
                             }
                             return lua_yield(L, 0);
                         }
 
                         if (type != 1)
                             AE_CORE_WARN("[Await] Invalid promise handle={0}, yielding one frame", handle);
-                        ctx.coroutine_manager->WaitForSeconds(task, type == 1 ? timeout : 0.0f);
+                        ctx.context.coroutine_manager->WaitForSeconds(task, type == 1 ? timeout : 0.0f);
                         return lua_yield(L, 0);
                     )
                 ),
@@ -831,7 +831,7 @@ namespace Aether {
                         if (final_type == 1 && final_timeout == std::numeric_limits<float>::max())
                             final_timeout = 0.0f;
 
-                        Handle<Promise> race = ctx.promise_manager->Race(std::move(promises));
+                        Handle<Promise> race = ctx.context.promise_manager->Race(std::move(promises));
                         return CoroutineBinding::MakeAwaitable(sol::state_view(ts), race.Blend(), final_type, final_timeout);
                     )
                 ),
@@ -862,7 +862,7 @@ namespace Aether {
                         if (final_type == 1 && final_timeout == std::numeric_limits<float>::max())
                             final_timeout = 0.0f;
 
-                        Handle<Promise> all = ctx.promise_manager->All(std::move(promises));
+                        Handle<Promise> all = ctx.context.promise_manager->All(std::move(promises));
                         return CoroutineBinding::MakeAwaitable(sol::state_view(ts), all.Blend(), final_type, final_timeout);
                     )
                 )
@@ -877,17 +877,17 @@ namespace Aether {
 
         static sol::table Base(Type& ctx, const std::string& name, uint32_t type, float timeout, sol::this_state ts)
         {
-            Handle<Promise> promise = ctx.promise_manager->CreatePromise();
+            Handle<Promise> promise = ctx.context.promise_manager->CreatePromise();
             uint64_t blend = promise.Blend();
-            Handle<EventListener> listener = ctx.event_manager->CreateListener(name,
-                [pm = ctx.promise_manager, promise](const ScriptTable& args) -> bool
+            Handle<EventListener> listener = ctx.context.event_manager->CreateListener(name,
+                [pm = ctx.context.promise_manager, promise](const ScriptTable& args) -> bool
                 {
                     pm->Resolve(promise, args);
                     return false;
                 }
             );
-            ctx.promise_manager->Finally(promise,
-                [em = ctx.event_manager, listener](const ScriptTable& result)
+            ctx.context.promise_manager->Finally(promise,
+                [em = ctx.context.event_manager, listener](const ScriptTable& result)
                 {
                     em->DestroyListener(listener);
                 }
@@ -901,18 +901,18 @@ namespace Aether {
                 AE_REFLECT("Fire",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::variadic_args args), void,
                         std::vector<sol::object> collected(args.begin(), args.end());
-                        ctx.event_manager->FireEvent(name, collected);
+                        ctx.context.event_manager->FireEvent(name, collected);
                     )
                 ),
                 AE_REFLECT("Listen",
                     AE_MAKE_LAMBDA((), (Type& ctx, const std::string& name, sol::main_protected_function callback), U64,
-                        auto handle = ctx.event_manager->CreateListener(name, callback, ctx.handle);
+                        auto handle = ctx.context.event_manager->CreateListener(name, callback, ctx.context.handle);
                         return U64(handle.Blend());
                     )
                 ),
                 AE_REFLECT("Unlisten",
                     AE_MAKE_LAMBDA((), (Type& ctx, U64 handle), void,
-                        ctx.event_manager->DestroyListener(Handle<EventListener>::FromBlend(handle.value));
+                        ctx.context.event_manager->DestroyListener(Handle<EventListener>::FromBlend(handle.value));
                     )
                 ),
                 AE_REFLECT("OnEvent",
@@ -934,25 +934,25 @@ namespace Aether {
 
         static sol::table Base(Type& ctx, uint32_t idx, uint32_t type, float timeout, sol::variadic_args args, sol::this_state ts)
         {
-            if (idx >= ctx.native_funcs->size())
+            if (idx >= ctx.context.list_size)
             {
                 AE_CORE_ERROR("Native index {0} not found", idx);
                 return CoroutineBinding::MakeAwaitable(sol::state_view(ts), Handle<Promise>::MakeInvalid().Blend(), type, timeout);
             }
-            auto func = (*ctx.native_funcs)[idx].native;
+            auto func = ctx.context.native_list[idx].native;
 
             std::vector<ScriptTable> collected;
             for (auto arg : args)
                 collected.push_back(ScriptTable::FromSolObject(arg));
             ScriptTable input = ScriptTable::Make(collected);
             auto output = CreateRef<ScriptTable>();
-            Handle<Promise> promise = ctx.promise_manager->CreatePromise();
-            ctx.jobsys->SubmitJob(
+            Handle<Promise> promise = ctx.context.promise_manager->CreatePromise();
+            ctx.context.jobsys->SubmitJob(
                 [func, input = std::move(input), output]() mutable
                 {
                     *output = func(input);
                 },
-                [pm = ctx.promise_manager, promise, output]()
+                [pm = ctx.context.promise_manager, promise, output]()
                 {
                     pm->Resolve(promise, std::move(*output));
                 }

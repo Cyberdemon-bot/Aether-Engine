@@ -10,7 +10,7 @@
 namespace Aether {
 
     template<typename HandleType, typename DataType>
-    class Table
+    class StringTable
     {
     public:
         struct TableElement
@@ -88,21 +88,18 @@ namespace Aether {
             entry->handle = HandleType::MakeInvalid();
         }
 
-        std::string_view GetView(uint32_t offset) const
+        std::string_view GetView(HandleType handle) const
         {
-            if (offset >= m_Buffer.size()) return std::string_view{};
-            const char* ptr = m_Buffer.data() + offset;
-            uint16_t length = 0;
-            std::memcpy(&length, ptr, sizeof(uint16_t));
-            ptr += sizeof(uint16_t);
-            return std::string_view(ptr, length);
+            const TableElement* it = m_Pool.GetResource(handle);
+            if (!it) return std::string_view{};
+            return CalcView(it->byte_offset);
         }
 
         std::string GetString(HandleType handle) const
         {
             const TableElement* it = m_Pool.GetResource(handle);
             if (!it) return std::string{};
-            return std::string(GetView(it->byte_offset));
+            return std::string(CalcView(it->byte_offset));
         }
 
         DataType* GetData(HandleType handle)
@@ -165,6 +162,16 @@ namespace Aether {
             });
         }
     private:
+        std::string_view CalcView(uint32_t offset) const
+        {
+            if (offset >= m_Buffer.size()) return std::string_view{};
+            const char* ptr = m_Buffer.data() + offset;
+            uint16_t length = 0;
+            std::memcpy(&length, ptr, sizeof(uint16_t));
+            ptr += sizeof(uint16_t);
+            return std::string_view(ptr, length);
+        }
+
         template<typename... Args>
         HandleType Commit(std::string_view key, uint64_t hash, Args&&... args)
         {
@@ -191,13 +198,13 @@ namespace Aether {
                 [](const HashData& entry, uint64_t h) { return entry.hash_code < h; });
             while (it != m_Map.end() && it->hash_code == hash)
             {
-                if (GetView(it->byte_offset) == key) return std::to_address(it);
+                if (CalcView(it->byte_offset) == key) return std::to_address(it);
                 ++it;
             }
             for (HashData& entry : m_Queue)
             {
                 if (entry.hash_code != hash) continue;
-                if (GetView(entry.byte_offset) == key) return &entry;
+                if (CalcView(entry.byte_offset) == key) return &entry;
             }
             return nullptr;
         }
@@ -208,13 +215,13 @@ namespace Aether {
                 [](const HashData& entry, uint64_t h) { return entry.hash_code < h; });
             while (it != m_Map.end() && it->hash_code == hash)
             {
-                if (GetView(it->byte_offset) == key) return std::to_address(it);
+                if (CalcView(it->byte_offset) == key) return std::to_address(it);
                 ++it;
             }
             for (const HashData& entry : m_Queue)
             {
                 if (entry.hash_code != hash) continue;
-                if (GetView(entry.byte_offset) == key) return &entry;
+                if (CalcView(entry.byte_offset) == key) return &entry;
             }
             return nullptr;
         }
