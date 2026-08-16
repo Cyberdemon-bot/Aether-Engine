@@ -7,6 +7,24 @@
 #include <glm/glm.hpp>
     
 namespace Aether {
+
+    struct Vertex 
+    {
+        glm::vec3 Position;
+        glm::vec3 Normal;
+        glm::vec4 Tangent;
+        glm::vec2 TexCoord;
+    };
+
+    struct SkinnedVertex 
+    {
+        glm::vec3 Position;
+        glm::vec3 Normal;
+        glm::vec4 Tangent;
+        glm::vec2 TexCoord;
+        glm::uvec4 Joints;
+        glm::vec4 Weights;
+    };
     
     struct SubMeshCreateInfo
     {
@@ -26,15 +44,10 @@ namespace Aether {
     {
         UUID AssetID;
         std::string DebugName;
-        std::vector<float> Positions;
-        std::vector<float> Normals;
-        std::vector<float> Tangents;
-        std::vector<float> TexCoords;
+        bool IsSkinned = false;
+        
+        std::vector<uint8_t> InterleavedVertices;
         std::vector<uint32_t> Indices;
-
-        std::vector<float> Weights;
-        std::vector<uint32_t> Joints;
-
         std::vector<SubMeshCreateInfo> SubMeshes;
 
         uint32_t totalVertices = 0;

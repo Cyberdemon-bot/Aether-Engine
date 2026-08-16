@@ -186,182 +186,6 @@ namespace Aether {
         return entList;
     }
 
-    void Scene::ResolveBoneAttachments()
-    {
-        auto view = View<BoneAttachmentComponent, TransformComponent>();
-        auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
-        for (auto entity : view)
-        {
-            auto& attach = GetComponent<BoneAttachmentComponent>(entity);
-            auto& transform = GetComponent<TransformComponent>(entity);
-            Entity animEnt = attach.AnimatorEntity;
-
-            if (!IsValid(animEnt) || !HasComponent<AnimatorComponent>(animEnt)) continue;
-            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-            auto& animComp = GetComponent<AnimatorComponent>(animEnt);
-            const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
-            
-            auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(animComp.Skeleton);
-            if (skeletonAsset && animComp.CurrentPose.IsValid())
-            {
-                Handle<RSkeleton> skel = skeletonAsset->m_Handle;
-                if (attach.JointIndex < 0) 
-                    attach.JointIndex = rigModule->GetJointIndex(skel, attach.JointName);
-                
-                auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentPose);
-                if (poseData && attach.JointIndex >= 0 && (size_t)attach.JointIndex < poseCount)
-                {
-                    glm::mat4 ibm; 
-                    rigModule->GetIBM(skel, attach.JointIndex, ibm);
-                    
-                    glm::mat4 modelSpaceMat = poseData[attach.JointIndex] * glm::inverse(ibm);
-                    glm::mat4 boneWorld = animatorWorld * modelSpaceMat;
-
-                    glm::vec3 right = glm::normalize(glm::vec3(boneWorld[0])); glm::vec3 up = glm::normalize(glm::vec3(boneWorld[1]));
-                    glm::vec3 forward = glm::normalize(glm::vec3(boneWorld[2])); glm::vec3 trans = glm::vec3(boneWorld[3]);
-                    glm::mat4 pureBoneWorld(1.0f);
-                    pureBoneWorld[0] = glm::vec4(right, 0.0f); pureBoneWorld[1] = glm::vec4(up, 0.0f); 
-                    pureBoneWorld[2] = glm::vec4(forward, 0.0f); pureBoneWorld[3] = glm::vec4(trans, 1.0f);
-
-                    glm::mat4 objScaleMat = glm::scale(glm::mat4(1.0f), transform.Scale);
-                    glm::mat4 localOffsetMat = glm::translate(glm::mat4(1.0f), transform.Translation) * glm::toMat4(transform.Rotation) * objScaleMat;
-                    transform.WorldTransform = pureBoneWorld * localOffsetMat;
-
-                    if (attach.affectChild)
-                    {
-                        Entity firstChild = GetComponent<HierarchyComponent>(entity).firstChild;
-                        if (firstChild != Null_Entity) UpdateSubtreeTransforms(firstChild, transform.WorldTransform);
-                    }
-                }
-            }
-        }
-    }
-
-    void Scene::UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform)
-    {
-        while (entity != Null_Entity && IsValid(entity))
-        {
-            auto& transform = GetComponent<TransformComponent>(entity);
-            transform.WorldTransform = pTransform * transform.GetLocalTransform();
-            if (HasComponent<HierarchyComponent>(entity))
-            {
-                auto& hierarchy = GetComponent<HierarchyComponent>(entity);
-                if (hierarchy.firstChild != Null_Entity)
-                    UpdateSubtreeTransforms(hierarchy.firstChild, transform.WorldTransform);
-                entity = hierarchy.nextSibling;
-            }
-            else break; 
-        }
-    }
-    
-    void Scene::UpdateTransform(Entity entity)
-    {
-        auto& transform = GetComponent<TransformComponent>(entity);
-        auto& hierarchy = GetComponent<HierarchyComponent>(entity);
-
-        glm::mat4 pTransform = glm::mat4(1.0f);
-        bool pDirty = false;
- 
-        if (hierarchy.parent != Null_Entity)
-        {
-            const auto& parentTransform = GetComponent<TransformComponent>(hierarchy.parent);
-            pTransform = parentTransform.WorldTransform;
-            pDirty = (parentTransform.LastUpdate == m_CurrentFrame);
-        }
-
-        bool isWorldTransformDirty = transform.Dirty || pDirty;
-        bool hasRecalculatedWorld = false;
-
-        if (HasComponent<ColliderComponent>(entity))
-        {
-            auto* physys = ServiceManager::GetService<PhysicsSystem>();
-            auto& rbComp = GetComponent<ColliderComponent>(entity);
-            Handle<RigidBody>& handle = rbComp.ColliderHandle;
-            MotionType motiontype = physys->GetBodyInfo(m_PhysicsInstance, handle).motionType;
-
-            if (handle.IsValid()) 
-            {
-                if (isWorldTransformDirty)
-                {
-                    transform.WorldTransform = pTransform * transform.GetLocalTransform();
-                    hasRecalculatedWorld = true;
-
-                    glm::vec3 scale, translation, skew; glm::quat rotation; glm::vec4 perspective;
-                    glm::decompose(transform.WorldTransform, scale, rotation, translation, skew, perspective);
-                    glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
-                    PhysTransform target = {translation + worldOffset, rotation};
-                    if (motiontype == MotionType::Kinematic)
-                    {
-                        if (physys->CanMove(m_PhysicsInstance, handle, target)) physys->SetPhysTransform(m_PhysicsInstance, handle, target);
-                        else
-                        {
-                            PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
-                            glm::vec3 trans = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
-
-                            if (hierarchy.parent == Null_Entity)
-                            {
-                                transform.Translation = trans;
-                                transform.Rotation = physTrans.rotation;
-                            }
-                            else
-                            {
-                                glm::mat4 invParent = glm::inverse(pTransform);
-                                glm::quat parentRot = glm::quat_cast(pTransform);
-                                transform.Translation = glm::vec3(invParent * glm::vec4(trans, 1.0f));
-                                transform.Rotation = glm::inverse(parentRot) * physTrans.rotation;
-                            }
-                            transform.Dirty = true;
-                        }
-                    }
-                    else physys->SetPhysTransform(m_PhysicsInstance, handle, target);
-                }
-                else if (motiontype == MotionType::Dynamic)
-                {
-                    PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
-                    glm::vec3 localOffset = rbComp.ColliderOffset;
-                    glm::vec3 trans = physTrans.translation - (physTrans.rotation * localOffset);
-
-                    if (hierarchy.parent == Null_Entity)
-                    {
-                        transform.Translation = trans;
-                        transform.Rotation = physTrans.rotation;
-                    }
-                    else
-                    {
-                        glm::mat4 invParent = glm::inverse(pTransform);
-                        glm::quat parentRot = glm::quat_cast(pTransform);
-                        transform.Translation = glm::vec3(invParent * glm::vec4(trans, 1.0f));
-                        transform.Rotation = glm::inverse(parentRot) * physTrans.rotation;
-                    }
-
-                    isWorldTransformDirty = true;
-                    transform.Dirty = true;
-                }
-            }
-        }
-
-        if (isWorldTransformDirty)
-        {
-            if (!hasRecalculatedWorld)
-                transform.WorldTransform = pTransform * transform.GetLocalTransform();
-
-            // if (HasComponent<AudioSourceComponent>(entity))
-            // {
-            //     auto& audio = GetComponent<AudioSourceComponent>(entity);
-            //     if (audio.SourceHandle.IsValid())
-            //         ServiceManager::GetService<AudioSystem>()->SetPosition(audio.SourceHandle, glm::vec3(transform.WorldTransform[3]));
-            // }
-
-            if (HasComponent<LightComponent>(entity))
-                GetComponent<LightComponent>(entity).Config.position = glm::vec3(transform.WorldTransform[3]);
-
-            transform.LastUpdate = m_CurrentFrame;
-        }
-
-        transform.Dirty = false;
-        transform.SubtreeDirty = false;
-    }
-
     glm::vec3 Scene::GetWorldPosition(Entity entity)
     {
         if (entity == Null_Entity || !HasComponent<TransformComponent>(entity)) return glm::vec3(0.0f);
@@ -391,16 +215,6 @@ namespace Aether {
                 else ExcDestroyEntity(info.entity, info.repairHie);
             }
             m_DestroyQueue.clear();
-        }
-
-        { // update transform
-            m_CurrentFrame++;
-            DirtyScan();
-            BreadthFirstSearch();
-            for (auto& level : m_HierarchyLevels) 
-                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
-                    this->UpdateTransform(entity); 
-                ));
         }
 
         { // update physics
@@ -438,6 +252,16 @@ namespace Aether {
                 else physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }
             physys->UpdateInstance(m_PhysicsInstance, ts);
+        }
+
+        { // update transform
+            m_CurrentFrame++;
+            DirtyScan();
+            BreadthFirstSearch();
+            for (auto& level : m_HierarchyLevels) 
+                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                    this->UpdateTransform(entity); 
+                ));
         }
 
         { // update scirpts

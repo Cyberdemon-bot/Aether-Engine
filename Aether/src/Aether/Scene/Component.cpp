@@ -6,15 +6,6 @@
 #include "Aether/Core/ServiceManager.h"
 
 namespace Aether {
-    glm::mat4 TransformComponent::GetLocalTransform() const
-    {
-        glm::mat4 rotation = glm::toMat4(Rotation);
-        glm::mat4 translation = glm::translate(glm::mat4(1.0f), Translation);
-        glm::mat4 scale = glm::scale(glm::mat4(1.0f), Scale);
-
-        return translation * rotation * scale;
-    }
-
     void MeshComponent::AttachUniqueSheet()
     {
         UsingUniqueSheet = true;
@@ -32,12 +23,6 @@ namespace Aether {
         ServiceManager::GetService<AssetManager>()->Unload(UniqueSheet);
     }
 
-    void AnimatorComponent::SetClip(int idx)
-    {
-        ActiveClipIdx = idx;
-        CacheDirty = true;
-    }
-
     ColliderComponent::ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible)
             : ColliderHandle(handle), Visible(visible)
     {
@@ -51,10 +36,5 @@ namespace Aether {
         Friction = info.friction;
         Restitution = info.restitution;
         IsSensor = info.isSensor;
-    }
-
-    void BoneAttachmentComponent::Invalidate() const
-    {
-        JointIndex = -1;
     }
 }

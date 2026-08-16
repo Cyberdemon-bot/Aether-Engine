@@ -1,12 +1,11 @@
 #pragma once
 
+#include <vector>
 #include "Aether/Core/Base.h"
 #include "Aether/Renderer/Buffer.h"
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
-
-#include <vector>
-#include <unordered_map>
+#include "Aether/Core/Delegate.h"
 
 namespace Aether {
 
@@ -32,15 +31,6 @@ namespace Aether {
                 { "a_Normal",    ShaderDataType::Float3 },
                 { "a_Tangent",   ShaderDataType::Float4 },
                 { "a_TexCoord",  ShaderDataType::Float2 },
-            };
-        }
-
-        static BufferLayout Phong() 
-        {
-            return {
-                { "a_Position", ShaderDataType::Float3 },
-                { "a_Normal",   ShaderDataType::Float3 },
-                { "a_TexCoord", ShaderDataType::Float2 }
             };
         }
 
@@ -90,6 +80,10 @@ namespace Aether {
         BufferLayout Layout = MeshLayout::Vertex();
     };
 
+    struct MeshSpec;
+    using BoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const MeshSpec&)>;
+    using AnimatedBoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const MeshSpec&)>;
+
     struct MeshSpec
     {
         const VertexStream* StreamData = nullptr;
@@ -98,6 +92,8 @@ namespace Aether {
         uint32_t IndexCount = 0;
         std::vector<SubMesh> Submeshes = {};
         std::vector<glm::mat4> RigPoseMats = {};
+        BoundsCalculator CalculateBoundsFunc;
+        AnimatedBoundsCalculator CalculateAnimatedBoundsFunc;
     };
 
     struct Mesh : public Asset
