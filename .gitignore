@@ -14,6 +14,7 @@ bin/
 *.idb
 *.ilk
 *.dmp
+*.txt
 
 imgui.ini
 *.log
