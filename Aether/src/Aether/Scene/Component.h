@@ -72,7 +72,7 @@ namespace Aether {
         LightComponent(const LightParam& param) : Config(param) {}
     };
 
-    struct AETHER_API MeshComponent
+    struct MeshComponent
     {
         Handle<Asset> Mesh;
         Handle<Asset> SharedSheet;
@@ -83,9 +83,6 @@ namespace Aether {
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;
-
-        void AttachUniqueSheet();
-        void DetachUniqueSheet();
     };
 
     struct AnimatorComponent
@@ -170,22 +167,22 @@ namespace Aether {
 		CameraComponent(const CameraComponent&) = default;
 	};
 
-    struct AETHER_API ColliderComponent
+    struct ColliderComponent
     {
         Handle<RigidBody> ColliderHandle = Handle<RigidBody>::MakeInvalid();
         glm::vec3 ColliderOffset = glm::vec3(1.0f);
         ColliderShape Shape = ColliderShape::Box;
         MotionType Type = MotionType::Kinematic;
         glm::vec3 Size = glm::vec3(0.5f);
-        bool Visible = false;
-        bool IsActive = true;
         float Mass = 1.0f;
         float Friction = 0.5f;
         float Restitution = 0.0f;
         bool IsSensor = false;
+        
+        bool Visible = false;
+        bool IsActive = true;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
-        ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false);
     };
 
     struct BoneAttachmentComponent

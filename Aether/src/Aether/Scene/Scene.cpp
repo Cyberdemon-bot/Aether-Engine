@@ -13,6 +13,14 @@
 namespace Aether {
     namespace Utils
     {
+        inline void GetWorldPosAndRot(const glm::mat4& matrix, glm::vec3& outPos, glm::quat& outRot)
+        {
+            outPos = glm::vec3(matrix[3]);
+            glm::vec3 x = glm::normalize(glm::vec3(matrix[0]));
+            glm::vec3 y = glm::normalize(glm::vec3(matrix[1]));
+            glm::vec3 z = glm::normalize(glm::vec3(matrix[2]));
+            outRot = glm::quat_cast(glm::mat3(x, y, z));
+        }
         struct Frustum
         {
             glm::vec4 Planes[6]; 
@@ -91,6 +99,21 @@ namespace Aether {
                 }
             }
             return true;
+        }
+
+        inline void GetTRS(const glm::mat4& matrix, glm::vec3& outPos, glm::quat& outRot, glm::vec3& outScale)
+        {
+            outPos = glm::vec3(matrix[3]);
+            glm::vec3 col0(matrix[0]);
+            glm::vec3 col1(matrix[1]);
+            glm::vec3 col2(matrix[2]);
+            outScale.x = glm::length(col0);
+            outScale.y = glm::length(col1);
+            outScale.z = glm::length(col2);
+            glm::vec3 x = (outScale.x > 0.00001f) ? (col0 / outScale.x) : glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 y = (outScale.y > 0.00001f) ? (col1 / outScale.y) : glm::vec3(0.0f, 1.0f, 0.0f);
+            glm::vec3 z = (outScale.z > 0.00001f) ? (col2 / outScale.z) : glm::vec3(0.0f, 0.0f, 1.0f);
+            outRot = glm::quat_cast(glm::mat3(x, y, z));
         }
     }
 
@@ -217,6 +240,17 @@ namespace Aether {
             m_DestroyQueue.clear();
         }
 
+        { // update transform
+            m_CurrentFrame++;
+            DirtyScan();
+            BreadthFirstSearch();
+            physys->UpdateInstance(m_PhysicsInstance, ts);
+            for (auto& level : m_HierarchyLevels) 
+                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                    this->UpdateTransform(entity); 
+                ));
+        }
+
         { // update physics
             auto view = View<ColliderComponent>();
             for (auto entity : view)
@@ -227,41 +261,26 @@ namespace Aether {
 
                 if (!handle.IsValid())
                 {
-                    glm::vec3 scale, translation, skew;
+                    auto& t = GetComponent<TransformComponent>(entity);
+                    glm::vec3 translation, scale; 
                     glm::quat rotation;
-                    glm::vec4 perspective;
-                    glm::decompose(GetComponent<TransformComponent>(entity).WorldTransform, scale, rotation, translation, skew, perspective);
-                    glm::vec3 worldOffset = rotation * rbComp.ColliderOffset;
+                    Utils::GetTRS(t.WorldTransform, translation, rotation, scale);
 
                     BodyConfig config;
                     config.motionType = rbComp.Type;
                     config.shape = rbComp.Shape;
                     config.size = glm::max(rbComp.Size * scale, glm::vec3(0.5f));
-                    config.transform = { translation + worldOffset, rotation };
+                    config.transform = { translation + (rotation * rbComp.ColliderOffset), rotation };
                     config.mass = rbComp.Mass;
                     config.friction = rbComp.Friction;
                     config.restitution = rbComp.Restitution;
                     config.isSensor = rbComp.IsSensor;
 
                     handle = physys->CreateBody(m_PhysicsInstance, config);
-                    if (rbComp.Type == MotionType::Dynamic)
-                        physys->SetActive(m_PhysicsInstance, handle, true);
-
                     physys->SetUserData(m_PhysicsInstance, handle, ToNumber(entity));
                 }
-                else physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
+                physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }
-            physys->UpdateInstance(m_PhysicsInstance, ts);
-        }
-
-        { // update transform
-            m_CurrentFrame++;
-            DirtyScan();
-            BreadthFirstSearch();
-            for (auto& level : m_HierarchyLevels) 
-                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
-                    this->UpdateTransform(entity); 
-                ));
         }
 
         { // update scirpts
@@ -328,6 +347,7 @@ namespace Aether {
         { // render
             auto camView = View<CameraComponent>();
             auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
+            auto* rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
             
             CameraComponent* mainCamera = nullptr;
             for (auto entity : camView)
@@ -400,7 +420,6 @@ namespace Aether {
                             this->GetComponent<AnimatorComponent>(entity).Culled = true;
                 ));
 
-                auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
                 auto animView  = View<AnimatorComponent>();
 
                 rigModule->ClearTasks();
@@ -502,22 +521,29 @@ namespace Aether {
                     PhysTransform pt = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                 * glm::toMat4(pt.rotation);
-                    if (component.Shape == ColliderShape::Sphere)
+                    switch (component.Shape)
                     {
-                        float radius = component.Size.x;
-                        renderer->RenderSphere(radius, colliderTransform, GREEN);
-                    }
-                    if (component.Shape == ColliderShape::Box)
-                    {
-                        glm::vec3 bMin = -component.Size;
-                        glm::vec3 bMax =  component.Size;
-                        renderer->RenderBox(bMin, bMax, colliderTransform, GREEN);
-                    }
-                    if (component.Shape == ColliderShape::Capsule)
-                    {
-                        float radius  = component.Size.x;
-                        float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
-                        renderer->RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
+                        case ColliderShape::Sphere:
+                        {
+                            float radius = component.Size.x;
+                            renderer->RenderSphere(radius, colliderTransform, GREEN);
+                            break;
+                        }
+                        case ColliderShape::Box:
+                        {
+                            glm::vec3 bMin = -component.Size;
+                            glm::vec3 bMax =  component.Size;
+                            renderer->RenderBox(bMin, bMax, colliderTransform, GREEN);
+                            break;
+                        }
+                        case ColliderShape::Capsule:
+                        {
+                            float radius  = component.Size.x;
+                            float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
+                            renderer->RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
+                            break;
+                        }
+                        default: break;
                     }
                 }
             }

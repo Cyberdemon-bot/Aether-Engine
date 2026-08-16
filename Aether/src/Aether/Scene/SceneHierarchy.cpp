@@ -11,32 +11,38 @@ namespace Aether {
 
     namespace Utils
     {
-        inline void GetWorldPosAndRot(const glm::mat4& matrix, glm::vec3& outPos, glm::quat& outRot)
+        inline void GetTRS(const glm::mat4& matrix, glm::vec3& outPos, glm::quat& outRot, glm::vec3& outScale)
         {
             outPos = glm::vec3(matrix[3]);
-            glm::vec3 x = glm::normalize(glm::vec3(matrix[0]));
-            glm::vec3 y = glm::normalize(glm::vec3(matrix[1]));
-            glm::vec3 z = glm::normalize(glm::vec3(matrix[2]));
+            glm::vec3 col0(matrix[0]);
+            glm::vec3 col1(matrix[1]);
+            glm::vec3 col2(matrix[2]);
+            outScale.x = glm::length(col0);
+            outScale.y = glm::length(col1);
+            outScale.z = glm::length(col2);
+            glm::vec3 x = (outScale.x > 0.00001f) ? (col0 / outScale.x) : glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 y = (outScale.y > 0.00001f) ? (col1 / outScale.y) : glm::vec3(0.0f, 1.0f, 0.0f);
+            glm::vec3 z = (outScale.z > 0.00001f) ? (col2 / outScale.z) : glm::vec3(0.0f, 0.0f, 1.0f);
             outRot = glm::quat_cast(glm::mat3(x, y, z));
         }
+    }
 
-        inline void ApplyWorldToLocalTransform(TransformComponent& transform, Entity parent, 
-                    const glm::mat4& pTransform, const glm::vec3& worldPos, const glm::quat& worldRot)
+    inline void ApplyWorldToLocalTransform(TransformComponent& transform, Entity parent, 
+                const glm::mat4& pTransform, const glm::vec3& worldPos, const glm::quat& worldRot)
+    {
+        if (parent == Null_Entity)
         {
-            if (parent == Null_Entity)
-            {
-                transform.Translation = worldPos;
-                transform.Rotation = worldRot;
-            }
-            else
-            {
-                glm::vec3 pPos; glm::quat pRot;
-                GetWorldPosAndRot(pTransform, pPos, pRot);
-                transform.Translation = glm::vec3(glm::inverse(pTransform) * glm::vec4(worldPos, 1.0f));
-                transform.Rotation = glm::inverse(pRot) * worldRot;
-            }
-            transform.Dirty = true;
+            transform.Translation = worldPos;
+            transform.Rotation = worldRot;
         }
+        else
+        {
+            glm::vec3 pP, pS; glm::quat pR;
+            Utils::GetTRS(pTransform, pP, pR, pS);
+            transform.Translation = glm::vec3(glm::inverse(pTransform) * glm::vec4(worldPos, 1.0f));
+            transform.Rotation = glm::inverse(pR) * worldRot;
+        }
+        transform.Dirty = true;
     }
 
     void Scene::MarkDirty(Entity entity)
@@ -521,7 +527,7 @@ namespace Aether {
             auto* physys = ServiceManager::GetService<PhysicsSystem>();
             auto& rbComp = GetComponent<ColliderComponent>(entity);
             Handle<RigidBody>& handle = rbComp.ColliderHandle;
-            MotionType motionType = physys->GetBodyInfo(m_PhysicsInstance, handle).motionType;
+            MotionType motionType = rbComp.Type;
 
             if (handle.IsValid()) 
             {
@@ -529,22 +535,22 @@ namespace Aether {
                 {
                     PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::vec3 worldPos = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
-                    Utils::ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, worldPos, physTrans.rotation);
+                    ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, worldPos, physTrans.rotation);
                     transform.WorldTransform = pTransform * transform.GetLocalTransform();
                     isWorldDirty = true; 
                 }
                 else if (isWorldDirty)
                 {
                     transform.WorldTransform = pTransform * transform.GetLocalTransform();
-                    glm::vec3 pos; glm::quat rot; 
-                    Utils::GetWorldPosAndRot(transform.WorldTransform, pos, rot);
+                    glm::vec3 pos, scale; glm::quat rot; 
+                    Utils::GetTRS(transform.WorldTransform, pos, rot, scale);
                     PhysTransform target = {pos + (rot * rbComp.ColliderOffset), rot};
 
                     if (motionType == MotionType::Kinematic && !physys->CanMove(m_PhysicsInstance, handle, target))
                     {
                         PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                         glm::vec3 validPos = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
-                        Utils::ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, validPos, physTrans.rotation);
+                        ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, validPos, physTrans.rotation);
                         transform.WorldTransform = pTransform * transform.GetLocalTransform();
                     }
                     else physys->SetPhysTransform(m_PhysicsInstance, handle, target);
