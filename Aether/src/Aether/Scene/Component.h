@@ -35,7 +35,7 @@ namespace Aether {
         TagComponent(const std::string& tag) : Tag(tag) {}
     };
 
-    struct AETHER_API TransformComponent
+    struct TransformComponent
     {
         glm::vec3 Translation = {0.0f, 0.0f, 0.0f};
         glm::quat Rotation = glm::quat({0.0f, 0.0f, 0.0f});
@@ -52,7 +52,14 @@ namespace Aether {
         TransformComponent(const glm::vec3& translation, const glm::quat& quat, const glm::vec3& scale) 
             : Translation(translation), Rotation(quat), Scale(scale)  {}
 
-        glm::mat4 GetLocalTransform() const;
+        glm::mat4 GetLocalTransform() const
+        {
+            glm::mat4 rotation = glm::toMat4(Rotation);
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), Translation);
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), Scale);
+
+            return translation * rotation * scale;
+        }
     };
 
     struct LightComponent
@@ -81,7 +88,7 @@ namespace Aether {
         void DetachUniqueSheet();
     };
 
-    struct AETHER_API AnimatorComponent
+    struct AnimatorComponent
     {
         Handle<Asset> Skeleton;
         std::vector<Handle<Asset>> Clips;
@@ -105,7 +112,11 @@ namespace Aether {
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
 
-        void SetClip(int idx);
+        void SetClip(int idx)
+        {
+            ActiveClipIdx = idx;
+            CacheDirty = true;
+        }
     };
 
     // struct AudioSourceComponent
@@ -177,7 +188,7 @@ namespace Aether {
         ColliderComponent(Handle<PhysicsInstance> instance, Handle<RigidBody> handle, bool visible = false);
     };
 
-    struct AETHER_API BoneAttachmentComponent
+    struct BoneAttachmentComponent
     {
         Entity AnimatorEntity = Null_Entity;
         std::string JointName;
@@ -194,6 +205,9 @@ namespace Aether {
             , JointName(jointName)
         {}
  
-        void Invalidate() const;
+        void Invalidate() const
+        {
+            JointIndex = -1;
+        }
     };
 }

@@ -15,6 +15,55 @@ namespace Aether {
 
 	LegacyAssembler::API LegacyAssembler::s_API = LegacyAssembler::API::Cgltf;
 
+    static std::tuple<glm::vec3, glm::vec3> CalculateStaticBoundsAOS(const MeshSpec& spec)
+    {
+        if (!spec.StreamData || spec.StreamData[0].VertexCount == 0) 
+            return { glm::vec3(0.0f), glm::vec3(0.0f) };
+
+        const uint8_t* byteData = static_cast<const uint8_t*>(spec.StreamData[0].Data);
+        uint32_t stride = spec.StreamData[0].Layout.GetStride();
+        uint32_t vertexCount = spec.StreamData[0].VertexCount;
+
+        glm::vec3 boundsMin = glm::vec3( FLT_MAX);
+        glm::vec3 boundsMax = glm::vec3(-FLT_MAX);
+
+        for (uint32_t i = 0; i < vertexCount; i++)
+        {
+            const glm::vec3& pos = *reinterpret_cast<const glm::vec3*>(byteData + i * stride);
+            boundsMin = glm::min(boundsMin, pos);
+            boundsMax = glm::max(boundsMax, pos);
+        }
+
+        return { boundsMin, boundsMax };
+    }
+
+    static std::tuple<glm::vec3, glm::vec3> CalculateSkinnedBoundsAOS(const MeshSpec& spec)
+    {
+        if (!spec.StreamData || spec.StreamData[0].VertexCount == 0 || spec.RigPoseMats.empty()) 
+            return { glm::vec3(0.0f), glm::vec3(0.0f) };
+
+        const SkinnedVertex* verts = static_cast<const SkinnedVertex*>(spec.StreamData[0].Data);
+        uint32_t vertexCount = spec.StreamData[0].VertexCount;
+
+        glm::vec3 boundsMin( FLT_MAX);
+        glm::vec3 boundsMax(-FLT_MAX);
+
+        for (uint32_t i = 0; i < vertexCount; i++)
+        {
+            const auto& v = verts[i];
+            glm::vec4 skinnedPos =
+                spec.RigPoseMats[v.Joints.x] * glm::vec4(v.Position, 1.0f) * v.Weights.x +
+                spec.RigPoseMats[v.Joints.y] * glm::vec4(v.Position, 1.0f) * v.Weights.y +
+                spec.RigPoseMats[v.Joints.z] * glm::vec4(v.Position, 1.0f) * v.Weights.z +
+                spec.RigPoseMats[v.Joints.w] * glm::vec4(v.Position, 1.0f) * v.Weights.w;
+
+            boundsMin = glm::min(boundsMin, glm::vec3(skinnedPos));
+            boundsMax = glm::max(boundsMax, glm::vec3(skinnedPos));
+        }
+
+        return { boundsMin, boundsMax };
+    }
+
 	Scope<LegacyAssembler> LegacyAssembler::Create()
 	{
         Scope<LegacyAssembler> assembler;
@@ -152,27 +201,28 @@ namespace Aether {
             sheet->MoveDefaultList(std::move(matHandles));
             res.sheetIDs.push_back(sheetID);
             
-            // Create mesh spec
-            std::vector<VertexStream> temp = {
-                {meshInfo.Positions.data(), meshInfo.totalVertices, {{"a_Position", ShaderDataType::Float3}}},
-                {meshInfo.Normals.data(), meshInfo.totalVertices, {{"a_Normal", ShaderDataType::Float3}}},
-                {meshInfo.Tangents.data(), meshInfo.totalVertices, {{"a_Tangent", ShaderDataType::Float4}}},
-                {meshInfo.TexCoords.data(), meshInfo.totalVertices, {{"a_TexCoord", ShaderDataType::Float2}}},
-                {meshInfo.Joints.data(), meshInfo.totalVertices, {{"a_Joints", ShaderDataType::Uint4}}},
-                {meshInfo.Weights.data(), meshInfo.totalVertices, {{"a_Weights", ShaderDataType::Float4}}}
-            };
+            VertexStream interleavedStream;
+            interleavedStream.Data = meshInfo.InterleavedVertices.data();
+            interleavedStream.VertexCount = meshInfo.totalVertices;
+            interleavedStream.Layout = meshInfo.IsSkinned ? MeshLayout::PBRSkinned() : MeshLayout::PBR();
+
             MeshSpec spec;
-            spec.StreamData = temp.data();
-            spec.StreamCount = temp.size();
+            spec.StreamData = &interleavedStream;
+            spec.StreamCount = 1;
             spec.IndexData = meshInfo.Indices.data();
             spec.IndexCount = meshInfo.totalIndices;
             spec.Submeshes = submeshes;
-            if (rigIdx >= 0)
+            spec.CalculateBoundsFunc = &CalculateStaticBoundsAOS;
+            if (rigIdx >= 0 && rigIdx < (int)skels.size() && meshInfo.IsSkinned)
             {
                 auto asset = asset_manager->GetAsset<Skeleton>(skels[rigIdx]);
-                auto handle = asset->m_Handle;
-                spec.RigPoseMats.resize(asset->m_JointCount);
-                animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());
+                if (asset)
+                {
+                    auto handle = asset->m_Handle;
+                    spec.RigPoseMats.resize(asset->m_JointCount);
+                    animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());
+                    spec.CalculateAnimatedBoundsFunc = &CalculateSkinnedBoundsAOS;
+                }
             }
 
             asset_manager->CreateAsset<Mesh>(meshID, spec);

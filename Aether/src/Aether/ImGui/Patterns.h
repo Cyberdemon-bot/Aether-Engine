@@ -204,18 +204,57 @@ namespace Aether::UI
         auto& tag = scene.GetComponent<TagComponent>(selected);
         auto& t   = scene.GetComponent<TransformComponent>(selected);
 
+        static Entity    s_LastSelected = Null_Entity;
+        static glm::vec3 s_TempPos   = glm::vec3(0.0f);
+        static glm::quat s_TempRot   = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        static glm::vec3 s_TempScale = glm::vec3(1.0f);
+        static bool      s_IsModified = false;
+
+        if (selected != s_LastSelected)
+        {
+            s_LastSelected = selected;
+            s_TempPos   = t.Translation;
+            s_TempRot   = t.Rotation;
+            s_TempScale = t.Scale;
+            s_IsModified = false;
+        }
+
         TextColored(Color::Green(), "%s", tag.Tag.c_str());
         Spacing();
 
-        if(TRS(t.Translation, t.Rotation, t.Scale, 0.01f)) t.Dirty = true;
+        if (TRS(s_TempPos, s_TempRot, s_TempScale, 0.01f))
+        {
+            s_IsModified = true;
+        }
 
         Spacing();
+        if (s_IsModified)
+        {
+            if (Button("Apply"))
+            {
+                t.Translation = s_TempPos;
+                t.Rotation    = s_TempRot;
+                t.Scale       = s_TempScale;
+                t.Dirty       = true; 
+                s_IsModified  = false;
+            }
+            if (Button("Revert"))
+            {
+                s_TempPos   = t.Translation;
+                s_TempRot   = t.Rotation;
+                s_TempScale = t.Scale;
+                s_IsModified = false;
+            }
+        }
+
+        Spacing();
+
         if (Button("Reset Transform"))
         {
-            t.Translation = glm::vec3(0.f);
-            t.Rotation    = glm::quat(1.f, 0.f, 0.f, 0.f);
-            t.Scale       = glm::vec3(1.f);
-            t.Dirty = true;
+            s_TempPos   = glm::vec3(0.f);
+            s_TempRot   = glm::quat(1.f, 0.f, 0.f, 0.f);
+            s_TempScale = glm::vec3(1.f);
+            s_IsModified = true; 
         }
     }
 

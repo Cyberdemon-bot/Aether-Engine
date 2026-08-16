@@ -16,6 +16,24 @@ namespace Aether {
             MeshCreateInfo& meshInfo = result->meshesInfo[meshIdx];
             meshInfo.AssetID = UUID();
             meshInfo.DebugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
+
+            bool isSkinnedMesh = false;
+            for (size_t primIdx = 0; primIdx < mesh->primitives_count; primIdx++)
+            {
+                const cgltf_primitive* prim = &mesh->primitives[primIdx];
+                bool hasJoints = false, hasWeights = false;
+                for (size_t attrIdx = 0; attrIdx < prim->attributes_count; attrIdx++)
+                {
+                    if (prim->attributes[attrIdx].type == cgltf_attribute_type_joints) hasJoints = true;
+                    if (prim->attributes[attrIdx].type == cgltf_attribute_type_weights) hasWeights = true;
+                }
+                if (hasJoints && hasWeights)
+                {
+                    isSkinnedMesh = true;
+                    break;
+                }
+            }
+            meshInfo.IsSkinned = isSkinnedMesh;
             
             uint32_t totalVertices = 0;
             uint32_t totalIndices = 0;
@@ -33,6 +51,7 @@ namespace Aether {
 
                 std::vector<float> positions, normals, tangents, texCoords, weights;
                 std::vector<uint32_t> joints, indices;
+                uint32_t primVertexCount = 0;
 
                 for (size_t attrIdx = 0; attrIdx < prim->attributes_count; attrIdx++)
                 {
@@ -41,6 +60,7 @@ namespace Aether {
 
                     if (attr->type == cgltf_attribute_type_position)
                     {
+                        primVertexCount = (uint32_t)accessor->count;
                         subInfo.VertexCount = (uint32_t)accessor->count;
                         ReadAccessorFloat(accessor, positions);
                         
@@ -89,19 +109,51 @@ namespace Aether {
                     indices.resize(accessor->count);
                     
                     for (size_t i = 0; i < accessor->count; i++)
-                    {
                         indices[i] = (uint32_t)cgltf_accessor_read_index(accessor, i);
+                }
+
+                if (isSkinnedMesh)
+                {
+                    if (joints.empty()) joints.resize(primVertexCount * 4, 0);
+                    if (weights.empty())
+                    {
+                        weights.resize(primVertexCount * 4, 0.0f);
+                        for (size_t i = 0; i < primVertexCount; i++) weights[i * 4 + 0] = 1.0f;
                     }
                 }
 
-                meshInfo.Positions.insert(meshInfo.Positions.end(), positions.begin(), positions.end());
-                meshInfo.Normals.insert(meshInfo.Normals.end(), normals.begin(), normals.end());
-                meshInfo.Tangents.insert(meshInfo.Tangents.end(), tangents.begin(), tangents.end());
-                meshInfo.TexCoords.insert(meshInfo.TexCoords.end(), texCoords.begin(), texCoords.end());
-                meshInfo.Indices.insert(meshInfo.Indices.end(), indices.begin(), indices.end());
-                meshInfo.Joints.insert(meshInfo.Joints.end(), joints.begin(), joints.end());
-                meshInfo.Weights.insert(meshInfo.Weights.end(), weights.begin(), weights.end());
+                if (isSkinnedMesh)
+                {
+                    size_t currOffset = meshInfo.InterleavedVertices.size();
+                    meshInfo.InterleavedVertices.resize(currOffset + primVertexCount * sizeof(SkinnedVertex));
+                    SkinnedVertex* dest = reinterpret_cast<SkinnedVertex*>(meshInfo.InterleavedVertices.data() + currOffset);
+
+                    for (size_t i = 0; i < primVertexCount; i++)
+                    {
+                        dest[i].Position = glm::vec3(positions[i*3], positions[i*3+1], positions[i*3+2]);
+                        dest[i].Normal   = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
+                        dest[i].Tangent  = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
+                        dest[i].TexCoord = glm::vec2(texCoords[i*2], texCoords[i*2+1]);
+                        dest[i].Joints   = glm::uvec4(joints[i*4],   joints[i*4+1],   joints[i*4+2],   joints[i*4+3]);
+                        dest[i].Weights  = glm::vec4(weights[i*4],  weights[i*4+1],  weights[i*4+2],  weights[i*4+3]);
+                    }
+                }
+                else
+                {
+                    size_t currOffset = meshInfo.InterleavedVertices.size();
+                    meshInfo.InterleavedVertices.resize(currOffset + primVertexCount * sizeof(Vertex));
+                    Vertex* dest = reinterpret_cast<Vertex*>(meshInfo.InterleavedVertices.data() + currOffset);
+
+                    for (size_t i = 0; i < primVertexCount; i++)
+                    {
+                        dest[i].Position = glm::vec3(positions[i*3], positions[i*3+1], positions[i*3+2]);
+                        dest[i].Normal   = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
+                        dest[i].Tangent  = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
+                        dest[i].TexCoord = glm::vec2(texCoords[i*2], texCoords[i*2+1]);
+                    }
+                }
                 
+                meshInfo.Indices.insert(meshInfo.Indices.end(), indices.begin(), indices.end());
                 totalVertices += subInfo.VertexCount;
                 totalIndices += subInfo.IndexCount;
                 meshInfo.SubMeshes.push_back(subInfo);
