@@ -347,6 +347,7 @@ namespace Aether {
         { // render
             auto camView = View<CameraComponent>();
             auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
+            auto* rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
             
             CameraComponent* mainCamera = nullptr;
             for (auto entity : camView)
@@ -419,7 +420,6 @@ namespace Aether {
                             this->GetComponent<AnimatorComponent>(entity).Culled = true;
                 ));
 
-                auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
                 auto animView  = View<AnimatorComponent>();
 
                 rigModule->ClearTasks();
@@ -521,22 +521,29 @@ namespace Aether {
                     PhysTransform pt = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
                                                 * glm::toMat4(pt.rotation);
-                    if (component.Shape == ColliderShape::Sphere)
+                    switch (component.Shape)
                     {
-                        float radius = component.Size.x;
-                        renderer->RenderSphere(radius, colliderTransform, GREEN);
-                    }
-                    if (component.Shape == ColliderShape::Box)
-                    {
-                        glm::vec3 bMin = -component.Size;
-                        glm::vec3 bMax =  component.Size;
-                        renderer->RenderBox(bMin, bMax, colliderTransform, GREEN);
-                    }
-                    if (component.Shape == ColliderShape::Capsule)
-                    {
-                        float radius  = component.Size.x;
-                        float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
-                        renderer->RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
+                        case ColliderShape::Sphere:
+                        {
+                            float radius = component.Size.x;
+                            renderer->RenderSphere(radius, colliderTransform, GREEN);
+                            break;
+                        }
+                        case ColliderShape::Box:
+                        {
+                            glm::vec3 bMin = -component.Size;
+                            glm::vec3 bMax =  component.Size;
+                            renderer->RenderBox(bMin, bMax, colliderTransform, GREEN);
+                            break;
+                        }
+                        case ColliderShape::Capsule:
+                        {
+                            float radius  = component.Size.x;
+                            float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
+                            renderer->RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
+                            break;
+                        }
+                        default: break;
                     }
                 }
             }

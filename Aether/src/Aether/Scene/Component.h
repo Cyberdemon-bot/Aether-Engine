@@ -174,12 +174,13 @@ namespace Aether {
         ColliderShape Shape = ColliderShape::Box;
         MotionType Type = MotionType::Kinematic;
         glm::vec3 Size = glm::vec3(0.5f);
-        bool Visible = false;
-        bool IsActive = true;
         float Mass = 1.0f;
         float Friction = 0.5f;
         float Restitution = 0.0f;
         bool IsSensor = false;
+        
+        bool Visible = false;
+        bool IsActive = true;
         ColliderComponent() = default;
         ColliderComponent(const ColliderComponent&) = default;
     };

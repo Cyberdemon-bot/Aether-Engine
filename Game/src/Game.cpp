@@ -158,7 +158,6 @@ void Game::Attach()
         cmp.ColliderOffset = glm::vec3(0.0f, 1.0f, 0.0f);
         cmp.Friction = 0.5f;
         cmp.Restitution = 0.0f;
-        cmp.Visible = true;
     }
     m_Scene.GetComponent<Aether::AnimatorComponent>(FindAnimatorEntity(m_Scene, m_Player)).IsPlaying = false;
 
