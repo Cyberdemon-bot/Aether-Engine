@@ -150,17 +150,15 @@ void Game::Attach()
     // PLAYER PHYSICS
     // =========================================================================
     {
-        Aether::BodyConfig cfg;
-        cfg.motionType  = Aether::MotionType::Kinematic;
-        cfg.shape       = Aether::ColliderShape::Capsule;
-        cfg.size        = glm::vec3(0.35f, 2.5f, 0.0f);
-        cfg.transform   = { pTransform.Translation, glm::quat(1,0,0,0) };
-        cfg.offset      = glm::vec3(0.0f, 1.0f, 0.0f);
-        cfg.friction    = 0.5f;
-        cfg.restitution = 0.0f;
-        m_PlayerBodyHandle = physys->CreateBody(m_Scene.GetPhysicsInstance(), cfg);
-        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player, m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle);
-        physys->SetUserData(m_Scene.GetPhysicsInstance(), m_PlayerBodyHandle, Aether::Scene::ToNumber(m_Player));
+        m_Scene.AddComponent<Aether::ColliderComponent>(m_Player);
+        auto& cmp = m_Scene.GetComponent<Aether::ColliderComponent>(m_Player);
+        cmp.Type = Aether::MotionType::Kinematic;
+        cmp.Shape = Aether::ColliderShape::Capsule;
+        cmp.Size = glm::vec3(0.35f, 2.5f, 0.0f);
+        cmp.ColliderOffset = glm::vec3(0.0f, 1.0f, 0.0f);
+        cmp.Friction = 0.5f;
+        cmp.Restitution = 0.0f;
+        cmp.Visible = true;
     }
     m_Scene.GetComponent<Aether::AnimatorComponent>(FindAnimatorEntity(m_Scene, m_Player)).IsPlaying = false;
 
