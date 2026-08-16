@@ -72,7 +72,7 @@ namespace Aether {
         LightComponent(const LightParam& param) : Config(param) {}
     };
 
-    struct AETHER_API MeshComponent
+    struct MeshComponent
     {
         Handle<Asset> Mesh;
         Handle<Asset> SharedSheet;
