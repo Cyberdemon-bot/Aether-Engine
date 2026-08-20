@@ -10,22 +10,16 @@ namespace Aether {
 
     struct Skeleton : public Asset
     {
-        Skeleton(Handle<RSkeleton> handle, uint32_t count)
-        {
-            m_Handle = handle;
-            m_JointCount = count;
-        }
+        Skeleton() = default;
+
         Handle<RSkeleton> m_Handle;
         uint32_t m_JointCount;
     };
 
     struct Clip : public Asset
     {
-        Clip(Handle<RClip> handle, float duration)
-        {
-            m_Handle = handle;
-            m_Duration = duration;
-        }
+        Clip() = default;
+        
         Handle<RClip> m_Handle;
         float m_Duration;
     };

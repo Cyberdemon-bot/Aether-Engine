@@ -621,7 +621,7 @@ void LabLayer::DrawScenePanel()
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
             for (auto& id : m_MeshIDs)
-                meshNames.push_back(AssetsRegister::Get(id));
+                meshNames.push_back(Aether::ServiceManager::GetService<AssetsRegister>()->Get(id)); 
             UI::ComboList("Mesh##phys", meshNames, m_PhysMeshIdx);
             UI::Checkbox("Is Dynamic", m_PhysDynamic);
 
@@ -718,7 +718,7 @@ void LabLayer::DrawAnimationPanel()
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
             for (int i = 0; i < (int)m_MeshIDs.size(); i++)
-                meshNames.push_back(std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]));
+                meshNames.push_back(std::to_string(i) + ": " + Aether::ServiceManager::GetService<AssetsRegister>()->Get(m_MeshIDs[i]));
             UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
 
             auto animView = m_Scene.View<AnimatorComponent>();
@@ -759,9 +759,9 @@ void LabLayer::DrawAnimationPanel()
                 auto* mesh = m_AssetManager->GetAsset<Mesh>(mc.Mesh);
                 auto& anim = m_Scene.GetComponent<AnimatorComponent>(entity);
 
-                std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
+                std::string meshName = mesh ? Aether::ServiceManager::GetService<AssetsRegister>()->Get(mesh->id) : "(invalid)";
                 std::string skelName = anim.Skeleton.IsValid()
-                    ? AssetsRegister::Get(m_AssetManager->GetAsset<Skeleton>(anim.Skeleton)->id)
+                    ? Aether::ServiceManager::GetService<AssetsRegister>()->Get(m_AssetManager->GetAsset<Skeleton>(anim.Skeleton)->id)
                     : "(no skeleton)";
 
                 auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : (int)(uint64_t)entity);

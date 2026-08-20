@@ -21,8 +21,8 @@ namespace Aether {
         Ozz_RigModule();
         virtual ~Ozz_RigModule() override; 
 
-        virtual Handle<RSkeleton> CreateSkeleton(const SkeletonSpec& data) override;
-        virtual Handle<RClip> CreateClip(const ClipSpec& data, Handle<RSkeleton> skeleton) override;
+        virtual Handle<RSkeleton> CreateSkeleton(const SkeletonCreateInfo& data) override;
+        virtual Handle<RClip> CreateClip(const ClipCreateInfo& data, Handle<RSkeleton> skeleton) override;
 
         virtual Handle<SkeletonCache> CreateCache(Handle<RClip> clip) override;
         virtual void DestroyCache(Handle<SkeletonCache> cache) override;
@@ -152,10 +152,10 @@ namespace Aether {
             Handle<Pose> pose;
         };
         
-        ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const SkeletonSpec& data);
-        ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipSpec& data, int numJoints);
+        ozz::unique_ptr<ozz::animation::Skeleton> ConvertToOzzSkeleton(const SkeletonCreateInfo& data);
+        ozz::unique_ptr<ozz::animation::Animation> ConvertToOzzAnimation(const ClipCreateInfo& data, int numJoints);
         void ConvertOzzMatrixToGlm(const ozz::math::Float4x4& ozzMat, glm::mat4& glmMat) const;
-        void BuildHierarchy(const SkeletonSpec& data, int parentIdx, ozz::animation::offline::RawSkeleton::Joint& outJoint);
+        void BuildHierarchy(const SkeletonCreateInfo& data, int parentIdx, ozz::animation::offline::RawSkeleton::Joint& outJoint);
 
         void ExecuteSampleTasks();
         void ExecuteBlendTasks();

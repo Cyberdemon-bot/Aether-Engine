@@ -93,7 +93,7 @@ namespace Aether {
     }
 
     //texture
-    OpenGLTexture2D::OpenGLTexture2D(const TextureSpec& spec)
+    OpenGLTexture2D::OpenGLTexture2D(const TextureCreateInfo& spec)
         : m_Width(spec.Width), m_Height(spec.Height)
     {
         m_InternalFormat = Utils::ImageFormatToGLInternalFormat(spec.Format);

@@ -41,6 +41,7 @@ namespace Aether {
         void ShutdownService()
         {
             T* instance = ServiceManager::GetService<T>();
+            ServiceManager::ShutdownService<T>();
             instance->Shutdown();
             delete instance;
         }

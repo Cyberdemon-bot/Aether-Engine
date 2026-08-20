@@ -71,6 +71,7 @@ namespace Aether {
     void Sheet::CopyDefaultList(const std::vector<Handle<Asset>>& handleList)
     {
         BaseHandles = handleList;
+        OverrideHandles.resize(BaseHandles.size(), Handle<Asset>::MakeInvalid());
     }
 
     void Sheet::CopyOverrideList(const std::vector<Handle<Asset>>& handleList)
@@ -81,6 +82,7 @@ namespace Aether {
     void Sheet::MoveDefaultList(std::vector<Handle<Asset>>&& handleList)
     {
         BaseHandles = std::move(handleList);
+        OverrideHandles.resize(BaseHandles.size(), Handle<Asset>::MakeInvalid());
     }
 
     void Sheet::MoveOverrideList(std::vector<Handle<Asset>>&& handleList)

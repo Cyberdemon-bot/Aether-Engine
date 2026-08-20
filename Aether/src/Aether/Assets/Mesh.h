@@ -2,23 +2,23 @@
 
 #include <vector>
 #include "Aether/Core/Base.h"
-#include "Aether/Renderer/Buffer.h"
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
-#include "Aether/Core/Delegate.h"
+#include "Aether/Renderer/Buffer.h"
 
 namespace Aether {
 
     class Resource;
-    struct SubMesh
+
+    enum class VertexLayoutLocation : uint32_t 
     {
-        uint32_t BaseVertex = 0;
-        uint32_t BaseIndex = 0;
-        uint32_t VertexCount = 0;
-        uint32_t IndexCount = 0;
-        glm::vec3 BoundsMin = glm::vec3(0.0f);
-        glm::vec3 BoundsMax = glm::vec3(0.0f);
-        int MaterialIdx = -1;
+        Position = 0,
+        Normal = 1,
+        TexCoord = 2,
+        Tangent = 3,
+        Color = 4,
+        Joints = 5,    
+        InstanceStart = 6     
     };
 
     class MeshLayout 
@@ -62,17 +62,6 @@ namespace Aether {
         }
     };
 
-    enum class VertexLayoutLocation : uint32_t 
-    {
-        Position = 0,
-        Normal = 1,
-        TexCoord = 2,
-        Tangent = 3,
-        Color = 4,
-        Joints = 5,    
-        InstanceStart = 6     
-    };
-
     struct VertexStream
     {
         const void* Data = nullptr;
@@ -80,26 +69,20 @@ namespace Aether {
         BufferLayout Layout = MeshLayout::Vertex();
     };
 
-    struct MeshSpec;
-    using BoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const MeshSpec&)>;
-    using AnimatedBoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const MeshSpec&)>;
-
-    struct MeshSpec
+    struct SubMesh
     {
-        const VertexStream* StreamData = nullptr;
-        uint32_t StreamCount = 0;
-        const uint32_t* IndexData = nullptr;
+        uint32_t BaseVertex = 0;
+        uint32_t BaseIndex = 0;
+        uint32_t VertexCount = 0;
         uint32_t IndexCount = 0;
-        std::vector<SubMesh> Submeshes = {};
-        std::vector<glm::mat4> RigPoseMats = {};
-        BoundsCalculator CalculateBoundsFunc;
-        AnimatedBoundsCalculator CalculateAnimatedBoundsFunc;
+        glm::vec3 BoundsMin = glm::vec3(0.0f);
+        glm::vec3 BoundsMax = glm::vec3(0.0f);
+        int MaterialIdx = -1;
     };
 
     struct Mesh : public Asset
     {
-        Mesh(const MeshSpec& spec);
-        ~Mesh();
+        Mesh() = default;
 
         Handle<Resource> m_VertexArray;
         Handle<Resource> m_IndexBuffer;

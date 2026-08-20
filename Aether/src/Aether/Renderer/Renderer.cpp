@@ -8,6 +8,7 @@
 #include "Aether/Renderer/BuiltinShader.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/StorageBuffer.h"
+#include "Aether/Assets/RegisterInfo.h"
 
 float quadVertices[] = {
 	-1.0f,  1.0f,  0.0f, 1.0f,
@@ -38,7 +39,67 @@ uint32_t skyboxIndices[] = {
 	3, 7, 6, 6, 2, 3
 };
 
+
+
 namespace Aether {
+
+	void ImplementMesh(const AMeshCreateInfo& spec, Mesh* mesh)
+    {
+        mesh->m_SubMeshes = std::move(spec.submeshes);
+        AE_CORE_ASSERT(spec.streams, "Mesh require at least 1 vbo in streams!");
+        AE_CORE_ASSERT(spec.indicies, "Index data cannot be null!");
+
+        mesh->m_VertexArray = ResourceManager::CreateResource<VertexArray>();
+        auto* vao = ResourceManager::GetResource<VertexArray>(mesh->m_VertexArray);
+
+        mesh->m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>((uint32_t*)spec.indicies, spec.indexLen);
+        vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(mesh->m_IndexBuffer));
+
+        uint32_t vertex_cnt = spec.streams[0].VertexCount;
+
+        for (int i = 0; i < spec.streamLen; i++)
+        {
+            const auto& vbuffer = spec.streams[i];
+            AE_CORE_ASSERT(vbuffer.VertexCount == vertex_cnt, "vbuffer's size mismatch in stream!");
+
+            uint32_t stride = vbuffer.Layout.GetStride();
+            uint32_t byteSize = vbuffer.VertexCount * stride;
+
+            Handle<Resource> vboHandle = ResourceManager::CreateResource<VertexBuffer>((float*)vbuffer.Data, byteSize);
+            auto* vbo = ResourceManager::GetResource<VertexBuffer>(vboHandle);
+            vbo->SetLayout(vbuffer.Layout);
+            vao->AddVertexBuffer(vbo);
+            mesh->m_VertexBuffers.push_back(vboHandle);
+        }
+
+        if (mesh->m_SubMeshes.empty())
+        {
+            SubMesh defaultSubMesh;
+            defaultSubMesh.BaseVertex  = 0;
+            defaultSubMesh.BaseIndex   = 0;
+            defaultSubMesh.VertexCount = vertex_cnt;
+            defaultSubMesh.IndexCount  = spec.indexLen;
+            mesh->m_SubMeshes.push_back(defaultSubMesh);
+        }
+
+        if (spec.CalculateBoundsFunc)
+        {
+            auto [tempMin, tempMax] = spec.CalculateBoundsFunc(spec);
+            mesh->m_BoundsMin = tempMin;
+            mesh->m_BoundsMax = tempMax;
+            mesh->m_BoundsCenter = (mesh->m_BoundsMin + mesh->m_BoundsMax) * 0.5f;
+            mesh->m_BoundsExtents = (mesh->m_BoundsMax - mesh->m_BoundsMin) * 0.5f;
+        }
+
+        if (spec.CalculateAnimatedBoundsFunc)
+        {
+            auto [tempAnimMin, tempAnimMax] = spec.CalculateAnimatedBoundsFunc(spec);
+            mesh->m_AnimatedBoundsMin = tempAnimMin;
+            mesh->m_AnimatedBoundsMax = tempAnimMax;
+            mesh->m_HasAnimatedBounds = true;
+        }
+        else mesh->m_HasAnimatedBounds = false;
+    }
 
 	void Renderer::Init()
 	{
@@ -97,8 +158,8 @@ namespace Aether {
 			s_RenderData->s_ShadowPipeline[i] = shadowPass;
 		}
 		VertexStream temp;
-		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new Mesh(MeshSpec{&temp, 1, quadIndices, 6});
-		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new Mesh(MeshSpec{&temp, 1, skyboxIndices, 36});
+		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new Mesh(); ImplementMesh(AMeshCreateInfo{1, 6, &temp, quadIndices}, s_RenderData->s_Quad);
+		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new Mesh(); ImplementMesh(AMeshCreateInfo{1, 36, &temp, skyboxIndices}, s_RenderData->s_SkyMesh);
 
 		s_RenderData->s_ShadowmapUniformNames.reserve(MAX_SHADOW_CASTER);
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)

@@ -15,6 +15,8 @@
 
 namespace Aether {
 
+    class AssetsRegister;
+
     template<typename T> struct GetAssetType;
     template<> struct GetAssetType<Mesh> { static constexpr AssetType value = AssetType::Mesh; };
     template<> struct GetAssetType<Material> { static constexpr AssetType value = AssetType::Material; };
@@ -44,29 +46,6 @@ namespace Aether {
         void Unload(UUID id);
         void Unload(Handle<Asset> handle);
         Handle<Asset> GetHandle(UUID id);
-
-        template<typename T, typename... Args>
-        Handle<Asset> CreateAsset(UUID id, Args&&... args)
-        {
-            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
-            auto it = m_Handles.find(id); 
-            if (it != m_Handles.end())
-            {
-                AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
-                return {};
-            } 
-
-            using TargetPoolType = ResourcePool<Handle<T>, T>;
-            auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-            Handle<T> handle = pool.CreateResource(std::forward<Args>(args)...);    
-            Handle<Asset> route = m_Router.CreateResource(handle.Blend(), GetAssetType<T>::value);
-            m_Handles[id] = route;
-
-            auto* asset = pool.GetResource(handle);
-            asset->id = id;
-            asset->loaded = true;
-            return route;
-        }
 
         template<typename T>
         T* GetAsset(Handle<Asset> handle)
@@ -107,5 +86,31 @@ namespace Aether {
             ResourcePool<Handle<Image>, Image>,
             ResourcePool<Handle<Audio>, Audio>
         > m_AssetContainers;
+
+        template<typename T, typename... Args>
+        Handle<Asset> CreateAsset(UUID id, Args&&... args)
+        {
+            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
+            auto it = m_Handles.find(id); 
+            if (it != m_Handles.end())
+            {
+                AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
+                return {};
+            } 
+
+            using TargetPoolType = ResourcePool<Handle<T>, T>;
+            auto& pool = std::get<TargetPoolType>(m_AssetContainers);
+            Handle<T> handle = pool.CreateResource(std::forward<Args>(args)...);    
+            Handle<Asset> route = m_Router.CreateResource(handle.Blend(), GetAssetType<T>::value);
+            m_Handles[id] = route;
+
+            auto* asset = pool.GetResource(handle);
+            asset->id = id;
+            asset->loaded = true;
+            return route;
+        }
+
+        friend class AssetsRegister;
+        friend class LegacyAssembler;
     };
 }

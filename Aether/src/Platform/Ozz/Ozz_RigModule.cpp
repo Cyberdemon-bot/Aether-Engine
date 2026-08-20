@@ -28,7 +28,7 @@ namespace Aether {
 
     //resource management
 
-    Handle<RSkeleton> Ozz_RigModule::CreateSkeleton(const SkeletonSpec& data)
+    Handle<RSkeleton> Ozz_RigModule::CreateSkeleton(const SkeletonCreateInfo& data)
     {
         auto handle = m_SkeletonPool.CreateResource();
         auto* skeleton = m_SkeletonPool.GetResource(handle);
@@ -59,7 +59,7 @@ namespace Aether {
         return handle;
     }
 
-    Handle<RClip> Ozz_RigModule::CreateClip(const ClipSpec& data, Handle<RSkeleton> skeleton) 
+    Handle<RClip> Ozz_RigModule::CreateClip(const ClipCreateInfo& data, Handle<RSkeleton> skeleton) 
     {
         auto* it = m_SkeletonPool.GetResource(skeleton);
         if (!it)
@@ -397,7 +397,7 @@ namespace Aether {
 
     // helper 
 
-    void Ozz_RigModule::BuildHierarchy(const SkeletonSpec& data, int parentIdx, ozz::animation::offline::RawSkeleton::Joint& out)
+    void Ozz_RigModule::BuildHierarchy(const SkeletonCreateInfo& data, int parentIdx, ozz::animation::offline::RawSkeleton::Joint& out)
     {
         const auto& src = data.Joints[parentIdx];
         out.name = src.Name;
@@ -415,7 +415,7 @@ namespace Aether {
         }
     }
 
-    ozz::unique_ptr<ozz::animation::Skeleton> Ozz_RigModule::ConvertToOzzSkeleton(const SkeletonSpec& data)
+    ozz::unique_ptr<ozz::animation::Skeleton> Ozz_RigModule::ConvertToOzzSkeleton(const SkeletonCreateInfo& data)
     {
         using namespace ozz::animation::offline;
 
@@ -445,7 +445,7 @@ namespace Aether {
         return builder(raw);
     }
 
-    ozz::unique_ptr<ozz::animation::Animation> Ozz_RigModule::ConvertToOzzAnimation(const ClipSpec& data, int numJoints)
+    ozz::unique_ptr<ozz::animation::Animation> Ozz_RigModule::ConvertToOzzAnimation(const ClipCreateInfo& data, int numJoints)
     {
         using namespace ozz::animation::offline;
 

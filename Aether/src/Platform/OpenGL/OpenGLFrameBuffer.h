@@ -35,8 +35,8 @@ namespace Aether {
 		uint32_t m_RendererID = 0;
 		FramebufferSpec m_Spec;
 
-		std::vector<TextureSpec> m_ColorAttachmentSpec;
-		TextureSpec m_DepthAttachmentSpec;
+		std::vector<TextureCreateInfo> m_ColorAttachmentSpec;
+		TextureCreateInfo m_DepthAttachmentSpec;
 
 		std::vector<Scope<Texture2D>> m_ColorAttachments;
 		Scope<Texture2D> m_DepthAttachment = 0;

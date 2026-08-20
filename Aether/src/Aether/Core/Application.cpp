@@ -15,6 +15,7 @@
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Assets/AssetsRegister.h"
 #include "Aether/ImGui/ImGuiLayer.h"
 #include "Aether/Console/ConsoleLayer.h"
 
@@ -27,11 +28,10 @@ namespace Aether {
         m_Window = Window::Create(WinProps("Aether Engine", 1366, 768));
         m_Window->SetEventCallback(AE_BIND_EVENT_FN(OnEvent));
 
-        ServiceManager::Init();
-
         InitService<Renderer>();
         InitService<AudioSystem>();
         InitService<AssetManager>();
+        InitService<AssetsRegister>();
         InitService<AnimationSystem>();
         InitService<ScriptEngine>();
         InitService<JobSystem>();
@@ -55,6 +55,7 @@ namespace Aether {
         ShutdownService<JobSystem>();
         ShutdownService<ScriptEngine>();
         ShutdownService<AnimationSystem>();
+        ShutdownService<AssetsRegister>();
         ShutdownService<AssetManager>();
         ShutdownService<AudioSystem>();
         ShutdownService<Renderer>();

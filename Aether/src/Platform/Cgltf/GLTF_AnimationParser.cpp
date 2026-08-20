@@ -23,7 +23,7 @@ namespace Aether {
         {
             const cgltf_skin* skin = &gltf->skins[skinIdx];
             
-            SkeletonCreateInfo rigInfo;
+            LSkeletonCreateInfo rigInfo;
             rigInfo.AssetID = UUID();
             rigInfo.DebugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
             rigInfo.spec.Joints.resize(skin->joints_count);
@@ -46,7 +46,7 @@ namespace Aether {
             {
                 cgltf_node* jointNode = skin->joints[jointIdx];
                 
-                SkeletonSpec::Joint joint;
+                SkeletonCreateInfo::Joint joint;
                 joint.Name = jointNode->name ? jointNode->name : ("Joint_" + std::to_string(jointIdx));
                 
                 joint.ParentIndex = -1;
@@ -111,7 +111,7 @@ namespace Aether {
         {
             const cgltf_animation* anim = &gltf->animations[animIdx];
             
-            std::map<int, std::map<cgltf_node*, ClipSpec::Track>> rigTracks;
+            std::map<int, std::map<cgltf_node*, ClipCreateInfo::Track>> rigTracks;
             float maxTime = 0.0f;
             
             for (size_t sampIdx = 0; sampIdx < anim->samplers_count; sampIdx++)
@@ -139,7 +139,7 @@ namespace Aether {
                 int rigIdx = it->second.rigIdx;
                 int jointIndex = it->second.jointIdx;
                 
-                ClipSpec::Track& track = rigTracks[rigIdx][channel->target_node];
+                ClipCreateInfo::Track& track = rigTracks[rigIdx][channel->target_node];
                 track.JointIndex = jointIndex;
                 
                 if (channel->target_path == cgltf_animation_path_type_translation)
@@ -161,7 +161,7 @@ namespace Aether {
             
             for (auto& [rigIdx, track_map] : rigTracks)
             {
-                ClipCreateInfo clipInfo;
+                LClipCreateInfo clipInfo;
                 
                 if (rigTracks.size() > 1)
                 {

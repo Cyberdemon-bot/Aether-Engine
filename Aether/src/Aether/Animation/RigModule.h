@@ -16,7 +16,7 @@ namespace Aether {
     struct Mask;
     struct SkeletonCache;
 
-    struct SkeletonSpec
+    struct SkeletonCreateInfo
     {
         struct Joint
         {
@@ -31,7 +31,7 @@ namespace Aether {
         std::vector<glm::mat4> IBM;
     };
 
-    struct ClipSpec
+    struct ClipCreateInfo
     {
         float Duration;
         float SampleRate;  
@@ -82,8 +82,8 @@ namespace Aether {
     public:
         virtual ~RigModule() = default;
         
-        virtual Handle<RSkeleton> CreateSkeleton(const SkeletonSpec& data) = 0;
-        virtual Handle<RClip> CreateClip(const ClipSpec& data, Handle<RSkeleton> skeleton) = 0;
+        virtual Handle<RSkeleton> CreateSkeleton(const SkeletonCreateInfo& data) = 0;
+        virtual Handle<RClip> CreateClip(const ClipCreateInfo& data, Handle<RSkeleton> skeleton) = 0;
 
         virtual Handle<SkeletonCache> CreateCache(Handle<RClip> clip) = 0;
         virtual void DestroyCache(Handle<SkeletonCache> cache) = 0;

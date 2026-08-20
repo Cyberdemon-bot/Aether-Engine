@@ -11,18 +11,19 @@
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Core/Assert.h"
 #include "Aether/Core/ServiceManager.h"
+#include "Aether/Renderer/VertexArray.h"
 namespace Aether {
 
 	LegacyAssembler::API LegacyAssembler::s_API = LegacyAssembler::API::Cgltf;
 
-    static std::tuple<glm::vec3, glm::vec3> CalculateStaticBoundsAOS(const MeshSpec& spec)
+    static std::tuple<glm::vec3, glm::vec3> CalculateStaticBoundsAOS(const AMeshCreateInfo& spec)
     {
-        if (!spec.StreamData || spec.StreamData[0].VertexCount == 0) 
+        if (!spec.streams || spec.streams[0].VertexCount == 0) 
             return { glm::vec3(0.0f), glm::vec3(0.0f) };
 
-        const uint8_t* byteData = static_cast<const uint8_t*>(spec.StreamData[0].Data);
-        uint32_t stride = spec.StreamData[0].Layout.GetStride();
-        uint32_t vertexCount = spec.StreamData[0].VertexCount;
+        const uint8_t* byteData = static_cast<const uint8_t*>(spec.streams[0].Data);
+        uint32_t stride = spec.streams[0].Layout.GetStride();
+        uint32_t vertexCount = spec.streams[0].VertexCount;
 
         glm::vec3 boundsMin = glm::vec3( FLT_MAX);
         glm::vec3 boundsMax = glm::vec3(-FLT_MAX);
@@ -37,13 +38,13 @@ namespace Aether {
         return { boundsMin, boundsMax };
     }
 
-    static std::tuple<glm::vec3, glm::vec3> CalculateSkinnedBoundsAOS(const MeshSpec& spec)
+    static std::tuple<glm::vec3, glm::vec3> CalculateSkinnedBoundsAOS(const AMeshCreateInfo& spec)
     {
-        if (!spec.StreamData || spec.StreamData[0].VertexCount == 0 || spec.RigPoseMats.empty()) 
+        if (!spec.streams || spec.streams[0].VertexCount == 0 || spec.poseMats.empty()) 
             return { glm::vec3(0.0f), glm::vec3(0.0f) };
 
-        const SkinnedVertex* verts = static_cast<const SkinnedVertex*>(spec.StreamData[0].Data);
-        uint32_t vertexCount = spec.StreamData[0].VertexCount;
+        const SkinnedVertex* verts = static_cast<const SkinnedVertex*>(spec.streams[0].Data);
+        uint32_t vertexCount = spec.streams[0].VertexCount;
 
         glm::vec3 boundsMin( FLT_MAX);
         glm::vec3 boundsMax(-FLT_MAX);
@@ -52,10 +53,10 @@ namespace Aether {
         {
             const auto& v = verts[i];
             glm::vec4 skinnedPos =
-                spec.RigPoseMats[v.Joints.x] * glm::vec4(v.Position, 1.0f) * v.Weights.x +
-                spec.RigPoseMats[v.Joints.y] * glm::vec4(v.Position, 1.0f) * v.Weights.y +
-                spec.RigPoseMats[v.Joints.z] * glm::vec4(v.Position, 1.0f) * v.Weights.z +
-                spec.RigPoseMats[v.Joints.w] * glm::vec4(v.Position, 1.0f) * v.Weights.w;
+                spec.poseMats[v.Joints.x] * glm::vec4(v.Position, 1.0f) * v.Weights.x +
+                spec.poseMats[v.Joints.y] * glm::vec4(v.Position, 1.0f) * v.Weights.y +
+                spec.poseMats[v.Joints.z] * glm::vec4(v.Position, 1.0f) * v.Weights.z +
+                spec.poseMats[v.Joints.w] * glm::vec4(v.Position, 1.0f) * v.Weights.w;
 
             boundsMin = glm::min(boundsMin, glm::vec3(skinnedPos));
             boundsMax = glm::max(boundsMax, glm::vec3(skinnedPos));
@@ -88,71 +89,57 @@ namespace Aether {
     {
         RegisteredScene res;
 
-        std::vector<Handle<Asset>> imgs;
-        std::vector<Handle<Asset>> skels;
+        std::vector<UUID> imgs;
+        std::vector<UUID> skels;
         auto* asset_manager = ServiceManager::GetService<AssetManager>();
+
         // Upload textures
         for (const auto& img : sceneData->Images) 
         {
-            auto handle = ResourceManager::CreateResource<Texture2D>(img.Spec);
-            auto resource = ResourceManager::GetResource<Texture2D>(handle);
-            if (!resource) AE_CORE_ERROR("Fail to Create texture while uploading");
-            resource->SetData((void*)img.RawData.data(), img.RawData.size());
-            auto imgHandle = asset_manager->CreateAsset<Image>(UUID(), handle);
-            imgs.push_back(imgHandle);
+            UUID id = ServiceManager::GetService<AssetsRegister>()->Register<Image>(AImageCreateInfo{img.Spec, img.RawData}, img.DebugName, UUID());
+            imgs.push_back(id);
         }
-        // Upload materials
+
         for (const auto& matInfo : sceneData->Materials)
         {
-            UUID matID = AssetsRegister::Register(matInfo.DebugName, matInfo.AssetID);
-            asset_manager->CreateAsset<Material>(matID);
-            auto material = asset_manager->GetAsset<Material>(matID);
-            if (!material) AE_CORE_ERROR("Fail to Create material while uploading");
-            
-            // Set textures
-            if (matInfo.AlbedoMapIdx >= 0 && matInfo.AlbedoMapIdx < imgs.size())
-                material->AddImage("u_AlbedoMap", imgs[matInfo.AlbedoMapIdx]);
-            
-            if (matInfo.NormalMapIdx >= 0 && matInfo.NormalMapIdx < imgs.size())
-            {
-                material->AddImage("u_NormalMap", imgs[matInfo.NormalMapIdx]);
-                material->AddInt("u_HasNormalMap", 1);
-            }
-            else  material->AddInt("u_HasNormalMap", 0);
-
-            if (matInfo.MetallicRoughnessMapIdx >= 0 && matInfo.MetallicRoughnessMapIdx < imgs.size())
-                material->AddImage("u_MetallicRoughnessMap", imgs[matInfo.MetallicRoughnessMapIdx]);
-            
-            // Set material properties
-            material->AddVec4("u_AlbedoColor", matInfo.AlbedoColor);
-            material->AddFloat("u_Metallic", matInfo.Metallic);
-            material->AddFloat("u_Roughness", matInfo.Roughness);
+            UUID matID = ServiceManager::GetService<AssetsRegister>()->Register<Material>(
+                                                                        AMaterialCreateInfo
+                                                                        {
+                                                                            matInfo.AlbedoColor, 
+                                                                            matInfo.Metallic,
+                                                                            matInfo.Roughness,
+                                                                            matInfo.AlbedoMapIdx,
+                                                                            matInfo.NormalMapIdx,
+                                                                            matInfo.MetallicRoughnessMapIdx,
+                                                                            imgs.data(), static_cast<uint32_t>(imgs.size())
+                                                                        },
+                                                                        matInfo.DebugName, matInfo.AssetID);
             res.matIDs.push_back(matID);
         }
         auto animSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
 
-        for (size_t i = 0; i < sceneData->Skeletons.size(); i++)
+        for (auto& info : sceneData->Skeletons)
         {
-            auto& skelInfo = sceneData->Skeletons[i];
-            auto skeleton = asset_manager->CreateAsset<Skeleton>(AssetsRegister::Register(skelInfo.DebugName, skelInfo.AssetID), 
-                                                                animSystem->CreateSkeleton(skelInfo.spec),
-                                                                static_cast<uint32_t>(skelInfo.spec.Joints.size()));
+            UUID skelID = ServiceManager::GetService<AssetsRegister>()->Register<Skeleton>(info.spec, info.DebugName, info.AssetID);
             res.animators.push_back({});
-            res.animators[i].skeleton = skeleton;
-            skels.push_back(skeleton);
+            res.animators.back().skeleton = asset_manager->GetHandle(skelID);
+            skels.push_back(skelID);
         }
 
         for (size_t i = 0; i < sceneData->Clips.size(); i++)
         {
-            auto& clipInfo = sceneData->Clips[i];
-            uint32_t targetRigIdx = clipInfo.rigIdx; 
+            auto& info = sceneData->Clips[i];
+            uint32_t targetRigIdx = info.rigIdx; 
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
-                auto skeleton = asset_manager->GetAsset<Skeleton>(res.animators[targetRigIdx].skeleton)->m_Handle;
-                auto clip = asset_manager->CreateAsset<Clip>(AssetsRegister::Register(clipInfo.DebugName, clipInfo.AssetID), 
-                                                            animSystem->CreateClip(clipInfo.spec, skeleton), 
-                                                            clipInfo.spec.Duration);
-                res.animators[targetRigIdx].clips.push_back(clip);
+                auto clipID = ServiceManager::GetService<AssetsRegister>()->Register<Clip>(
+                                                                            AClipCreateInfo
+                                                                            {
+                                                                                std::move(info.spec),
+                                                                                skels[targetRigIdx]
+                                                                            },
+                                                                            info.DebugName, info.AssetID);
+                res.animators[targetRigIdx].clips.push_back(asset_manager->GetHandle(clipID));
             }
         }
 
@@ -174,9 +161,14 @@ namespace Aether {
                 }
             }
 
-            UUID meshID = AssetsRegister::Register(meshInfo.DebugName, meshInfo.AssetID);
-            std::vector<Handle<Asset>> matHandles;
+            const size_t submeshCount = meshInfo.SubMeshes.size();
+
+            std::vector<UUID> sheetMatIDs;
+            sheetMatIDs.reserve(submeshCount);
+
             std::vector<SubMesh> submeshes;
+            submeshes.reserve(submeshCount);
+
             for (const auto& subInfo : meshInfo.SubMeshes)
             {
                 SubMesh sm;
@@ -187,18 +179,24 @@ namespace Aether {
                 sm.BoundsMin = subInfo.BoundsMin;
                 sm.BoundsMax = subInfo.BoundsMax;
 
-                // Assign material
-                auto matHandle = asset_manager->GetHandle(res.matIDs[subInfo.MaterialIdx]);
-                matHandles.push_back(matHandle);
-                sm.MaterialIdx = (int)matHandles.size() - 1;
+                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < static_cast<int>(res.matIDs.size()))
+                {
+                    sheetMatIDs.push_back(res.matIDs[subInfo.MaterialIdx]);
+                    sm.MaterialIdx = static_cast<int>(sheetMatIDs.size()) - 1;
+                }
+                else sm.MaterialIdx = -1;
+
                 submeshes.push_back(sm);
             }
 
-            UUID sheetID = AssetsRegister::Register(meshInfo.DebugName + "_Sheet", UUID());
-            auto sheetHandle = asset_manager->CreateAsset<Sheet>(sheetID);
-            auto* sheet = asset_manager->GetAsset<Sheet>(sheetHandle);
-            sheet->Resize((uint32_t)matHandles.size());
-            sheet->MoveDefaultList(std::move(matHandles));
+            UUID sheetID = ServiceManager::GetService<AssetsRegister>()->Register<Sheet>(
+                                                                        ASheetCreateInfo 
+                                                                        {
+                                                                            sheetMatIDs.data(),
+                                                                            static_cast<uint32_t>(sheetMatIDs.size())
+                                                                        },
+                                                                        meshInfo.DebugName + "_Sheet", UUID());
+
             res.sheetIDs.push_back(sheetID);
             
             VertexStream interleavedStream;
@@ -206,12 +204,12 @@ namespace Aether {
             interleavedStream.VertexCount = meshInfo.totalVertices;
             interleavedStream.Layout = meshInfo.IsSkinned ? MeshLayout::PBRSkinned() : MeshLayout::PBR();
 
-            MeshSpec spec;
-            spec.StreamData = &interleavedStream;
-            spec.StreamCount = 1;
-            spec.IndexData = meshInfo.Indices.data();
-            spec.IndexCount = meshInfo.totalIndices;
-            spec.Submeshes = submeshes;
+            AMeshCreateInfo spec;
+            spec.streams = &interleavedStream;
+            spec.streamLen = 1;
+            spec.indicies = meshInfo.Indices.data();
+            spec.indexLen = meshInfo.totalIndices;
+            spec.submeshes = submeshes;
             spec.CalculateBoundsFunc = &CalculateStaticBoundsAOS;
             if (rigIdx >= 0 && rigIdx < (int)skels.size() && meshInfo.IsSkinned)
             {
@@ -219,14 +217,14 @@ namespace Aether {
                 if (asset)
                 {
                     auto handle = asset->m_Handle;
-                    spec.RigPoseMats.resize(asset->m_JointCount);
-                    animSystem->GetRestPoseMatrices(handle, spec.RigPoseMats.data(), spec.RigPoseMats.size());
+                    spec.poseMats.resize(asset->m_JointCount);
+                    animSystem->GetRestPoseMatrices(handle, spec.poseMats.data(), spec.poseMats.size());
                     spec.CalculateAnimatedBoundsFunc = &CalculateSkinnedBoundsAOS;
                 }
             }
 
-            asset_manager->CreateAsset<Mesh>(meshID, spec);
-            res.meshIDs.push_back(meshID);
+            ServiceManager::GetService<AssetsRegister>()->Register<Mesh>(spec, meshInfo.DebugName, meshInfo.AssetID);
+            res.meshIDs.push_back(meshInfo.AssetID);
         }
 
         res.hierarchy = std::move(sceneData->Hierarchy);

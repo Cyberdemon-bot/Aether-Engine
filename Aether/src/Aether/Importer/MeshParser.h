@@ -26,7 +26,7 @@ namespace Aether {
         glm::vec4 Weights;
     };
     
-    struct SubMeshCreateInfo
+    struct SubAMeshCreateInfo
     {
         std::string NodeName;
         uint32_t VertexCount;
@@ -40,7 +40,7 @@ namespace Aether {
         int MaterialIdx = -1;
     };
 
-    struct MeshCreateInfo
+    struct LAMeshCreateInfo
     {
         UUID AssetID;
         std::string DebugName;
@@ -48,7 +48,7 @@ namespace Aether {
         
         std::vector<uint8_t> InterleavedVertices;
         std::vector<uint32_t> Indices;
-        std::vector<SubMeshCreateInfo> SubMeshes;
+        std::vector<SubAMeshCreateInfo> SubMeshes;
 
         uint32_t totalVertices = 0;
         uint32_t totalIndices = 0;
@@ -56,7 +56,7 @@ namespace Aether {
 
     struct ParsedMeshInfo
     {
-        std::vector<MeshCreateInfo> meshesInfo;
+        std::vector<LAMeshCreateInfo> meshesInfo;
     };
 
     class MeshParser
