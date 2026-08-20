@@ -13,7 +13,7 @@ namespace Aether {
     {
     public:
         EditorCamera() = default;
-        EditorCamera(float fov, float aspectRatio, float nearClip, float farClip);
+        EditorCamera(float fov, float aspectRatio, float neaClip, float faClip);
 
         void Update(Timestep ts);
         void OnEvent(Event& e);
@@ -50,7 +50,7 @@ namespace Aether {
         float ZoomSpeed() const;
 
     private:
-        float m_FOV = 45.0f, m_AspectRatio = 1.778f, m_NearClip = 0.1f, m_FarClip = 1000.0f;
+        float m_FOV = 45.0f, m_AspectRatio = 1.778f, m_NeaClip = 0.1f, m_FaClip = 1000.0f;
 
         glm::vec3 m_FocalPoint = { 0.0f, 0.0f, 0.0f };
 

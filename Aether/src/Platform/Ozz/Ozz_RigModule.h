@@ -21,30 +21,30 @@ namespace Aether {
         Ozz_RigModule();
         virtual ~Ozz_RigModule() override; 
 
-        virtual Handle<RSkeleton> CreateSkeleton(const SkeletonCreateInfo& data) override;
-        virtual Handle<RClip> CreateClip(const ClipCreateInfo& data, Handle<RSkeleton> skeleton) override;
+        virtual Handle<Skeleton> CreateSkeleton(const SkeletonCreateInfo& data) override;
+        virtual Handle<Clip> CreateClip(const ClipCreateInfo& data, Handle<Skeleton> skeleton) override;
 
-        virtual Handle<SkeletonCache> CreateCache(Handle<RClip> clip) override;
+        virtual Handle<SkeletonCache> CreateCache(Handle<Clip> clip) override;
         virtual void DestroyCache(Handle<SkeletonCache> cache) override;
-        virtual void RepairCache(Handle<SkeletonCache> cache, Handle<RClip> clip) override;
+        virtual void RepairCache(Handle<SkeletonCache> cache, Handle<Clip> clip) override;
 
-        virtual Handle<Pose> CreatePose(Handle<RSkeleton> skeleton) override;
+        virtual Handle<Pose> CreatePose(Handle<Skeleton> skeleton) override;
         virtual void DestroyPose(Handle<Pose> pose) override;
 
-        virtual Handle<Mask> CreateMask(Handle<RSkeleton> skeleton, float* weights, size_t size) override;
+        virtual Handle<Mask> CreateMask(Handle<Skeleton> skeleton, float* weights, size_t size) override;
         virtual void DestroyMask(Handle<Mask> mask) override;
-        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<RSkeleton> skeleton, std::string_view boneName, float weight) override;
+        virtual void FillMaskSubtree(Handle<Mask> mask, Handle<Skeleton> skeleton, std::string_view boneName, float weight) override;
 
 
-        virtual int GetJointIndex(Handle<RSkeleton> skeleton, std::string_view name) const override;
-        virtual std::string GetJointName(Handle<RSkeleton> skeleton, int index) const override;
-        virtual bool GetIBM(Handle<RSkeleton> skeleton, int boneIndex, glm::mat4& out) const override;
-        virtual void GetRestPoseMatrices(Handle<RSkeleton> skeleton, glm::mat4* arr, size_t size) const override;
+        virtual int GetJointIndex(Handle<Skeleton> skeleton, std::string_view name) const override;
+        virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const override;
+        virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const override;
+        virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const override;
         virtual PoseData GetPose(Handle<Pose> pose) override;
 
         virtual void ScheduleSample(  
-            Handle<RSkeleton> skeleton,
-            Handle<RClip> clip, 
+            Handle<Skeleton> skeleton,
+            Handle<Clip> clip, 
             Handle<SkeletonCache> cache, 
             Handle<Pose> poseOut,
             float time) override;
@@ -71,7 +71,7 @@ namespace Aether {
         virtual void ScheduleLookAt(const LookAtSpec& spec) override;
 
         virtual void ScheduleFinalize(
-            Handle<RSkeleton> skeleton,
+            Handle<Skeleton> skeleton,
             Handle<Pose> pose) override;
 
         virtual void ProcessTasks() override;
@@ -119,8 +119,8 @@ namespace Aether {
 
         struct SampleTask
         {
-            Handle<RSkeleton> skeleton;
-            Handle<RClip> clip;
+            Handle<Skeleton> skeleton;
+            Handle<Clip> clip;
             Handle<SkeletonCache> cache;
             float time;
             Handle<Pose> poseOut;
@@ -148,7 +148,7 @@ namespace Aether {
 
         struct FinalizeTask
         {
-            Handle<RSkeleton> skeleton;
+            Handle<Skeleton> skeleton;
             Handle<Pose> pose;
         };
         
@@ -168,8 +168,8 @@ namespace Aether {
         void ApplyLookAt(const IKTask& task);
         void FinalizePose(const FinalizeTask& task);
     private:
-        ResourcePool<Handle<RSkeleton>, OzzSkeleton> m_SkeletonPool;
-        ResourcePool<Handle<RClip>, OzzClip> m_ClipPool;
+        ResourcePool<Handle<Skeleton>, OzzSkeleton> m_SkeletonPool;
+        ResourcePool<Handle<Clip>, OzzClip> m_ClipPool;
         ResourcePool<Handle<SkeletonCache>, OzzCache> m_CachePool;
         ResourcePool<Handle<Pose>, OzzPose> m_PosePool;
         ResourcePool<Handle<Mask>, OzzMask> m_MaskPool;

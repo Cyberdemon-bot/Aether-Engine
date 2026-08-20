@@ -8,8 +8,8 @@
 
 namespace Aether {
 
-    EditorCamera::EditorCamera(float fov, float aspectRatio, float nearClip, float farClip)
-        : m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip), Camera(glm::perspective(glm::radians(fov), aspectRatio, nearClip, farClip))
+    EditorCamera::EditorCamera(float fov, float aspectRatio, float neaClip, float faClip)
+        : m_FOV(fov), m_AspectRatio(aspectRatio), m_NeaClip(neaClip), m_FaClip(faClip), Camera(glm::perspective(glm::radians(fov), aspectRatio, neaClip, faClip))
     {
         UpdateView();
     }
@@ -17,7 +17,7 @@ namespace Aether {
     void EditorCamera::UpdateProjection()
     {
         m_AspectRatio = m_ViewportWidth / m_ViewportHeight;
-        m_Projection = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip, m_FarClip);
+        m_Projection = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NeaClip, m_FaClip);
     }
 
     void EditorCamera::UpdateView()

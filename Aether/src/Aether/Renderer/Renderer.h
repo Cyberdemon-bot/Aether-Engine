@@ -71,8 +71,8 @@ namespace Aether {
 		Handle<Pose> pose;
 
 		glm::mat4 transform;
-		Mesh* meshPtr = nullptr;
-		Material* matPtr = nullptr;
+		AMesh* meshPtr = nullptr;
+		AMaterial* matPtr = nullptr;
 
 		bool operator!=(const Command& other) const
 		{
@@ -181,8 +181,8 @@ namespace Aether {
 			Handle<Resource> s_ShadowFBO[MAX_SHADOW_CASTER]; 
 			Handle<Resource> BoneStorage;
 			Handle<Resource> OffsetStorage;
-			Mesh* s_Quad   = nullptr;
-			Mesh* s_SkyMesh  = nullptr;
+			AMesh* s_Quad   = nullptr;
+			AMesh* s_SkyMesh  = nullptr;
 
 			RenderPass s_ShadowPipeline[MAX_SHADOW_CASTER];
 			RenderPass s_PassList[MAX_RENDER_PASSES];

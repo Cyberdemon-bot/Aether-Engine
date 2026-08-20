@@ -410,8 +410,8 @@ namespace Aether {
             if (!comp.Clips.empty())
             {
                 auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-                auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(comp.Skeleton);
-                auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[0]);
+                auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(comp.Skeleton);
+                auto* clipAsset = asset_manager->GetAsset<AClip>(comp.Clips[0]);
                 if (skeletonAsset && clipAsset)
                 {
                     comp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
@@ -452,10 +452,10 @@ namespace Aether {
             auto& animComp = GetComponent<AnimatorComponent>(animEnt);
             const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
             
-            auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(animComp.Skeleton);
+            auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(animComp.Skeleton);
             if (skeletonAsset && animComp.CurrentPose.IsValid())
             {
-                Handle<RSkeleton> skel = skeletonAsset->m_Handle;
+                Handle<Skeleton> skel = skeletonAsset->m_Handle;
                 if (attach.JointIndex < 0) 
                     attach.JointIndex = rigModule->GetJointIndex(skel, attach.JointName);
                 

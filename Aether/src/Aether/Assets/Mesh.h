@@ -80,9 +80,9 @@ namespace Aether {
         int MaterialIdx = -1;
     };
 
-    struct Mesh : public Asset
+    struct AMesh : public Asset
     {
-        Mesh() = default;
+        AMesh() = default;
 
         Handle<Resource> m_VertexArray;
         Handle<Resource> m_IndexBuffer;

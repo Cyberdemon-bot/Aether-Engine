@@ -46,14 +46,14 @@ namespace Aether {
 
         switch (route->type)
         {
-            case AssetType::Mesh: UnloadAsset(Mesh); break;
-            case AssetType::Material: UnloadAsset(Material); break;
-            case AssetType::Sheet: UnloadAsset(Sheet); break;
-            case AssetType::Skeleton: UnloadAsset(Skeleton); break;
-            case AssetType::Clip: UnloadAsset(Clip); break;
-            case AssetType::Script: UnloadAsset(Script); break;
-            case AssetType::Image: UnloadAsset(Image); break;
-            case AssetType::Audio: UnloadAsset(Audio); break;
+            case AssetType::Mesh: UnloadAsset(AMesh); break;
+            case AssetType::Material: UnloadAsset(AMaterial); break;
+            case AssetType::Sheet: UnloadAsset(ASheet); break;
+            case AssetType::Skeleton: UnloadAsset(ASkeleton); break;
+            case AssetType::Clip: UnloadAsset(AClip); break;
+            case AssetType::Script: UnloadAsset(AScript); break;
+            case AssetType::Image: UnloadAsset(AImage); break;
+            case AssetType::Audio: UnloadAsset(AAudio); break;
             case AssetType::None:
             default:
                 AE_CORE_ASSERT(false, "Unknown or invalid asset type in Unload!");

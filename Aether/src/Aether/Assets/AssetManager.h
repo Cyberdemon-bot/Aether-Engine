@@ -18,14 +18,14 @@ namespace Aether {
     class AssetsRegister;
 
     template<typename T> struct GetAssetType;
-    template<> struct GetAssetType<Mesh> { static constexpr AssetType value = AssetType::Mesh; };
-    template<> struct GetAssetType<Material> { static constexpr AssetType value = AssetType::Material; };
-    template<> struct GetAssetType<Sheet> { static constexpr AssetType value = AssetType::Sheet; };
-    template<> struct GetAssetType<Skeleton> { static constexpr AssetType value = AssetType::Skeleton; };
-    template<> struct GetAssetType<Clip> { static constexpr AssetType value = AssetType::Clip; };
-    template<> struct GetAssetType<Script> { static constexpr AssetType value = AssetType::Script; };
-    template<> struct GetAssetType<Image> { static constexpr AssetType value = AssetType::Image; };
-    template<> struct GetAssetType<Audio> { static constexpr AssetType value = AssetType::Audio; };
+    template<> struct GetAssetType<AMesh> { static constexpr AssetType value = AssetType::Mesh; };
+    template<> struct GetAssetType<AMaterial> { static constexpr AssetType value = AssetType::Material; };
+    template<> struct GetAssetType<ASheet> { static constexpr AssetType value = AssetType::Sheet; };
+    template<> struct GetAssetType<ASkeleton> { static constexpr AssetType value = AssetType::Skeleton; };
+    template<> struct GetAssetType<AClip> { static constexpr AssetType value = AssetType::Clip; };
+    template<> struct GetAssetType<AScript> { static constexpr AssetType value = AssetType::Script; };
+    template<> struct GetAssetType<AImage> { static constexpr AssetType value = AssetType::Image; };
+    template<> struct GetAssetType<AAudio> { static constexpr AssetType value = AssetType::Audio; };
 
     struct Route
     {
@@ -77,14 +77,14 @@ namespace Aether {
         ResourcePool<Handle<Asset>, Route> m_Router;
 
         std::tuple<
-            ResourcePool<Handle<Mesh>, Mesh>,
-            ResourcePool<Handle<Material>, Material>,
-            ResourcePool<Handle<Skeleton>, Skeleton>,
-            ResourcePool<Handle<Clip>, Clip>,
-            ResourcePool<Handle<Sheet>, Sheet>,
-            ResourcePool<Handle<Script>, Script>,
-            ResourcePool<Handle<Image>, Image>,
-            ResourcePool<Handle<Audio>, Audio>
+            ResourcePool<Handle<AMesh>, AMesh>,
+            ResourcePool<Handle<AMaterial>, AMaterial>,
+            ResourcePool<Handle<ASkeleton>, ASkeleton>,
+            ResourcePool<Handle<AClip>, AClip>,
+            ResourcePool<Handle<ASheet>, ASheet>,
+            ResourcePool<Handle<AScript>, AScript>,
+            ResourcePool<Handle<AImage>, AImage>,
+            ResourcePool<Handle<AAudio>, AAudio>
         > m_AssetContainers;
 
         template<typename T, typename... Args>

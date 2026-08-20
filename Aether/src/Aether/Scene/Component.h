@@ -192,7 +192,7 @@ namespace Aether {
         bool affectChild = true;
  
         mutable int JointIndex = -1;
-        mutable Handle<RSkeleton> CachedSkeletonHnd = Handle<RSkeleton>::MakeInvalid();
+        mutable Handle<Skeleton> CachedSkeletonHnd = Handle<Skeleton>::MakeInvalid();
         mutable glm::mat4 CachedBoneWorld = glm::mat4(1.0f);
  
         BoneAttachmentComponent() = default;

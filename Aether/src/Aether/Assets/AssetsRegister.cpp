@@ -31,8 +31,8 @@ namespace Aether {
 
     void AssetsRegister::MeshAssembler(UUID id, AssetManager* manager, const AMeshCreateInfo& info)
     {
-        auto handle = manager->CreateAsset<Mesh>(id);
-        auto* mesh = manager->GetAsset<Mesh>(handle);
+        auto handle = manager->CreateAsset<AMesh>(id);
+        auto* mesh = manager->GetAsset<AMesh>(handle);
         mesh->m_SubMeshes = std::move(info.submeshes);
         AE_CORE_ASSERT(info.streams, "Mesh require at least 1 vbo in streams!");
         AE_CORE_ASSERT(info.indicies, "Index data cannot be null!");
@@ -95,13 +95,13 @@ namespace Aether {
         auto* resource = ResourceManager::GetResource<Texture2D>(texture);
         if (!resource) AE_CORE_ERROR("[Asset Register] Failed to Create texture!");
         resource->SetData((void*)info.raw.data(), info.raw.size());
-        manager->CreateAsset<Image>(id, texture);
+        manager->CreateAsset<AImage>(id, texture);
     }
 
     void AssetsRegister::MaterialAssembler(UUID id, AssetManager* manager, const AMaterialCreateInfo& info)
     {
-        auto handle = manager->CreateAsset<Material>(id);
-        auto* material = manager->GetAsset<Material>(handle);
+        auto handle = manager->CreateAsset<AMaterial>(id);
+        auto* material = manager->GetAsset<AMaterial>(handle);
 
         // Set material properties
         material->AddVec4("u_AlbedoColor", info.albedo);
@@ -129,8 +129,8 @@ namespace Aether {
         auto* rsys = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
         auto rskel = rsys->CreateSkeleton(info);
 
-        auto handle = manager->CreateAsset<Skeleton>(id);
-        auto* skeleton = manager->GetAsset<Skeleton>(handle);
+        auto handle = manager->CreateAsset<ASkeleton>(id);
+        auto* skeleton = manager->GetAsset<ASkeleton>(handle);
         skeleton->m_Handle = rskel;
         skeleton->m_JointCount = info.Joints.size();
     }
@@ -138,20 +138,20 @@ namespace Aether {
     void AssetsRegister::ClipAssembler(UUID id, AssetManager* manager, const AClipCreateInfo& info)
     {
         auto* rsys = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-        auto rclip = rsys->CreateClip(info.layout, manager->GetAsset<Skeleton>(info.skeleton)->m_Handle);
+        auto Clip = rsys->CreateClip(info.layout, manager->GetAsset<ASkeleton>(info.skeleton)->m_Handle);
 
-        auto handle = manager->CreateAsset<Clip>(id);
-        auto* clip = manager->GetAsset<Clip>(handle);
-        clip->m_Handle = rclip;
+        auto handle = manager->CreateAsset<AClip>(id);
+        auto* clip = manager->GetAsset<AClip>(handle);
+        clip->m_Handle = Clip;
         clip->m_Duration = info.layout.Duration;
     }
 
     void AssetsRegister::SheetAssembler(UUID id, AssetManager* manager, const ASheetCreateInfo& info)
     {
-        auto handle = manager->CreateAsset<Sheet>(id);
-        
+        auto handle = manager->CreateAsset<ASheet>(id);
+
         if (!info.matList || info.matSize == 0) return;
-        auto* sheet = manager->GetAsset<Sheet>(handle);
+        auto* sheet = manager->GetAsset<ASheet>(handle);
         std::vector<Handle<Asset>> temp; temp.reserve(info.matSize);
         for (uint32_t i = 0; i < info.matSize; i++) 
             temp.push_back(manager->GetHandle(info.matList[i]));

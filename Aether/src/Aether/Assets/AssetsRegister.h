@@ -24,12 +24,12 @@ namespace Aether {
         {
             auto* manager = ServiceManager::GetService<AssetManager>();
 
-            if constexpr (std::is_same_v<T, Mesh> && std::is_same_v<I, AMeshCreateInfo>) MeshAssembler(id, manager, info);
-            else if constexpr (std::is_same_v<T, Image> && std::is_same_v<I, AImageCreateInfo>) ImageAssembler(id, manager, info);
-            else if constexpr (std::is_same_v<T, Material> && std::is_same_v<I, AMaterialCreateInfo>) MaterialAssembler(id, manager, info);
-            else if constexpr (std::is_same_v<T, Skeleton> && std::is_same_v<I, ASkeletonCreateInfo>) SkeletonAssembler(id, manager, info);
-            else if constexpr (std::is_same_v<T, Clip> && std::is_same_v<I, AClipCreateInfo>) ClipAssembler(id, manager, info);
-            else if constexpr (std::is_same_v<T, Sheet> && std::is_same_v<I, ASheetCreateInfo>) SheetAssembler(id, manager, info);
+            if constexpr (std::is_same_v<T, AMesh> && std::is_same_v<I, AMeshCreateInfo>) MeshAssembler(id, manager, info);
+            else if constexpr (std::is_same_v<T, AImage> && std::is_same_v<I, AImageCreateInfo>) ImageAssembler(id, manager, info);
+            else if constexpr (std::is_same_v<T, AMaterial> && std::is_same_v<I, AMaterialCreateInfo>) MaterialAssembler(id, manager, info);
+            else if constexpr (std::is_same_v<T, ASkeleton> && std::is_same_v<I, ASkeletonCreateInfo>) SkeletonAssembler(id, manager, info);
+            else if constexpr (std::is_same_v<T, AClip> && std::is_same_v<I, AClipCreateInfo>) ClipAssembler(id, manager, info);
+            else if constexpr (std::is_same_v<T, ASheet> && std::is_same_v<I, ASheetCreateInfo>) SheetAssembler(id, manager, info);
             else AE_CORE_ERROR("cannot register this type");
             
             return Register(name, id);

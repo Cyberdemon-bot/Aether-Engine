@@ -399,7 +399,7 @@ namespace Aether {
                 jobsys->ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     auto& transform = this->GetComponent<TransformComponent>(entity);
                     auto& meshcmp = this->GetComponent<MeshComponent>(entity);
-                    Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); 
+                    AMesh* mesh = asset_manager->GetAsset<AMesh>(meshcmp.Mesh); 
                     if (!mesh)
                     {
                         meshcmp.Culled = true;
@@ -428,8 +428,8 @@ namespace Aether {
                     auto& comp = GetComponent<AnimatorComponent>(entity);
                     if (comp.Clips.empty() || comp.Culled || !comp.RunSampling) continue;
 
-                    auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(comp.Skeleton);
-                    auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
+                    auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(comp.Skeleton);
+                    auto* clipAsset = asset_manager->GetAsset<AClip>(comp.Clips[comp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
 
                     if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
@@ -501,7 +501,7 @@ namespace Aether {
                     if (!meshcmp.ShowBounds) continue;
 
                     auto& transform = GetComponent<TransformComponent>(entity);
-                    Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
+                    AMesh* mesh = asset_manager->GetAsset<AMesh>(meshcmp.Mesh); if (!mesh) continue;
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
