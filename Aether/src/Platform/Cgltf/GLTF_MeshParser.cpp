@@ -13,7 +13,7 @@ namespace Aether {
         {
             const cgltf_mesh* mesh = &gltf->meshes[meshIdx];
             
-            MeshCreateInfo& meshInfo = result->meshesInfo[meshIdx];
+            LAMeshCreateInfo& meshInfo = result->meshesInfo[meshIdx];
             meshInfo.AssetID = UUID();
             meshInfo.DebugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
 
@@ -42,7 +42,7 @@ namespace Aether {
             {
                 const cgltf_primitive* prim = &mesh->primitives[primIdx];
                 
-                SubMeshCreateInfo subInfo;
+                SubAMeshCreateInfo subInfo;
                 subInfo.NodeName = meshInfo.DebugName + "_Sub_" + std::to_string(primIdx);
                 subInfo.BaseVertex = totalVertices;
                 subInfo.BaseIndex = totalIndices;

@@ -5,28 +5,22 @@
 
 namespace Aether {
 
-    struct RSkeleton;
-    struct RClip;
+    struct Skeleton;
+    struct Clip;
 
-    struct Skeleton : public Asset
+    struct ASkeleton : public Asset
     {
-        Skeleton(Handle<RSkeleton> handle, uint32_t count)
-        {
-            m_Handle = handle;
-            m_JointCount = count;
-        }
-        Handle<RSkeleton> m_Handle;
+        ASkeleton() = default;
+
+        Handle<Skeleton> m_Handle;
         uint32_t m_JointCount;
     };
 
-    struct Clip : public Asset
+    struct AClip : public Asset
     {
-        Clip(Handle<RClip> handle, float duration)
-        {
-            m_Handle = handle;
-            m_Duration = duration;
-        }
-        Handle<RClip> m_Handle;
+        AClip() = default;
+
+        Handle<Clip> m_Handle;
         float m_Duration;
     };
 }

@@ -15,6 +15,7 @@
 #include "Aether/Core/Input.h"
 #include "Aether/Utils/PlatformUtils.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Assets/AssetRegister.h"
 #include "Aether/ImGui/ImGuiLayer.h"
 #include "Aether/Console/ConsoleLayer.h"
 
@@ -32,6 +33,7 @@ namespace Aether {
         InitService<Renderer>();
         InitService<AudioSystem>();
         InitService<AssetManager>();
+        InitService<AssetRegister>();
         InitService<AnimationSystem>();
         InitService<ScriptEngine>();
         InitService<JobSystem>();
@@ -55,9 +57,12 @@ namespace Aether {
         ShutdownService<JobSystem>();
         ShutdownService<ScriptEngine>();
         ShutdownService<AnimationSystem>();
+        ShutdownService<AssetRegister>();
         ShutdownService<AssetManager>();
         ShutdownService<AudioSystem>();
         ShutdownService<Renderer>();
+
+        ServiceManager::Shutdown();
     }
 
     void Application::Close()
@@ -98,7 +103,17 @@ namespace Aether {
 			Timestep timestep = time - m_LastFrameTime;
 			m_LastFrameTime = time;
 
-            for (Layer* layer : m_LayerStack) layer->Update(timestep);
+            float frameTime = timestep.GetSeconds();
+            if (frameTime > 0.25f) frameTime = 0.25f;
+            m_Accumulator += frameTime;
+
+            while (m_Accumulator >= m_FixedTimestep.GetSeconds())
+            {
+                for (Layer* layer : m_LayerStack) layer->OnTick(m_FixedTimestep); 
+                m_Accumulator -= m_FixedTimestep.GetSeconds();
+            }
+
+            for (Layer* layer : m_LayerStack) layer->OnUpdate(timestep);
             
             m_ImGuiLayer->Begin(); 
             {
@@ -110,7 +125,7 @@ namespace Aether {
             }
             m_ImGuiLayer->End();
 
-            m_Window->Update();
+            m_Window->OnUpdate();
         }
     }
 
@@ -120,8 +135,9 @@ namespace Aether {
         return true;
     }
 
-    void Application::ToggleConsole(bool state)
+    void Application::SetTickRate(uint32_t tickRate)
     {
-        m_ConsoleOn = state;
+        m_TargetTickRate = tickRate; 
+        m_FixedTimestep = 1.0f / (float)m_TargetTickRate;
     }
 }

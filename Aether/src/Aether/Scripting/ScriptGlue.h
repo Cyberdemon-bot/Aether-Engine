@@ -389,24 +389,24 @@ namespace Aether {
                     AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveVerticalFOV(val);)
                 ),
                 AE_REFLECT("perspNear",
-                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveNearClip();),
-                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveNearClip(val);)
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveNeaClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveNeaClip(val);)
                 ),
                 AE_REFLECT("perspFar",
-                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveFarClip();),
-                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveFarClip(val);)
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetPerspectiveFaClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetPerspectiveFaClip(val);)
                 ),
                 AE_REFLECT("orthoSize",
                     AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicSize();),
                     AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicSize(val);)
                 ),
                 AE_REFLECT("orthoNear",
-                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicNearClip();),
-                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicNearClip(val);)
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicNeaClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicNeaClip(val);)
                 ),
                 AE_REFLECT("orthoFar",
-                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicFarClip();),
-                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicFarClip(val);)
+                    AE_MAKE_LAMBDA((), (const Type& c), float, return c.GetOrthographicFaClip();),
+                    AE_MAKE_LAMBDA((), (Type& c, float val), void, c.SetOrthographicFaClip(val);)
                 ),
 
                 AE_REFLECT("aspectRatio",
@@ -419,13 +419,13 @@ namespace Aether {
         {
             return AE_REFLECT_LIST(
                 AE_REFLECT("SetPerspective",
-                    AE_MAKE_LAMBDA((), (Type& c, float fov, float nearClip, float farClip), void,
-                        c.SetPerspective(fov, nearClip, farClip);
+                    AE_MAKE_LAMBDA((), (Type& c, float fov, float neaClip, float faClip), void,
+                        c.SetPerspective(fov, neaClip, faClip);
                     )
                 ),
                 AE_REFLECT("SetOrthographic",
-                    AE_MAKE_LAMBDA((), (Type& c, float size, float nearClip, float farClip), void,
-                        c.SetOrthographic(size, nearClip, farClip);
+                    AE_MAKE_LAMBDA((), (Type& c, float size, float neaClip, float faClip), void,
+                        c.SetOrthographic(size, neaClip, faClip);
                     )
                 ),
                 AE_REFLECT("SetViewportSize",

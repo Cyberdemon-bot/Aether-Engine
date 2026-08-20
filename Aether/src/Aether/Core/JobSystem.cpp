@@ -29,13 +29,14 @@ namespace Aether {
     {
         m_Stop.store(true, std::memory_order_release);
         m_Semaphore.Release(static_cast<int>(m_Workers.size()));
-        m_WaitCondition.notify_all();
+        {
+            std::lock_guard<std::mutex> lock(m_WaitMutex);
+            m_WaitCondition.notify_all();
+        }
 
         for (std::thread& worker : m_Workers)
-        {
-            if (worker.joinable())
-                worker.join();
-        }
+            if (worker.joinable()) worker.join();
+        
         m_Workers.clear();
         m_Queues.clear();
         m_ActiveJobCount.store(0);
@@ -102,7 +103,7 @@ namespace Aether {
     {
         t_ThreadIndex = static_cast<int>(index);
 
-        while (!m_Stop.load(std::memory_order_relaxed))
+        while (true)
         {
             Job job;
             bool found = m_Queues[index]->Pop(job)
@@ -118,7 +119,25 @@ namespace Aether {
                     m_WaitCondition.notify_all();
                 }
             }
-            else m_Semaphore.Acquire();
+            else 
+            {
+                if (m_Stop.load(std::memory_order_relaxed)) break;
+                m_Semaphore.Acquire();
+
+                if (m_Stop.load(std::memory_order_relaxed))
+                {
+                    bool hasMoreJobs = m_Queues[index]->Pop(job) 
+                                || TryStealJob(job, index) 
+                                || TryPopInjector(job);
+                    if (!hasMoreJobs) break;
+                    job();
+                    if (m_ActiveJobCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                    {
+                        std::lock_guard<std::mutex> lock(m_WaitMutex);
+                        m_WaitCondition.notify_all();
+                    }
+                }
+            }
         }
     }
 
@@ -147,8 +166,10 @@ namespace Aether {
             else
             {
                 std::unique_lock<std::mutex> lock(m_WaitMutex);
-                m_WaitCondition.wait_for(lock, std::chrono::microseconds(50),
-                    [this] { return m_ActiveJobCount.load(std::memory_order_acquire) == 0; });
+                m_WaitCondition.wait(lock, [this] 
+                { 
+                    return m_ActiveJobCount.load(std::memory_order_acquire) == 0; 
+                });
             }
         }
     }

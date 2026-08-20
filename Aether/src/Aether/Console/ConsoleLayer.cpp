@@ -48,7 +48,7 @@ namespace Aether {
         PushLog("Console shutdown!", LogLevel::Info);
     }
 
-    void ConsoleLayer::Update(Timestep ts) {}
+    void ConsoleLayer::OnUpdate(Timestep ts) {}
 
     void ConsoleLayer::OnEvent(Event& e) {}
 

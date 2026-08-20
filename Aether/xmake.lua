@@ -37,14 +37,12 @@ target("Aether")
     add_defines("GLM_ENABLE_EXPERIMENTAL", {public = true})
 
     if is_mode("debug") then
-        set_policy("build.sanitizer.address", true)
         add_defines("AETHER_DEBUG", {public = true})
         add_defines("AE_ENABLE_ASSERTS", {public = true})
         set_symbols("debug")
     end
 
     if is_mode("release") then
-        set_symbols("debug")     
         set_optimize("fastest")   
     end
 

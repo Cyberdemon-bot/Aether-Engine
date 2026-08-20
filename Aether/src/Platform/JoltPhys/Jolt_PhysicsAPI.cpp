@@ -1,6 +1,6 @@
 #include "aepch.h"
 #include "Platform/JoltPhys/Jolt_PhysicsAPI.h"
-#include "Aether/Container/MSPCQueue.h"
+#include "Aether/Container/MPSCQueue.h"
 #include <Jolt/Core/Memory.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
@@ -149,7 +149,7 @@ namespace JPH {
             return Aether::Handle<Aether::RigidBody>::FromBlend(body.GetUserData());
         }
 
-        Aether::MSPCQueue<InternalCollisionEvent, 1024> m_EventQueue;
+        Aether::MPSCQueue<InternalCollisionEvent, 1024> m_EventQueue;
         PhysicsSystem* m_System = nullptr;
     };
 }
@@ -170,8 +170,7 @@ namespace Aether {
 
     static bool JoltAssertFailedImpl(const char* inExpression, const char* inMessage, const char* inFile, uint32_t inLine) 
     {
-        std::cout << "JOLT ASSERT CRASH: " << inFile << ":" << inLine 
-                << " (" << inExpression << ") " << (inMessage ? inMessage : "") << std::endl;
+        AE_CORE_ERROR("JOLT ASSERT: {0}:{1} ({2}) {3}", inFile, inLine, inExpression, inMessage ? inMessage : "");
         return true; 
     }
     #endif
@@ -266,7 +265,7 @@ namespace Aether {
         m_CallbackPool.Shutdown();
     }
 
-    void Jolt_PhysicsAPI::Update(Timestep ts)
+    void Jolt_PhysicsAPI::OnUpdate(Timestep ts)
     {
         if (!m_PhysicsSystem) return;
 

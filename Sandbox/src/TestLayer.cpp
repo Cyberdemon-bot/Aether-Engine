@@ -20,7 +20,7 @@ void TestLayer::Detach()
 {
 }
 
-void TestLayer::Update(Aether::Timestep ts)
+void TestLayer::OnUpdate(Aether::Timestep ts)
 {
 }
 

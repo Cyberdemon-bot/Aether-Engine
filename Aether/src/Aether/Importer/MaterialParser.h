@@ -8,14 +8,14 @@
 #include <glm/glm.hpp>
 
 namespace Aether {
-    struct ImageCreateInfo
+    struct LAImageCreateInfo
     {
         std::string DebugName;
-        TextureSpec Spec;
+        TextureCreateInfo Spec;
         std::vector<uint8_t> RawData;
     };
 
-    struct MaterialCreateInfo
+    struct LAMaterialCreateInfo
     {
         UUID AssetID;
         std::string DebugName;
@@ -30,8 +30,8 @@ namespace Aether {
 
     struct ParsedMaterialInfo
     {
-        std::vector<MaterialCreateInfo> matsInfo;
-        std::vector<ImageCreateInfo> imgsInfo;
+        std::vector<LAMaterialCreateInfo> matsInfo;
+        std::vector<LAImageCreateInfo> imgsInfo;
     };
 
     class MaterialParser

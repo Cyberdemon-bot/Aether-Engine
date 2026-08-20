@@ -38,6 +38,9 @@ namespace Aether {
         void Init();
         void Shutdown();
 
+        void OnUpdate(Timestep ts, EditorCamera* camera = nullptr);
+        void OnTick(Timestep ts);
+
         Entity CreateEntity();
         Entity CreateEntity(std::string_view name, Entity parent = Null_Entity);
         Entity CreateEntity(std::string_view name, UUID id, Entity parent = Null_Entity);
@@ -49,9 +52,7 @@ namespace Aether {
         glm::vec3 GetWorldPosition(Entity entity);
 
         Entity LoadHierarchy(const RegisteredScene* registered, Entity parent = Null_Entity);
-
         bool IsValid(Entity entity) const;
-        void Update(Timestep ts, EditorCamera* camera = nullptr);
 
         Entity FindEntity(UUID id) const;
         std::vector<Entity> FindEntity(std::string_view tag) const;
@@ -63,7 +64,7 @@ namespace Aether {
 
         static Entity FromNumber(uint64_t number)
         {
-            return static_cast<Entity>(static_cast<uint32_t>(number));
+            return entt::entity(static_cast<std::underlying_type_t<Entity>>(number));
         }
 
         Handle<PhysicsInstance> GetPhysicsInstance() 

@@ -25,7 +25,7 @@ namespace Aether {
 		REPEAT, CLAMP_TO_EDGE
 	};
 
-	struct TextureSpec
+	struct TextureCreateInfo
 	{
 		uint32_t Width = 1;
 		uint32_t Height = 1;
@@ -34,8 +34,8 @@ namespace Aether {
 		bool GenerateMips = false;
         WrapMode Mode = WrapMode::REPEAT;
 
-		TextureSpec() = default;
-		TextureSpec(ImageFormat format)
+		TextureCreateInfo() = default;
+		TextureCreateInfo(ImageFormat format)
         	: Format(format) {}
 	};
 
@@ -68,7 +68,7 @@ namespace Aether {
         }
 
 	private:
-		static Scope<Texture2D> CreateImpl(const TextureSpec& spec);
+		static Scope<Texture2D> CreateImpl(const TextureCreateInfo& spec);
 		static Scope<Texture2D> CreateImpl(void* data, size_t size);
 		static Scope<Texture2D> CreateImpl(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
 

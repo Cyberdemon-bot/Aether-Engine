@@ -23,11 +23,11 @@ namespace Aether {
     struct ParsedScene
     {
         std::string FilePath;
-        std::vector<ImageCreateInfo> Images;
-        std::vector<MaterialCreateInfo> Materials;
-        std::vector<MeshCreateInfo> Meshes;
-        std::vector<SkeletonCreateInfo> Skeletons;      
-        std::vector<ClipCreateInfo> Clips;
+        std::vector<LAImageCreateInfo> Images;
+        std::vector<LAMaterialCreateInfo> Materials;
+        std::vector<LAMeshCreateInfo> Meshes;
+        std::vector<LSkeletonCreateInfo> Skeletons;      
+        std::vector<LClipCreateInfo> Clips;
         Ref<SceneHierarchy> Hierarchy;
     };
 

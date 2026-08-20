@@ -50,7 +50,7 @@ namespace Aether {
     {
         PhysicsAPI* api = GetAPI(handle);
         if (api == nullptr) return;
-        api->Update(ts);
+        api->OnUpdate(ts);
     }
 
     Handle<RigidBody> PhysicsSystem::CreateBody(Handle<PhysicsInstance> world, const BodyConfig& config)

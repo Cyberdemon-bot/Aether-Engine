@@ -316,7 +316,7 @@ namespace Aether::UI
         // --- Scrubber ---
         if (anim.ActiveClipIdx >= 0 && anim.ActiveClipIdx < (int)anim.Clips.size())
         {
-            auto* clipAsset = ServiceManager::GetService<AssetManager>()->GetAsset<Clip>(anim.Clips[anim.ActiveClipIdx]);
+            auto* clipAsset = ServiceManager::GetService<AssetManager>()->GetAsset<AClip>(anim.Clips[anim.ActiveClipIdx]);
             if (clipAsset)
             {
                 float duration = clipAsset->m_Duration;

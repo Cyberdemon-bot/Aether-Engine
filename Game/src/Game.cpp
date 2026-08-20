@@ -219,13 +219,19 @@ void Game::Detach()
     m_Scene.Shutdown();
 }
 
-void Game::Update(Aether::Timestep ts)
+void Game::OnTick(Aether::Timestep ts)
 {
+    m_Scene.OnTick(ts);
+}
+
+void Game::OnUpdate(Aether::Timestep ts)
+{
+    Aether::Application::Get().SetTickRate(120);
     auto& window = Aether::Application::Get().GetWindow();
     auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
 
-    m_Camera.Update(ts);
+    m_Camera.OnUpdate(ts);
 
     float camDistance       = m_Camera.GetDistance();
     m_CurrentRenderDistance = m_BaseRenderDistance + static_cast<int>(camDistance / m_ZoomInfluence);
@@ -284,7 +290,7 @@ void Game::Update(Aether::Timestep ts)
                 if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
                 float blend = 1.0f - glm::exp(-15.0f * (float)ts);
                 pTransform.Rotation = glm::normalize(glm::slerp(pTransform.Rotation, targetRot, blend));
-                m_Camera.Update(ts);
+                m_Camera.OnUpdate(ts);
             }
 
             pTransform.Dirty = true;
@@ -562,7 +568,7 @@ void Game::Update(Aether::Timestep ts)
         AE_INFO("Player Resurrected!");
     }
 
-    m_Scene.Update(ts, &m_Camera);
+    m_Scene.OnUpdate(ts, &m_Camera);
 }
 
 void Game::UpdateMapChunks(const glm::vec3& playerPos)
@@ -649,6 +655,7 @@ Aether::Entity Game::SpawnZombie(const glm::vec3& position)
     cmp.Shape = Aether::ColliderShape::Capsule;
     cmp.Size = glm::vec3(0.35f, 2.0f, 0.0f);
     cmp.ColliderOffset = glm::vec3(0.0f, 1.0f, 0.0f);
+    cmp.Visible = true;
 
     m_ActiveZombies.push_back(newZombie);
     return newZombie;
@@ -1026,9 +1033,10 @@ void Game::OnEvent(Aether::Event& event)
 
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
-        Aether::RaycastResult hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
+        Aether::RaycastResult hit    = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
         if (hit.Hit)
         {
+            AE_INFO("Hit");
             Aether::Entity target = Aether::Scene::FromNumber(physys->GetUserData(m_Scene.GetPhysicsInstance(), hit.HitBody));
             if (target != Aether::Null_Entity && target != m_Player)
             {

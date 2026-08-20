@@ -38,7 +38,7 @@ namespace Aether {
     struct TransformComponent
     {
         glm::vec3 Translation = {0.0f, 0.0f, 0.0f};
-        glm::quat Rotation = glm::quat({0.0f, 0.0f, 0.0f});
+        glm::quat Rotation = {1.0f, 0.0f, 0.0f, 0.0f};
         glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
 
         glm::mat4 WorldTransform = glm::mat4(1.0f);  
@@ -192,7 +192,7 @@ namespace Aether {
         bool affectChild = true;
  
         mutable int JointIndex = -1;
-        mutable Handle<RSkeleton> CachedSkeletonHnd = Handle<RSkeleton>::MakeInvalid();
+        mutable Handle<Skeleton> CachedSkeletonHnd = Handle<Skeleton>::MakeInvalid();
         mutable glm::mat4 CachedBoneWorld = glm::mat4(1.0f);
  
         BoneAttachmentComponent() = default;

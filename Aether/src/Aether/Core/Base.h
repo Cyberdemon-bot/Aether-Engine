@@ -91,6 +91,16 @@ namespace Aether {
         }, std::forward<Tuple>(t));
     }
 
+	inline void SetBit(uint8_t& tag, bool val, uint8_t pos) 
+	{
+		tag = (tag & ~(1 << pos)) | (static_cast<uint8_t>(val) << pos);
+	}
+
+	inline bool HasBit(uint8_t tag, uint8_t pos) 
+	{
+		return (tag & (1 << pos)) != 0;
+	}
+
 	inline uint32_t LowestBit(uint32_t mask)
 	{
 	#if defined(_MSC_VER)

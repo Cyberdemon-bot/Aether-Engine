@@ -21,9 +21,9 @@ namespace Aether {
         DisableShadowReceiving = BIT(5)
     };
 
-    struct Material : public Asset
+    struct AMaterial : public Asset
     {
-        Material() = default;
+        AMaterial() = default;
 
         void AddImage(std::string_view name, Handle<Asset> handle);
         void AddFloat(std::string_view name, float value);
@@ -49,9 +49,9 @@ namespace Aether {
         uint32_t m_Flags = (uint32_t)MaterialFlag::None;
     };
 
-    struct Sheet : public Asset
+    struct ASheet : public Asset
     {
-        Sheet() = default;
+        ASheet() = default;
 
         void Resize(uint32_t size)
         {

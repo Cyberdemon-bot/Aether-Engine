@@ -155,7 +155,7 @@ namespace Aether {
             soloud.seek(player->voice, value);
     }
 
-    void SoLoudAPI::Update()
+    void SoLoudAPI::OnUpdate()
     {
         if (!m_Initialized) return;
         bool has3DChanged = false;

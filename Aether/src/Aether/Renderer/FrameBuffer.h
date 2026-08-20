@@ -10,7 +10,7 @@ namespace Aether {
 	{
 		uint32_t Width = 0, Height = 0;
 		uint32_t Samples = 1;
-		std::vector<TextureSpec> Attachments;
+		std::vector<TextureCreateInfo> Attachments;
 		bool SwapChainTarget = false;
 	};
 
@@ -49,7 +49,7 @@ namespace Aether {
 		friend class ResourceManager;
 
 	protected:
-		Scope<Texture2D> CreateTexture(TextureSpec spec) 
+		Scope<Texture2D> CreateTexture(TextureCreateInfo spec) 
         {
             return Texture2D::CreateImpl(spec); 
         }

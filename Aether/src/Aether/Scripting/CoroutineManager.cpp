@@ -129,7 +129,7 @@ namespace Aether {
         task->condition = WaitType::Manual;
     }
 
-    void CoroutineManager::Update(Timestep ts)
+    void CoroutineManager::OnUpdate(Timestep ts)
     {
         uint32_t guard = 0;
         for (auto& handle : m_StopQueue)

@@ -226,10 +226,10 @@ namespace Aether {
         return glm::vec3(ans[3]);
     }
 
-    void Scene::Update(Timestep ts, EditorCamera* camera)
+    void Scene::OnTick(Timestep ts)
     {
-        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
         auto* physys = ServiceManager::GetService<PhysicsSystem>();
+        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
 
         { // destroy queue flush
             for (auto& info : m_DestroyQueue)
@@ -246,7 +246,7 @@ namespace Aether {
             BreadthFirstSearch();
             physys->UpdateInstance(m_PhysicsInstance, ts);
             for (auto& level : m_HierarchyLevels) 
-                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                jobsys->ParallelFor(level.size(), m_Threshold, level.data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 
                 ));
         }
@@ -283,7 +283,7 @@ namespace Aether {
             }
         }
 
-        { // update scirpts
+        { // update scripts
             auto scriptView = View<ScriptComponent>();
             auto* script_engine = ServiceManager::GetService<ScriptEngine>();
             if (script_engine->IsExecOrderChanged())
@@ -303,46 +303,15 @@ namespace Aether {
                     script_engine->UpdateInstance(instance, ts);
             }
 
-            script_engine->Update(ts);
+            script_engine->OnUpdate(ts);
         }
 
-        // { //update audio
-        //     auto audioView = View<AudioSourceComponent>();
-        //     auto* audsys = ServiceManager::GetService<AudioSystem>();
-        //     for (auto entity : audioView)
-        //     {
-        //         auto& audio = GetComponent<AudioSourceComponent>(entity);
-        //         if (!audio.SourceHandle.IsValid() && !audio.Path.empty())
-        //         {
-        //             audio.SourceHandle = audsys->CreateSource(audio.Path, audio.Type);
-        //             if (audio.SourceHandle.IsValid())
-        //             {
-        //                 audsys->SetVolume(audio.SourceHandle, audio.Volume);
-        //                 audsys->SetPan(audio.SourceHandle, audio.Pan);
-        //                 audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-        //                 audsys->SetLooping(audio.SourceHandle, audio.Looping);
-        //                 if (audio.Type == AudioType::Audio3D)
-        //                 {
-        //                     audsys->SetDistance(audio.SourceHandle,
-        //                         audio.Config3D.minDistance, audio.Config3D.maxDistance);
-        //                     audsys->SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
-        //                 }
-        //                 if (audio.PlayOnStart)
-        //                 {
-        //                     audsys->Play(audio.SourceHandle);
-        //                     audio.IsPlaying = true;
-        //                 }
-        //             }
-        //         }
-        //         else if (audio.SourceHandle.IsValid())
-        //         {
-        //             audsys->SetVolume(audio.SourceHandle,        audio.Volume);
-        //             audsys->SetPan(audio.SourceHandle,           audio.Pan);
-        //             audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-        //             audsys->SetLooping(audio.SourceHandle,       audio.Looping);
-        //         }
-        //     }
-        // }
+    }   
+
+    void Scene::OnUpdate(Timestep ts, EditorCamera* camera)
+    {
+        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
+        auto* physys = ServiceManager::GetService<PhysicsSystem>();
 
         { // render
             auto camView = View<CameraComponent>();
@@ -399,7 +368,7 @@ namespace Aether {
                 jobsys->ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     auto& transform = this->GetComponent<TransformComponent>(entity);
                     auto& meshcmp = this->GetComponent<MeshComponent>(entity);
-                    Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); 
+                    AMesh* mesh = asset_manager->GetAsset<AMesh>(meshcmp.Mesh); 
                     if (!mesh)
                     {
                         meshcmp.Culled = true;
@@ -428,8 +397,8 @@ namespace Aether {
                     auto& comp = GetComponent<AnimatorComponent>(entity);
                     if (comp.Clips.empty() || comp.Culled || !comp.RunSampling) continue;
 
-                    auto* skeletonAsset = asset_manager->GetAsset<Skeleton>(comp.Skeleton);
-                    auto* clipAsset = asset_manager->GetAsset<Clip>(comp.Clips[comp.ActiveClipIdx]);
+                    auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(comp.Skeleton);
+                    auto* clipAsset = asset_manager->GetAsset<AClip>(comp.Clips[comp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
 
                     if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
@@ -501,7 +470,7 @@ namespace Aether {
                     if (!meshcmp.ShowBounds) continue;
 
                     auto& transform = GetComponent<TransformComponent>(entity);
-                    Mesh* mesh = asset_manager->GetAsset<Mesh>(meshcmp.Mesh); if (!mesh) continue;
+                    AMesh* mesh = asset_manager->GetAsset<AMesh>(meshcmp.Mesh); if (!mesh) continue;
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;

@@ -63,7 +63,7 @@ end
 function OnCollision(data)
     print("hello i got the signal!")
     print(data.EntityID:ToString())
-    print(CollisionType.Name[data.Type])
+    print(data.Type)
     print(data.ContactPoint.x, data.ContactPoint.y, data.ContactPoint.z)
 end
 

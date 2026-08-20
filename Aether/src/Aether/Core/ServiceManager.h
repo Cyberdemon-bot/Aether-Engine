@@ -10,6 +10,7 @@ namespace Aether {
         Renderer = 0,
         AudioSystem,
         AssetManager,
+        AssetRegister,
         AnimationSystem,
         ScriptEngine,
         JobSystem,
@@ -19,9 +20,11 @@ namespace Aether {
         Count
     };
 
+    class Application;
     class Renderer;
     class AudioSystem;
     class AssetManager;
+    class AssetRegister;
     class AnimationSystem;
     class ScriptEngine;
     class JobSystem;
@@ -33,6 +36,7 @@ namespace Aether {
     template<> struct GetServiceType<Renderer> { static constexpr ServiceType value = ServiceType::Renderer; };
     template<> struct GetServiceType<AudioSystem> { static constexpr ServiceType value = ServiceType::AudioSystem; };
     template<> struct GetServiceType<AssetManager> { static constexpr ServiceType value = ServiceType::AssetManager; };
+    template<> struct GetServiceType<AssetRegister> { static constexpr ServiceType value = ServiceType::AssetRegister; };
     template<> struct GetServiceType<AnimationSystem> { static constexpr ServiceType value = ServiceType::AnimationSystem; };
     template<> struct GetServiceType<ScriptEngine> { static constexpr ServiceType value = ServiceType::ScriptEngine; };
     template<> struct GetServiceType<JobSystem> { static constexpr ServiceType value = ServiceType::JobSystem; };
@@ -50,14 +54,6 @@ namespace Aether {
         static void Shutdown();
 
         template<typename T>
-        static void Provide(T* service)
-        {
-            constexpr ServiceType type = GetServiceType_v<T>;
-            uint8_t idx = static_cast<uint8_t>(type);
-            s_Services[idx] = static_cast<void*>(service);
-        }
-
-        template<typename T>
         static T* GetService()
         {
             constexpr ServiceType type = GetServiceType_v<T>;
@@ -67,6 +63,16 @@ namespace Aether {
 
     private:
         static std::array<void*, static_cast<size_t>(ServiceType::Count)> s_Services;
+
+        template<typename T>
+        static void Provide(T* service)
+        {
+            constexpr ServiceType type = GetServiceType_v<T>;
+            uint8_t idx = static_cast<uint8_t>(type);
+            s_Services[idx] = static_cast<void*>(service);
+        }
+
+        friend class Application;
     };
 
 }

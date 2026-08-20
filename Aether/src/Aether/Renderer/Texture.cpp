@@ -6,7 +6,7 @@
 
 namespace Aether {
 
-	Scope<Texture2D> Texture2D::CreateImpl(const TextureSpec& specification)
+	Scope<Texture2D> Texture2D::CreateImpl(const TextureCreateInfo& specification)
 	{
 		switch (ServiceManager::GetService<Renderer>()->GetAPI())
 		{

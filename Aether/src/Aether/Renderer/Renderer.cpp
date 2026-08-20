@@ -8,6 +8,7 @@
 #include "Aether/Renderer/BuiltinShader.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/StorageBuffer.h"
+#include "Aether/Assets/RegisterInfo.h"
 
 float quadVertices[] = {
 	-1.0f,  1.0f,  0.0f, 1.0f,
@@ -38,7 +39,67 @@ uint32_t skyboxIndices[] = {
 	3, 7, 6, 6, 2, 3
 };
 
+
+
 namespace Aether {
+
+	void ImplementMesh(const AMeshCreateInfo& spec, AMesh* mesh)
+    {
+        mesh->m_SubMeshes = std::move(spec.submeshes);
+        AE_CORE_ASSERT(spec.streams, "Mesh require at least 1 vbo in streams!");
+        AE_CORE_ASSERT(spec.indicies, "Index data cannot be null!");
+
+        mesh->m_VertexArray = ResourceManager::CreateResource<VertexArray>();
+        auto* vao = ResourceManager::GetResource<VertexArray>(mesh->m_VertexArray);
+
+        mesh->m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>((uint32_t*)spec.indicies, spec.indexLen);
+        vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(mesh->m_IndexBuffer));
+
+        uint32_t vertex_cnt = spec.streams[0].VertexCount;
+
+        for (int i = 0; i < spec.streamLen; i++)
+        {
+            const auto& vbuffer = spec.streams[i];
+            AE_CORE_ASSERT(vbuffer.VertexCount == vertex_cnt, "vbuffer's size mismatch in stream!");
+
+            uint32_t stride = vbuffer.Layout.GetStride();
+            uint32_t byteSize = vbuffer.VertexCount * stride;
+
+            Handle<Resource> vboHandle = ResourceManager::CreateResource<VertexBuffer>((float*)vbuffer.Data, byteSize);
+            auto* vbo = ResourceManager::GetResource<VertexBuffer>(vboHandle);
+            vbo->SetLayout(vbuffer.Layout);
+            vao->AddVertexBuffer(vbo);
+            mesh->m_VertexBuffers.push_back(vboHandle);
+        }
+
+        if (mesh->m_SubMeshes.empty())
+        {
+            SubMesh defaultSubMesh;
+            defaultSubMesh.BaseVertex  = 0;
+            defaultSubMesh.BaseIndex   = 0;
+            defaultSubMesh.VertexCount = vertex_cnt;
+            defaultSubMesh.IndexCount  = spec.indexLen;
+            mesh->m_SubMeshes.push_back(defaultSubMesh);
+        }
+
+        if (spec.CalculateBoundsFunc)
+        {
+            auto [tempMin, tempMax] = spec.CalculateBoundsFunc(spec);
+            mesh->m_BoundsMin = tempMin;
+            mesh->m_BoundsMax = tempMax;
+            mesh->m_BoundsCenter = (mesh->m_BoundsMin + mesh->m_BoundsMax) * 0.5f;
+            mesh->m_BoundsExtents = (mesh->m_BoundsMax - mesh->m_BoundsMin) * 0.5f;
+        }
+
+        if (spec.CalculateAnimatedBoundsFunc)
+        {
+            auto [tempAnimMin, tempAnimMax] = spec.CalculateAnimatedBoundsFunc(spec);
+            mesh->m_AnimatedBoundsMin = tempAnimMin;
+            mesh->m_AnimatedBoundsMax = tempAnimMax;
+            mesh->m_HasAnimatedBounds = true;
+        }
+        else mesh->m_HasAnimatedBounds = false;
+    }
 
 	void Renderer::Init()
 	{
@@ -97,8 +158,8 @@ namespace Aether {
 			s_RenderData->s_ShadowPipeline[i] = shadowPass;
 		}
 		VertexStream temp;
-		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new Mesh(MeshSpec{&temp, 1, quadIndices, 6});
-		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new Mesh(MeshSpec{&temp, 1, skyboxIndices, 36});
+		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new AMesh(); ImplementMesh(AMeshCreateInfo{1, 6, &temp, quadIndices}, s_RenderData->s_Quad);
+		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new AMesh(); ImplementMesh(AMeshCreateInfo{1, 36, &temp, skyboxIndices}, s_RenderData->s_SkyMesh);
 
 		s_RenderData->s_ShadowmapUniformNames.reserve(MAX_SHADOW_CASTER);
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
@@ -280,10 +341,10 @@ namespace Aether {
 
 		for (auto& command : CommandList)
 		{
-			auto* sheet = asset_manager->GetAsset<Sheet>(command.sheet);
-			command.meshPtr = asset_manager->GetAsset<Mesh>(command.mesh);
+			auto* sheet = asset_manager->GetAsset<ASheet>(command.sheet);
+			command.meshPtr = asset_manager->GetAsset<AMesh>(command.mesh);
 			command.matPtr  = (sheet && command.matIdx < sheet->GetSize())
-				? asset_manager->GetAsset<Material>(sheet->GetActiveHandle(command.matIdx))
+				? asset_manager->GetAsset<AMaterial>(sheet->GetActiveHandle(command.matIdx))
 				: nullptr;
 		}
 
@@ -400,8 +461,8 @@ namespace Aether {
 	{
 		if (!mesh.IsValid()) return;
 		auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
-		auto* me_asset = asset_manager->GetAsset<Mesh>(mesh);
-		auto* sh_asset = asset_manager->GetAsset<Sheet>(sheet);
+		auto* me_asset = asset_manager->GetAsset<AMesh>(mesh);
+		auto* sh_asset = asset_manager->GetAsset<ASheet>(sheet);
 		const auto& submeshes = me_asset->m_SubMeshes;
 
 		if (!me_asset->m_HasInstanceBuffer)
@@ -437,8 +498,8 @@ namespace Aether {
 	void Renderer::Flush(const RenderPass& pass)
 	{
 		auto* asset_manager = ServiceManager::GetService<AssetManager>();
-		Mesh* currentMesh = nullptr;
-		Material* currentMaterial = nullptr;
+		AMesh* currentMesh = nullptr;
+		AMaterial* currentMaterial = nullptr;
 		int startSlot = 3;
 
 		if (!pass.Shader || !pass.TargetFBO)
@@ -472,13 +533,13 @@ namespace Aether {
 
 		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
-		for (auto [name, texture] : pass.readList)
+		for (const auto& readItem : pass.readList)
 		{
-			texture->Bind(startSlot);
-			shader->SetInt(name, startSlot);
+			readItem.second->Bind(startSlot);
+			shader->SetInt(readItem.first, startSlot);
 			startSlot++;
 		}
-		for (auto& [name, value] : pass.attribList) shader->SetInt(name, value);
+		for (const auto& attrib : pass.attribList) shader->SetInt(attrib.first, attrib.second);
 
 		if (pass.UsingShadowmap)
 		{
@@ -501,8 +562,8 @@ namespace Aether {
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
 				auto& command = CommandList[i];
-				Mesh* mesh = command.meshPtr;
-				Material* material = command.matPtr;
+				AMesh* mesh = command.meshPtr;
+				AMaterial* material = command.matPtr;
 				if (!material || !mesh) continue;
 
 				const auto& submesh = mesh->m_SubMeshes[command.subIdx];
@@ -518,7 +579,7 @@ namespace Aether {
 					for (const auto& [name, mat4] : material->m_Mat4Uniforms) shader->SetMat4(name, mat4);
 					for (const auto& [name, img] : material->m_Images)
 					{
-						auto* asset = asset_manager->GetAsset<Image>(img); if (!asset) continue;
+						auto* asset = asset_manager->GetAsset<AImage>(img); if (!asset) continue;
 						ResourceManager::GetResource<Texture2D>(asset->m_Handle)->Bind(startSlot);
 						shader->SetInt(name, startSlot);
 						startSlot++;

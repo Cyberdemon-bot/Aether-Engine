@@ -84,7 +84,7 @@ namespace Aether {
 
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
-        virtual void Update(Timestep ts) = 0;
+        virtual void OnUpdate(Timestep ts) = 0;
 
         virtual Handle<RigidBody> CreateBody(const BodyConfig& config) = 0;
         virtual void DestroyBody(Handle<RigidBody> handle) = 0;

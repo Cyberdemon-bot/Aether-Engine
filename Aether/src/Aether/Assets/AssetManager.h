@@ -15,23 +15,27 @@
 
 namespace Aether {
 
+    class AssetRegister;
+
     template<typename T> struct GetAssetType;
-    template<> struct GetAssetType<Mesh> { static constexpr AssetType value = AssetType::Mesh; };
-    template<> struct GetAssetType<Material> { static constexpr AssetType value = AssetType::Material; };
-    template<> struct GetAssetType<Sheet> { static constexpr AssetType value = AssetType::Sheet; };
-    template<> struct GetAssetType<Skeleton> { static constexpr AssetType value = AssetType::Skeleton; };
-    template<> struct GetAssetType<Clip> { static constexpr AssetType value = AssetType::Clip; };
-    template<> struct GetAssetType<Script> { static constexpr AssetType value = AssetType::Script; };
-    template<> struct GetAssetType<Image> { static constexpr AssetType value = AssetType::Image; };
-    template<> struct GetAssetType<Audio> { static constexpr AssetType value = AssetType::Audio; };
+    template<> struct GetAssetType<AMesh> { static constexpr AssetType value = AssetType::Mesh; };
+    template<> struct GetAssetType<AMaterial> { static constexpr AssetType value = AssetType::Material; };
+    template<> struct GetAssetType<ASheet> { static constexpr AssetType value = AssetType::Sheet; };
+    template<> struct GetAssetType<ASkeleton> { static constexpr AssetType value = AssetType::Skeleton; };
+    template<> struct GetAssetType<AClip> { static constexpr AssetType value = AssetType::Clip; };
+    template<> struct GetAssetType<AScript> { static constexpr AssetType value = AssetType::Script; };
+    template<> struct GetAssetType<AImage> { static constexpr AssetType value = AssetType::Image; };
+    template<> struct GetAssetType<AAudio> { static constexpr AssetType value = AssetType::Audio; };
 
     struct Route
     {
-        Route(uint64_t h, AssetType t)
+        Route(UUID i, uint64_t h, AssetType t)
         {
+            id = i;
             handle = h;
             type = t;
         }
+        UUID id = UUID(0);
         uint64_t handle = 0;
         AssetType type = AssetType::None;
     };
@@ -43,30 +47,9 @@ namespace Aether {
         void Shutdown();
         void Unload(UUID id);
         void Unload(Handle<Asset> handle);
+
         Handle<Asset> GetHandle(UUID id);
-
-        template<typename T, typename... Args>
-        Handle<Asset> CreateAsset(UUID id, Args&&... args)
-        {
-            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
-            auto it = m_Handles.find(id); 
-            if (it != m_Handles.end())
-            {
-                AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
-                return {};
-            } 
-
-            using TargetPoolType = ResourcePool<Handle<T>, T>;
-            auto& pool = std::get<TargetPoolType>(m_AssetContainers);
-            Handle<T> handle = pool.CreateResource(std::forward<Args>(args)...);    
-            Handle<Asset> route = m_Router.CreateResource(handle.Blend(), GetAssetType<T>::value);
-            m_Handles[id] = route;
-
-            auto* asset = pool.GetResource(handle);
-            asset->id = id;
-            asset->loaded = true;
-            return route;
-        }
+        UUID GetID(Handle<Asset> handle);
 
         template<typename T>
         T* GetAsset(Handle<Asset> handle)
@@ -98,14 +81,40 @@ namespace Aether {
         ResourcePool<Handle<Asset>, Route> m_Router;
 
         std::tuple<
-            ResourcePool<Handle<Mesh>, Mesh>,
-            ResourcePool<Handle<Material>, Material>,
-            ResourcePool<Handle<Skeleton>, Skeleton>,
-            ResourcePool<Handle<Clip>, Clip>,
-            ResourcePool<Handle<Sheet>, Sheet>,
-            ResourcePool<Handle<Script>, Script>,
-            ResourcePool<Handle<Image>, Image>,
-            ResourcePool<Handle<Audio>, Audio>
+            ResourcePool<Handle<AMesh>, AMesh>,
+            ResourcePool<Handle<AMaterial>, AMaterial>,
+            ResourcePool<Handle<ASkeleton>, ASkeleton>,
+            ResourcePool<Handle<AClip>, AClip>,
+            ResourcePool<Handle<ASheet>, ASheet>,
+            ResourcePool<Handle<AScript>, AScript>,
+            ResourcePool<Handle<AImage>, AImage>,
+            ResourcePool<Handle<AAudio>, AAudio>
         > m_AssetContainers;
+
+        template<typename T, typename... Args>
+        Handle<Asset> CreateAsset(UUID id, Args&&... args)
+        {
+            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
+            auto it = m_Handles.find(id); 
+            if (it != m_Handles.end())
+            {
+                AE_CORE_ERROR("ID {0} is already exits in Asset Manager", uint64_t(id));
+                return {};
+            } 
+
+            using TargetPoolType = ResourcePool<Handle<T>, T>;
+            auto& pool = std::get<TargetPoolType>(m_AssetContainers);
+            Handle<T> handle = pool.CreateResource(std::forward<Args>(args)...);    
+            Handle<Asset> route = m_Router.CreateResource(id, handle.Blend(), GetAssetType<T>::value);
+            m_Handles[id] = route;
+
+            auto* asset = pool.GetResource(handle);
+            asset->id = id;
+            asset->loaded = true;
+            return route;
+        }
+
+        friend class AssetRegister;
+        friend class LegacyAssembler;
     };
 }

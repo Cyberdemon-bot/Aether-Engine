@@ -62,10 +62,10 @@ namespace Aether {
         m_DestroyQueue.clear();
     }
 
-    void ScriptEngine::Update(Timestep ts)
+    void ScriptEngine::OnUpdate(Timestep ts)
     {
         FlushEvent();
-        m_CoroutineManager.Update(ts);
+        m_CoroutineManager.OnUpdate(ts);
         m_PromiseManager.Flush();
     }
 

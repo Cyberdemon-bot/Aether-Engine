@@ -28,7 +28,7 @@ namespace Aether {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
-        virtual void Update() override;
+        virtual void OnUpdate() override;
         
         virtual Handle<AudioSource> CreateSource(const std::string& path) override;
         virtual void DestroySource(Handle<AudioSource> handle) override;

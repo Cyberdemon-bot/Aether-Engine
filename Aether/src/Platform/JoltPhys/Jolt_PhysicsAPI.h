@@ -30,7 +30,7 @@ namespace Aether {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
-        virtual void Update(Timestep ts) override;
+        virtual void OnUpdate(Timestep ts) override;
 
         virtual Handle<RigidBody> CreateBody(const BodyConfig& config) override;
         virtual void DestroyBody(Handle<RigidBody> handle) override;

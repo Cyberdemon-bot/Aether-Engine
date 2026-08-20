@@ -11,25 +11,25 @@
 
 namespace Aether {
 
-    struct SkeletonCreateInfo
+    struct LSkeletonCreateInfo
     {
         UUID AssetID;
         std::string DebugName;
-        SkeletonSpec spec;
+        SkeletonCreateInfo spec;
     };
 
-    struct ClipCreateInfo
+    struct LClipCreateInfo
     {
         UUID AssetID;
         std::string DebugName;
         uint32_t rigIdx;
-        ClipSpec spec;
+        ClipCreateInfo spec;
     };
 
     struct RigAnimsCreateInfo
     {
-        std::vector<SkeletonCreateInfo> rigs;
-        std::vector<ClipCreateInfo> clips;
+        std::vector<LSkeletonCreateInfo> rigs;
+        std::vector<LClipCreateInfo> clips;
     };
 
     class AnimationParser

@@ -69,6 +69,7 @@ LabLayer::LabLayer()
 
 void LabLayer::Attach()
 {
+    Aether::Application::Get().SetTickRate(120);
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
@@ -245,7 +246,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
 {
     if (!m_Scene.IsValid(transformEntity)) return;
 
-    auto* mesh = m_AssetManager->GetAsset<Aether::Mesh>(colliderMeshID);
+    auto* mesh = m_AssetManager->GetAsset<Aether::AMesh>(colliderMeshID);
     if (!mesh) return;
 
     // Walk up hierarchy to compute world transform
@@ -342,7 +343,7 @@ void LabLayer::RebuildPostEvaluate()
         if (!scene.HasComponent<Aether::AnimatorComponent>(entity)) return;
 
         auto& comp      = scene.GetComponent<Aether::AnimatorComponent>(entity);
-        auto* skelAsset = m_AssetManager->GetAsset<Aether::Skeleton>(comp.Skeleton);
+        auto* skelAsset = m_AssetManager->GetAsset<Aether::ASkeleton>(comp.Skeleton);
         if (!skelAsset || !comp.CurrentPose.IsValid()) return;
 
         auto skelHnd = skelAsset->m_Handle;
@@ -383,9 +384,9 @@ void LabLayer::RebuildPostEvaluate()
         // ---- Clip Blend -------------------------------------------------
         if (blState.enabled)
         {
-            auto* clipAAsset = m_AssetManager->GetAsset<Aether::Clip>(
+            auto* clipAAsset = m_AssetManager->GetAsset<Aether::AClip>(
                 comp.Clips[blState.clipAIdx]);
-            auto* clipBAsset = m_AssetManager->GetAsset<Aether::Clip>(
+            auto* clipBAsset = m_AssetManager->GetAsset<Aether::AClip>(
                 comp.Clips[blState.clipBIdx]);
 
             if (clipAAsset && clipBAsset)
@@ -418,12 +419,17 @@ void LabLayer::RebuildPostEvaluate()
 //  Update
 // =============================================================================
 
-void LabLayer::Update(Aether::Timestep ts)
+void LabLayer::OnTick(Aether::Timestep ts)
+{
+    m_Scene.OnTick(ts);
+}
+
+void LabLayer::OnUpdate(Aether::Timestep ts)
 {
     DrainParseQueue();
 
     if (!ImGui::GetIO().WantCaptureKeyboard)
-        m_Camera.Update(ts);
+        m_Camera.OnUpdate(ts);
 
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
@@ -438,10 +444,7 @@ void LabLayer::Update(Aether::Timestep ts)
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
 
-    // IK/blend now runs inside the AnimatorComponent::onPostEvaluate callback,
-    // which the scene invokes between its two ProcessTasks() calls.
-    // Nothing extra needed here.
-    m_Scene.Update(ts, &m_Camera);
+    m_Scene.OnUpdate(ts, &m_Camera);
 }
 
 void LabLayer::OnEvent(Aether::Event& event)
@@ -620,8 +623,9 @@ void LabLayer::DrawScenePanel()
 
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
+            auto it = Aether::ServiceManager::GetService<AssetRegister>();
             for (auto& id : m_MeshIDs)
-                meshNames.push_back(AssetsRegister::Get(id));
+                meshNames.push_back(it->GetInfo(id)); 
             UI::ComboList("Mesh##phys", meshNames, m_PhysMeshIdx);
             UI::Checkbox("Is Dynamic", m_PhysDynamic);
 
@@ -673,7 +677,7 @@ void LabLayer::RefreshJointCache(
     if (!scene.HasComponent<Aether::AnimatorComponent>(entity)) return;
 
     auto& anim = scene.GetComponent<Aether::AnimatorComponent>(entity);
-    auto* skelAsset = Aether::ServiceManager::GetService<Aether::AssetManager>()->GetAsset<Aether::Skeleton>(anim.Skeleton);
+    auto* skelAsset = Aether::ServiceManager::GetService<Aether::AssetManager>()->GetAsset<Aether::ASkeleton>(anim.Skeleton);
     if (!skelAsset) return;
 
     auto skelHnd = skelAsset->m_Handle;
@@ -718,7 +722,7 @@ void LabLayer::DrawAnimationPanel()
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
             for (int i = 0; i < (int)m_MeshIDs.size(); i++)
-                meshNames.push_back(std::to_string(i) + ": " + AssetsRegister::Get(m_MeshIDs[i]));
+                meshNames.push_back(std::to_string(i) + ": " + Aether::ServiceManager::GetService<AssetRegister>()->GetInfo(m_MeshIDs[i]));
             UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
 
             auto animView = m_Scene.View<AnimatorComponent>();
@@ -742,7 +746,7 @@ void LabLayer::DrawAnimationPanel()
                     for (auto entity : m_Scene.View<MeshComponent>())
                     {
                         auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
-                        auto* mesh = m_AssetManager->GetAsset<Mesh>(mc.Mesh);
+                        auto* mesh = m_AssetManager->GetAsset<AMesh>(mc.Mesh);
                         if (mesh && mesh->id == meshID)
                         {
                             m_Scene.CloneComponent<AnimatorComponent>(entity, targetAnimEnt);
@@ -756,12 +760,12 @@ void LabLayer::DrawAnimationPanel()
             for (auto entity : m_Scene.View<MeshComponent, AnimatorComponent>())
             {
                 auto& mc   = m_Scene.GetComponent<MeshComponent>(entity);
-                auto* mesh = m_AssetManager->GetAsset<Mesh>(mc.Mesh);
+                auto* mesh = m_AssetManager->GetAsset<AMesh>(mc.Mesh);
                 auto& anim = m_Scene.GetComponent<AnimatorComponent>(entity);
 
-                std::string meshName = mesh ? AssetsRegister::Get(mesh->id) : "(invalid)";
+                std::string meshName = mesh ? Aether::ServiceManager::GetService<AssetRegister>()->GetInfo(mesh->id) : "(invalid)";
                 std::string skelName = anim.Skeleton.IsValid()
-                    ? AssetsRegister::Get(m_AssetManager->GetAsset<Skeleton>(anim.Skeleton)->id)
+                    ? Aether::ServiceManager::GetService<AssetRegister>()->GetInfo(m_AssetManager->GetAsset<ASkeleton>(anim.Skeleton)->id)
                     : "(no skeleton)";
 
                 auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : (int)(uint64_t)entity);

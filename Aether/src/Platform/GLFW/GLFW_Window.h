@@ -13,7 +13,7 @@ namespace Aether {
 		GLFW_Window(const WinProps& props);
 		virtual ~GLFW_Window();
 
-		virtual void Update() override;
+		virtual void OnUpdate() override;
 
 		virtual unsigned int GetWidth() const override { return m_Data.Width; }
 		virtual unsigned int GetHeight() const override { return m_Data.Height; }

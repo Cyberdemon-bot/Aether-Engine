@@ -9,27 +9,27 @@ namespace Aether {
     struct Bytecode;
     struct AudioSource; 
 
-    struct Image : public Asset
+    struct AImage : public Asset
     {
-        Image(Handle<Resource> handle)
+        AImage(Handle<Resource> handle)
         {
             m_Handle = handle;
         }
         Handle<Resource> m_Handle;
     };
 
-    struct Audio : public Asset
+    struct AAudio : public Asset
     {
-        Audio(Handle<AudioSource> handle)
+        AAudio(Handle<AudioSource> handle)
         {
             m_Handle = handle;
         }
         Handle<AudioSource> m_Handle;
     };
 
-    struct Script : public Asset
+    struct AScript : public Asset
     {
-        Script(Handle<Bytecode> handle)
+        AScript(Handle<Bytecode> handle)
         {
             m_Handle = handle;
         }
