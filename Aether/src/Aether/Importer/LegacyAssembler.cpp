@@ -4,7 +4,7 @@
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Assets/Media.h"
-#include "Aether/Assets/AssetsRegister.h"
+#include "Aether/Assets/AssetRegister.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
@@ -96,13 +96,13 @@ namespace Aether {
         // Upload textures
         for (const auto& img : sceneData->Images) 
         {
-            UUID id = ServiceManager::GetService<AssetsRegister>()->Register<AImage>(AImageCreateInfo{img.Spec, img.RawData}, img.DebugName, UUID());
+            UUID id = ServiceManager::GetService<AssetRegister>()->Register<AImage>(AImageCreateInfo{img.Spec, img.RawData}, img.DebugName, UUID());
             imgs.push_back(id);
         }
 
         for (const auto& matInfo : sceneData->Materials)
         {
-            UUID matID = ServiceManager::GetService<AssetsRegister>()->Register<AMaterial>(
+            UUID matID = ServiceManager::GetService<AssetRegister>()->Register<AMaterial>(
                                                                         AMaterialCreateInfo
                                                                         {
                                                                             matInfo.AlbedoColor, 
@@ -120,7 +120,7 @@ namespace Aether {
 
         for (auto& info : sceneData->Skeletons)
         {
-            UUID skelID = ServiceManager::GetService<AssetsRegister>()->Register<ASkeleton>(info.spec, info.DebugName, info.AssetID);
+            UUID skelID = ServiceManager::GetService<AssetRegister>()->Register<ASkeleton>(info.spec, info.DebugName, info.AssetID);
             res.animators.push_back({});
             res.animators.back().skeleton = asset_manager->GetHandle(skelID);
             skels.push_back(skelID);
@@ -132,7 +132,7 @@ namespace Aether {
             uint32_t targetRigIdx = info.rigIdx; 
             if (targetRigIdx >= 0 && targetRigIdx < res.animators.size())
             {
-                auto clipID = ServiceManager::GetService<AssetsRegister>()->Register<AClip>(
+                auto clipID = ServiceManager::GetService<AssetRegister>()->Register<AClip>(
                                                                             AClipCreateInfo
                                                                             {
                                                                                 std::move(info.spec),
@@ -189,7 +189,7 @@ namespace Aether {
                 submeshes.push_back(sm);
             }
 
-            UUID sheetID = ServiceManager::GetService<AssetsRegister>()->Register<ASheet>(
+            UUID sheetID = ServiceManager::GetService<AssetRegister>()->Register<ASheet>(
                                                                         ASheetCreateInfo 
                                                                         {
                                                                             sheetMatIDs.data(),
@@ -223,7 +223,7 @@ namespace Aether {
                 }
             }
 
-            ServiceManager::GetService<AssetsRegister>()->Register<AMesh>(spec, meshInfo.DebugName, meshInfo.AssetID);
+            ServiceManager::GetService<AssetRegister>()->Register<AMesh>(spec, meshInfo.DebugName, meshInfo.AssetID);
             res.meshIDs.push_back(meshInfo.AssetID);
         }
 

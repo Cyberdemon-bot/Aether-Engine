@@ -9,7 +9,7 @@ namespace Aether {
     public:
         void Init();
         void Shutdown();
-        void Update();
+        void OnUpdate();
         
         Handle<AudioSource> CreateSource(const std::string& path);
         void DestroySource(Handle<AudioSource> handle);

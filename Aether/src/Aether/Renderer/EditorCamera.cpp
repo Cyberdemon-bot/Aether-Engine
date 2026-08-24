@@ -54,7 +54,7 @@ namespace Aether {
         return speed;
     }
 
-    void EditorCamera::Update(Timestep ts)
+    void EditorCamera::OnUpdate(Timestep ts)
     {
         const glm::vec2& mouse = { Input::GetMouseX(), Input::GetMouseY() };
 

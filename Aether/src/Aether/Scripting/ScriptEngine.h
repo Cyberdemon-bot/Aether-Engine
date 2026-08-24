@@ -106,7 +106,7 @@ namespace Aether {
         void DestroyInstance(Handle<ScriptInstance> handle);
         void StartInstance(Handle<ScriptInstance> handle);
 
-        void Update(Timestep ts);
+        void OnUpdate(Timestep ts);
 
         template<typename... Args>
         void FireEvent(const std::string& event_name, Args&&... args)

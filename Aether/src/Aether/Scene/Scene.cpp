@@ -226,10 +226,10 @@ namespace Aether {
         return glm::vec3(ans[3]);
     }
 
-    void Scene::Update(Timestep ts, EditorCamera* camera)
+    void Scene::OnTick(Timestep ts)
     {
-        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
         auto* physys = ServiceManager::GetService<PhysicsSystem>();
+        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
 
         { // destroy queue flush
             for (auto& info : m_DestroyQueue)
@@ -283,7 +283,7 @@ namespace Aether {
             }
         }
 
-        { // update scirpts
+        { // update scripts
             auto scriptView = View<ScriptComponent>();
             auto* script_engine = ServiceManager::GetService<ScriptEngine>();
             if (script_engine->IsExecOrderChanged())
@@ -303,46 +303,15 @@ namespace Aether {
                     script_engine->UpdateInstance(instance, ts);
             }
 
-            script_engine->Update(ts);
+            script_engine->OnUpdate(ts);
         }
 
-        // { //update audio
-        //     auto audioView = View<AudioSourceComponent>();
-        //     auto* audsys = ServiceManager::GetService<AudioSystem>();
-        //     for (auto entity : audioView)
-        //     {
-        //         auto& audio = GetComponent<AudioSourceComponent>(entity);
-        //         if (!audio.SourceHandle.IsValid() && !audio.Path.empty())
-        //         {
-        //             audio.SourceHandle = audsys->CreateSource(audio.Path, audio.Type);
-        //             if (audio.SourceHandle.IsValid())
-        //             {
-        //                 audsys->SetVolume(audio.SourceHandle, audio.Volume);
-        //                 audsys->SetPan(audio.SourceHandle, audio.Pan);
-        //                 audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-        //                 audsys->SetLooping(audio.SourceHandle, audio.Looping);
-        //                 if (audio.Type == AudioType::Audio3D)
-        //                 {
-        //                     audsys->SetDistance(audio.SourceHandle,
-        //                         audio.Config3D.minDistance, audio.Config3D.maxDistance);
-        //                     audsys->SetAttenuation(audio.SourceHandle, audio.Config3D.attenuation);
-        //                 }
-        //                 if (audio.PlayOnStart)
-        //                 {
-        //                     audsys->Play(audio.SourceHandle);
-        //                     audio.IsPlaying = true;
-        //                 }
-        //             }
-        //         }
-        //         else if (audio.SourceHandle.IsValid())
-        //         {
-        //             audsys->SetVolume(audio.SourceHandle,        audio.Volume);
-        //             audsys->SetPan(audio.SourceHandle,           audio.Pan);
-        //             audsys->SetPlaybackSpeed(audio.SourceHandle, audio.PlaybackSpeed);
-        //             audsys->SetLooping(audio.SourceHandle,       audio.Looping);
-        //         }
-        //     }
-        // }
+    }   
+
+    void Scene::OnUpdate(Timestep ts, EditorCamera* camera)
+    {
+        auto* jobsys = ServiceManager::GetService<JobSystem>(); jobsys->FlushCompletions();
+        auto* physys = ServiceManager::GetService<PhysicsSystem>();
 
         { // render
             auto camView = View<CameraComponent>();

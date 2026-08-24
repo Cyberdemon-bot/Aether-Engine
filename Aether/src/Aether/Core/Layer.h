@@ -14,7 +14,8 @@ namespace Aether {
 
 		virtual void Attach() {}
 		virtual void Detach() {}
-		virtual void Update(Timestep ts) {}
+		virtual void OnUpdate(Timestep ts) {}
+		virtual void OnTick(Timestep ts) {}
 		virtual void OnImGuiRender() {}
 		virtual void OnEvent(Event& event) {}
 

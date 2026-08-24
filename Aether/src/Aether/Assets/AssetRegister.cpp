@@ -1,5 +1,5 @@
 #include "aepch.h" 
-#include "AssetsRegister.h"
+#include "AssetRegister.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Renderer/VertexArray.h"
@@ -9,27 +9,28 @@
 
 namespace Aether {
 
-    void AssetsRegister::Init() 
+    void AssetRegister::Init() 
     {
-        m_Map.reserve(32);
+        m_DebugInfo.reserve(32);
     };
 
-    void AssetsRegister::Shutdown()
+    void AssetRegister::Shutdown()
     {
-        m_Map.clear();
+        m_DebugInfo.clear();
     }
 
-    std::string AssetsRegister::Get(UUID key)
+    std::string AssetRegister::GetInfo(UUID key)
     {
-        if (m_Map.find(key) == m_Map.end()) 
+        auto it = m_DebugInfo.find(key);
+        if (it == m_DebugInfo.end()) 
         {
-            AE_CORE_ERROR("Key '{0}' has not registered yet!", uint64_t(key));
+            AE_CORE_ERROR("ID '{0}' has no debug info!", uint64_t(key));
             return ""; 
         }
-        return m_Map[key];
+        return it->second;
     }
 
-    void AssetsRegister::MeshAssembler(UUID id, AssetManager* manager, const AMeshCreateInfo& info)
+    void AssetRegister::MeshAssembler(UUID id, AssetManager* manager, const AMeshCreateInfo& info)
     {
         auto handle = manager->CreateAsset<AMesh>(id);
         auto* mesh = manager->GetAsset<AMesh>(handle);
@@ -89,7 +90,7 @@ namespace Aether {
         else mesh->m_HasAnimatedBounds = false;
     }
 
-    void AssetsRegister::ImageAssembler(UUID id, AssetManager* manager, const AImageCreateInfo& info)
+    void AssetRegister::ImageAssembler(UUID id, AssetManager* manager, const AImageCreateInfo& info)
     {
         auto texture = ResourceManager::CreateResource<Texture2D>(info.layout);
         auto* resource = ResourceManager::GetResource<Texture2D>(texture);
@@ -98,7 +99,7 @@ namespace Aether {
         manager->CreateAsset<AImage>(id, texture);
     }
 
-    void AssetsRegister::MaterialAssembler(UUID id, AssetManager* manager, const AMaterialCreateInfo& info)
+    void AssetRegister::MaterialAssembler(UUID id, AssetManager* manager, const AMaterialCreateInfo& info)
     {
         auto handle = manager->CreateAsset<AMaterial>(id);
         auto* material = manager->GetAsset<AMaterial>(handle);
@@ -124,7 +125,7 @@ namespace Aether {
             material->AddImage("u_MetallicRoughnessMap", manager->GetHandle(info.imageList[info.metallicRoughnessMapIdx]));
     }
 
-    void AssetsRegister::SkeletonAssembler(UUID id, AssetManager* manager, const ASkeletonCreateInfo& info)
+    void AssetRegister::SkeletonAssembler(UUID id, AssetManager* manager, const ASkeletonCreateInfo& info)
     {
         auto* rsys = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
         auto rskel = rsys->CreateSkeleton(info);
@@ -135,7 +136,7 @@ namespace Aether {
         skeleton->m_JointCount = info.Joints.size();
     }
 
-    void AssetsRegister::ClipAssembler(UUID id, AssetManager* manager, const AClipCreateInfo& info)
+    void AssetRegister::ClipAssembler(UUID id, AssetManager* manager, const AClipCreateInfo& info)
     {
         auto* rsys = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
         auto Clip = rsys->CreateClip(info.layout, manager->GetAsset<ASkeleton>(info.skeleton)->m_Handle);
@@ -146,7 +147,7 @@ namespace Aether {
         clip->m_Duration = info.layout.Duration;
     }
 
-    void AssetsRegister::SheetAssembler(UUID id, AssetManager* manager, const ASheetCreateInfo& info)
+    void AssetRegister::SheetAssembler(UUID id, AssetManager* manager, const ASheetCreateInfo& info)
     {
         auto handle = manager->CreateAsset<ASheet>(id);
 

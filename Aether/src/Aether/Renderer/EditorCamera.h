@@ -15,7 +15,7 @@ namespace Aether {
         EditorCamera() = default;
         EditorCamera(float fov, float aspectRatio, float neaClip, float faClip);
 
-        void Update(Timestep ts);
+        void OnUpdate(Timestep ts);
         void OnEvent(Event& e);
 
         inline void SetDistance(float distance) { m_Distance = distance; }

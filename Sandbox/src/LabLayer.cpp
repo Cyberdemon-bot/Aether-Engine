@@ -69,6 +69,7 @@ LabLayer::LabLayer()
 
 void LabLayer::Attach()
 {
+    Aether::Application::Get().SetTickRate(120);
     ImGuiContext* ctx = Aether::ImGuiLayer::GetContext();
     if (ctx) ImGui::SetCurrentContext(ctx);
 
@@ -418,12 +419,17 @@ void LabLayer::RebuildPostEvaluate()
 //  Update
 // =============================================================================
 
-void LabLayer::Update(Aether::Timestep ts)
+void LabLayer::OnTick(Aether::Timestep ts)
+{
+    m_Scene.OnTick(ts);
+}
+
+void LabLayer::OnUpdate(Aether::Timestep ts)
 {
     DrainParseQueue();
 
     if (!ImGui::GetIO().WantCaptureKeyboard)
-        m_Camera.Update(ts);
+        m_Camera.OnUpdate(ts);
 
     auto& window = Aether::Application::Get().GetWindow();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
@@ -438,10 +444,7 @@ void LabLayer::Update(Aether::Timestep ts)
     m_MainShader->Bind();
     m_MainShader->SetFloat("u_Bias", m_ShadowBias);
 
-    // IK/blend now runs inside the AnimatorComponent::onPostEvaluate callback,
-    // which the scene invokes between its two ProcessTasks() calls.
-    // Nothing extra needed here.
-    m_Scene.Update(ts, &m_Camera);
+    m_Scene.OnUpdate(ts, &m_Camera);
 }
 
 void LabLayer::OnEvent(Aether::Event& event)
@@ -620,8 +623,9 @@ void LabLayer::DrawScenePanel()
 
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
+            auto it = Aether::ServiceManager::GetService<AssetRegister>();
             for (auto& id : m_MeshIDs)
-                meshNames.push_back(Aether::ServiceManager::GetService<AssetsRegister>()->Get(id)); 
+                meshNames.push_back(it->GetInfo(id)); 
             UI::ComboList("Mesh##phys", meshNames, m_PhysMeshIdx);
             UI::Checkbox("Is Dynamic", m_PhysDynamic);
 
@@ -718,7 +722,7 @@ void LabLayer::DrawAnimationPanel()
             std::vector<std::string> meshNames;
             meshNames.reserve(m_MeshIDs.size());
             for (int i = 0; i < (int)m_MeshIDs.size(); i++)
-                meshNames.push_back(std::to_string(i) + ": " + Aether::ServiceManager::GetService<AssetsRegister>()->Get(m_MeshIDs[i]));
+                meshNames.push_back(std::to_string(i) + ": " + Aether::ServiceManager::GetService<AssetRegister>()->GetInfo(m_MeshIDs[i]));
             UI::ComboList("Mesh##bind", meshNames, m_BindMeshIndex);
 
             auto animView = m_Scene.View<AnimatorComponent>();
@@ -759,9 +763,9 @@ void LabLayer::DrawAnimationPanel()
                 auto* mesh = m_AssetManager->GetAsset<AMesh>(mc.Mesh);
                 auto& anim = m_Scene.GetComponent<AnimatorComponent>(entity);
 
-                std::string meshName = mesh ? Aether::ServiceManager::GetService<AssetsRegister>()->Get(mesh->id) : "(invalid)";
+                std::string meshName = mesh ? Aether::ServiceManager::GetService<AssetRegister>()->GetInfo(mesh->id) : "(invalid)";
                 std::string skelName = anim.Skeleton.IsValid()
-                    ? Aether::ServiceManager::GetService<AssetsRegister>()->Get(m_AssetManager->GetAsset<ASkeleton>(anim.Skeleton)->id)
+                    ? Aether::ServiceManager::GetService<AssetRegister>()->GetInfo(m_AssetManager->GetAsset<ASkeleton>(anim.Skeleton)->id)
                     : "(no skeleton)";
 
                 auto g = UI::ID(mesh ? (int)(uint64_t)mesh->id : (int)(uint64_t)entity);

@@ -64,7 +64,7 @@ namespace Aether {
         void ResumeTask(Handle<CoroutineTask> handle, sol::object result = sol::lua_nil);
         void ResumeTask(Handle<CoroutineTask> handle, std::vector<sol::object> results);
 
-        void Update(Timestep ts);
+        void OnUpdate(Timestep ts);
         void Clear();
 
         Handle<CoroutineTask> GetCurrentRunningTask(sol::thread target);

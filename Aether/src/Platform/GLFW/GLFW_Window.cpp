@@ -166,7 +166,7 @@ namespace Aether {
 		if (s_GLFWWindowCount == 0) glfwTerminate();
 	}
 
-	void GLFW_Window::Update()
+	void GLFW_Window::OnUpdate()
 	{
 		glfwPollEvents();
 		m_Context->SwapBuffers();

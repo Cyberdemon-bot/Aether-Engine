@@ -14,9 +14,9 @@ namespace Aether {
         s_AudioAPI->Shutdown(); 
     }
 
-	void AudioSystem::Update()
+	void AudioSystem::OnUpdate()
 	{
-		s_AudioAPI->Update();
+		s_AudioAPI->OnUpdate();
 	}
 
     Handle<AudioSource> AudioSystem::CreateSource(const std::string& path) 

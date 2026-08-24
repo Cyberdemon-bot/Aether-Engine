@@ -25,8 +25,11 @@ namespace Aether {
         void PushLayer(Layer* Layer);
         void PushOverlay(Layer* layer);
 
-        void ToggleConsole(bool state);
+        void SetTickRate(uint32_t tickRate);
 
+        void ToggleConsole(bool state) { m_ConsoleOn = state; }
+        uint32_t GetTargetTickRate() const { return m_TargetTickRate; }
+        Timestep GetFixedTimestep() const { return m_FixedTimestep; }
         static Application& Get() { return *s_Instance; }
         Window& GetWindow() { return *m_Window; }
     private:
@@ -41,7 +44,6 @@ namespace Aether {
         void ShutdownService()
         {
             T* instance = ServiceManager::GetService<T>();
-            ServiceManager::ShutdownService<T>();
             instance->Shutdown();
             delete instance;
         }
@@ -53,6 +55,9 @@ namespace Aether {
         Scope<Window> m_Window; 
         LayerStack m_LayerStack;
         float m_LastFrameTime = 0.0f;
+        uint32_t m_TargetTickRate = 60; 
+        Timestep m_FixedTimestep = 1.0f / 60.0f;
+        float m_Accumulator = 0.0f;
         ImGuiLayer* m_ImGuiLayer;
         ConsoleLayer* m_Console;
     };

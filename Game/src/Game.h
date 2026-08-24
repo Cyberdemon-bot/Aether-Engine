@@ -23,7 +23,8 @@ public:
 
     virtual void Attach()                      override;
     virtual void Detach()                      override;
-    virtual void Update(Aether::Timestep ts)   override;
+    virtual void OnUpdate(Aether::Timestep ts) override;
+    virtual void OnTick(Aether::Timestep ts)   override;
     virtual void OnImGuiRender()               override;
     virtual void OnEvent(Aether::Event& event) override;
 

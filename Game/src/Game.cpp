@@ -219,13 +219,19 @@ void Game::Detach()
     m_Scene.Shutdown();
 }
 
-void Game::Update(Aether::Timestep ts)
+void Game::OnTick(Aether::Timestep ts)
 {
+    m_Scene.OnTick(ts);
+}
+
+void Game::OnUpdate(Aether::Timestep ts)
+{
+    Aether::Application::Get().SetTickRate(120);
     auto& window = Aether::Application::Get().GetWindow();
     auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
     m_Camera.SetViewportSize((float)window.GetWidth(), (float)window.GetHeight());
 
-    m_Camera.Update(ts);
+    m_Camera.OnUpdate(ts);
 
     float camDistance       = m_Camera.GetDistance();
     m_CurrentRenderDistance = m_BaseRenderDistance + static_cast<int>(camDistance / m_ZoomInfluence);
@@ -284,7 +290,7 @@ void Game::Update(Aether::Timestep ts)
                 if (glm::dot(pTransform.Rotation, targetRot) < 0.0f) targetRot = -targetRot;
                 float blend = 1.0f - glm::exp(-15.0f * (float)ts);
                 pTransform.Rotation = glm::normalize(glm::slerp(pTransform.Rotation, targetRot, blend));
-                m_Camera.Update(ts);
+                m_Camera.OnUpdate(ts);
             }
 
             pTransform.Dirty = true;
@@ -562,7 +568,7 @@ void Game::Update(Aether::Timestep ts)
         AE_INFO("Player Resurrected!");
     }
 
-    m_Scene.Update(ts, &m_Camera);
+    m_Scene.OnUpdate(ts, &m_Camera);
 }
 
 void Game::UpdateMapChunks(const glm::vec3& playerPos)

@@ -1,37 +1,75 @@
 #pragma once
+
+#include <array>
 #include "Aether/Core/Base.h"
-#include "Aether/Core/Log.h"
 
 namespace Aether {
 
+    enum class ServiceType : uint8_t
+    {
+        Renderer = 0,
+        AudioSystem,
+        AssetManager,
+        AssetRegister,
+        AnimationSystem,
+        ScriptEngine,
+        JobSystem,
+        PhysicsSystem,
+        FileSystem,
+        Importer,
+        Count
+    };
+
+    class Application;
+    class Renderer;
+    class AudioSystem;
+    class AssetManager;
+    class AssetRegister;
+    class AnimationSystem;
+    class ScriptEngine;
+    class JobSystem;
+    class PhysicsSystem;
+    class FileSystem;
+    class Importer;
+
+    template<typename T> struct GetServiceType;
+    template<> struct GetServiceType<Renderer> { static constexpr ServiceType value = ServiceType::Renderer; };
+    template<> struct GetServiceType<AudioSystem> { static constexpr ServiceType value = ServiceType::AudioSystem; };
+    template<> struct GetServiceType<AssetManager> { static constexpr ServiceType value = ServiceType::AssetManager; };
+    template<> struct GetServiceType<AssetRegister> { static constexpr ServiceType value = ServiceType::AssetRegister; };
+    template<> struct GetServiceType<AnimationSystem> { static constexpr ServiceType value = ServiceType::AnimationSystem; };
+    template<> struct GetServiceType<ScriptEngine> { static constexpr ServiceType value = ServiceType::ScriptEngine; };
+    template<> struct GetServiceType<JobSystem> { static constexpr ServiceType value = ServiceType::JobSystem; };
+    template<> struct GetServiceType<PhysicsSystem> { static constexpr ServiceType value = ServiceType::PhysicsSystem; };
+    template<> struct GetServiceType<FileSystem> { static constexpr ServiceType value = ServiceType::FileSystem; };
+    template<> struct GetServiceType<Importer> { static constexpr ServiceType value = ServiceType::Importer; };
+
+    template<typename T>
+    inline constexpr ServiceType GetServiceType_v = GetServiceType<T>::value;
+
     class AETHER_API ServiceManager
     {
-    private:
-        template<typename T>
-        struct ServiceHolder 
-        {
-            static inline T* s_Instance = nullptr;
-        };
-
     public:
+        static void Init();
+        static void Shutdown();
+
         template<typename T>
         static T* GetService()
         {
-            T* service = ServiceHolder<T>::s_Instance;
-            return service;
+            constexpr ServiceType type = GetServiceType_v<T>;
+            uint8_t idx = static_cast<uint8_t>(type);
+            return static_cast<T*>(s_Services[idx]);
         }
 
     private:
+        static std::array<void*, static_cast<size_t>(ServiceType::Count)> s_Services;
+
         template<typename T>
         static void Provide(T* service)
         {
-            ServiceHolder<T>::s_Instance = service;
-        }
-
-        template<typename T>
-        static void ShutdownService()
-        {
-            ServiceHolder<T>::s_Instance = nullptr;
+            constexpr ServiceType type = GetServiceType_v<T>;
+            uint8_t idx = static_cast<uint8_t>(type);
+            s_Services[idx] = static_cast<void*>(service);
         }
 
         friend class Application;

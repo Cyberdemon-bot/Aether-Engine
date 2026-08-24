@@ -15,7 +15,7 @@
 
 namespace Aether {
 
-    class AssetsRegister;
+    class AssetRegister;
 
     template<typename T> struct GetAssetType;
     template<> struct GetAssetType<AMesh> { static constexpr AssetType value = AssetType::Mesh; };
@@ -29,11 +29,13 @@ namespace Aether {
 
     struct Route
     {
-        Route(uint64_t h, AssetType t)
+        Route(UUID i, uint64_t h, AssetType t)
         {
+            id = i;
             handle = h;
             type = t;
         }
+        UUID id = UUID(0);
         uint64_t handle = 0;
         AssetType type = AssetType::None;
     };
@@ -45,7 +47,9 @@ namespace Aether {
         void Shutdown();
         void Unload(UUID id);
         void Unload(Handle<Asset> handle);
+
         Handle<Asset> GetHandle(UUID id);
+        UUID GetID(Handle<Asset> handle);
 
         template<typename T>
         T* GetAsset(Handle<Asset> handle)
@@ -101,7 +105,7 @@ namespace Aether {
             using TargetPoolType = ResourcePool<Handle<T>, T>;
             auto& pool = std::get<TargetPoolType>(m_AssetContainers);
             Handle<T> handle = pool.CreateResource(std::forward<Args>(args)...);    
-            Handle<Asset> route = m_Router.CreateResource(handle.Blend(), GetAssetType<T>::value);
+            Handle<Asset> route = m_Router.CreateResource(id, handle.Blend(), GetAssetType<T>::value);
             m_Handles[id] = route;
 
             auto* asset = pool.GetResource(handle);
@@ -110,7 +114,7 @@ namespace Aether {
             return route;
         }
 
-        friend class AssetsRegister;
+        friend class AssetRegister;
         friend class LegacyAssembler;
     };
 }

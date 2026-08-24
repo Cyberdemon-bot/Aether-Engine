@@ -533,13 +533,13 @@ namespace Aether {
 
 		RenderCommand::SetViewport(0, 0, fbo->GetSpecification().Width, fbo->GetSpecification().Height);
 
-		for (auto [name, texture] : pass.readList)
+		for (const auto& readItem : pass.readList)
 		{
-			texture->Bind(startSlot);
-			shader->SetInt(name, startSlot);
+			readItem.second->Bind(startSlot);
+			shader->SetInt(readItem.first, startSlot);
 			startSlot++;
 		}
-		for (auto& [name, value] : pass.attribList) shader->SetInt(name, value);
+		for (const auto& attrib : pass.attribList) shader->SetInt(attrib.first, attrib.second);
 
 		if (pass.UsingShadowmap)
 		{
