@@ -4,7 +4,6 @@
 #include <memory>
 #include <cstddef>
 #include <utility>
-#include "Aether/Core/Assert.h"
 
 namespace Aether {
 
@@ -30,13 +29,15 @@ namespace Aether {
         SPMCDeque(SPMCDeque&&) = delete;
         SPMCDeque& operator=(SPMCDeque&&) = delete;
 
-        void Push(T item)
+        bool Push(T item)
         {
             int64_t b = m_Bottom.load(std::memory_order_relaxed);
             int64_t t = m_Top.load(std::memory_order_acquire);
-            AE_CORE_ASSERT(b - t < static_cast<int64_t>(Capacity), "JobQueue overflow");
+            if (b - t >= static_cast<int64_t>(Capacity)) return false;
+
             ::new (static_cast<void*>(GetSlot(b))) T(std::move(item));
             m_Bottom.store(b + 1, std::memory_order_release);
+            return true;
         }
 
         bool Pop(T& out)
@@ -89,6 +90,11 @@ namespace Aether {
                 return true;
             }
             return false;
+        }
+
+        size_t Size()
+        {
+            return Capacity;
         }
 
     private:

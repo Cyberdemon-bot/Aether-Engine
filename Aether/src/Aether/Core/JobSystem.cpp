@@ -16,7 +16,7 @@ namespace Aether {
 
         m_Queues.reserve(numThreads);
         for (uint32_t i = 0; i < numThreads; ++i)
-            m_Queues.emplace_back(CreateScope<SPMCDeque<Job, 4096>>());
+            m_Queues.emplace_back(WorkerQueue{ CreateScope<SPMCDeque<Job, 4096>>(), {} });
 
         m_Workers.reserve(numThreads);
         for (uint32_t i = 0; i < numThreads; ++i)
@@ -50,16 +50,47 @@ namespace Aether {
     void JobSystem::SubmitJob(Job job)
     {
         if (m_Stop.load(std::memory_order_relaxed)) return;
-
         m_ActiveJobCount.fetch_add(1, std::memory_order_relaxed);
 
-        if (t_ThreadIndex >= 0) m_Queues[t_ThreadIndex]->Push(std::move(job));
-        else
+        if (t_ThreadIndex >= 0)
+        {
+            uint32_t workerIndex = static_cast<uint32_t>(t_ThreadIndex);
+            auto& queue = m_Queues[workerIndex].queue;
+            auto& temp = m_Queues[workerIndex].temp_buffer; 
+
+            if (queue->Push(std::move(job)))
+            {
+                m_Semaphore.Release();
+                return;
+            }
+
+            size_t flush_count = std::max<size_t>(1, static_cast<size_t>(queue->Size() * m_FlushRatio));
+            temp.clear(); temp.reserve(flush_count); Job poppedJob;
+            while (temp.size() < flush_count && queue->Pop(poppedJob)) temp.push_back(std::move(poppedJob));
+            size_t cnt = temp.size();
+
+            if (cnt > 0)
+            {
+                std::lock_guard<std::mutex> lock(m_InjectorMutex);
+                m_Injector.insert(
+                    m_Injector.end(),
+                    std::make_move_iterator(temp.begin()),
+                    std::make_move_iterator(temp.end())
+                );
+            }
+            if (!m_Queues[workerIndex].queue->Push(std::move(job)))
+            {
+                std::lock_guard<std::mutex> lock(m_InjectorMutex);
+                m_Injector.push_back(std::move(job));
+            }
+            m_Semaphore.Release();
+            return;
+        }
+
         {
             std::lock_guard<std::mutex> lock(m_InjectorMutex);
             m_Injector.push_back(std::move(job));
         }
-
         m_Semaphore.Release();
     }
 
@@ -68,7 +99,9 @@ namespace Aether {
         SubmitJob([this, job = std::move(job), cb = std::move(callback)]() mutable 
         {
             job();
-            m_Completions.Push(std::move(cb));
+            if (m_Completions.Push(cb)) return;
+            std::lock_guard<std::mutex> lock(m_FallbackMutex);
+            m_FallbackCompletions.push_back(std::move(cb));
         });
     }
 
@@ -76,14 +109,39 @@ namespace Aether {
     {
         Delegate<void()> cb;
         while (m_Completions.Pop(cb)) cb();
+        
+        std::vector<Job> processList;
+        {
+            std::lock_guard<std::mutex> lock(m_FallbackMutex);
+            if (!m_FallbackCompletions.empty()) processList.swap(m_FallbackCompletions); 
+        }
+        for (auto& fallbackCb : processList) fallbackCb();
     }
 
-    bool JobSystem::TryPopInjector(Job& out)
+    bool JobSystem::TryPopInjectorBatch(Job& outJob, uint32_t workerIndex)
     {
         std::lock_guard<std::mutex> lock(m_InjectorMutex);
         if (m_Injector.empty()) return false;
-        out = std::move(m_Injector.front());
+
+        outJob = std::move(m_Injector.front());
         m_Injector.pop_front();
+
+        if (t_ThreadIndex == static_cast<int>(workerIndex))
+        {
+            size_t max_fill = static_cast<size_t>(m_Queues[workerIndex].queue->Size() * m_FillRatio);
+            size_t pushedCount = 0;
+
+            while (!m_Injector.empty() && pushedCount < max_fill)
+            {
+                if (m_Queues[workerIndex].queue->Push(std::move(m_Injector.front())))
+                {
+                    m_Injector.pop_front();
+                    pushedCount++;
+                }
+                else break;
+            }
+        }
+
         return true;
     }
 
@@ -93,7 +151,7 @@ namespace Aether {
         for (uint32_t offset = 1; offset < count; ++offset)
         {
             uint32_t victim = (selfIndex + offset) % count;
-            if (m_Queues[victim]->Steal(out))
+            if (m_Queues[victim].queue->Steal(out))
                 return true;
         }
         return false;
@@ -106,9 +164,9 @@ namespace Aether {
         while (true)
         {
             Job job;
-            bool found = m_Queues[index]->Pop(job)
+            bool found = m_Queues[index].queue->Pop(job)
                     || TryStealJob(job, index)
-                    || TryPopInjector(job);
+                    || TryPopInjectorBatch(job, index);
 
             if (found)
             {
@@ -126,9 +184,9 @@ namespace Aether {
 
                 if (m_Stop.load(std::memory_order_relaxed))
                 {
-                    bool hasMoreJobs = m_Queues[index]->Pop(job) 
+                    bool hasMoreJobs = m_Queues[index].queue->Pop(job)
                                 || TryStealJob(job, index) 
-                                || TryPopInjector(job);
+                                || TryPopInjectorBatch(job, index);
                     if (!hasMoreJobs) break;
                     job();
                     if (m_ActiveJobCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
@@ -146,13 +204,13 @@ namespace Aether {
         while (m_ActiveJobCount.load(std::memory_order_acquire) > 0)
         {
             Job job;
-            bool found = TryPopInjector(job);
+            bool found = false;
 
-            if (!found)
-            {
-                for (auto& queue : m_Queues)
-                    if (queue->Steal(job)) { found = true; break; }
-            }
+            uint32_t selfIdx = (t_ThreadIndex >= 0) ? static_cast<uint32_t>(t_ThreadIndex) : 0;
+
+            if (t_ThreadIndex >= 0) found = m_Queues[t_ThreadIndex].queue->Pop(job);
+            if (!found) found = TryStealJob(job, selfIdx);
+            if (!found) found = TryPopInjectorBatch(job, selfIdx);
 
             if (found)
             {
@@ -165,11 +223,15 @@ namespace Aether {
             }
             else
             {
-                std::unique_lock<std::mutex> lock(m_WaitMutex);
-                m_WaitCondition.wait(lock, [this] 
-                { 
-                    return m_ActiveJobCount.load(std::memory_order_acquire) == 0; 
-                });
+                if (t_ThreadIndex >= 0) std::this_thread::yield();
+                else
+                {
+                    std::unique_lock<std::mutex> lock(m_WaitMutex);
+                    m_WaitCondition.wait(lock, [this] 
+                    { 
+                        return m_ActiveJobCount.load(std::memory_order_acquire) == 0; 
+                    });
+                }
             }
         }
     }
