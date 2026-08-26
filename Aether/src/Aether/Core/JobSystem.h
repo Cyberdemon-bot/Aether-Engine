@@ -17,6 +17,11 @@ namespace Aether {
 
     using Job = Delegate<void()>;
 
+    struct WorkerQueue
+    {
+        Scope<SPMCDeque<Job, 4096>> queue;
+        std::vector<Job> temp_buffer;
+    };
     class AETHER_API JobSystem
     {
     public:
@@ -34,18 +39,24 @@ namespace Aether {
         {
             if (totalCount == 0) return;
 
-            if (totalCount <= chunkSize)
+            uint32_t numThreads = static_cast<uint32_t>(m_Workers.size());
+            if (numThreads == 0) numThreads = 1;
+
+            uint32_t maxChunks = 1024;
+            uint32_t effectiveChunkSize = std::max(chunkSize, (totalCount + maxChunks - 1) / maxChunks);
+
+            if (totalCount <= effectiveChunkSize)
             {
                 for (uint32_t i = 0; i < totalCount; ++i) task(arr[i]);
                 return;
             }
 
-            uint32_t jobCount = (totalCount + chunkSize - 1) / chunkSize;
+            uint32_t jobCount = (totalCount + effectiveChunkSize - 1) / effectiveChunkSize;
 
             for (uint32_t i = 0; i < jobCount; ++i)
             {
-                uint32_t startIdx = i * chunkSize;
-                uint32_t endIdx = std::min(startIdx + chunkSize, totalCount);
+                uint32_t startIdx = i * effectiveChunkSize;
+                uint32_t endIdx = std::min(startIdx + effectiveChunkSize, totalCount);
 
                 SubmitJob(AE_MAKE_LAMBDA((task, startIdx, endIdx, arr), (), void,
                     for (uint32_t j = startIdx; j < endIdx; ++j) task(arr[j]);
@@ -57,11 +68,14 @@ namespace Aether {
     private:
         void WorkerThread(uint32_t index);
         bool TryStealJob(Job& out, uint32_t selfIndex);
-        bool TryPopInjector(Job& out);
+        bool TryPopInjectorBatch(Job& outJob, uint32_t workerIndex);
 
         std::vector<std::thread> m_Workers;
-        std::vector<Scope<SPMCDeque<Job, 4096>>> m_Queues;
-        MPSCQueue<Delegate<void()>, 1024> m_Completions;
+        std::vector<WorkerQueue> m_Queues;
+
+        MPSCQueue<Job, 4096> m_Completions;
+        std::vector<Job> m_FallbackCompletions;
+        std::mutex m_FallbackMutex;
 
         std::deque<Job> m_Injector;
         std::mutex m_InjectorMutex;
@@ -72,5 +86,8 @@ namespace Aether {
         std::atomic<uint32_t> m_ActiveJobCount{0};
         std::condition_variable m_WaitCondition;
         std::mutex m_WaitMutex;
+
+        float m_FillRatio = 0.5;
+        float m_FlushRatio = 0.25;
     };
 }

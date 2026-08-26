@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <memory>
 #include <utility>
-#include "Aether/Core/Assert.h"
 
 namespace Aether {
 
@@ -78,6 +77,11 @@ namespace Aether {
         {
             T item;
             while (Pop(item)) fn(std::move(item));
+        }
+
+        size_t Size()
+        {
+            return Capacity;
         }
 
     private:
