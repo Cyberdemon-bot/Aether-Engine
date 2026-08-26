@@ -655,6 +655,7 @@ Aether::Entity Game::SpawnZombie(const glm::vec3& position)
     cmp.Shape = Aether::ColliderShape::Capsule;
     cmp.Size = glm::vec3(0.35f, 2.0f, 0.0f);
     cmp.ColliderOffset = glm::vec3(0.0f, 1.0f, 0.0f);
+    cmp.Visible = true;
 
     m_ActiveZombies.push_back(newZombie);
     return newZombie;
@@ -1032,9 +1033,10 @@ void Game::OnEvent(Aether::Event& event)
 
         glm::vec3          origin    = m_Camera.GetPosition();
         glm::vec3          direction = glm::normalize(m_Camera.GetForwardDirection());
-        Aether::RaycastResult hit       = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
+        Aether::RaycastResult hit    = physys->CastRay(m_Scene.GetPhysicsInstance(), origin, direction, 100.0f);
         if (hit.Hit)
         {
+            AE_INFO("Hit");
             Aether::Entity target = Aether::Scene::FromNumber(physys->GetUserData(m_Scene.GetPhysicsInstance(), hit.HitBody));
             if (target != Aether::Null_Entity && target != m_Player)
             {

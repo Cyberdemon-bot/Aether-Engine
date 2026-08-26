@@ -1,6 +1,6 @@
 #include "aepch.h"
 #include "Platform/JoltPhys/Jolt_PhysicsAPI.h"
-#include "Aether/Container/MSPCQueue.h"
+#include "Aether/Container/MPSCQueue.h"
 #include <Jolt/Core/Memory.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
@@ -149,7 +149,7 @@ namespace JPH {
             return Aether::Handle<Aether::RigidBody>::FromBlend(body.GetUserData());
         }
 
-        Aether::MSPCQueue<InternalCollisionEvent, 1024> m_EventQueue;
+        Aether::MPSCQueue<InternalCollisionEvent, 1024> m_EventQueue;
         PhysicsSystem* m_System = nullptr;
     };
 }

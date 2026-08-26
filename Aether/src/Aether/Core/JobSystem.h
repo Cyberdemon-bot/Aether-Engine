@@ -8,7 +8,7 @@
 #include <deque> 
 
 #include "Aether/Core/Base.h"
-#include "Aether/Container/MSPCQueue.h"
+#include "Aether/Container/MPSCQueue.h"
 #include "Aether/Container/SPMCDeque.h"
 #include "Aether/Core/Semaphore.h"
 #include "Aether/Core/Delegate.h"
@@ -30,7 +30,7 @@ namespace Aether {
         void WaitAll();
 
         template<typename Func, typename Arr>
-        void ParallelFor(uint32_t totalCount, uint32_t chunkSize, Arr arr, Func&& task)
+        void ParallelFor(uint32_t totalCount, uint32_t chunkSize, Arr* arr, Func&& task)
         {
             if (totalCount == 0) return;
 
@@ -61,7 +61,7 @@ namespace Aether {
 
         std::vector<std::thread> m_Workers;
         std::vector<Scope<SPMCDeque<Job, 4096>>> m_Queues;
-        MSPCQueue<Delegate<void()>, 1024> m_Completions;
+        MPSCQueue<Delegate<void()>, 1024> m_Completions;
 
         std::deque<Job> m_Injector;
         std::mutex m_InjectorMutex;

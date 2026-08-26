@@ -64,7 +64,7 @@ namespace Aether {
 
         static Entity FromNumber(uint64_t number)
         {
-            return static_cast<Entity>(static_cast<uint32_t>(number));
+            return entt::entity(static_cast<std::underlying_type_t<Entity>>(number));
         }
 
         Handle<PhysicsInstance> GetPhysicsInstance() 

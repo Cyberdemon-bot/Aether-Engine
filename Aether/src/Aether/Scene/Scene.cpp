@@ -246,7 +246,7 @@ namespace Aether {
             BreadthFirstSearch();
             physys->UpdateInstance(m_PhysicsInstance, ts);
             for (auto& level : m_HierarchyLevels) 
-                jobsys->ParallelFor(level.size(), m_Threshold, level, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                jobsys->ParallelFor(level.size(), m_Threshold, level.data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
                     this->UpdateTransform(entity); 
                 ));
         }

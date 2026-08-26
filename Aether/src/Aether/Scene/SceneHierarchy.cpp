@@ -42,6 +42,7 @@ namespace Aether {
             transform.Translation = glm::vec3(glm::inverse(pTransform) * glm::vec4(worldPos, 1.0f));
             transform.Rotation = glm::inverse(pR) * worldRot;
         }
+
         transform.Dirty = true;
     }
 
@@ -77,9 +78,7 @@ namespace Aether {
         auto& hierarchy = m_Registry.emplace<HierarchyComponent>(e);
         m_EntityLibrary[id] = e;
 
-        if (parent != Null_Entity && IsValid(parent))
-            MakeParent(e, parent);
-
+        if (parent != Null_Entity && IsValid(parent)) MakeParent(e, parent);
         m_SortDirtyCount++; 
         return e;
     }
@@ -536,14 +535,13 @@ namespace Aether {
                     PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                     glm::vec3 worldPos = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
                     ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, worldPos, physTrans.rotation);
-                    transform.WorldTransform = pTransform * transform.GetLocalTransform();
                     isWorldDirty = true; 
                 }
                 else if (isWorldDirty)
                 {
-                    transform.WorldTransform = pTransform * transform.GetLocalTransform();
+                    glm::mat4 tempWorld = pTransform * transform.GetLocalTransform();
                     glm::vec3 pos, scale; glm::quat rot; 
-                    Utils::GetTRS(transform.WorldTransform, pos, rot, scale);
+                    Utils::GetTRS(tempWorld, pos, rot, scale);
                     PhysTransform target = {pos + (rot * rbComp.ColliderOffset), rot};
 
                     if (motionType == MotionType::Kinematic && !physys->CanMove(m_PhysicsInstance, handle, target))
@@ -551,7 +549,6 @@ namespace Aether {
                         PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
                         glm::vec3 validPos = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
                         ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, validPos, physTrans.rotation);
-                        transform.WorldTransform = pTransform * transform.GetLocalTransform();
                     }
                     else physys->SetPhysTransform(m_PhysicsInstance, handle, target);
                 }
