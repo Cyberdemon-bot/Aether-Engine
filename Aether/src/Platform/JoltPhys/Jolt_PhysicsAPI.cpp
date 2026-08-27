@@ -144,7 +144,7 @@ namespace JPH {
         Aether::Handle<Aether::RigidBody> get_handle(JPH::BodyID id, const JPH::BodyLockInterface& lockInterface)
         {
             JPH::BodyLockRead lock(lockInterface, id);
-            if (!lock.Succeeded()) return Aether::Handle<Aether::RigidBody>::MakeInvalid();
+            if (!lock.Succeeded()) return Aether::Handle<Aether::RigidBody>::Null();
             const JPH::Body& body = lock.GetBody();
             return Aether::Handle<Aether::RigidBody>::FromBlend(body.GetUserData());
         }
@@ -291,7 +291,7 @@ namespace Aether {
 
     Handle<RigidBody> Jolt_PhysicsAPI::CreateBody(const BodyConfig& config)
     {
-        if (!m_PhysicsSystem) return Handle<RigidBody>::MakeInvalid();
+        if (!m_PhysicsSystem) return Handle<RigidBody>::Null();
         JPH::BodyInterface& bodyInterface = m_PhysicsSystem->GetBodyInterface();
         JPH::ShapeRefC shape;
         JPH::ShapeSettings::ShapeResult result;
@@ -324,13 +324,13 @@ namespace Aether {
             case ColliderShape::None:
             {
                 AE_CORE_ERROR("Cannot create body with no shape");
-                return Handle<RigidBody>::MakeInvalid();
+                return Handle<RigidBody>::Null();
             }
         }
         if (result.HasError())
         {
             AE_CORE_ERROR("Jolt Physics Error: {0}", result.GetError().c_str());
-            return Handle<RigidBody>::MakeInvalid();
+            return Handle<RigidBody>::Null();
         }
 
         shape = result.Get();
@@ -338,7 +338,7 @@ namespace Aether {
         if (!shape) 
         {
             AE_CORE_ERROR("Fail to identify shape for body");
-            return Handle<RigidBody>::MakeInvalid();
+            return Handle<RigidBody>::Null();
         }
 
         auto& trans = config.transform.translation;
@@ -377,7 +377,7 @@ namespace Aether {
             case MotionType::None:
             {
                 AE_CORE_ERROR("Cannot create body with no motion type");
-                return Handle<RigidBody>::MakeInvalid();
+                return Handle<RigidBody>::Null();
             }
         }
         JPH::BodyCreationSettings bodyInfo(shape, translation, rotation, motionType, objectLayer);
@@ -394,7 +394,7 @@ namespace Aether {
         if (!body)
         {
             AE_CORE_ERROR("Fail to create body");
-            return Handle<RigidBody>::MakeInvalid();
+            return Handle<RigidBody>::Null();
         }
         bodyInterface.AddBody(body->GetID(), JPH::EActivation::Activate);
 
@@ -423,7 +423,7 @@ namespace Aether {
 
     Handle<CollisionCallback> Jolt_PhysicsAPI::RegisterCallback(const CollisionCallbackRef& callback)
     {
-        if (!m_PhysicsSystem) return Handle<CollisionCallback>::MakeInvalid();   
+        if (!m_PhysicsSystem) return Handle<CollisionCallback>::Null();   
         return m_CallbackPool.SaveResource(callback);
     }
 

@@ -16,7 +16,7 @@ namespace Aether {
         for (size_t i = 0; i < gltf->images_count; i++)
         {
             const cgltf_image* image = &gltf->images[i];
-            LAImageCreateInfo& texInfo = result->imgsInfo[i];
+            LImageCreateInfo& texInfo = result->imgsInfo[i];
             texInfo.DebugName = image->name ? image->name : ("Texture_" + std::to_string(i));
             stbi_set_flip_vertically_on_load(0);
             
@@ -50,7 +50,7 @@ namespace Aether {
         for (size_t i = 0; i < gltf->materials_count; i++)
         {
             const cgltf_material* mat = &gltf->materials[i];
-            LAMaterialCreateInfo& matInfo = result->matsInfo[i];
+            LMaterialCreateInfo& matInfo = result->matsInfo[i];
             matInfo.AssetID = UUID();
             matInfo.DebugName = mat->name ? mat->name : ("Material_" + std::to_string(i));
             

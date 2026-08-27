@@ -14,7 +14,6 @@ bin/
 *.idb
 *.ilk
 *.dmp
-*.txt
 
 imgui.ini
 *.log
@@ -39,4 +38,5 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-pack_code.py
+scripts/output
+

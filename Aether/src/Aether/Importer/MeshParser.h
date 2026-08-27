@@ -40,7 +40,7 @@ namespace Aether {
         int MaterialIdx = -1;
     };
 
-    struct LAMeshCreateInfo
+    struct LMeshCreateInfo
     {
         UUID AssetID;
         std::string DebugName;
@@ -56,7 +56,7 @@ namespace Aether {
 
     struct ParsedMeshInfo
     {
-        std::vector<LAMeshCreateInfo> meshesInfo;
+        std::vector<LMeshCreateInfo> meshesInfo;
     };
 
     class MeshParser

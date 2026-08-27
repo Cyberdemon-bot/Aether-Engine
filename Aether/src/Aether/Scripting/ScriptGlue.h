@@ -790,7 +790,7 @@ namespace Aether {
 
                AE_REFLECT("Sleep",
                     AE_MAKE_LAMBDA((), (Type& ctx, float seconds, sol::this_state ts), sol::table,
-                        return MakeAwaitable(sol::state_view(ts), Handle<Promise>::MakeInvalid().Blend(), 1, seconds);
+                        return MakeAwaitable(sol::state_view(ts), Handle<Promise>::Null().Blend(), 1, seconds);
                     )
                 )
             );
@@ -937,7 +937,7 @@ namespace Aether {
             if (idx >= ctx.context.list_size)
             {
                 AE_CORE_ERROR("Native index {0} not found", idx);
-                return CoroutineBinding::MakeAwaitable(sol::state_view(ts), Handle<Promise>::MakeInvalid().Blend(), type, timeout);
+                return CoroutineBinding::MakeAwaitable(sol::state_view(ts), Handle<Promise>::Null().Blend(), type, timeout);
             }
             auto func = ctx.context.native_list[idx].native;
 

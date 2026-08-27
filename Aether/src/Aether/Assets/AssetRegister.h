@@ -9,7 +9,7 @@
 
 #define REGISTER_TYPE(Type, InfoType, AssemblerFunc) \
     if constexpr (std::is_same_v<T, Type> && std::is_same_v<I, InfoType>) \
-        AssemblerFunc(id, manager, info);
+        AssemblerFunc(manager, info);
 
 namespace Aether {
     class AssetRegister
@@ -20,7 +20,7 @@ namespace Aether {
         std::string GetInfo(UUID key);
 
         template<typename T, typename I>
-        UUID Register(const I& info, std::string_view debugName, UUID id)
+        UUID Register(const I& info)
         {
             auto* manager = ServiceManager::GetService<AssetManager>();
 
@@ -32,17 +32,17 @@ namespace Aether {
             else REGISTER_TYPE(ASheet, ASheetCreateInfo, SheetAssembler)
             else AE_CORE_ERROR("cannot register this type");
             
-            if (!debugName.empty()) m_DebugInfo[id] = std::string(debugName);
-            return id;
+            if (!info.debugName.empty()) m_DebugInfo[info.id] = std::move(info.debugName);
+            return info.id;
         }
     private:
         std::unordered_map<UUID, std::string> m_DebugInfo;
         
-        void MeshAssembler(UUID id, AssetManager* manager, const AMeshCreateInfo& info);
-        void ImageAssembler(UUID id, AssetManager* manager, const AImageCreateInfo& info);
-        void MaterialAssembler(UUID id, AssetManager* manager, const AMaterialCreateInfo& info);
-        void SkeletonAssembler(UUID id, AssetManager* manager, const ASkeletonCreateInfo& info);
-        void ClipAssembler(UUID id, AssetManager* manager, const AClipCreateInfo& info);
-        void SheetAssembler(UUID id, AssetManager* manager, const ASheetCreateInfo& info);
+        void MeshAssembler(AssetManager* manager, const AMeshCreateInfo& info);
+        void ImageAssembler(AssetManager* manager, const AImageCreateInfo& info);
+        void MaterialAssembler(AssetManager* manager, const AMaterialCreateInfo& info);
+        void SkeletonAssembler(AssetManager* manager, const ASkeletonCreateInfo& info);
+        void ClipAssembler(AssetManager* manager, const AClipCreateInfo& info);
+        void SheetAssembler(AssetManager* manager, const ASheetCreateInfo& info);
     };
 }

@@ -301,7 +301,7 @@ void LabLayer::RegisterPhysicsBody(Aether::Entity transformEntity,
     col.Size = config.size;
     col.Friction = 0.5;
     col.Restitution = 0.3f;
-    col.ColliderHandle = Aether::Handle<Aether::RigidBody>::MakeInvalid();
+    col.ColliderHandle = Aether::Handle<Aether::RigidBody>::Null();
     col.Visible = true;
 }
 

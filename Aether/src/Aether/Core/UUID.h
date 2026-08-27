@@ -11,6 +11,8 @@ namespace Aether {
 		UUID(const UUID&) = default;
 
 		operator uint64_t() const { return m_UUID; }
+
+		static UUID Null() { return UUID(0); }
 	private:
 		uint64_t m_UUID;
 	};

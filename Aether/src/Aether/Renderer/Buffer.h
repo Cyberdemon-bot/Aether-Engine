@@ -167,7 +167,7 @@ namespace Aether {
             return Ref<IndexBuffer>(std::move(scope));
         }
     private:
-		static Scope<IndexBuffer> CreateImpl(uint32_t* indices, uint32_t count);
+		static Scope<IndexBuffer> CreateImpl(const uint32_t* indices, uint32_t count);
 
 		friend class ResourceManager;
     };

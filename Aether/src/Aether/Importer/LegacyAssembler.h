@@ -16,16 +16,16 @@ namespace Aether {
 
     struct Animator
     {
-        Handle<Asset> skeleton;
-        std::vector<Handle<Asset>> clips;
+        UUID skeleton;
+        std::vector<UUID> clips;
     };
 
     struct ParsedScene
     {
         std::string FilePath;
-        std::vector<LAImageCreateInfo> Images;
-        std::vector<LAMaterialCreateInfo> Materials;
-        std::vector<LAMeshCreateInfo> Meshes;
+        std::vector<LImageCreateInfo> Images;
+        std::vector<LMaterialCreateInfo> Materials;
+        std::vector<LMeshCreateInfo> Meshes;
         std::vector<LSkeletonCreateInfo> Skeletons;      
         std::vector<LClipCreateInfo> Clips;
         Ref<SceneHierarchy> Hierarchy;

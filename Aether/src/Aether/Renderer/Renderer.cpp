@@ -45,21 +45,20 @@ namespace Aether {
 
 	void ImplementMesh(const AMeshCreateInfo& spec, AMesh* mesh)
     {
-        mesh->m_SubMeshes = std::move(spec.submeshes);
+        mesh->m_SubMeshes = std::vector(spec.submeshes.begin(), spec.submeshes.end());
         AE_CORE_ASSERT(spec.streams, "Mesh require at least 1 vbo in streams!");
         AE_CORE_ASSERT(spec.indicies, "Index data cannot be null!");
 
         mesh->m_VertexArray = ResourceManager::CreateResource<VertexArray>();
         auto* vao = ResourceManager::GetResource<VertexArray>(mesh->m_VertexArray);
 
-        mesh->m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>((uint32_t*)spec.indicies, spec.indexLen);
+        mesh->m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>(spec.indicies.data(), spec.indicies.size());
         vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(mesh->m_IndexBuffer));
 
         uint32_t vertex_cnt = spec.streams[0].VertexCount;
 
-        for (int i = 0; i < spec.streamLen; i++)
+        for (const auto& vbuffer : spec.streams)
         {
-            const auto& vbuffer = spec.streams[i];
             AE_CORE_ASSERT(vbuffer.VertexCount == vertex_cnt, "vbuffer's size mismatch in stream!");
 
             uint32_t stride = vbuffer.Layout.GetStride();
@@ -75,30 +74,12 @@ namespace Aether {
         if (mesh->m_SubMeshes.empty())
         {
             SubMesh defaultSubMesh;
-            defaultSubMesh.BaseVertex  = 0;
-            defaultSubMesh.BaseIndex   = 0;
+            defaultSubMesh.BaseVertex = 0;
+            defaultSubMesh.BaseIndex = 0;
             defaultSubMesh.VertexCount = vertex_cnt;
-            defaultSubMesh.IndexCount  = spec.indexLen;
+            defaultSubMesh.IndexCount = spec.indicies.size();
             mesh->m_SubMeshes.push_back(defaultSubMesh);
         }
-
-        if (spec.CalculateBoundsFunc)
-        {
-            auto [tempMin, tempMax] = spec.CalculateBoundsFunc(spec);
-            mesh->m_BoundsMin = tempMin;
-            mesh->m_BoundsMax = tempMax;
-            mesh->m_BoundsCenter = (mesh->m_BoundsMin + mesh->m_BoundsMax) * 0.5f;
-            mesh->m_BoundsExtents = (mesh->m_BoundsMax - mesh->m_BoundsMin) * 0.5f;
-        }
-
-        if (spec.CalculateAnimatedBoundsFunc)
-        {
-            auto [tempAnimMin, tempAnimMax] = spec.CalculateAnimatedBoundsFunc(spec);
-            mesh->m_AnimatedBoundsMin = tempAnimMin;
-            mesh->m_AnimatedBoundsMax = tempAnimMax;
-            mesh->m_HasAnimatedBounds = true;
-        }
-        else mesh->m_HasAnimatedBounds = false;
     }
 
 	void Renderer::Init()
@@ -158,8 +139,10 @@ namespace Aether {
 			s_RenderData->s_ShadowPipeline[i] = shadowPass;
 		}
 		VertexStream temp;
-		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new AMesh(); ImplementMesh(AMeshCreateInfo{1, 6, &temp, quadIndices}, s_RenderData->s_Quad);
-		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new AMesh(); ImplementMesh(AMeshCreateInfo{1, 36, &temp, skyboxIndices}, s_RenderData->s_SkyMesh);
+		temp = {quadVertices, 4, MeshLayout::Quad()}; s_RenderData->s_Quad  = new AMesh(); 
+		ImplementMesh(AMeshCreateInfo{UUID::Null(), "", std::span(&temp, 1), std::span(quadIndices)}, s_RenderData->s_Quad);
+		temp = {skyboxVertices, 8, MeshLayout::Vertex()}; s_RenderData->s_SkyMesh = new AMesh(); 
+		ImplementMesh(AMeshCreateInfo{UUID::Null(), "", std::span(&temp, 1), std::span(skyboxIndices)}, s_RenderData->s_SkyMesh);
 
 		s_RenderData->s_ShadowmapUniformNames.reserve(MAX_SHADOW_CASTER);
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
@@ -365,12 +348,12 @@ namespace Aether {
 				if (poseLookup[poseIdx] != -1) currentAnimIndex = poseLookup[poseIdx];
 				else
 				{
-					const auto [boneMatrices, size] = skelSystem->GetPose(command.pose);
-					if (boneMatrices != nullptr && size > 0)
+					auto boneMatrices = skelSystem->GetPose(command.pose);
+					if (!boneMatrices.empty())
 					{
 						int boneBaseIndex = static_cast<int>(s_SceneData->BoneStorage.size());
-						s_SceneData->BoneStorage.insert(s_SceneData->BoneStorage.end(), boneMatrices, boneMatrices + size);
-						s_SceneData->OffsetStorage.push_back(glm::vec4(static_cast<float>(boneBaseIndex), static_cast<float>(size), 0.0f, 0.0f));
+						s_SceneData->BoneStorage.insert(s_SceneData->BoneStorage.end(), boneMatrices.begin(), boneMatrices.end());
+						s_SceneData->OffsetStorage.push_back(glm::vec4(static_cast<float>(boneBaseIndex), static_cast<float>(boneMatrices.size()), 0.0f, 0.0f));
 						currentAnimIndex = static_cast<int>(s_SceneData->OffsetStorage.size() - 1);
 						poseLookup[poseIdx] = currentAnimIndex;
 						poseTouched.push_back(poseIdx);

@@ -56,7 +56,7 @@ namespace Aether {
     Handle<RigidBody> PhysicsSystem::CreateBody(Handle<PhysicsInstance> world, const BodyConfig& config)
     {
         PhysicsAPI* api = GetAPI(world);
-        if (api == nullptr) return Handle<RigidBody>::MakeInvalid();
+        if (api == nullptr) return Handle<RigidBody>::Null();
         return api->CreateBody(config);
     }
 
@@ -70,7 +70,7 @@ namespace Aether {
     Handle<CollisionCallback> PhysicsSystem::RegisterCallback(Handle<PhysicsInstance> world, const CollisionCallbackRef& callback)
     {
         PhysicsAPI* api = GetAPI(world);
-        if (api == nullptr) return Handle<CollisionCallback>::MakeInvalid();
+        if (api == nullptr) return Handle<CollisionCallback>::Null();
         return api->RegisterCallback(callback);
     }
 

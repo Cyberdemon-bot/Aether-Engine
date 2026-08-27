@@ -37,7 +37,7 @@ namespace Aether {
         {
             AE_CORE_ERROR("Failed to build ozz skeleton!");
             m_SkeletonPool.DestroyResource(handle);
-            return Handle<Skeleton>::MakeInvalid();
+            return Handle<Skeleton>::Null();
         }
 
         const auto& names = skeleton->data->joint_names();
@@ -65,7 +65,7 @@ namespace Aether {
         if (!it)
         {
             AE_CORE_ERROR("Skeleton is not found for clip");
-            return Handle<Clip>::MakeInvalid();
+            return Handle<Clip>::Null();
         }
 
         int num = it->data->num_joints();
@@ -77,7 +77,7 @@ namespace Aether {
         {
             AE_CORE_ERROR("Failed to create ozz clip!");
             m_ClipPool.DestroyResource(handle);
-            return Handle<Clip>::MakeInvalid();
+            return Handle<Clip>::Null();
         }
 
         return handle;
@@ -89,7 +89,7 @@ namespace Aether {
         if (!it)
         {
             AE_CORE_ERROR("Clip is not found for cache");
-            return Handle<SkeletonCache>::MakeInvalid();
+            return Handle<SkeletonCache>::Null();
         }
 
         int num = it->data->num_tracks();
@@ -135,7 +135,7 @@ namespace Aether {
         if (!it)
         {
             AE_CORE_ERROR("Skeleton is not found for pose creation");
-            return Handle<Pose>::MakeInvalid();
+            return Handle<Pose>::Null();
         }
 
         auto handle = m_PosePool.CreateResource();
@@ -163,14 +163,14 @@ namespace Aether {
         if (!it)
         {
             AE_CORE_ERROR("Skeleton is not found for mask");
-            return Handle<Mask>::MakeInvalid();
+            return Handle<Mask>::Null();
         }
 
         int num = it->data->num_joints();
         if (size != num)
         {
             AE_CORE_ERROR("Mask weight count doesn't match skeleton joint count");
-            return Handle<Mask>::MakeInvalid();
+            return Handle<Mask>::Null();
         }
 
         auto handle = m_MaskPool.CreateResource();
@@ -231,14 +231,14 @@ namespace Aether {
         Handle<Pose> poseA,
         Handle<Pose> poseB,
         Handle<Pose> poseOut,
-        float alpha) { m_BlendTasks.push_back({ BlendMode::Lerp, poseA, poseB, Handle<Mask>::MakeInvalid(), alpha, poseOut }); }
+        float alpha) { m_BlendTasks.push_back({ BlendMode::Lerp, poseA, poseB, Handle<Mask>::Null(), alpha, poseOut }); }
     
     
     void Ozz_RigModule::ScheduleAdditive(
         Handle<Pose> poseBase,
         Handle<Pose> poseAdditive,
         Handle<Pose> poseOut,
-        float weight) { m_BlendTasks.push_back({ BlendMode::Additive, poseBase, poseAdditive, Handle<Mask>::MakeInvalid(), weight, poseOut }); }
+        float weight) { m_BlendTasks.push_back({ BlendMode::Additive, poseBase, poseAdditive, Handle<Mask>::Null(), weight, poseOut }); }
     
 
     void Ozz_RigModule::ScheduleLayeredBlend(
@@ -384,15 +384,15 @@ namespace Aether {
         return true;
     }
 
-    PoseData Ozz_RigModule::GetPose(Handle<Pose> pose)
+    std::span<const glm::mat4> Ozz_RigModule::GetPose(Handle<Pose> pose)
     {
         auto* it = m_PosePool.GetResource(pose);
         if (!it || it->finalMats.empty())
         {
             AE_CORE_ERROR("Pose {0} is not found", pose.Blend());
-            return {nullptr, 0};
+            return {};
         }
-        return {it->finalMats.data(), static_cast<uint32_t>(it->finalMats.size())};
+        return std::span(it->finalMats);
     }
 
     // helper 

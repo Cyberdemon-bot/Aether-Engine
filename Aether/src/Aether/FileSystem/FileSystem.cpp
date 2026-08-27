@@ -77,7 +77,7 @@ namespace Aether {
     Handle<FileData> FileSystem::Open(std::string_view virtual_path)
     {
         auto* it = m_Registry.Query(virtual_path);
-        if (!it) return Handle<FileData>::MakeInvalid();
+        if (!it) return Handle<FileData>::Null();
 
         if (it->file_handle.IsValid())
         {
@@ -87,7 +87,7 @@ namespace Aether {
                 entry->ref_count++;
                 return it->file_handle;
             }
-            it->file_handle = Handle<FileData>::MakeInvalid();
+            it->file_handle = Handle<FileData>::Null();
         }
 
         std::string_view relative;
@@ -95,14 +95,14 @@ namespace Aether {
         if (!provider)
         {
             AE_CORE_WARN("FileSystem::Open: no mount resolves '{}'", virtual_path);
-            return Handle<FileData>::MakeInvalid();
+            return Handle<FileData>::Null();
         }
 
         FileData data;
         if (!provider->Read(relative, data))
         {
             AE_CORE_ERROR("FileSystem::Open: provider failed to read '{}'", virtual_path);
-            return Handle<FileData>::MakeInvalid();
+            return Handle<FileData>::Null();
         }
 
         Entry entry{ data, provider, 1 };

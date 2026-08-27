@@ -71,7 +71,7 @@ namespace Aether {
     void ASheet::CopyDefaultList(const std::vector<Handle<Asset>>& handleList)
     {
         BaseHandles = handleList;
-        OverrideHandles.resize(BaseHandles.size(), Handle<Asset>::MakeInvalid());
+        OverrideHandles.resize(BaseHandles.size(), Handle<Asset>::Null());
     }
 
     void ASheet::CopyOverrideList(const std::vector<Handle<Asset>>& handleList)
@@ -82,7 +82,7 @@ namespace Aether {
     void ASheet::MoveDefaultList(std::vector<Handle<Asset>>&& handleList)
     {
         BaseHandles = std::move(handleList);
-        OverrideHandles.resize(BaseHandles.size(), Handle<Asset>::MakeInvalid());
+        OverrideHandles.resize(BaseHandles.size(), Handle<Asset>::Null());
     }
 
     void ASheet::MoveOverrideList(std::vector<Handle<Asset>>&& handleList)
@@ -92,7 +92,7 @@ namespace Aether {
 
     void ASheet::Reset()
     {
-        std::fill(OverrideHandles.begin(), OverrideHandles.end(), Handle<Asset>::MakeInvalid());
+        std::fill(OverrideHandles.begin(), OverrideHandles.end(), Handle<Asset>::Null());
     }
 
     void ASheet::SetOverride(uint32_t index, Handle<Asset> handle)
@@ -110,7 +110,7 @@ namespace Aether {
     void ASheet::Revert(uint32_t index)
     {
         AE_CORE_ASSERT(index < OverrideHandles.size(), "Index out of bounds in Sheet!");
-        OverrideHandles[index] = Handle<Asset>::MakeInvalid();
+        OverrideHandles[index] = Handle<Asset>::Null();
     }
 
     Handle<Asset> ASheet::GetActiveHandle(uint32_t index) const

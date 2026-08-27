@@ -7,7 +7,7 @@ namespace Aether {
         uint32_t index = UINT32_MAX;
         uint32_t generation = 0;
         bool IsValid() const { return index != UINT32_MAX; }
-        static Handle MakeInvalid() { return {UINT32_MAX, 0}; }
+        static Handle Null() { return {UINT32_MAX, 0}; }
         static Handle FromBlend(uint64_t blend)
         {
             Handle h;

@@ -50,7 +50,7 @@ namespace Aether {
         {
             uint64_t hash = fnv1a_64(key);
             const HashData* it = Search(key, hash);
-            if (!it) return HandleType::MakeInvalid();
+            if (!it) return HandleType::Null();
             return it->handle;
         }
 
@@ -85,7 +85,7 @@ namespace Aether {
             HashData* entry = Search(key, hash);
             if (!entry) return;
             Destroy(entry->handle);
-            entry->handle = HandleType::MakeInvalid();
+            entry->handle = HandleType::Null();
         }
 
         std::string_view GetView(HandleType handle) const
@@ -178,7 +178,7 @@ namespace Aether {
             if (key.size() > std::numeric_limits<uint16_t>::max())
             {
                 AE_CORE_ERROR("Table key {0} is too long - {1} characters", key, key.size());
-                return HandleType::MakeInvalid();
+                return HandleType::Null();
             }
             uint32_t offset = static_cast<uint32_t>(m_Buffer.size());
             uint16_t length = static_cast<uint16_t>(key.size());

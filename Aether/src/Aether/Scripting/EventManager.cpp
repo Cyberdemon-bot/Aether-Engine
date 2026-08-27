@@ -35,11 +35,11 @@ namespace Aether {
     {
         Handle<ListenerList> list = m_Keys.GetOrCreate(event_name);
         auto* listIt = m_Keys.GetData(list);
-        if (!listIt) return Handle<EventListener>::MakeInvalid();
+        if (!listIt) return Handle<EventListener>::Null();
 
         Handle<EventListener> listener = m_Listeners.CreateResource();
         auto* listenerIt = m_Listeners.GetResource(listener);
-        if (!listenerIt) return Handle<EventListener>::MakeInvalid();
+        if (!listenerIt) return Handle<EventListener>::Null();
 
         listenerIt->is_native = false;
         listenerIt->callback = std::move(callback);
@@ -54,11 +54,11 @@ namespace Aether {
     {
         Handle<ListenerList> list = m_Keys.GetOrCreate(event_name);
         auto* listIt = m_Keys.GetData(list);
-        if (!listIt) return Handle<EventListener>::MakeInvalid();
+        if (!listIt) return Handle<EventListener>::Null();
 
         Handle<EventListener> listener = m_Listeners.CreateResource();
         auto* listenerIt = m_Listeners.GetResource(listener);
-        if (!listenerIt) return Handle<EventListener>::MakeInvalid();
+        if (!listenerIt) return Handle<EventListener>::Null();
 
         listenerIt->is_native = true;
         listenerIt->native_callback = native_callback;

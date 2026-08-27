@@ -29,7 +29,7 @@ namespace Aether {
 		return nullptr;
 	}
 
-	Scope<IndexBuffer> IndexBuffer::CreateImpl(uint32_t* indices, uint32_t count)
+	Scope<IndexBuffer> IndexBuffer::CreateImpl(const uint32_t* indices, uint32_t count)
 	{
 		switch (ServiceManager::GetService<Renderer>()->GetAPI())
 		{

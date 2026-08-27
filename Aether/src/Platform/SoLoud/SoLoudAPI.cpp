@@ -43,7 +43,7 @@ namespace Aether {
 
     Handle<AudioSource> SoLoudAPI::CreateSource(const std::string& path)
     {
-        if (!m_Initialized) return Handle<AudioSource>::MakeInvalid();
+        if (!m_Initialized) return Handle<AudioSource>::Null();
         Handle<AudioSource> handle = m_Sources.CreateResource();
         auto* source = m_Sources.GetResource(handle);
 
@@ -52,7 +52,7 @@ namespace Aether {
         {
             AE_CORE_ERROR("Failed to load '{0}'", path);
             m_Sources.DestroyResource(handle);
-            return Handle<AudioSource>::MakeInvalid();
+            return Handle<AudioSource>::Null();
         }
         return handle;
     }
@@ -69,9 +69,9 @@ namespace Aether {
 
     Handle<AudioPlayer> SoLoudAPI::CreatePlayer(Handle<AudioSource> source, AudioType type)
     {
-        if (!m_Initialized) return Handle<AudioPlayer>::MakeInvalid();
+        if (!m_Initialized) return Handle<AudioPlayer>::Null();
         auto* s = m_Sources.GetResource(source);
-        if (!s) return Handle<AudioPlayer>::MakeInvalid();
+        if (!s) return Handle<AudioPlayer>::Null();
 
         auto handle = m_Players.CreateResource();
         auto* player = m_Players.GetResource(handle);

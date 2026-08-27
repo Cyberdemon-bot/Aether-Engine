@@ -30,25 +30,24 @@ namespace Aether {
         return it->second;
     }
 
-    void AssetRegister::MeshAssembler(UUID id, AssetManager* manager, const AMeshCreateInfo& info)
+    void AssetRegister::MeshAssembler(AssetManager* manager, const AMeshCreateInfo& info)
     {
-        auto handle = manager->CreateAsset<AMesh>(id);
+        auto handle = manager->CreateAsset<AMesh>(info.id);
         auto* mesh = manager->GetAsset<AMesh>(handle);
-        mesh->m_SubMeshes = std::move(info.submeshes);
+        mesh->m_SubMeshes = std::vector(info.submeshes.begin(), info.submeshes.end());
         AE_CORE_ASSERT(info.streams, "Mesh require at least 1 vbo in streams!");
         AE_CORE_ASSERT(info.indicies, "Index data cannot be null!");
 
         mesh->m_VertexArray = ResourceManager::CreateResource<VertexArray>();
         auto* vao = ResourceManager::GetResource<VertexArray>(mesh->m_VertexArray);
 
-        mesh->m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>((uint32_t*)info.indicies, info.indexLen);
+        mesh->m_IndexBuffer = ResourceManager::CreateResource<IndexBuffer>(info.indicies.data(), info.indicies.size());
         vao->SetIndexBuffer(ResourceManager::GetResource<IndexBuffer>(mesh->m_IndexBuffer));
 
         uint32_t vertex_cnt = info.streams[0].VertexCount;
 
-        for (int i = 0; i < info.streamLen; i++)
+        for (const auto& vbuffer : info.streams)
         {
-            const auto& vbuffer = info.streams[i];
             AE_CORE_ASSERT(vbuffer.VertexCount == vertex_cnt, "vbuffer's size mismatch in stream!");
 
             uint32_t stride = vbuffer.Layout.GetStride();
@@ -64,44 +63,38 @@ namespace Aether {
         if (mesh->m_SubMeshes.empty())
         {
             SubMesh defaultSubMesh;
-            defaultSubMesh.BaseVertex  = 0;
-            defaultSubMesh.BaseIndex   = 0;
+            defaultSubMesh.BaseVertex = 0;
+            defaultSubMesh.BaseIndex = 0;
             defaultSubMesh.VertexCount = vertex_cnt;
-            defaultSubMesh.IndexCount  = info.indexLen;
+            defaultSubMesh.IndexCount  = info.indicies.size();
             mesh->m_SubMeshes.push_back(defaultSubMesh);
         }
 
-        if (info.CalculateBoundsFunc)
-        {
-            auto [tempMin, tempMax] = info.CalculateBoundsFunc(info);
-            mesh->m_BoundsMin = tempMin;
-            mesh->m_BoundsMax = tempMax;
-            mesh->m_BoundsCenter = (mesh->m_BoundsMin + mesh->m_BoundsMax) * 0.5f;
-            mesh->m_BoundsExtents = (mesh->m_BoundsMax - mesh->m_BoundsMin) * 0.5f;
-        }
+        mesh->m_BoundsMin = info.boundsMin;
+        mesh->m_BoundsMax = info.boundsMax;
+        mesh->m_BoundsCenter = (mesh->m_BoundsMin + mesh->m_BoundsMax) * 0.5f;
+        mesh->m_BoundsExtents = (mesh->m_BoundsMax - mesh->m_BoundsMin) * 0.5f;
 
-        if (info.CalculateAnimatedBoundsFunc)
+        mesh->m_HasAnimatedBounds = info.hasAnimatedBounds;
+        if (info.hasAnimatedBounds)
         {
-            auto [tempAnimMin, tempAnimMax] = info.CalculateAnimatedBoundsFunc(info);
-            mesh->m_AnimatedBoundsMin = tempAnimMin;
-            mesh->m_AnimatedBoundsMax = tempAnimMax;
-            mesh->m_HasAnimatedBounds = true;
+            mesh->m_AnimatedBoundsMin = info.animatedBoundsMin;
+            mesh->m_AnimatedBoundsMax = info.animatedBoundsMax;
         }
-        else mesh->m_HasAnimatedBounds = false;
     }
 
-    void AssetRegister::ImageAssembler(UUID id, AssetManager* manager, const AImageCreateInfo& info)
+    void AssetRegister::ImageAssembler(AssetManager* manager, const AImageCreateInfo& info)
     {
         auto texture = ResourceManager::CreateResource<Texture2D>(info.layout);
         auto* resource = ResourceManager::GetResource<Texture2D>(texture);
         if (!resource) AE_CORE_ERROR("[Asset Register] Failed to Create texture!");
         resource->SetData((void*)info.raw.data(), info.raw.size());
-        manager->CreateAsset<AImage>(id, texture);
+        manager->CreateAsset<AImage>(info.id, texture);
     }
 
-    void AssetRegister::MaterialAssembler(UUID id, AssetManager* manager, const AMaterialCreateInfo& info)
+    void AssetRegister::MaterialAssembler(AssetManager* manager, const AMaterialCreateInfo& info)
     {
-        auto handle = manager->CreateAsset<AMaterial>(id);
+        auto handle = manager->CreateAsset<AMaterial>(info.id);
         auto* material = manager->GetAsset<AMaterial>(handle);
 
         // Set material properties
@@ -109,47 +102,43 @@ namespace Aether {
         material->AddFloat("u_Metallic", info.metallic);
         material->AddFloat("u_Roughness", info.roughness);
 
-        if (!info.imageList || info.imageSize == 0) return;
+        material->AddImage("u_AlbedoMap", manager->GetHandle(info.albedoMap)); 
+        material->AddImage("u_MetallicRoughnessMap", manager->GetHandle(info.metallicRoughnessMap));
 
-        if (info.albedoMapIdx >= 0 && info.albedoMapIdx < info.imageSize)
-            material->AddImage("u_AlbedoMap", manager->GetHandle(info.imageList[info.albedoMapIdx])); 
-        
-        if (info.normalMapIdx >= 0 && info.normalMapIdx < info.imageSize)
+        auto normal = manager->GetHandle(info.normalMap);
+        if (normal.IsValid())
         {
-            material->AddImage("u_NormalMap", manager->GetHandle(info.imageList[info.normalMapIdx]));
+            material->AddImage("u_NormalMap", normal);
             material->AddInt("u_HasNormalMap", 1);
         }
-        else  material->AddInt("u_HasNormalMap", 0);
-
-        if (info.metallicRoughnessMapIdx >= 0 && info.metallicRoughnessMapIdx < info.imageSize)
-            material->AddImage("u_MetallicRoughnessMap", manager->GetHandle(info.imageList[info.metallicRoughnessMapIdx]));
+        else material->AddInt("u_HasNormalMap", 0);
     }
 
-    void AssetRegister::SkeletonAssembler(UUID id, AssetManager* manager, const ASkeletonCreateInfo& info)
+    void AssetRegister::SkeletonAssembler(AssetManager* manager, const ASkeletonCreateInfo& info)
     {
         auto* rsys = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-        auto rskel = rsys->CreateSkeleton(info);
+        auto rskel = rsys->CreateSkeleton(info.data);
 
-        auto handle = manager->CreateAsset<ASkeleton>(id);
+        auto handle = manager->CreateAsset<ASkeleton>(info.id);
         auto* skeleton = manager->GetAsset<ASkeleton>(handle);
         skeleton->m_Handle = rskel;
-        skeleton->m_JointCount = info.Joints.size();
+        skeleton->m_JointCount = info.data.Joints.size();
     }
 
-    void AssetRegister::ClipAssembler(UUID id, AssetManager* manager, const AClipCreateInfo& info)
+    void AssetRegister::ClipAssembler(AssetManager* manager, const AClipCreateInfo& info)
     {
         auto* rsys = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-        auto Clip = rsys->CreateClip(info.layout, manager->GetAsset<ASkeleton>(info.skeleton)->m_Handle);
+        auto Clip = rsys->CreateClip(info.data, manager->GetAsset<ASkeleton>(info.skeleton)->m_Handle);
 
-        auto handle = manager->CreateAsset<AClip>(id);
+        auto handle = manager->CreateAsset<AClip>(info.id);
         auto* clip = manager->GetAsset<AClip>(handle);
         clip->m_Handle = Clip;
-        clip->m_Duration = info.layout.Duration;
+        clip->m_Duration = info.data.Duration;
     }
 
-    void AssetRegister::SheetAssembler(UUID id, AssetManager* manager, const ASheetCreateInfo& info)
+    void AssetRegister::SheetAssembler(AssetManager* manager, const ASheetCreateInfo& info)
     {
-        auto handle = manager->CreateAsset<ASheet>(id);
+        auto handle = manager->CreateAsset<ASheet>(info.id);
 
         if (!info.matList || info.matSize == 0) return;
         auto* sheet = manager->GetAsset<ASheet>(handle);
