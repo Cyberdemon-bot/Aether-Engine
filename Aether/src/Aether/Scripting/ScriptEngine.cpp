@@ -78,7 +78,7 @@ namespace Aether {
         {
             sol::error err = res;
             AE_CORE_ERROR("[Script] Compile error: {0}", err.what());
-            return Handle<Bytecode>::MakeInvalid();
+            return Handle<Bytecode>::Null();
         }
 
         sol::bytecode bytecode = res.get<sol::function>().dump();
@@ -88,7 +88,7 @@ namespace Aether {
     Handle<ScriptInstance> ScriptEngine::CreateInstance(Scene* scene, Entity entity, Handle<Bytecode> bh)
     { 
         auto it = m_Sources.GetResource(bh);
-        if (it == nullptr) return Handle<ScriptInstance>::MakeInvalid();
+        if (it == nullptr) return Handle<ScriptInstance>::Null();
 
         sol::bytecode bytecode = it->bytecode;
         auto env_handle = LuaState.CreateEnvironment();

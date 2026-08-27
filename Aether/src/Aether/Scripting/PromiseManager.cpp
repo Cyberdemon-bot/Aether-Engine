@@ -68,7 +68,7 @@ namespace Aether {
                                         Delegate<ScriptTable(const ScriptTable&)> onRejected)
     {
         Promise* p = m_Promises.GetResource(handle);
-        if (p == nullptr) return Handle<Promise>::MakeInvalid();
+        if (p == nullptr) return Handle<Promise>::Null();
 
         Handle<Promise> next = CreatePromise();
         Promise::Handler handler;

@@ -53,7 +53,7 @@ namespace Aether {
     }
 
     // index buffer
-    OpenGLIndexBuffer::OpenGLIndexBuffer(uint32_t* indices, uint32_t count)
+    OpenGLIndexBuffer::OpenGLIndexBuffer(const uint32_t* indices, uint32_t count)
         : m_Count(count)
     {
         GLCall(glGenBuffers(1, &m_RendererID));

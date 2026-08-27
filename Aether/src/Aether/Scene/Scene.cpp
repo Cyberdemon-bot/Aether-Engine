@@ -455,7 +455,7 @@ namespace Aether {
                 {
                     auto& transform = GetComponent<TransformComponent>(entity);
                     auto& meshcmp = GetComponent<MeshComponent>(entity);
-                    Handle<Pose> pose = Handle<Pose>::MakeInvalid();
+                    Handle<Pose> pose = Handle<Pose>::Null();
                     if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
                     if (!meshcmp.Culled) 
                         renderer->DrawMesh(meshcmp.Mesh, meshcmp.SharedSheet, pose, transform.WorldTransform);

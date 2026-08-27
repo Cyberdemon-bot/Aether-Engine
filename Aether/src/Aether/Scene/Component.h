@@ -118,7 +118,7 @@ namespace Aether {
 
     // struct AudioSourceComponent
     // {
-    //     Handle<AudioSource> SourceHandle = Handle<AudioSource>::MakeInvalid();
+    //     Handle<AudioSource> SourceHandle = Handle<AudioSource>::Null();
  
     //     std::string Path;
     //     AudioType Type = AudioType::Audio2D;
@@ -169,7 +169,7 @@ namespace Aether {
 
     struct ColliderComponent
     {
-        Handle<RigidBody> ColliderHandle = Handle<RigidBody>::MakeInvalid();
+        Handle<RigidBody> ColliderHandle = Handle<RigidBody>::Null();
         glm::vec3 ColliderOffset = glm::vec3(1.0f);
         ColliderShape Shape = ColliderShape::Box;
         MotionType Type = MotionType::Kinematic;
@@ -192,7 +192,7 @@ namespace Aether {
         bool affectChild = true;
  
         mutable int JointIndex = -1;
-        mutable Handle<Skeleton> CachedSkeletonHnd = Handle<Skeleton>::MakeInvalid();
+        mutable Handle<Skeleton> CachedSkeletonHnd = Handle<Skeleton>::Null();
         mutable glm::mat4 CachedBoneWorld = glm::mat4(1.0f);
  
         BoneAttachmentComponent() = default;

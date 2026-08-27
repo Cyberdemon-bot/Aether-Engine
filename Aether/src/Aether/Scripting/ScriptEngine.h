@@ -44,8 +44,8 @@ namespace Aether {
     struct InstanceSlot
     {
         int generation = 0;
-        Handle<Environment> env_handle = Handle<Environment>::MakeInvalid();
-        Handle<Bytecode> code_handle = Handle<Bytecode>::MakeInvalid();
+        Handle<Environment> env_handle = Handle<Environment>::Null();
+        Handle<Bytecode> code_handle = Handle<Bytecode>::Null();
         bool has_error = false;
         int exec_order = 0;
         Scene* ctx = nullptr;

@@ -35,7 +35,7 @@ namespace Aether {
     UUID AssetManager::GetID(Handle<Asset> handle)
     {
         auto* route = m_Router.GetResource(handle);
-        if (!route) return UUID(0);
+        if (!route) return UUID::Null();
 
         return route->id;
     }

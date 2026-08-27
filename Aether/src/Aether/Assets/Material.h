@@ -55,8 +55,8 @@ namespace Aether {
 
         void Resize(uint32_t size)
         {
-            BaseHandles.resize(size, Handle<Asset>::MakeInvalid());
-            OverrideHandles.resize(size, Handle<Asset>::MakeInvalid());
+            BaseHandles.resize(size, Handle<Asset>::Null());
+            OverrideHandles.resize(size, Handle<Asset>::Null());
         }
 
         void CopyDefaultList(const std::vector<Handle<Asset>>& handleList);

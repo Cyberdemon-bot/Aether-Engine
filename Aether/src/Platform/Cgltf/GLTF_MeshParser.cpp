@@ -13,7 +13,7 @@ namespace Aether {
         {
             const cgltf_mesh* mesh = &gltf->meshes[meshIdx];
             
-            LAMeshCreateInfo& meshInfo = result->meshesInfo[meshIdx];
+            LMeshCreateInfo& meshInfo = result->meshesInfo[meshIdx];
             meshInfo.AssetID = UUID();
             meshInfo.DebugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
 

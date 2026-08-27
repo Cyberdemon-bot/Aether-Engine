@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <string>
 #include <string_view>
 #include <glm/glm.hpp>
@@ -71,12 +72,6 @@ namespace Aether {
         float Weight, AngleLimit; //rad
     };
 
-    struct PoseData
-    {
-        const glm::mat4* data = nullptr;
-        uint32_t size = 0;
-    };
-
     class RigModule
     {
     public:
@@ -100,7 +95,7 @@ namespace Aether {
         virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const = 0;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
         virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const = 0;
-        virtual PoseData GetPose(Handle<Pose> pose) = 0;
+        virtual std::span<const glm::mat4> GetPose(Handle<Pose> pose) = 0;
 
         virtual void ScheduleSample(  
             Handle<Skeleton> skeleton,

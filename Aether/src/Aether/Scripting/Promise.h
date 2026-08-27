@@ -28,10 +28,10 @@ namespace Aether {
         {
             Delegate<ScriptTable(const ScriptTable&)> OnFulfilled;
             Delegate<ScriptTable(const ScriptTable&)> OnRejected;
-            Handle<Promise> NextPromise = Handle<Promise>::MakeInvalid();
+            Handle<Promise> NextPromise = Handle<Promise>::Null();
         };
 
-        Handle<Promise> SelfHandle = Handle<Promise>::MakeInvalid();
+        Handle<Promise> SelfHandle = Handle<Promise>::Null();
 
         State CurrentState = State::Pending;
         ScriptTable Result;

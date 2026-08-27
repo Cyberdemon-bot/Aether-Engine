@@ -22,11 +22,11 @@ namespace Aether {
 
     Handle<CoroutineTask> CoroutineManager::StartCoroutine(sol::function func, Handle<ScriptInstance> owner)
     {
-        if (!func.valid()) return Handle<CoroutineTask>::MakeInvalid();
+        if (!func.valid()) return Handle<CoroutineTask>::Null();
 
         auto handle = m_Tasks.CreateResource();
         auto* task = m_Tasks.GetResource(handle);
-        if (task == nullptr) return Handle<CoroutineTask>::MakeInvalid();
+        if (task == nullptr) return Handle<CoroutineTask>::Null();
 
         task->thread = sol::thread::create(*m_LuaState);
         task->ref = task->thread;
@@ -196,7 +196,7 @@ namespace Aether {
 
     Handle<CoroutineTask> CoroutineManager::GetCurrentRunningTask(sol::thread target)
     {
-        Handle<CoroutineTask> found = Handle<CoroutineTask>::MakeInvalid();
+        Handle<CoroutineTask> found = Handle<CoroutineTask>::Null();
         if (!target.valid()) return found;
         lua_State* targetL = target.state();
         if (!targetL) return found;

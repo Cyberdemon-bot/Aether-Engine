@@ -1,57 +1,64 @@
 #pragma once
 
 #include <tuple>
+#include <string>
+#include <span>
 #include <glm/glm.hpp>
+#include "Aether/Core/UUID.h"
 #include "Aether/Core/Delegate.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Animation/RigModule.h"
 
 namespace Aether {
 
-    struct AMeshCreateInfo;
+    struct AssetCreateInfo
+    {
+        UUID id;
+        std::string debugName;
+    };
+
     struct VertexStream;
+    struct AMeshCreateInfo;
     using BoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const AMeshCreateInfo&)>;
     using AnimatedBoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const AMeshCreateInfo&)>;
 
-    struct AMeshCreateInfo
+    struct AMeshCreateInfo : public AssetCreateInfo
     {
-        uint32_t streamLen = 0, indexLen = 0;
-        const VertexStream* streams = nullptr;
-        const uint32_t* indicies = nullptr;
-        std::vector<SubMesh> submeshes = {};
-        std::vector<glm::mat4> poseMats = {};
-        BoundsCalculator CalculateBoundsFunc;
-        AnimatedBoundsCalculator CalculateAnimatedBoundsFunc;
+        std::span<const VertexStream> streams;
+        std::span<const uint32_t> indicies;
+        std::span<const SubMesh> submeshes;
+        glm::vec3 boundsMin = glm::vec3(0.0f), boundsMax = glm::vec3(0.0f), 
+        animatedBoundsMin = glm::vec3(0.0f), animatedBoundsMax = glm::vec3(0.0f);
+        bool hasAnimatedBounds = false;
     };
 
 
-    struct AImageCreateInfo
+    struct AImageCreateInfo : public AssetCreateInfo
     {
         TextureCreateInfo layout;
-        std::vector<uint8_t> raw;
+        std::span<const uint8_t> raw;
     };
 
-    struct AMaterialCreateInfo
+    struct AMaterialCreateInfo : public AssetCreateInfo
     {
         glm::vec4 albedo = {1.0f, 1.0f, 1.0f, 1.0f};
         float metallic = 0.0f;
         float roughness = 1.0f;
-        int albedoMapIdx = -1;
-        int normalMapIdx = -1;
-        int metallicRoughnessMapIdx = -1;
-
-        UUID* imageList = nullptr; uint32_t imageSize = 0;
+        UUID albedoMap, normalMap, metallicRoughnessMap;
     };
 
-    using ASkeletonCreateInfo = SkeletonCreateInfo;
-
-    struct AClipCreateInfo
+    struct ASkeletonCreateInfo : public AssetCreateInfo
     {
-        ClipCreateInfo layout;
+        SkeletonCreateInfo data;
+    };
+
+    struct AClipCreateInfo : public AssetCreateInfo
+    {
+        ClipCreateInfo data;
         UUID skeleton;
     };
 
-    struct ASheetCreateInfo
+    struct ASheetCreateInfo : public AssetCreateInfo
     {
         UUID* matList; uint32_t matSize;
     };

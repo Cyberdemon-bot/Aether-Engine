@@ -403,8 +403,8 @@ namespace Aether {
         {
             const auto& animator = reg->animators[node.animatorIdx];
             auto& comp = AddComponent<AnimatorComponent>(e);
-            comp.Skeleton = animator.skeleton;
-            comp.Clips = animator.clips;
+            comp.Skeleton = asset_manager->GetHandle(animator.skeleton);
+            for (auto& id : animator.clips) comp.Clips.push_back(asset_manager->GetHandle(id));
 
             if (!comp.Clips.empty())
             {
@@ -458,13 +458,13 @@ namespace Aether {
                 if (attach.JointIndex < 0) 
                     attach.JointIndex = rigModule->GetJointIndex(skel, attach.JointName);
                 
-                auto [poseData, poseCount] = rigModule->GetPose(animComp.CurrentPose);
-                if (poseData && attach.JointIndex >= 0 && (size_t)attach.JointIndex < poseCount)
+                auto pose = rigModule->GetPose(animComp.CurrentPose);
+                if (!pose.empty() && attach.JointIndex >= 0 && (size_t)attach.JointIndex < pose.size())
                 {
                     glm::mat4 ibm; 
                     rigModule->GetIBM(skel, attach.JointIndex, ibm);
                     
-                    glm::mat4 modelSpaceMat = poseData[attach.JointIndex] * glm::inverse(ibm);
+                    glm::mat4 modelSpaceMat = pose[attach.JointIndex] * glm::inverse(ibm);
                     glm::mat4 boneWorld = animatorWorld * modelSpaceMat;
 
                     glm::vec3 right = glm::normalize(glm::vec3(boneWorld[0])); glm::vec3 up = glm::normalize(glm::vec3(boneWorld[1]));

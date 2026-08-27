@@ -35,7 +35,7 @@ namespace Aether {
             handle = h;
             type = t;
         }
-        UUID id = UUID(0);
+        UUID id = UUID::Null();
         uint64_t handle = 0;
         AssetType type = AssetType::None;
     };
