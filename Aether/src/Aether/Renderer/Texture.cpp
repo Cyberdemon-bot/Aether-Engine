@@ -30,18 +30,6 @@ namespace Aether {
 		return nullptr;
 	}
 
-	Scope<Texture2D> Texture2D::CreateImpl(void* data, size_t size)
-	{
-		switch (ServiceManager::GetService<Renderer>()->GetAPI())
-		{
-			case RendererAPI::API::None:    AE_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLTexture2D>(data, size);
-		}
-
-		AE_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
-	}
-
 	Scope<TextureCube> TextureCube::CreateImpl(const std::string& path)
     {
         switch (ServiceManager::GetService<Renderer>()->GetAPI())

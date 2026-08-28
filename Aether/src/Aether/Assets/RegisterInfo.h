@@ -22,10 +22,10 @@ namespace Aether {
     {
         std::span<const VertexStream> streams;
         std::span<const uint32_t> indicies;
-        std::span<const SubMesh> submeshes;
-        glm::vec3 boundsMin = glm::vec3(0.0f), boundsMax = glm::vec3(0.0f), 
+        std::span<const Submesh> Submeshes;
+        glm::vec3 boundsMin = glm::vec3(0.0f), boundsMax = glm::vec3(0.0f),
         animatedBoundsMin = glm::vec3(0.0f), animatedBoundsMax = glm::vec3(0.0f);
-        bool hasAnimatedBounds = false;
+        bool hasJointData = false;
     };
 
 
@@ -56,6 +56,6 @@ namespace Aether {
 
     struct ASheetCreateInfo : public AssetCreateInfo
     {
-        UUID* matList; uint32_t matSize;
+        std::span<const UUID> materialList;
     };
 }

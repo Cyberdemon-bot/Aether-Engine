@@ -94,7 +94,6 @@ namespace Aether {
         virtual int GetJointIndex(Handle<Skeleton> skeleton, std::string_view name) const = 0;
         virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const = 0;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const = 0;
-        virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const = 0;
         virtual std::span<const glm::mat4> GetPose(Handle<Pose> pose) = 0;
 
         virtual void ScheduleSample(  

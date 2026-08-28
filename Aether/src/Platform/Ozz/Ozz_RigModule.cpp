@@ -353,25 +353,6 @@ namespace Aether {
         return std::string(names[index]);
     }
 
-    void Ozz_RigModule::GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const
-    {
-        auto* it = m_SkeletonPool.GetResource(skeleton);
-        if (!it) return;
-
-        auto* skel = it->data.get(); 
-        if (size < skel->num_joints()) return;
-        ozz::vector<ozz::math::Float4x4> modelMats(skel->num_joints());
-
-        ozz::animation::LocalToModelJob job;
-        job.skeleton = skel;
-        job.input = skel->joint_rest_poses();
-        job.output = ozz::make_span(modelMats);
-        if (!job.Run()) return;
-
-        for (size_t i = 0; i < size; i++) 
-            ConvertOzzMatrixToGlm(modelMats[i], arr[i]);
-    }
-
     bool Ozz_RigModule::GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const
     {
         const auto* it = m_SkeletonPool.GetResource(skeleton);

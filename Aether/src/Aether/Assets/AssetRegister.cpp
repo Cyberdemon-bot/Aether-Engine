@@ -34,7 +34,7 @@ namespace Aether {
     {
         auto handle = manager->CreateAsset<AMesh>(info.id);
         auto* mesh = manager->GetAsset<AMesh>(handle);
-        mesh->m_SubMeshes = std::vector(info.submeshes.begin(), info.submeshes.end());
+        mesh->m_Submeshes = std::vector(info.Submeshes.begin(), info.Submeshes.end());
         AE_CORE_ASSERT(info.streams, "Mesh require at least 1 vbo in streams!");
         AE_CORE_ASSERT(info.indicies, "Index data cannot be null!");
 
@@ -60,23 +60,22 @@ namespace Aether {
             mesh->m_VertexBuffers.push_back(vboHandle);
         }
 
-        if (mesh->m_SubMeshes.empty())
+        if (mesh->m_Submeshes.empty())
         {
-            SubMesh defaultSubMesh;
-            defaultSubMesh.BaseVertex = 0;
-            defaultSubMesh.BaseIndex = 0;
-            defaultSubMesh.VertexCount = vertex_cnt;
-            defaultSubMesh.IndexCount  = info.indicies.size();
-            mesh->m_SubMeshes.push_back(defaultSubMesh);
+            Submesh defaultSubmesh;
+            defaultSubmesh.BaseVertex = 0;
+            defaultSubmesh.BaseIndex = 0;
+            defaultSubmesh.VertexCount = vertex_cnt;
+            defaultSubmesh.IndexCount  = info.indicies.size();
+            mesh->m_Submeshes.push_back(defaultSubmesh);
         }
 
         mesh->m_BoundsMin = info.boundsMin;
         mesh->m_BoundsMax = info.boundsMax;
         mesh->m_BoundsCenter = (mesh->m_BoundsMin + mesh->m_BoundsMax) * 0.5f;
         mesh->m_BoundsExtents = (mesh->m_BoundsMax - mesh->m_BoundsMin) * 0.5f;
-
-        mesh->m_HasAnimatedBounds = info.hasAnimatedBounds;
-        if (info.hasAnimatedBounds)
+        mesh->m_HasJointData = info.hasJointData;
+        if (mesh->m_HasJointData)
         {
             mesh->m_AnimatedBoundsMin = info.animatedBoundsMin;
             mesh->m_AnimatedBoundsMax = info.animatedBoundsMax;
@@ -140,11 +139,11 @@ namespace Aether {
     {
         auto handle = manager->CreateAsset<ASheet>(info.id);
 
-        if (!info.matList || info.matSize == 0) return;
+        if (info.materialList.empty()) return;
         auto* sheet = manager->GetAsset<ASheet>(handle);
-        std::vector<Handle<Asset>> temp; temp.reserve(info.matSize);
-        for (uint32_t i = 0; i < info.matSize; i++) 
-            temp.push_back(manager->GetHandle(info.matList[i]));
+        std::vector<Handle<Asset>> temp; temp.reserve(info.materialList.size());
+        for (uint32_t i = 0; i < info.materialList.size(); i++) 
+            temp.push_back(manager->GetHandle(info.materialList[i]));
         sheet->MoveDefaultList(std::move(temp));
     }
 }

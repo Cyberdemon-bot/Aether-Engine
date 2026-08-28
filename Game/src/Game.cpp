@@ -655,7 +655,6 @@ Aether::Entity Game::SpawnZombie(const glm::vec3& position)
     cmp.Shape = Aether::ColliderShape::Capsule;
     cmp.Size = glm::vec3(0.35f, 2.0f, 0.0f);
     cmp.ColliderOffset = glm::vec3(0.0f, 1.0f, 0.0f);
-    cmp.Visible = true;
 
     m_ActiveZombies.push_back(newZombie);
     return newZombie;

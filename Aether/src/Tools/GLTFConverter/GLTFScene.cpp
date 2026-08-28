@@ -5,10 +5,6 @@
 
 namespace Aether {
 
-    // Kept for backward compatibility (per your instruction) - logic is
-    // unchanged from the original GLTF_SceneGraphParser, just moved here
-    // and de-virtualized. See the code-smell note next to SceneHierarchy's
-    // declaration in GLTFConverter.h.
     Ref<SceneHierarchy> GLTFConverter::ParseSceneGraph(cgltf_data* gltf)
     {
         Ref<SceneHierarchy> out = CreateRef<SceneHierarchy>();
