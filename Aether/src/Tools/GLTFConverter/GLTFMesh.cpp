@@ -7,6 +7,33 @@
 
 namespace Aether {
 
+    static void CalculateStaticBoundsAOS(AMeshCreateInfo& spec)
+    {
+        if (spec.streams.empty() || spec.streams[0].VertexCount == 0)
+        {
+            spec.boundsMin = glm::vec3(0.0f);
+            spec.boundsMax = glm::vec3(0.0f);
+            return;
+        }
+
+        const uint8_t* byteData = static_cast<const uint8_t*>(spec.streams[0].Data);
+        uint32_t stride = spec.streams[0].Layout.GetStride();
+        uint32_t vertexCount = spec.streams[0].VertexCount;
+
+        glm::vec3 boundsMin(FLT_MAX);
+        glm::vec3 boundsMax(-FLT_MAX);
+
+        for (uint32_t i = 0; i < vertexCount; i++)
+        {
+            const glm::vec3& pos = *reinterpret_cast<const glm::vec3*>(byteData + i * stride);
+            boundsMin = glm::min(boundsMin, pos);
+            boundsMax = glm::max(boundsMax, pos);
+        }
+
+        spec.boundsMin = boundsMin;
+        spec.boundsMax = boundsMax;
+    }
+
     void GLTFConverter::ParseMeshes(cgltf_data* gltf, ParsedScene& scene)
     {
         scene.Meshes.reserve(gltf->meshes_count);
@@ -36,9 +63,9 @@ namespace Aether {
                 if (hasJoints && hasWeights) { isSkinned = true; break; }
             }
 
-            std::vector<uint8_t>  vertexBytes;
+            std::vector<uint8_t> vertexBytes;
             std::vector<uint32_t> indices;
-            std::vector<SubMesh>  submeshes;
+            std::vector<SubMesh> submeshes;
 
             uint32_t totalVertices = 0;
             uint32_t totalIndices = 0;
@@ -161,11 +188,6 @@ namespace Aether {
             AE_CORE_INFO("GLTFConverter: parsed mesh '{0}': {1} vertices, {2} indices, {3} submeshes",
                 meshInfo.debugName, totalVertices, totalIndices, submeshes.size());
 
-            // Each of these vectors is fully built for this mesh and won't
-            // be resized again - safe to take spans into them now. Growth
-            // of the OUTER scene.MeshVertexBytes/etc. vectors on later
-            // meshes moves these inner vectors (pointer-steal), it doesn't
-            // touch their buffers, so the spans below stay valid.
             scene.MeshVertexBytes.push_back(std::move(vertexBytes));
             scene.MeshIndexData.push_back(std::move(indices));
             scene.MeshSubmeshData.push_back(std::move(submeshes));
@@ -174,24 +196,13 @@ namespace Aether {
             stream.Data = scene.MeshVertexBytes.back().data();
             stream.VertexCount = totalVertices;
             stream.Layout = isSkinned ? MeshLayout::PBRSkinned() : MeshLayout::PBR();
-            scene.MeshStreamData.push_back(std::vector<VertexStream>{ stream }); // single interleaved stream today; multi-stream meshes just push more entries here later
+            scene.MeshStreamData.push_back(std::vector<VertexStream>{ stream }); 
 
-            meshInfo.streams   = std::span<const VertexStream>(scene.MeshStreamData.back());
-            meshInfo.indicies  = std::span<const uint32_t>(scene.MeshIndexData.back());
+            meshInfo.streams = std::span<const VertexStream>(scene.MeshStreamData.back());
+            meshInfo.indicies = std::span<const uint32_t>(scene.MeshIndexData.back());
             meshInfo.submeshes = std::span<const SubMesh>(scene.MeshSubmeshData.back());
 
-            // boundsMin/boundsMax/animatedBounds*/hasAnimatedBounds are left
-            // at their defaults here, matching the original design: static
-            // bounds and animated bounds were both computed in
-            // LegacyAssembler::Upload, not at parse time. Animated bounds
-            // genuinely can't be done here (they need the skeleton's
-            // *registered* rest-pose matrices, which don't exist until
-            // Upload runs). Static bounds technically COULD be computed
-            // right here instead, since we already have the full vertex
-            // buffer - flagging as an open question for you rather than
-            // deciding unilaterally: move static bounds into the converter,
-            // or leave both bounds calculations together in Upload for
-            // symmetry?
+            CalculateStaticBoundsAOS(meshInfo);
             scene.Meshes.push_back(std::move(meshInfo));
         }
     }

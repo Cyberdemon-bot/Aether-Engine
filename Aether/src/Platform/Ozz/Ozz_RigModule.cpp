@@ -217,9 +217,6 @@ namespace Aether {
     }
 
     // task handling
-
-
-
     void Ozz_RigModule::ScheduleSample(   
             Handle<Skeleton> skeleton,
             Handle<Clip> clip, 
@@ -367,8 +364,8 @@ namespace Aether {
 
         ozz::animation::LocalToModelJob job;
         job.skeleton = skel;
-        job.input    = skel->joint_rest_poses();
-        job.output   = ozz::make_span(modelMats);
+        job.input = skel->joint_rest_poses();
+        job.output = ozz::make_span(modelMats);
         if (!job.Run()) return;
 
         for (size_t i = 0; i < size; i++) 

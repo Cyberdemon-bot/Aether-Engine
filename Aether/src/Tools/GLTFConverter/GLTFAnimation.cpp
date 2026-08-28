@@ -68,11 +68,6 @@ namespace Aether {
 
     void GLTFConverter::ParseClips(cgltf_data* gltf, ParsedScene& scene)
     {
-        // Map each joint node to (skeleton index, joint index) so animation
-        // channels can be grouped by the skeleton they drive. Relies on
-        // scene.Skeletons already being filled in skin order (ParseRigs
-        // must run first - enforced by ParseAnimations calling them in
-        // that order).
         struct NodeInfo { int skeletonIdx; int jointIdx; };
         std::unordered_map<cgltf_node*, NodeInfo> nodeMap;
 
@@ -144,9 +139,6 @@ namespace Aether {
 
                 clipInfo.data.Duration = maxTime;
                 clipInfo.data.SampleRate = 30.0f;
-
-                // Resolved directly to the skeleton's real UUID - no local
-                // rig index carried forward for Upload() to resolve later.
                 clipInfo.skeleton = scene.Skeletons[skeletonIdx].id;
 
                 for (auto& [node, trackData] : trackMap)

@@ -5,7 +5,7 @@
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Scripting/ScriptEngine.h"
-#include "Aether/Importer/LegacyAssembler.h"
+#include "Aether/Importer/Importer.h"
 
 namespace Aether {
 

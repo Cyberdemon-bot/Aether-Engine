@@ -1,7 +1,7 @@
 #include "aepch.h"
 #include "GLTFConverter.h"
 #include "Aether/Core/Assert.h"
-#include "Aether/Renderer/Texture.h" // ImageFormat, WrapMode, TextureCreateInfo (should already come in via RegisterInfo.h; included directly here defensively)
+#include "Aether/Renderer/Texture.h" 
 
 #include <cgltf.h>
 #include <stb_image.h>
@@ -10,7 +10,6 @@ namespace Aether {
 
     void GLTFConverter::ParseMaterials(cgltf_data* gltf, ParsedScene& scene)
     {
-        // --- Images first: materials need their UUIDs to link maps. ---
         scene.Images.reserve(gltf->images_count);
         scene.ImagePixels.reserve(gltf->images_count);
 
@@ -54,15 +53,12 @@ namespace Aether {
                 AE_CORE_ERROR("GLTFConverter: texture URI loading not supported yet ('{0}')", image->uri);
             }
 
-            // Storage is filled and won't be resized again for this image -
-            // safe to span it now.
             scene.ImagePixels.push_back(std::move(pixels));
             imgInfo.raw = std::span<const uint8_t>(scene.ImagePixels.back());
 
             scene.Images.push_back(imgInfo);
         }
 
-        // --- Materials: resolve map references straight to the UUIDs assigned above. ---
         scene.Materials.reserve(gltf->materials_count);
 
         for (size_t i = 0; i < gltf->materials_count; i++)
