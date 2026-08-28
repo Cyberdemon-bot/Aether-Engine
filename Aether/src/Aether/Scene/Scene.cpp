@@ -381,7 +381,7 @@ namespace Aether {
                             this->GetComponent<AnimatorComponent>(entity).Culled = false;
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasAnimatedBounds)
+                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasJointData)
                         Utils::TransformBound(mesh->m_AnimatedBoundsMin, mesh->m_AnimatedBoundsMax, world, worldMin, worldMax);
                     else Utils::TransformBound(mesh->m_BoundsMin, mesh->m_BoundsMax, world, worldMin, worldMax);
                     meshcmp.Culled = !Utils::CheckBoundVisible(frustum, worldMin, worldMax);
@@ -474,7 +474,7 @@ namespace Aether {
 
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasAnimatedBounds)
+                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasJointData)
                         Utils::TransformBound(mesh->m_AnimatedBoundsMin, mesh->m_AnimatedBoundsMax, world, worldMin, worldMax);
                     else Utils::TransformBound(mesh->m_BoundsMin, mesh->m_BoundsMax, world, worldMin, worldMax);
                     if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;

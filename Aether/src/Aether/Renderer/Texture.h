@@ -69,7 +69,6 @@ namespace Aether {
 
 	private:
 		static Scope<Texture2D> CreateImpl(const TextureCreateInfo& spec);
-		static Scope<Texture2D> CreateImpl(void* data, size_t size);
 		static Scope<Texture2D> CreateImpl(const std::string& path, WrapMode mode = WrapMode::REPEAT, bool flip = true);
 
 		friend class ResourceManager;

@@ -45,7 +45,7 @@ namespace Aether {
 
 	void ImplementMesh(const AMeshCreateInfo& spec, AMesh* mesh)
     {
-        mesh->m_SubMeshes = std::vector(spec.submeshes.begin(), spec.submeshes.end());
+        mesh->m_Submeshes = std::vector(spec.Submeshes.begin(), spec.Submeshes.end());
         AE_CORE_ASSERT(spec.streams, "Mesh require at least 1 vbo in streams!");
         AE_CORE_ASSERT(spec.indicies, "Index data cannot be null!");
 
@@ -71,14 +71,14 @@ namespace Aether {
             mesh->m_VertexBuffers.push_back(vboHandle);
         }
 
-        if (mesh->m_SubMeshes.empty())
+        if (mesh->m_Submeshes.empty())
         {
-            SubMesh defaultSubMesh;
-            defaultSubMesh.BaseVertex = 0;
-            defaultSubMesh.BaseIndex = 0;
-            defaultSubMesh.VertexCount = vertex_cnt;
-            defaultSubMesh.IndexCount = spec.indicies.size();
-            mesh->m_SubMeshes.push_back(defaultSubMesh);
+            Submesh defaultSubmesh;
+            defaultSubmesh.BaseVertex = 0;
+            defaultSubmesh.BaseIndex = 0;
+            defaultSubmesh.VertexCount = vertex_cnt;
+            defaultSubmesh.IndexCount = spec.indicies.size();
+            mesh->m_Submeshes.push_back(defaultSubmesh);
         }
     }
 
@@ -296,8 +296,8 @@ namespace Aether {
 		for (uint32_t i = 0; i < commandlist.size(); ++i)
 		{
 			const auto& c = commandlist[i];
-			uint64_t k1 = (static_cast<uint64_t>(c.sheet.index) << 32) | c.matIdx;
-			uint64_t k2 = (static_cast<uint64_t>(c.mesh.index)  << 32) | c.subIdx;
+			uint64_t k1 = (static_cast<uint64_t>(c.sheet.index) << 32) | c.subIdx;
+			uint64_t k2 = (static_cast<uint64_t>(c.mesh.index) << 32) | c.subIdx;
 			sortkeys.push_back({ {k1, k2}, i });
 		}
 
@@ -324,11 +324,15 @@ namespace Aether {
 
 		for (auto& command : CommandList)
 		{
+			command.matPtr = nullptr; 
 			auto* sheet = asset_manager->GetAsset<ASheet>(command.sheet);
+			if (sheet && command.subIdx < sheet->GetSize())
+			{
+				auto* mat = asset_manager->GetAsset<AMaterial>(sheet->GetActiveHandle(command.subIdx));
+				if (mat && mat->id == command.matID) command.matPtr = mat;
+			}
+			
 			command.meshPtr = asset_manager->GetAsset<AMesh>(command.mesh);
-			command.matPtr  = (sheet && command.matIdx < sheet->GetSize())
-				? asset_manager->GetAsset<AMaterial>(sheet->GetActiveHandle(command.matIdx))
-				: nullptr;
 		}
 
 		auto& poseLookup = s_SceneData->PoseIndexLookup;
@@ -446,7 +450,7 @@ namespace Aether {
 		auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
 		auto* me_asset = asset_manager->GetAsset<AMesh>(mesh);
 		auto* sh_asset = asset_manager->GetAsset<ASheet>(sheet);
-		const auto& submeshes = me_asset->m_SubMeshes;
+		const auto& Submeshes = me_asset->m_Submeshes;
 
 		if (!me_asset->m_HasInstanceBuffer)
 		{
@@ -456,14 +460,14 @@ namespace Aether {
 			me_asset->m_HasInstanceBuffer = true;
 		}
 
-		for (uint32_t i = 0; i < submeshes.size(); i++)
+		for (uint32_t i = 0; i < Submeshes.size(); i++)
 		{
-			if (submeshes[i].MaterialIdx >= sh_asset->GetSize()) continue;
+			if (i >= sh_asset->GetSize()) break;
 			Command command;
 			command.mesh = mesh;
 			command.sheet = sheet;
 			command.subIdx = i;
-			command.matIdx = submeshes[i].MaterialIdx;
+			command.matID = Submeshes[i].MaterialID;
 			command.pose  = pose;
 			command.transform = transform;
 			s_SceneData->CommandList.push_back(command);
@@ -549,8 +553,8 @@ namespace Aether {
 				AMaterial* material = command.matPtr;
 				if (!material || !mesh) continue;
 
-				const auto& submesh = mesh->m_SubMeshes[command.subIdx];
-				void* indexOffset = (void*)(submesh.BaseIndex * sizeof(uint32_t));
+				const auto& Submesh = mesh->m_Submeshes[command.subIdx];
+				void* indexOffset = (void*)(Submesh.BaseIndex * sizeof(uint32_t));
 
 				if (currentMaterial != material && pass.UsingMaterial)
 				{
@@ -583,7 +587,7 @@ namespace Aether {
 					if (instanceVBO->GetSize() < dataSize)
 						instanceVBO->Resize(dataSize * 2);
 					instanceVBO->SetData(s_SceneData->batchInstance.data(), dataSize, 0);
-					RenderCommand::DrawInstancedBaseVertex(nullptr, submesh.IndexCount, indexOffset, submesh.BaseVertex, s_SceneData->batchInstance.size());
+					RenderCommand::DrawInstancedBaseVertex(nullptr, Submesh.IndexCount, indexOffset, Submesh.BaseVertex, s_SceneData->batchInstance.size());
 					s_SceneData->batchInstance.clear();
 				}
 			}

@@ -66,8 +66,7 @@ namespace Aether {
 	{
 		Handle<Asset> mesh;
 		Handle<Asset> sheet;
-		uint32_t subIdx;
-		uint32_t matIdx;
+		uint32_t subIdx; UUID matID;
 		Handle<Pose> pose;
 
 		glm::mat4 transform;
@@ -78,7 +77,7 @@ namespace Aether {
 		{
 			return (mesh.Blend() != other.mesh.Blend()) || 
 				(sheet.Blend() != other.sheet.Blend()) || 
-				(matIdx != other.matIdx) || 
+				(matID != other.matID) || 
 				(subIdx != other.subIdx);
 		}
 	};

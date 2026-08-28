@@ -10,37 +10,7 @@
 
 namespace Aether {
 
-    static void CalculateSkinnedBoundsAOS(AMeshCreateInfo& spec, std::vector<glm::mat4>& poseMats)
-    {
-        if (spec.streams.empty() || spec.streams[0].VertexCount == 0 || poseMats.empty())
-        {
-            spec.hasAnimatedBounds = false;
-            return;
-        }
-
-        const SkinnedVertex* verts = static_cast<const SkinnedVertex*>(spec.streams[0].Data);
-        uint32_t vertexCount = spec.streams[0].VertexCount;
-
-        glm::vec3 boundsMin(FLT_MAX);
-        glm::vec3 boundsMax(-FLT_MAX);
-
-        for (uint32_t i = 0; i < vertexCount; i++)
-        {
-            const auto& v = verts[i];
-            glm::vec4 skinnedPos =
-                poseMats[v.Joints.x] * glm::vec4(v.Position, 1.0f) * v.Weights.x +
-                poseMats[v.Joints.y] * glm::vec4(v.Position, 1.0f) * v.Weights.y +
-                poseMats[v.Joints.z] * glm::vec4(v.Position, 1.0f) * v.Weights.z +
-                poseMats[v.Joints.w] * glm::vec4(v.Position, 1.0f) * v.Weights.w;
-
-            boundsMin = glm::min(boundsMin, glm::vec3(skinnedPos));
-            boundsMax = glm::max(boundsMax, glm::vec3(skinnedPos));
-        }
-
-        spec.animatedBoundsMin = boundsMin;
-        spec.animatedBoundsMax = boundsMax;
-        spec.hasAnimatedBounds = true;
-    }
+    
 
     void Importer::Init()
     {
@@ -93,6 +63,12 @@ namespace Aether {
             res.matIDs.push_back(mat.id);
         }
 
+        for (const auto& sheet : sceneData->Sheets)
+        {
+            assetRegister->Register<ASheet>(sheet);
+            res.sheetIDs.push_back(sheet.id);
+        }
+
         for (const auto& skel : sceneData->Skeletons)
         {
             assetRegister->Register<ASkeleton>(skel);
@@ -113,64 +89,9 @@ namespace Aether {
             }
         }
 
-        for (size_t meshIdx = 0; meshIdx < sceneData->Meshes.size(); meshIdx++)
+        for (const auto& meshInfo : sceneData->Meshes)
         {
-            const AMeshCreateInfo& meshInfo = sceneData->Meshes[meshIdx];
-
-            int rigIdx = -1;
-            if (sceneData->Hierarchy)
-            {
-                for (const auto& node : sceneData->Hierarchy->nodes)
-                {
-                    if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
-                    {
-                        rigIdx = node.animatorIdx;
-                        break;
-                    }
-                }
-            }
-
-            std::vector<UUID> sheetMatIDs;
-            std::vector<SubMesh> submeshes;
-            submeshes.reserve(meshInfo.submeshes.size());
-
-            for (const auto& subInfo : meshInfo.submeshes)
-            {
-                SubMesh sm = subInfo;
-                if (subInfo.MaterialIdx >= 0 && subInfo.MaterialIdx < (int)sceneData->Materials.size())
-                {
-                    sheetMatIDs.push_back(sceneData->Materials[subInfo.MaterialIdx].id);
-                    sm.MaterialIdx = (int)sheetMatIDs.size() - 1;
-                }
-                else sm.MaterialIdx = -1;
-                submeshes.push_back(sm);
-            }
-
-            UUID sheetID = assetRegister->Register<ASheet>(ASheetCreateInfo{
-                UUID(),
-                meshInfo.debugName + "_Sheet",
-                sheetMatIDs.data(),
-                (uint32_t)sheetMatIDs.size()
-            });
-            res.sheetIDs.push_back(sheetID);
-
-            AMeshCreateInfo spec = meshInfo;
-            spec.submeshes = std::span<const SubMesh>(submeshes);
-
-            if (rigIdx >= 0 && rigIdx < (int)sceneData->Skeletons.size())
-            {
-                UUID skeletonID = sceneData->Skeletons[rigIdx].id;
-                auto asset = assetManager->GetAsset<ASkeleton>(skeletonID);
-                if (asset)
-                {
-                    auto handle = asset->m_Handle;
-                    std::vector<glm::mat4> poseMats(asset->m_JointCount);
-                    animSystem->GetRestPoseMatrices(handle, poseMats.data(), poseMats.size());
-                    CalculateSkinnedBoundsAOS(spec, poseMats);
-                }
-            }
-
-            assetRegister->Register<AMesh>(spec);
+            assetRegister->Register<AMesh>(meshInfo);
             res.meshIDs.push_back(meshInfo.id);
         }
 

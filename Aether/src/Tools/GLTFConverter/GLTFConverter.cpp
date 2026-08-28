@@ -28,10 +28,10 @@ namespace Aether {
             return scene;
         }
 
-        ParseMaterials(gltf, scene);   
-        ParseAnimations(gltf, scene);   
-        ParseMeshes(gltf, scene);      
         scene.Hierarchy = ParseSceneGraph(gltf); 
+        ParseMaterials(gltf, scene);
+        ParseAnimations(gltf, scene);
+        ParseMeshes(gltf, scene);
 
         cgltf_free(gltf);
 

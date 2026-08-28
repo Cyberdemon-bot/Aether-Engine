@@ -59,6 +59,7 @@ namespace Aether {
 
         std::vector<AImageCreateInfo> Images;
         std::vector<AMaterialCreateInfo> Materials;
+        std::vector<ASheetCreateInfo> Sheets;
         std::vector<ASkeletonCreateInfo> Skeletons;
         std::vector<AClipCreateInfo> Clips;
         std::vector<AMeshCreateInfo> Meshes;
@@ -66,10 +67,11 @@ namespace Aether {
         Ref<SceneHierarchy> Hierarchy;
 
         std::vector<std::vector<uint8_t>> ImagePixels;    
+        std::vector<std::vector<UUID>> SheetData;
         std::vector<std::vector<uint8_t>> MeshVertexBytes; 
         std::vector<std::vector<uint32_t>> MeshIndexData;   
         std::vector<std::vector<VertexStream>> MeshStreamData;  
-        std::vector<std::vector<SubMesh>> MeshSubmeshData;
+        std::vector<std::vector<Submesh>> MeshSubmeshData;
     };
 
     class GLTFConverter

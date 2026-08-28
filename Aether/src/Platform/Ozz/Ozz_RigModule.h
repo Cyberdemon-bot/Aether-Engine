@@ -35,11 +35,9 @@ namespace Aether {
         virtual void DestroyMask(Handle<Mask> mask) override;
         virtual void FillMaskSubtree(Handle<Mask> mask, Handle<Skeleton> skeleton, std::string_view boneName, float weight) override;
 
-
         virtual int GetJointIndex(Handle<Skeleton> skeleton, std::string_view name) const override;
         virtual std::string GetJointName(Handle<Skeleton> skeleton, int index) const override;
         virtual bool GetIBM(Handle<Skeleton> skeleton, int boneIndex, glm::mat4& out) const override;
-        virtual void GetRestPoseMatrices(Handle<Skeleton> skeleton, glm::mat4* arr, size_t size) const override;
         virtual std::span<const glm::mat4> GetPose(Handle<Pose> pose) override;
 
         virtual void ScheduleSample(  

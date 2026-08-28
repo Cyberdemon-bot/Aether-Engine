@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "Aether/Core/UUID.h"
 #include "Aether/Core/Base.h"
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
@@ -69,7 +70,7 @@ namespace Aether {
         BufferLayout Layout = MeshLayout::Vertex();
     };
 
-    struct SubMesh
+    struct Submesh
     {
         uint32_t BaseVertex = 0;
         uint32_t BaseIndex = 0;
@@ -77,7 +78,7 @@ namespace Aether {
         uint32_t IndexCount = 0;
         glm::vec3 BoundsMin = glm::vec3(0.0f);
         glm::vec3 BoundsMax = glm::vec3(0.0f);
-        int MaterialIdx = -1;
+        UUID MaterialID = UUID::Null();
     };
 
     struct AMesh : public Asset
@@ -87,7 +88,7 @@ namespace Aether {
         Handle<Resource> m_VertexArray;
         Handle<Resource> m_IndexBuffer;
         std::vector<Handle<Resource>> m_VertexBuffers;
-        std::vector<SubMesh> m_SubMeshes;
+        std::vector<Submesh> m_Submeshes;
 
         glm::vec3 m_BoundsMin = glm::vec3(0.0f);
         glm::vec3 m_BoundsMax = glm::vec3(0.0f);
@@ -96,7 +97,7 @@ namespace Aether {
         glm::vec3 m_AnimatedBoundsMin = glm::vec3(0.0f);
         glm::vec3 m_AnimatedBoundsMax = glm::vec3(0.0f);
 
-        bool m_HasAnimatedBounds = false;
+        bool m_HasJointData = false;
         bool m_HasInstanceBuffer = false;
     };
 }

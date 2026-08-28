@@ -104,42 +104,6 @@ namespace Aether {
         CreateTexture(m_RendererID, m_Width, m_Height, spec.Samples, m_DataFormat, m_InternalFormat, dataType, glWrapMode, spec.GenerateMips, nullptr);
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(void* data, size_t size)
-    {
-        int width, height, channels;
-        stbi_set_flip_vertically_on_load(0);
-
-        bool isHDR = stbi_is_hdr_from_memory((const stbi_uc*)data, (int)size);
-
-        void* pixelData = nullptr;
-        ImageFormat format;
-        
-        if (isHDR)
-        {
-           
-            pixelData = stbi_loadf_from_memory((const stbi_uc*)data, (int)size, &width, &height, &channels, 4);
-            format = ImageFormat::RGBA16F;
-        }
-        else
-        {
-            pixelData = stbi_load_from_memory((const stbi_uc*)data, (int)size, &width, &height, &channels, 4);
-            format = ImageFormat::RGBA8;
-        }
-
-        if (pixelData)
-        {
-            m_IsLoaded = true;
-            m_Width = width;
-            m_Height = height;
-            m_InternalFormat = Utils::ImageFormatToGLInternalFormat(format);
-            m_DataFormat = Utils::ImageFormatToGLDataFormat(format);
-            GLenum dataType = Utils::ImageFormatToDataType(format);
-            CreateTexture(m_RendererID, m_Width, m_Height, 1, m_DataFormat, m_InternalFormat, dataType, GL_REPEAT, false, pixelData);
-            stbi_image_free(pixelData);
-        }
-        else AE_CORE_ERROR("Fail to create texture from packed data");
-    }
-
     OpenGLTexture2D::OpenGLTexture2D(const std::string& path, WrapMode mode, bool flip)
     {
         int width, height, channels;

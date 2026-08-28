@@ -1,13 +1,14 @@
 #include "aepch.h"
+#include "Aether/Animation/RigUtils.h"
+#include "Aether/Core/Log.h"
 #include "GLTFConverter.h"
 #include "GLTFUtils.h"
-#include "Aether/Core/Assert.h"
 
 #include <cgltf.h>
 
 namespace Aether {
 
-    static void CalculateStaticBoundsAOS(AMeshCreateInfo& spec)
+    static void CalculateStaticBounds(AMeshCreateInfo& spec)
     {
         if (spec.streams.empty() || spec.streams[0].VertexCount == 0)
         {
@@ -34,6 +35,33 @@ namespace Aether {
         spec.boundsMax = boundsMax;
     }
 
+    static void CalculateSkinnedBounds(AMeshCreateInfo& spec, std::vector<glm::mat4>& poseMats)
+    {
+        if (spec.streams.empty() || spec.streams[0].VertexCount == 0 || poseMats.empty()) return;
+
+        const SkinnedVertex* verts = static_cast<const SkinnedVertex*>(spec.streams[0].Data);
+        uint32_t vertexCount = spec.streams[0].VertexCount;
+
+        glm::vec3 boundsMin(FLT_MAX);
+        glm::vec3 boundsMax(-FLT_MAX);
+
+        for (uint32_t i = 0; i < vertexCount; i++)
+        {
+            const auto& v = verts[i];
+            glm::vec4 skinnedPos =
+                poseMats[v.Joints.x] * glm::vec4(v.Position, 1.0f) * v.Weights.x +
+                poseMats[v.Joints.y] * glm::vec4(v.Position, 1.0f) * v.Weights.y +
+                poseMats[v.Joints.z] * glm::vec4(v.Position, 1.0f) * v.Weights.z +
+                poseMats[v.Joints.w] * glm::vec4(v.Position, 1.0f) * v.Weights.w;
+
+            boundsMin = glm::min(boundsMin, glm::vec3(skinnedPos));
+            boundsMax = glm::max(boundsMax, glm::vec3(skinnedPos));
+        }
+
+        spec.animatedBoundsMin = boundsMin;
+        spec.animatedBoundsMax = boundsMax;
+    }
+
     void GLTFConverter::ParseMeshes(cgltf_data* gltf, ParsedScene& scene)
     {
         scene.Meshes.reserve(gltf->meshes_count);
@@ -50,7 +78,7 @@ namespace Aether {
             meshInfo.id = UUID();
             meshInfo.debugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
 
-            bool isSkinned = false;
+            meshInfo.hasJointData = false;
             for (size_t primIdx = 0; primIdx < mesh->primitives_count; primIdx++)
             {
                 const cgltf_primitive* prim = &mesh->primitives[primIdx];
@@ -60,12 +88,13 @@ namespace Aether {
                     if (prim->attributes[attrIdx].type == cgltf_attribute_type_joints) hasJoints = true;
                     if (prim->attributes[attrIdx].type == cgltf_attribute_type_weights) hasWeights = true;
                 }
-                if (hasJoints && hasWeights) { isSkinned = true; break; }
+                if (hasJoints && hasWeights) { meshInfo.hasJointData = true; break; }
             }
 
             std::vector<uint8_t> vertexBytes;
             std::vector<uint32_t> indices;
-            std::vector<SubMesh> submeshes;
+            std::vector<Submesh> Submeshes;
+            std::vector<UUID> materials;
 
             uint32_t totalVertices = 0;
             uint32_t totalIndices = 0;
@@ -74,12 +103,19 @@ namespace Aether {
             {
                 const cgltf_primitive* prim = &mesh->primitives[primIdx];
 
-                SubMesh subInfo;
+                Submesh subInfo;
                 subInfo.BaseVertex = totalVertices;
                 subInfo.BaseIndex = totalIndices;
 
                 if (prim->material)
-                    subInfo.MaterialIdx = (int)(prim->material - gltf->materials);
+                {
+                    uint32_t matIdx = (uint32_t)(prim->material - gltf->materials); 
+                    if (matIdx < (uint32_t)scene.Materials.size())
+                    {
+                        subInfo.MaterialID = scene.Materials[matIdx].id;
+                        materials.push_back(subInfo.MaterialID);
+                    }
+                }
 
                 std::vector<float> positions, normals, tangents, texCoords, weights;
                 std::vector<uint32_t> joints, primIndices;
@@ -141,7 +177,7 @@ namespace Aether {
                         primIndices[i] = (uint32_t)cgltf_accessor_read_index(accessor, i);
                 }
 
-                if (isSkinned)
+                if (meshInfo.hasJointData)
                 {
                     if (joints.empty()) joints.resize(primVertexCount * 4, 0);
                     if (weights.empty())
@@ -149,21 +185,23 @@ namespace Aether {
                         weights.resize(primVertexCount * 4, 0.0f);
                         for (size_t i = 0; i < primVertexCount; i++) weights[i * 4 + 0] = 1.0f;
                     }
+                    if (joints.empty() || weights.empty())  
+                        AE_CORE_WARN("[GLTFConverter] Mesh {0} should have joint data but nothing are found!", (uint64_t)meshInfo.id);
                 }
 
                 size_t currOffset = vertexBytes.size();
-                if (isSkinned)
+                if (meshInfo.hasJointData)
                 {
                     vertexBytes.resize(currOffset + primVertexCount * sizeof(SkinnedVertex));
                     SkinnedVertex* dest = reinterpret_cast<SkinnedVertex*>(vertexBytes.data() + currOffset);
                     for (size_t i = 0; i < primVertexCount; i++)
                     {
                         dest[i].Position = glm::vec3(positions[i*3], positions[i*3+1], positions[i*3+2]);
-                        dest[i].Normal   = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
-                        dest[i].Tangent  = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
+                        dest[i].Normal = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
+                        dest[i].Tangent = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
                         dest[i].TexCoord = glm::vec2(texCoords[i*2], texCoords[i*2+1]);
-                        dest[i].Joints   = glm::uvec4(joints[i*4],   joints[i*4+1],   joints[i*4+2],   joints[i*4+3]);
-                        dest[i].Weights  = glm::vec4(weights[i*4],   weights[i*4+1],   weights[i*4+2],  weights[i*4+3]);
+                        dest[i].Joints = glm::uvec4(joints[i*4],   joints[i*4+1],   joints[i*4+2],   joints[i*4+3]);
+                        dest[i].Weights = glm::vec4(weights[i*4],   weights[i*4+1],   weights[i*4+2],  weights[i*4+3]);
                     }
                 }
                 else
@@ -173,37 +211,69 @@ namespace Aether {
                     for (size_t i = 0; i < primVertexCount; i++)
                     {
                         dest[i].Position = glm::vec3(positions[i*3], positions[i*3+1], positions[i*3+2]);
-                        dest[i].Normal   = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
-                        dest[i].Tangent  = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
+                        dest[i].Normal = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
+                        dest[i].Tangent = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
                         dest[i].TexCoord = glm::vec2(texCoords[i*2], texCoords[i*2+1]);
                     }
                 }
 
                 indices.insert(indices.end(), primIndices.begin(), primIndices.end());
                 totalVertices += subInfo.VertexCount;
-                totalIndices  += subInfo.IndexCount;
-                submeshes.push_back(subInfo);
+                totalIndices += subInfo.IndexCount;
+                Submeshes.push_back(subInfo);
             }
 
-            AE_CORE_INFO("GLTFConverter: parsed mesh '{0}': {1} vertices, {2} indices, {3} submeshes",
-                meshInfo.debugName, totalVertices, totalIndices, submeshes.size());
+            AE_CORE_INFO("GLTFConverter: parsed mesh '{0}': {1} vertices, {2} indices, {3} Submeshes",
+                meshInfo.debugName, totalVertices, totalIndices, Submeshes.size());
 
             scene.MeshVertexBytes.push_back(std::move(vertexBytes));
             scene.MeshIndexData.push_back(std::move(indices));
-            scene.MeshSubmeshData.push_back(std::move(submeshes));
+            scene.MeshSubmeshData.push_back(std::move(Submeshes));
+            scene.SheetData.push_back(std::move(materials));
+
+            ASheetCreateInfo sheetInfo;
+            sheetInfo.materialList = std::span(scene.SheetData.back());
+            sheetInfo.debugName = meshInfo.debugName + "_Sheet";
+            sheetInfo.id = UUID();
 
             VertexStream stream;
             stream.Data = scene.MeshVertexBytes.back().data();
             stream.VertexCount = totalVertices;
-            stream.Layout = isSkinned ? MeshLayout::PBRSkinned() : MeshLayout::PBR();
+            stream.Layout = meshInfo.hasJointData ? MeshLayout::PBRSkinned() : MeshLayout::PBR();
             scene.MeshStreamData.push_back(std::vector<VertexStream>{ stream }); 
 
             meshInfo.streams = std::span<const VertexStream>(scene.MeshStreamData.back());
             meshInfo.indicies = std::span<const uint32_t>(scene.MeshIndexData.back());
-            meshInfo.submeshes = std::span<const SubMesh>(scene.MeshSubmeshData.back());
+            meshInfo.Submeshes = std::span<const Submesh>(scene.MeshSubmeshData.back());
 
-            CalculateStaticBoundsAOS(meshInfo);
+            CalculateStaticBounds(meshInfo);
+            if (meshInfo.hasJointData)
+            {
+                int rigIdx = -1;
+                if (scene.Hierarchy)
+                {
+                    for (const auto& node : scene.Hierarchy->nodes)
+                    {
+                        if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
+                        {
+                            rigIdx = node.animatorIdx;
+                            break;
+                        }
+                    }
+                }
+
+    
+                if (rigIdx >= 0 && rigIdx < (int)scene.Skeletons.size())
+                {
+                    const auto& skel = scene.Skeletons[rigIdx];
+                    std::vector<glm::mat4> poseMats(skel.data.Joints.size());
+                    CalcRestPoseMatrices(skel.data, poseMats.data(), poseMats.size());
+                    CalculateSkinnedBounds(meshInfo, poseMats);
+                }
+            }
+
             scene.Meshes.push_back(std::move(meshInfo));
+            scene.Sheets.push_back(std::move(sheetInfo));
         }
     }
 }

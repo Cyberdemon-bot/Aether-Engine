@@ -9,7 +9,6 @@ namespace Aether {
     {
     public:
         OpenGLTexture2D(const TextureCreateInfo& spec);
-        OpenGLTexture2D(void* data, size_t size);
 		OpenGLTexture2D(const std::string& path, WrapMode mode, bool flip);
         virtual ~OpenGLTexture2D();
 
