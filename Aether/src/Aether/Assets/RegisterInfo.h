@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Delegate.h"
+#include "Aether/Assets/Mesh.h"
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Animation/RigModule.h"
 
@@ -16,11 +17,6 @@ namespace Aether {
         UUID id;
         std::string debugName;
     };
-
-    struct VertexStream;
-    struct AMeshCreateInfo;
-    using BoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const AMeshCreateInfo&)>;
-    using AnimatedBoundsCalculator = Delegate<std::tuple<glm::vec3, glm::vec3>(const AMeshCreateInfo&)>;
 
     struct AMeshCreateInfo : public AssetCreateInfo
     {
