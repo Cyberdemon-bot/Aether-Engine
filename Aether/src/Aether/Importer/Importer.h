@@ -11,6 +11,12 @@ namespace Aether {
         std::vector<UUID> clips;
     };
 
+    struct ParsedScene
+    {
+        Ref<SceneHierarchy> scene;
+        Ref<CreateInfoList> result;
+    };
+
     struct RegisteredScene
     {
         std::vector<UUID> meshIDs;
@@ -26,8 +32,8 @@ namespace Aether {
         void Init();
         void Shutdown();
 
-        Ref<ParsedScene> ImportScene(const std::string& path);
-        RegisteredScene UploadScene(const Ref<ParsedScene>& sceneData);
+        ParsedScene ImportScene(const std::string& path);
+        RegisteredScene UploadScene(const ParsedScene& sceneData);
 
         std::string ImportText(const std::string& path);
 

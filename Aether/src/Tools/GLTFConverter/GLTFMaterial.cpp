@@ -1,27 +1,24 @@
 #include "aepch.h"
 #include "GLTFConverter.h"
 #include "Aether/Core/Assert.h"
-#include "Aether/Renderer/Texture.h" 
+#include "Aether/Renderer/Texture.h"
 
 #include <cgltf.h>
 #include <stb_image.h>
 
 namespace Aether {
 
-    void GLTFConverter::ParseMaterials(cgltf_data* gltf, ParsedScene& scene)
+    void GLTFConverter::ParseMaterials(cgltf_data* gltf, GLTFResult& result)
     {
-        scene.Images.reserve(gltf->images_count);
-        scene.ImagePixels.reserve(gltf->images_count);
-
+        result.ImagePixels.reserve(gltf->images_count);
         stbi_set_flip_vertically_on_load(0);
 
-        for (size_t i = 0; i < gltf->images_count; i++)
+        result.AppendKind<AImageCreateInfo>(AssetType::Image, gltf->images_count, [&](size_t index)
         {
-            const cgltf_image* image = &gltf->images[i];
-
+            const cgltf_image* image = &gltf->images[index];
             AImageCreateInfo imgInfo;
             imgInfo.id = UUID();
-            imgInfo.debugName = image->name ? image->name : ("Texture_" + std::to_string(i));
+            imgInfo.debugName = image->name ? image->name : ("Texture_" + std::to_string(index));
 
             std::vector<uint8_t> pixels;
 
@@ -48,26 +45,20 @@ namespace Aether {
                     stbi_image_free(decoded);
                 }
             }
-            else if (image->uri)
-            {
-                AE_CORE_ERROR("GLTFConverter: texture URI loading not supported yet ('{0}')", image->uri);
-            }
+            else if (image->uri) AE_CORE_ERROR("GLTFConverter: texture URI loading not supported yet ('{0}')", image->uri);
 
-            scene.ImagePixels.push_back(std::move(pixels));
-            imgInfo.raw = std::span<const uint8_t>(scene.ImagePixels.back());
+            result.ImagePixels.push_back(std::move(pixels));
+            imgInfo.raw = std::span<const uint8_t>(result.ImagePixels.back());
+            result.tempImages.push_back(imgInfo);
+            return imgInfo;
+        });
 
-            scene.Images.push_back(imgInfo);
-        }
-
-        scene.Materials.reserve(gltf->materials_count);
-
-        for (size_t i = 0; i < gltf->materials_count; i++)
+        result.AppendKind<AMaterialCreateInfo>(AssetType::Material, gltf->materials_count, [&](size_t index)
         {
-            const cgltf_material* mat = &gltf->materials[i];
-
+            const cgltf_material* mat = &gltf->materials[index];
             AMaterialCreateInfo matInfo;
             matInfo.id = UUID();
-            matInfo.debugName = mat->name ? mat->name : ("Material_" + std::to_string(i));
+            matInfo.debugName = mat->name ? mat->name : ("Material_" + std::to_string(index));
 
             if (mat->has_pbr_metallic_roughness)
             {
@@ -85,22 +76,22 @@ namespace Aether {
                 if (pbr.base_color_texture.texture)
                 {
                     size_t imgIdx = pbr.base_color_texture.texture->image - gltf->images;
-                    matInfo.albedoMap = scene.Images[imgIdx].id;
+                    matInfo.albedoMap = result.tempImages[imgIdx].id;
                 }
                 if (pbr.metallic_roughness_texture.texture)
                 {
                     size_t imgIdx = pbr.metallic_roughness_texture.texture->image - gltf->images;
-                    matInfo.metallicRoughnessMap = scene.Images[imgIdx].id;
+                    matInfo.metallicRoughnessMap = result.tempImages[imgIdx].id;
                 }
             }
 
             if (mat->normal_texture.texture)
             {
                 size_t imgIdx = mat->normal_texture.texture->image - gltf->images;
-                matInfo.normalMap = scene.Images[imgIdx].id;
+                matInfo.normalMap = result.tempImages[imgIdx].id;
             }
-
-            scene.Materials.push_back(matInfo);
-        }
+            result.tempMaterials.push_back(matInfo);
+            return matInfo;
+        });
     }
 }

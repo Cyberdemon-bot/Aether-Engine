@@ -58,7 +58,7 @@ namespace Aether {
 
 	struct CommandKey
 	{
-		std::pair<uint64_t, uint64_t> key;
+		uint64_t key;
 		uint32_t index;
 	};
 
@@ -155,6 +155,7 @@ namespace Aether {
 			std::vector<Command> CommandList;
 			std::vector<Command> CommandTempList;
 			std::vector<CommandKey> sortKeys;
+			std::vector<CommandKey> sortKeyTemp;
 			std::vector<InstanceData> batchInstance;
 			std::vector<LightCandidate> CandList;
 			std::vector<glm::mat4> BoneStorage;

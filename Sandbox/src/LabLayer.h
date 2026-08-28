@@ -68,7 +68,7 @@ private:
     Aether::Entity m_LightEntity    = Aether::Null_Entity;
     Aether::Entity m_SelectedEntity = Aether::Null_Entity;
 
-    std::queue<Aether::Ref<Aether::ParsedScene>> m_CompletedParses;
+    std::queue<Aether::ParsedScene> m_CompletedParses;
     std::mutex                      m_ParseMutex;
 
     float m_VolDensity   = 0.03f;

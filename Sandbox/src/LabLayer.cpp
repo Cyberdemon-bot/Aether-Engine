@@ -215,7 +215,7 @@ void LabLayer::LoadModelAsync(const std::vector<std::string>& args)
 
 void LabLayer::DrainParseQueue()
 {
-    std::queue<Aether::Ref<Aether::ParsedScene>> localQueue;
+    std::queue<Aether::ParsedScene> localQueue;
     {
         std::lock_guard<std::mutex> lock(m_ParseMutex);
         std::swap(localQueue, m_CompletedParses);
