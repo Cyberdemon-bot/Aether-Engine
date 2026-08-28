@@ -286,25 +286,53 @@ namespace Aether {
 	{
 		auto& commandlist = s_SceneData->CommandList;
 		auto& templist = s_SceneData->CommandTempList;
-		auto& sortkeys = s_SceneData->sortKeys;
+		auto& src = s_SceneData->sortKeys;
+		auto& dst = s_SceneData->sortKeyTemp;
 
-		sortkeys.clear();
+		uint32_t n = (uint32_t)commandlist.size();
+		if (n == 0) return;
 
-		templist.resize(commandlist.size());
-		sortkeys.reserve(commandlist.size());
+		src.resize(n);
+		dst.resize(n);
+		templist.resize(n);
 
-		for (uint32_t i = 0; i < commandlist.size(); ++i)
+		for (uint32_t i = 0; i < n; i++)
 		{
 			const auto& c = commandlist[i];
-			uint64_t k1 = (static_cast<uint64_t>(c.sheet.index) << 32) | c.subIdx;
-			uint64_t k2 = (static_cast<uint64_t>(c.mesh.index) << 32) | c.subIdx;
-			sortkeys.push_back({ {k1, k2}, i });
+			uint64_t key =
+				((uint64_t)(c.sheet.index & 0xFFFF) << 48) |
+				((uint64_t)(c.mesh.index  & 0xFFFFFFFF) << 16) |
+				((uint64_t)(c.subIdx      & 0xFFFF));
+			src[i] = { key, i };
 		}
 
-		std::sort(sortkeys.begin(), sortkeys.end(), [](const CommandKey& a, const CommandKey& b) { return a.key < b.key; });
+		uint32_t hist[8][256] = {};
+		for (uint32_t i = 0; i < n; i++)
+			for (int p = 0; p < 8; p++)
+				hist[p][(src[i].key >> (p * 8)) & 0xFF]++;
+
+		for (int p = 0; p < 8; p++)
+		{
+			uint32_t* h = hist[p];
+			bool skip = false;
+			for (int b = 0; b < 256; b++)
+				if(h[b] == n) { skip = true; break; }
+			if (skip) continue;
+
+			uint32_t offset[256];
+			offset[0] = 0;
+			for (int b = 1; b < 256; b++) offset[b] = offset[b - 1] + h[b - 1];
+
+			for (uint32_t i = 0; i < n; i++)
+			{
+				uint32_t bucket = (src[i].key >> (p * 8)) & 0xFF;
+				dst[offset[bucket]++] = src[i];
+			}
+			std::swap(src, dst);
+		}
 
 		for (uint32_t i = 0; i < commandlist.size(); ++i)
-			templist[i] = commandlist[sortkeys[i].index];
+			templist[i] = commandlist[src[i].index];
 
 		std::swap(commandlist, templist);
 	}
@@ -394,9 +422,12 @@ namespace Aether {
 
 		if (mainPass) RenderOnScreen(*mainPass);
 		s_SceneData->CommandList.clear();
+		s_SceneData->CommandTempList.clear();
 		s_SceneData->BoneStorage.clear();
 		s_SceneData->OffsetStorage.clear();
 		s_SceneData->BoneIndices.clear();
+		s_SceneData->sortKeys.clear();      
+		s_SceneData->sortKeyTemp.clear(); 
 
 		for (uint32_t idx : s_SceneData->PoseIndexTouched)
 			s_SceneData->PoseIndexLookup[idx] = -1;
