@@ -9,8 +9,8 @@
 
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
+#include "Aether/Assets/CreateInfoList.h"
 #include "Aether/FileSystem/FileData.h"
-#include "Aether/Assets/RegisterInfo.h"  
 
 struct cgltf_data;
 struct cgltf_node;
@@ -53,38 +53,38 @@ namespace Aether {
         std::vector<int> roots;
     };
 
-    struct ParsedScene
+    class GLTFResult : public CreateInfoList
     {
-        std::string FilePath;
+    public:
+        GLTFResult() = default;
+    private:
+        std::vector<std::vector<uint8_t>> ImagePixels;
+        std::vector<std::vector<UUID>> SheetData;
+        std::vector<std::vector<uint8_t>> MeshVertexBytes;
+        std::vector<std::vector<uint32_t>> MeshIndexData;
+        std::vector<std::vector<VertexStream>> MeshStreamData;
+        std::vector<std::vector<Submesh>> MeshSubmeshData;
 
-        std::vector<AImageCreateInfo> Images;
-        std::vector<AMaterialCreateInfo> Materials;
-        std::vector<ASheetCreateInfo> Sheets;
-        std::vector<ASkeletonCreateInfo> Skeletons;
-        std::vector<AClipCreateInfo> Clips;
-        std::vector<AMeshCreateInfo> Meshes;
+        std::vector<AImageCreateInfo> tempImages;
+        std::vector<AMaterialCreateInfo> tempMaterials;
+        std::vector<ASkeletonCreateInfo> tempSkels;
 
         Ref<SceneHierarchy> Hierarchy;
 
-        std::vector<std::vector<uint8_t>> ImagePixels;    
-        std::vector<std::vector<UUID>> SheetData;
-        std::vector<std::vector<uint8_t>> MeshVertexBytes; 
-        std::vector<std::vector<uint32_t>> MeshIndexData;   
-        std::vector<std::vector<VertexStream>> MeshStreamData;  
-        std::vector<std::vector<Submesh>> MeshSubmeshData;
+        friend class GLTFConverter;
     };
 
     class GLTFConverter
     {
     public:
-        ParsedScene Import(const FileData& data);
-
+        Ref<CreateInfoList> Import(const FileData& data, Ref<SceneHierarchy>& hierarchy);
+        Ref<CreateInfoList> Import(const FileData& data);
     private:
-        void ParseMaterials(cgltf_data* gltf, ParsedScene& scene);   
-        void ParseRigs(cgltf_data* gltf, ParsedScene& scene);        
-        void ParseClips(cgltf_data* gltf, ParsedScene& scene);       
-        void ParseAnimations(cgltf_data* gltf, ParsedScene& scene);  
-        void ParseMeshes(cgltf_data* gltf, ParsedScene& scene);  
+        void ParseMaterials(cgltf_data* gltf, GLTFResult& result);
+        void ParseRigs(cgltf_data* gltf, GLTFResult& result);
+        void ParseClips(cgltf_data* gltf, GLTFResult& result);
+        void ParseAnimations(cgltf_data* gltf, GLTFResult& result);
+        void ParseMeshes(cgltf_data* gltf, GLTFResult& result);
 
         Ref<SceneHierarchy> ParseSceneGraph(cgltf_data* gltf);
         void ParseNode(cgltf_data* gltf, cgltf_node* node, const Ref<SceneHierarchy>& out,

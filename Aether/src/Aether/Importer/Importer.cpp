@@ -23,15 +23,16 @@ namespace Aether {
     {
     }
 
-    Ref<ParsedScene> Importer::ImportScene(const std::string& path)
+    ParsedScene Importer::ImportScene(const std::string& path)
     {
         auto* fs = ServiceManager::GetService<FileSystem>();
         fs->RegisterPath(path);
         fs->CommitRegistry();
         auto handle = fs->Open(path);
-        ParsedScene scene = m_Converter.Import(fs->GetBytes(handle));
+        Ref<SceneHierarchy> scene;
+        Ref<CreateInfoList> result = m_Converter.Import(fs->GetBytes(handle), scene);
         fs->Close(handle);
-        return CreateRef<ParsedScene>(std::move(scene));
+        return ParsedScene{scene, result};
     }
 
     std::string Importer::ImportText(const std::string& path)
@@ -46,7 +47,7 @@ namespace Aether {
         return res;
     }
 
-    RegisteredScene Importer::UploadScene(const Ref<ParsedScene>& sceneData)
+    RegisteredScene Importer::UploadScene(const ParsedScene& sceneData)
     {
         RegisteredScene res;
 
@@ -54,29 +55,31 @@ namespace Aether {
         auto* assetManager = ServiceManager::GetService<AssetManager>();
         auto  animSystem = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
 
-        for (const auto& img : sceneData->Images)
+        sceneData.result->ForEach<AImageCreateInfo>(AssetType::Image, [&](const AImageCreateInfo& img)
+        {
             assetRegister->Register<AImage>(img);
+        });
 
-        for (const auto& mat : sceneData->Materials)
+        sceneData.result->ForEach<AMaterialCreateInfo>(AssetType::Material, [&](const AMaterialCreateInfo& mat)
         {
             assetRegister->Register<AMaterial>(mat);
             res.matIDs.push_back(mat.id);
-        }
+        });
 
-        for (const auto& sheet : sceneData->Sheets)
+        sceneData.result->ForEach<ASheetCreateInfo>(AssetType::Sheet, [&](const ASheetCreateInfo& sheet)
         {
             assetRegister->Register<ASheet>(sheet);
             res.sheetIDs.push_back(sheet.id);
-        }
+        });
 
-        for (const auto& skel : sceneData->Skeletons)
+        sceneData.result->ForEach<ASkeletonCreateInfo>(AssetType::Skeleton, [&](const ASkeletonCreateInfo& skel)
         {
             assetRegister->Register<ASkeleton>(skel);
             res.animators.push_back({});
             res.animators.back().skeleton = skel.id;
-        }
+        });
 
-        for (const auto& clip : sceneData->Clips)
+        sceneData.result->ForEach<AClipCreateInfo>(AssetType::Clip, [&](const AClipCreateInfo& clip)
         {
             assetRegister->Register<AClip>(clip);
             for (auto& animator : res.animators)
@@ -87,15 +90,15 @@ namespace Aether {
                     break;
                 }
             }
-        }
+        });
 
-        for (const auto& meshInfo : sceneData->Meshes)
+        sceneData.result->ForEach<AMeshCreateInfo>(AssetType::Mesh, [&](const AMeshCreateInfo& meshInfo)
         {
             assetRegister->Register<AMesh>(meshInfo);
             res.meshIDs.push_back(meshInfo.id);
-        }
+        });
 
-        res.hierarchy = sceneData->Hierarchy;
+        res.hierarchy = sceneData.scene;
         return res;
     }
 }

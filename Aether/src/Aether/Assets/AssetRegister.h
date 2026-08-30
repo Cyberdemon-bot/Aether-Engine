@@ -5,7 +5,7 @@
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Assets/AssetManager.h"
-#include "Aether/Assets/RegisterInfo.h"
+#include "Aether/Assets/AssetCreateInfo.h"
 
 #define REGISTER_TYPE(Type, InfoType, AssemblerFunc) \
     if constexpr (std::is_same_v<T, Type> && std::is_same_v<I, InfoType>) \

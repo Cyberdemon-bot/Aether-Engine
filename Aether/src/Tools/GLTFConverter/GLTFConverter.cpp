@@ -6,41 +6,49 @@
 
 namespace Aether {
 
-    ParsedScene GLTFConverter::Import(const FileData& data)
+    Ref<CreateInfoList> GLTFConverter::Import(const FileData& data, Ref<SceneHierarchy>& hierarchy)
     {
-        ParsedScene scene;
+        Ref<GLTFResult> result = CreateRef<GLTFResult>();
 
         cgltf_options options = {};
         cgltf_data* gltf = nullptr;
-        cgltf_result result = cgltf_parse(&options, data.bytes, data.size, &gltf);
+        cgltf_result r = cgltf_parse(&options, data.bytes, data.size, &gltf);
 
-        if (result != cgltf_result_success)
+        if (r != cgltf_result_success)
         {
             AE_CORE_ERROR("GLTFConverter: failed to parse glTF/GLB data");
-            return scene;
+            return result;
         }
 
-        result = cgltf_load_buffers(&options, gltf, nullptr);
-        if (result != cgltf_result_success)
+        r = cgltf_load_buffers(&options, gltf, nullptr);
+        if (r != cgltf_result_success)
         {
             AE_CORE_ERROR("GLTFConverter: failed to load glTF/GLB buffers");
             cgltf_free(gltf);
-            return scene;
+            return result;
         }
 
-        scene.Hierarchy = ParseSceneGraph(gltf); 
-        ParseMaterials(gltf, scene);
-        ParseAnimations(gltf, scene);
-        ParseMeshes(gltf, scene);
+        result->Hierarchy = ParseSceneGraph(gltf);
+        hierarchy = result->Hierarchy;
+
+        ParseMaterials(gltf, *result);
+        ParseAnimations(gltf, *result);
+        ParseMeshes(gltf, *result);
 
         cgltf_free(gltf);
 
-        return scene;
+        return result;
     }
 
-    void GLTFConverter::ParseAnimations(cgltf_data* gltf, ParsedScene& scene)
+    Ref<CreateInfoList> GLTFConverter::Import(const FileData& data)
     {
-        ParseRigs(gltf, scene);
-        ParseClips(gltf, scene);
+        Ref<SceneHierarchy> hierarchy;
+        return Import(data, hierarchy);
+    }
+
+    void GLTFConverter::ParseAnimations(cgltf_data* gltf, GLTFResult& result)
+    {
+        ParseRigs(gltf, result);
+        ParseClips(gltf, result);
     }
 }

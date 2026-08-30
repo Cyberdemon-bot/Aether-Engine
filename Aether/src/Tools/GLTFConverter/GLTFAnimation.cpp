@@ -9,17 +9,15 @@
 
 namespace Aether {
 
-    void GLTFConverter::ParseRigs(cgltf_data* gltf, ParsedScene& scene)
+    void GLTFConverter::ParseRigs(cgltf_data* gltf, GLTFResult& result)
     {
-        scene.Skeletons.reserve(gltf->skins_count);
-
-        for (size_t skinIdx = 0; skinIdx < gltf->skins_count; skinIdx++)
+        result.AppendKind<ASkeletonCreateInfo>(AssetType::Skeleton, gltf->skins_count, [&](size_t index)
         {
-            const cgltf_skin* skin = &gltf->skins[skinIdx];
+            const cgltf_skin* skin = &gltf->skins[index];
 
             ASkeletonCreateInfo skelInfo;
             skelInfo.id = UUID();
-            skelInfo.debugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(skinIdx));
+            skelInfo.debugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(index));
             skelInfo.data.Joints.resize(skin->joints_count);
 
             std::unordered_map<cgltf_node*, int16_t> nodeMap;
@@ -62,11 +60,12 @@ namespace Aether {
             }
 
             AE_CORE_INFO("GLTFConverter: parsed skeleton '{0}' with {1} joints", skelInfo.debugName, skelInfo.data.Joints.size());
-            scene.Skeletons.push_back(std::move(skelInfo));
-        }
+            result.tempSkels.push_back(skelInfo);
+            return skelInfo;
+        });
     }
 
-    void GLTFConverter::ParseClips(cgltf_data* gltf, ParsedScene& scene)
+    void GLTFConverter::ParseClips(cgltf_data* gltf, GLTFResult& result)
     {
         struct NodeInfo { int skeletonIdx; int jointIdx; };
         std::unordered_map<cgltf_node*, NodeInfo> nodeMap;
@@ -75,6 +74,7 @@ namespace Aether {
             for (size_t j = 0; j < gltf->skins[i].joints_count; j++)
                 nodeMap[gltf->skins[i].joints[j]] = { (int)i, (int)j };
 
+        std::vector<AClipCreateInfo> tempClips;
         for (size_t animIdx = 0; animIdx < gltf->animations_count; animIdx++)
         {
             const cgltf_animation* anim = &gltf->animations[animIdx];
@@ -139,7 +139,7 @@ namespace Aether {
 
                 clipInfo.data.Duration = maxTime;
                 clipInfo.data.SampleRate = 30.0f;
-                clipInfo.skeleton = scene.Skeletons[skeletonIdx].id;
+                clipInfo.skeleton = result.tempSkels[skeletonIdx].id;
 
                 for (auto& [node, trackData] : trackMap)
                 {
@@ -154,8 +154,13 @@ namespace Aether {
                 AE_CORE_INFO("GLTFConverter: parsed animation '{0}', duration {1}s, {2} tracks (skeleton {3})",
                     clipInfo.debugName, clipInfo.data.Duration, clipInfo.data.Tracks.size(), skeletonIdx);
 
-                scene.Clips.push_back(std::move(clipInfo));
+                tempClips.push_back(std::move(clipInfo));
             }
         }
+
+        result.AppendKind<AClipCreateInfo>(AssetType::Clip, tempClips.size(), [&](size_t index)
+        {
+            return tempClips[index];
+        });
     }
 }

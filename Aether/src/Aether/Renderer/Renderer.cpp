@@ -8,7 +8,7 @@
 #include "Aether/Renderer/BuiltinShader.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/StorageBuffer.h"
-#include "Aether/Assets/RegisterInfo.h"
+#include "Aether/Assets/AssetCreateInfo.h"
 
 float quadVertices[] = {
 	-1.0f,  1.0f,  0.0f, 1.0f,

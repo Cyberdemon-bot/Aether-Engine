@@ -77,21 +77,22 @@ namespace Aether {
         spec.animatedBoundsMax = boundsMax;
     }
 
-    void GLTFConverter::ParseMeshes(cgltf_data* gltf, ParsedScene& scene)
+    void GLTFConverter::ParseMeshes(cgltf_data* gltf, GLTFResult& result)
     {
-        scene.Meshes.reserve(gltf->meshes_count);
-        scene.MeshVertexBytes.reserve(gltf->meshes_count);
-        scene.MeshIndexData.reserve(gltf->meshes_count);
-        scene.MeshStreamData.reserve(gltf->meshes_count);
-        scene.MeshSubmeshData.reserve(gltf->meshes_count);
+        result.MeshVertexBytes.reserve(gltf->meshes_count);
+        result.MeshIndexData.reserve(gltf->meshes_count);
+        result.MeshStreamData.reserve(gltf->meshes_count);
+        result.MeshSubmeshData.reserve(gltf->meshes_count);
+        result.SheetData.reserve(gltf->meshes_count);
+        std::vector<AMeshCreateInfo> tempMeshes;
+        tempMeshes.reserve(gltf->meshes_count);
 
-        for (size_t meshIdx = 0; meshIdx < gltf->meshes_count; meshIdx++)
+        result.AppendKind<ASheetCreateInfo>(AssetType::Sheet, gltf->meshes_count, [&](size_t index)
         {
-            const cgltf_mesh* mesh = &gltf->meshes[meshIdx];
-
+            const cgltf_mesh* mesh = &gltf->meshes[index];
             AMeshCreateInfo meshInfo;
             meshInfo.id = UUID();
-            meshInfo.debugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(meshIdx));
+            meshInfo.debugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(index));
 
             meshInfo.hasJointData = false;
             for (size_t primIdx = 0; primIdx < mesh->primitives_count; primIdx++)
@@ -124,10 +125,10 @@ namespace Aether {
 
                 if (prim->material)
                 {
-                    uint32_t matIdx = (uint32_t)(prim->material - gltf->materials); 
-                    if (matIdx < (uint32_t)scene.Materials.size())
+                    uint32_t matIdx = (uint32_t)(prim->material - gltf->materials);
+                    if (matIdx < (uint32_t)result.tempMaterials.size())
                     {
-                        subInfo.MaterialID = scene.Materials[matIdx].id;
+                        subInfo.MaterialID = result.tempMaterials[matIdx].id;
                         materials.push_back(subInfo.MaterialID);
                     }
                 }
@@ -200,7 +201,7 @@ namespace Aether {
                         weights.resize(primVertexCount * 4, 0.0f);
                         for (size_t i = 0; i < primVertexCount; i++) weights[i * 4 + 0] = 1.0f;
                     }
-                    if (joints.empty() || weights.empty())  
+                    if (joints.empty() || weights.empty())
                         AE_CORE_WARN("[GLTFConverter] Mesh {0} should have joint data but nothing are found!", (uint64_t)meshInfo.id);
                 }
 
@@ -241,35 +242,35 @@ namespace Aether {
             AE_CORE_INFO("GLTFConverter: parsed mesh '{0}': {1} vertices, {2} indices, {3} Submeshes",
                 meshInfo.debugName, totalVertices, totalIndices, Submeshes.size());
 
-            scene.MeshVertexBytes.push_back(std::move(vertexBytes));
-            scene.MeshIndexData.push_back(std::move(indices));
-            scene.MeshSubmeshData.push_back(std::move(Submeshes));
-            scene.SheetData.push_back(std::move(materials));
+            result.MeshVertexBytes.push_back(std::move(vertexBytes));
+            result.MeshIndexData.push_back(std::move(indices));
+            result.MeshSubmeshData.push_back(std::move(Submeshes));
+            result.SheetData.push_back(std::move(materials));
 
             ASheetCreateInfo sheetInfo;
-            sheetInfo.materialList = std::span(scene.SheetData.back());
+            sheetInfo.materialList = std::span<const UUID>(result.SheetData.back());
             sheetInfo.debugName = meshInfo.debugName + "_Sheet";
             sheetInfo.id = UUID();
 
             VertexStream stream;
-            stream.Data = scene.MeshVertexBytes.back().data();
+            stream.Data = result.MeshVertexBytes.back().data();
             stream.VertexCount = totalVertices;
             stream.Layout = meshInfo.hasJointData ? MeshLayout::PBRSkinned() : MeshLayout::PBR();
-            scene.MeshStreamData.push_back(std::vector<VertexStream>{ stream }); 
+            result.MeshStreamData.push_back(std::vector<VertexStream>{ stream });
 
-            meshInfo.streams = std::span<const VertexStream>(scene.MeshStreamData.back());
-            meshInfo.indicies = std::span<const uint32_t>(scene.MeshIndexData.back());
-            meshInfo.Submeshes = std::span<const Submesh>(scene.MeshSubmeshData.back());
+            meshInfo.streams = std::span<const VertexStream>(result.MeshStreamData.back());
+            meshInfo.indicies = std::span<const uint32_t>(result.MeshIndexData.back());
+            meshInfo.Submeshes = std::span<const Submesh>(result.MeshSubmeshData.back());
 
             CalculateStaticBounds(meshInfo);
             if (meshInfo.hasJointData)
             {
                 int rigIdx = -1;
-                if (scene.Hierarchy)
+                if (result.Hierarchy)
                 {
-                    for (const auto& node : scene.Hierarchy->nodes)
+                    for (const auto& node : result.Hierarchy->nodes)
                     {
-                        if (node.meshIdx == (int)meshIdx && node.animatorIdx >= 0)
+                        if (node.meshIdx == (int)index && node.animatorIdx >= 0)
                         {
                             rigIdx = node.animatorIdx;
                             break;
@@ -277,18 +278,22 @@ namespace Aether {
                     }
                 }
 
-    
-                if (rigIdx >= 0 && rigIdx < (int)scene.Skeletons.size())
+                if (rigIdx >= 0 && rigIdx < (int)result.tempSkels.size())
                 {
-                    const auto& skel = scene.Skeletons[rigIdx];
+                    const auto& skel = result.tempSkels[rigIdx];
                     std::vector<glm::mat4> poseMats(skel.data.Joints.size());
                     CalcRestPoseMatrices(skel.data, poseMats.data(), poseMats.size());
                     CalculateSkinnedBounds(meshInfo, poseMats);
                 }
             }
 
-            scene.Meshes.push_back(std::move(meshInfo));
-            scene.Sheets.push_back(std::move(sheetInfo));
-        }
+            tempMeshes.push_back(meshInfo);
+            return sheetInfo;
+        });
+
+        result.AppendKind<AMeshCreateInfo>(AssetType::Mesh, tempMeshes.size(), [&](size_t index)
+        {
+            return tempMeshes[index];
+        });
     }
 }
