@@ -64,10 +64,9 @@ namespace Aether {
         std::vector<std::vector<uint32_t>> MeshIndexData;
         std::vector<std::vector<VertexStream>> MeshStreamData;
         std::vector<std::vector<Submesh>> MeshSubmeshData;
-
-        std::vector<AImageCreateInfo> tempImages;
-        std::vector<AMaterialCreateInfo> tempMaterials;
-        std::vector<ASkeletonCreateInfo> tempSkels;
+        std::vector<std::vector<SkeletonCreateInfo::Joint>> SkeletonJoints;
+        std::vector<std::vector<glm::mat4>> SkeletonIBMs;
+        std::vector<std::vector<ClipCreateInfo::Track>> ClipTracks;
 
         Ref<SceneHierarchy> Hierarchy;
 

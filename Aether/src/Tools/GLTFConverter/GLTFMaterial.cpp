@@ -49,7 +49,6 @@ namespace Aether {
 
             result.ImagePixels.push_back(std::move(pixels));
             imgInfo.raw = std::span<const uint8_t>(result.ImagePixels.back());
-            result.tempImages.push_back(imgInfo);
             return imgInfo;
         });
 
@@ -76,21 +75,23 @@ namespace Aether {
                 if (pbr.base_color_texture.texture)
                 {
                     size_t imgIdx = pbr.base_color_texture.texture->image - gltf->images;
-                    matInfo.albedoMap = result.tempImages[imgIdx].id;
+                    if (const auto* img = result.GetAt<AImageCreateInfo>(AssetType::Image, imgIdx))
+                        matInfo.albedoMap = img->id;
                 }
                 if (pbr.metallic_roughness_texture.texture)
                 {
                     size_t imgIdx = pbr.metallic_roughness_texture.texture->image - gltf->images;
-                    matInfo.metallicRoughnessMap = result.tempImages[imgIdx].id;
+                    if (const auto* img = result.GetAt<AImageCreateInfo>(AssetType::Image, imgIdx))
+                        matInfo.metallicRoughnessMap = img->id;
                 }
             }
 
             if (mat->normal_texture.texture)
             {
                 size_t imgIdx = mat->normal_texture.texture->image - gltf->images;
-                matInfo.normalMap = result.tempImages[imgIdx].id;
+                if (const auto* img = result.GetAt<AImageCreateInfo>(AssetType::Image, imgIdx))
+                    matInfo.normalMap = img->id;
             }
-            result.tempMaterials.push_back(matInfo);
             return matInfo;
         });
     }

@@ -126,9 +126,9 @@ namespace Aether {
                 if (prim->material)
                 {
                     uint32_t matIdx = (uint32_t)(prim->material - gltf->materials);
-                    if (matIdx < (uint32_t)result.tempMaterials.size())
+                    if (const auto* mat = result.GetAt<AMaterialCreateInfo>(AssetType::Material, matIdx))
                     {
-                        subInfo.MaterialID = result.tempMaterials[matIdx].id;
+                        subInfo.MaterialID = mat->id;
                         materials.push_back(subInfo.MaterialID);
                     }
                 }
@@ -278,12 +278,14 @@ namespace Aether {
                     }
                 }
 
-                if (rigIdx >= 0 && rigIdx < (int)result.tempSkels.size())
+                if (rigIdx >= 0)
                 {
-                    const auto& skel = result.tempSkels[rigIdx];
-                    std::vector<glm::mat4> poseMats(skel.data.Joints.size());
-                    CalcRestPoseMatrices(skel.data, poseMats.data(), poseMats.size());
-                    CalculateSkinnedBounds(meshInfo, poseMats);
+                    if (const auto* skel = result.GetAt<ASkeletonCreateInfo>(AssetType::Skeleton, rigIdx))
+                    {
+                        std::vector<glm::mat4> poseMats(skel->data.Joints.size());
+                        CalcRestPoseMatrices(skel->data, poseMats.data(), poseMats.size());
+                        CalculateSkinnedBounds(meshInfo, poseMats);
+                    }
                 }
             }
 

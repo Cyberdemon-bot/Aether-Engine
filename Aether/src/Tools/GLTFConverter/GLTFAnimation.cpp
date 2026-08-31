@@ -11,6 +11,8 @@ namespace Aether {
 
     void GLTFConverter::ParseRigs(cgltf_data* gltf, GLTFResult& result)
     {
+        result.SkeletonJoints.resize(gltf->skins_count);
+        result.SkeletonIBMs.resize(gltf->skins_count);
         result.AppendKind<ASkeletonCreateInfo>(AssetType::Skeleton, gltf->skins_count, [&](size_t index)
         {
             const cgltf_skin* skin = &gltf->skins[index];
@@ -18,16 +20,18 @@ namespace Aether {
             ASkeletonCreateInfo skelInfo;
             skelInfo.id = UUID();
             skelInfo.debugName = skin->name ? skin->name : ("Skeleton_" + std::to_string(index));
-            skelInfo.data.Joints.resize(skin->joints_count);
+
+            auto& joints = result.SkeletonJoints[index]; joints.resize(skin->joints_count);
+            auto& ibms = result.SkeletonIBMs[index];
 
             std::unordered_map<cgltf_node*, int16_t> nodeMap;
             for (size_t i = 0; i < skin->joints_count; i++)
                 nodeMap[skin->joints[i]] = (int16_t)i;
 
             if (skin->inverse_bind_matrices)
-                GLTFUtils::ReadAccessorFloatToMat4(skin->inverse_bind_matrices, skelInfo.data.IBM);
+                GLTFUtils::ReadAccessorFloatToMat4(skin->inverse_bind_matrices, ibms);
             else
-                skelInfo.data.IBM.resize(skin->joints_count, glm::mat4(1.0f));
+                ibms.resize(skin->joints_count, glm::mat4(1.0f));
 
             for (size_t jointIdx = 0; jointIdx < skin->joints_count; jointIdx++)
             {
@@ -56,11 +60,13 @@ namespace Aether {
                     ? glm::vec3(jointNode->scale[0], jointNode->scale[1], jointNode->scale[2])
                     : glm::vec3(1.0f);
 
-                skelInfo.data.Joints[jointIdx] = joint;
+                joints[jointIdx] = joint;
             }
 
+            skelInfo.data.Joints = std::span(joints);
+            skelInfo.data.IBM = std::span(ibms);
+
             AE_CORE_INFO("GLTFConverter: parsed skeleton '{0}' with {1} joints", skelInfo.debugName, skelInfo.data.Joints.size());
-            result.tempSkels.push_back(skelInfo);
             return skelInfo;
         });
     }
@@ -129,6 +135,7 @@ namespace Aether {
 
             for (auto& [skeletonIdx, trackMap] : skeletonTracks)
             {
+                result.ClipTracks.push_back({});
                 AClipCreateInfo clipInfo;
                 clipInfo.id = UUID();
 
@@ -139,7 +146,8 @@ namespace Aether {
 
                 clipInfo.data.Duration = maxTime;
                 clipInfo.data.SampleRate = 30.0f;
-                clipInfo.skeleton = result.tempSkels[skeletonIdx].id;
+                if (const auto* skel = result.GetAt<ASkeletonCreateInfo>(AssetType::Skeleton, skeletonIdx)) 
+                    clipInfo.skeleton = skel->id;
 
                 for (auto& [node, trackData] : trackMap)
                 {
@@ -148,8 +156,10 @@ namespace Aether {
                         trackData.ScaleTimes.empty())
                         continue;
 
-                    clipInfo.data.Tracks.push_back(trackData);
+                    result.ClipTracks.back().push_back(trackData);
                 }
+
+                clipInfo.data.Tracks = std::span(result.ClipTracks.back());
 
                 AE_CORE_INFO("GLTFConverter: parsed animation '{0}', duration {1}s, {2} tracks (skeleton {3})",
                     clipInfo.debugName, clipInfo.data.Duration, clipInfo.data.Tracks.size(), skeletonIdx);

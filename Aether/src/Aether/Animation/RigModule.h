@@ -28,8 +28,8 @@ namespace Aether {
             glm::vec3 Scale;
         };
         
-        std::vector<Joint> Joints;
-        std::vector<glm::mat4> IBM;
+        std::span<const Joint> Joints;
+        std::span<const glm::mat4> IBM;
     };
 
     struct ClipCreateInfo
@@ -51,7 +51,7 @@ namespace Aether {
             std::vector<glm::vec3> ScaleValues;
         };
         
-        std::vector<Track> Tracks;
+        std::span<const Track> Tracks;
     };
 
     struct TwoBoneIKSpec

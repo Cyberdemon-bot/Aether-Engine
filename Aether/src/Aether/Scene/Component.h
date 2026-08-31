@@ -150,8 +150,8 @@ namespace Aether {
     {
         Entity parent = Null_Entity;
         Entity firstChild = Null_Entity;
+        Entity lastChild = Null_Entity;
         Entity nextSibling = Null_Entity;
-        Entity prevSibling = Null_Entity;
 
         HierarchyComponent() = default;
         HierarchyComponent(const HierarchyComponent&) = default;

@@ -6,26 +6,9 @@
 #include "Aether/Animation/RigModule.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Importer/Importer.h"
+#include "Aether/Scene/TransformMath.h"
 
 namespace Aether {
-
-    namespace Utils
-    {
-        inline void GetTRS(const glm::mat4& matrix, glm::vec3& outPos, glm::quat& outRot, glm::vec3& outScale)
-        {
-            outPos = glm::vec3(matrix[3]);
-            glm::vec3 col0(matrix[0]);
-            glm::vec3 col1(matrix[1]);
-            glm::vec3 col2(matrix[2]);
-            outScale.x = glm::length(col0);
-            outScale.y = glm::length(col1);
-            outScale.z = glm::length(col2);
-            glm::vec3 x = (outScale.x > 0.00001f) ? (col0 / outScale.x) : glm::vec3(1.0f, 0.0f, 0.0f);
-            glm::vec3 y = (outScale.y > 0.00001f) ? (col1 / outScale.y) : glm::vec3(0.0f, 1.0f, 0.0f);
-            glm::vec3 z = (outScale.z > 0.00001f) ? (col2 / outScale.z) : glm::vec3(0.0f, 0.0f, 1.0f);
-            outRot = glm::quat_cast(glm::mat3(x, y, z));
-        }
-    }
 
     inline void ApplyWorldToLocalTransform(TransformComponent& transform, Entity parent, 
                 const glm::mat4& pTransform, const glm::vec3& worldPos, const glm::quat& worldRot)
@@ -79,6 +62,12 @@ namespace Aether {
         m_EntityLibrary[id] = e;
 
         if (parent != Null_Entity && IsValid(parent)) MakeParent(e, parent);
+        else
+        {
+            if (m_LastRoot == Null_Entity) m_FirstRoot = e;
+            else GetComponent<HierarchyComponent>(m_LastRoot).nextSibling = e;
+            m_LastRoot = e;
+        }
         m_SortDirtyCount++; 
         return e;
     }
@@ -150,6 +139,7 @@ namespace Aether {
         }
 
         GetComponent<HierarchyComponent>(entity).firstChild = Null_Entity;
+        GetComponent<HierarchyComponent>(entity).lastChild = Null_Entity;
         BreakParent(entity);
 
         if (HasComponent<AnimatorComponent>(entity))
@@ -216,36 +206,14 @@ namespace Aether {
             hierarchy.parent = parent;
             auto& parentHie = GetComponent<HierarchyComponent>(parent);
             if (parentHie.firstChild == Null_Entity) parentHie.firstChild = child;
-            else
-            {
-                Entity lastSib = parentHie.firstChild;
-                while (GetComponent<HierarchyComponent>(lastSib).nextSibling != Null_Entity)
-                    lastSib = GetComponent<HierarchyComponent>(lastSib).nextSibling;
-                GetComponent<HierarchyComponent>(lastSib).nextSibling = child;
-                hierarchy.prevSibling = lastSib;
-            }
+            else GetComponent<HierarchyComponent>(parentHie.lastChild).nextSibling = child;
+            parentHie.lastChild = child;
         }
         else
         {
-            auto view = View<HierarchyComponent>();
-            Entity sib = Null_Entity;
-            for (auto entity : view)
-            {
-                if (entity == child) continue;
-                if (GetComponent<HierarchyComponent>(entity).parent == Null_Entity)
-                {
-                    sib = entity;
-                    break;
-                }
-            }
-            if (sib != Null_Entity)
-            {
-                Entity oldNext = GetComponent<HierarchyComponent>(sib).nextSibling;
-                hierarchy.prevSibling = sib;
-                hierarchy.nextSibling = oldNext;
-                GetComponent<HierarchyComponent>(sib).nextSibling = child;
-                if (oldNext != Null_Entity) GetComponent<HierarchyComponent>(oldNext).prevSibling = child;
-            }
+            if (m_LastRoot == Null_Entity) m_FirstRoot = child;
+            else GetComponent<HierarchyComponent>(m_LastRoot).nextSibling = child;
+            m_LastRoot = child;
         }
 
         GetComponent<TransformComponent>(child).Dirty = true;
@@ -256,43 +224,77 @@ namespace Aether {
         if (!IsValid(entity)) return;
         auto& hierarchy = GetComponent<HierarchyComponent>(entity);
 
-        if (hierarchy.prevSibling != Null_Entity)
-            GetComponent<HierarchyComponent>(hierarchy.prevSibling).nextSibling = hierarchy.nextSibling;
-        if (hierarchy.nextSibling != Null_Entity)
-            GetComponent<HierarchyComponent>(hierarchy.nextSibling).prevSibling = hierarchy.prevSibling;
-
         if (hierarchy.parent != Null_Entity)
         {
             auto& parentHie = GetComponent<HierarchyComponent>(hierarchy.parent);
             if (parentHie.firstChild == entity)
-                parentHie.firstChild = hierarchy.nextSibling;
-
-            Entity child = hierarchy.firstChild;
-            while (child != Null_Entity)
             {
-                Entity nextChild = GetComponent<HierarchyComponent>(child).nextSibling;
-                GetComponent<HierarchyComponent>(child).parent      = hierarchy.parent;
-                GetComponent<HierarchyComponent>(child).nextSibling = Null_Entity;
-                GetComponent<HierarchyComponent>(child).prevSibling = Null_Entity;
-                GetComponent<TransformComponent>(child).Dirty       = true;
-
-                if (parentHie.firstChild == Null_Entity) parentHie.firstChild = child;
-                else
+                parentHie.firstChild = hierarchy.nextSibling;
+                if (parentHie.lastChild == entity) parentHie.lastChild = Null_Entity;
+            }
+            else
+            {
+                Entity prev = parentHie.firstChild;
+                while (prev != Null_Entity && GetComponent<HierarchyComponent>(prev).nextSibling != entity)
+                    prev = GetComponent<HierarchyComponent>(prev).nextSibling;
+                if (prev != Null_Entity)
                 {
-                    Entity tail = parentHie.firstChild;
-                    while (GetComponent<HierarchyComponent>(tail).nextSibling != Null_Entity)
-                        tail = GetComponent<HierarchyComponent>(tail).nextSibling;
-                    GetComponent<HierarchyComponent>(tail).nextSibling  = child;
-                    GetComponent<HierarchyComponent>(child).prevSibling = tail;
+                    GetComponent<HierarchyComponent>(prev).nextSibling = hierarchy.nextSibling;
+                    if (parentHie.lastChild == entity) parentHie.lastChild = prev;
                 }
-                child = nextChild;
+            }
+        }
+       else
+        {
+            if (m_FirstRoot == entity)
+            {
+                m_FirstRoot = hierarchy.nextSibling;
+                if (m_LastRoot == entity) m_LastRoot = Null_Entity;
+            }
+            else
+            {
+                Entity prev = m_FirstRoot;
+                while (prev != Null_Entity && GetComponent<HierarchyComponent>(prev).nextSibling != entity)
+                    prev = GetComponent<HierarchyComponent>(prev).nextSibling;
+                if (prev != Null_Entity)
+                {
+                    GetComponent<HierarchyComponent>(prev).nextSibling = hierarchy.nextSibling;
+                    if (m_LastRoot == entity) m_LastRoot = prev;
+                }
+            }
+        }
+
+        Entity newParent = hierarchy.parent;
+        Entity firstChild = hierarchy.firstChild;
+        Entity lastChild = hierarchy.lastChild;
+
+        if (firstChild != Null_Entity)
+        {
+            for (Entity c = firstChild; c != Null_Entity; c = GetComponent<HierarchyComponent>(c).nextSibling)
+            {
+                GetComponent<HierarchyComponent>(c).parent = newParent;
+                GetComponent<TransformComponent>(c).Dirty = true;
+            }
+
+            if (newParent != Null_Entity)
+            {
+                auto& parentHie = GetComponent<HierarchyComponent>(newParent);
+                if (parentHie.firstChild == Null_Entity) parentHie.firstChild = firstChild;
+                else GetComponent<HierarchyComponent>(parentHie.lastChild).nextSibling = firstChild;
+                parentHie.lastChild = lastChild;
+            }
+            else
+            {
+                if (m_LastRoot == Null_Entity) m_FirstRoot = firstChild;
+                else GetComponent<HierarchyComponent>(m_LastRoot).nextSibling = firstChild;
+                m_LastRoot = lastChild;
             }
         }
 
         hierarchy.parent = Null_Entity;
-        hierarchy.prevSibling = Null_Entity;
         hierarchy.nextSibling = Null_Entity;
         hierarchy.firstChild = Null_Entity;
+        hierarchy.lastChild = Null_Entity;
     }
 
     void Scene::DirtyScan()
@@ -316,14 +318,14 @@ namespace Aether {
 
     void Scene::BreadthFirstSearch(bool usingFilter)
     {
-        m_HierarchyLevels.clear();
-        std::queue<std::pair<Entity, uint32_t>> Queue;
+        for (auto& level : m_HierarchyLevels) level.clear();
+
+        auto& Queue = m_BFSQueue;
         auto view = View<HierarchyComponent>();
-    
-        for (auto entity : view)
+
+        Entity entity = m_FirstRoot;
+        while (entity != Null_Entity)
         {
-            if (GetComponent<HierarchyComponent>(entity).parent != Null_Entity) continue;
-    
             if (usingFilter)
             {
                 auto& t = GetComponent<TransformComponent>(entity);
@@ -333,6 +335,7 @@ namespace Aether {
                     Queue.push({entity, 0});
             }
             else Queue.push({entity, 0});
+            entity = GetComponent<HierarchyComponent>(entity).nextSibling;
         }
     
         while (!Queue.empty())
