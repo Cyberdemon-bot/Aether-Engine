@@ -4,6 +4,7 @@
 #include <string_view>
 #include <cstdint>
 #include <unordered_map>
+#include <queue>
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Timestep.h"
 #include "Aether/Renderer/EditorCamera.h"
@@ -144,10 +145,13 @@ namespace Aether {
         uint64_t m_CurrentFrame = 0;
         uint32_t m_Threshold = 64;
         uint32_t m_SortDirtyCount = 0;
+        Entity m_FirstRoot = Null_Entity;
+        Entity m_LastRoot = Null_Entity;
         Handle<PhysicsInstance> m_PhysicsInstance;
         entt::registry m_Registry;
         std::vector<LightParam> m_SceneLights;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
+        std::queue<std::pair<Entity, uint32_t>> m_BFSQueue;
         std::vector<DestroyInfo> m_DestroyQueue;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         void DirtyScan();
@@ -163,5 +167,15 @@ namespace Aether {
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
+
+        template<typename Fn>
+        void ChainLoop(Entity entity, Fn fn)
+        {
+            while (entity != Null_Entity)
+            {
+                fn(entity);
+                entity = GetComponent<HierarchyComponent>(entity).nextSibling;
+            }
+        }
     };
 }

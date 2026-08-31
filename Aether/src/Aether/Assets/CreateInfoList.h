@@ -50,6 +50,26 @@ namespace Aether {
                 return; 
             }
         }
+
+        template<typename T>
+        const T* GetAt(AssetType kind, size_t index) const
+        {
+            for (const AssetRange& r : m_Ranges)
+            {
+                if (r.Kind != kind)
+                    continue;
+
+                if (index >= r.Count)
+                    return nullptr;
+
+                uint32_t global = r.Offset + static_cast<uint32_t>(index);
+                const T* item = std::get_if<T>(&m_Assets[global]);
+                AE_CORE_ASSERT(item != nullptr, "CreateInfoList: range/variant kind mismatch");
+                return item;
+            }
+
+            return nullptr;
+        }
  
         const std::string& GetFilePath() const { return m_FilePath; }
  
