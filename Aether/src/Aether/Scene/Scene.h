@@ -167,5 +167,15 @@ namespace Aether {
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
+
+        template<typename Fn>
+        void ChainLoop(Entity entity, Fn fn)
+        {
+            while (entity != Null_Entity)
+            {
+                fn(entity);
+                entity = GetComponent<HierarchyComponent>(entity).nextSibling;
+            }
+        }
     };
 }

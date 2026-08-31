@@ -101,13 +101,6 @@ namespace Aether {
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
             ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
 
-        // if (HasComponent<AudioSourceComponent>(entity))
-        // {
-        //     auto& audio = GetComponent<AudioSourceComponent>(entity);
-        //     if (audio.SourceHandle.IsValid())
-        //         ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
-        // }
-
         if (HasComponent<ScriptComponent>(entity))
         {
             auto& script = GetComponent<ScriptComponent>(entity);
@@ -154,13 +147,6 @@ namespace Aether {
         }
         if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
             ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
-
-        // if (HasComponent<AudioSourceComponent>(entity))
-        // {
-        //     auto& audio = GetComponent<AudioSourceComponent>(entity);
-        //     if (audio.SourceHandle.IsValid())
-        //         ServiceManager::GetService<AudioSystem>()->DestroySource(audio.SourceHandle);
-        // }
 
         if (HasComponent<ScriptComponent>(entity))
         {
@@ -323,8 +309,7 @@ namespace Aether {
         auto& Queue = m_BFSQueue;
         auto view = View<HierarchyComponent>();
 
-        Entity entity = m_FirstRoot;
-        while (entity != Null_Entity)
+        ChainLoop(m_FirstRoot, [&](Entity entity)
         {
             if (usingFilter)
             {
@@ -335,8 +320,7 @@ namespace Aether {
                     Queue.push({entity, 0});
             }
             else Queue.push({entity, 0});
-            entity = GetComponent<HierarchyComponent>(entity).nextSibling;
-        }
+        });
     
         while (!Queue.empty())
         {
@@ -349,8 +333,7 @@ namespace Aether {
                                GetComponent<ColliderComponent>(entity).Type != MotionType::Static;
             bool parentDirty = parentT.Dirty || isParentDynamic;
     
-            Entity child = GetComponent<HierarchyComponent>(entity).firstChild;
-            while (child != Null_Entity)
+            ChainLoop(GetComponent<HierarchyComponent>(entity).firstChild, [&](Entity child)
             {
                 if (!usingFilter) Queue.push({child, depth + 1});
                 else
@@ -364,8 +347,7 @@ namespace Aether {
                         Queue.push({child, depth + 1});
                     }
                 }
-                child = GetComponent<HierarchyComponent>(child).nextSibling;
-            }
+            });
         }
     }
 
