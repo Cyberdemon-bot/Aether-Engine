@@ -1,11 +1,12 @@
 #include "aepch.h" 
-#include "AssetRegister.h"
+#include "Aether/Core/Base.h"
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 #include "Aether/Renderer/VertexArray.h"
 #include "Aether/Renderer/ResourceManager.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigModule.h"
+#include "Aether/Audio/AudioSystem.h"
+#include "Aether/Assets/AssetRegister.h"
 
 namespace Aether {
 
@@ -53,7 +54,7 @@ namespace Aether {
             uint32_t stride = vbuffer.Layout.GetStride();
             uint32_t byteSize = vbuffer.VertexCount * stride;
 
-            Handle<Resource> vboHandle = ResourceManager::CreateResource<VertexBuffer>((float*)vbuffer.Data, byteSize);
+            Handle<Resource> vboHandle = ResourceManager::CreateResource<VertexBuffer>(reinterpret_cast<const float*>(vbuffer.Data), byteSize);
             auto* vbo = ResourceManager::GetResource<VertexBuffer>(vboHandle);
             vbo->SetLayout(vbuffer.Layout);
             vao->AddVertexBuffer(vbo);
@@ -133,6 +134,7 @@ namespace Aether {
         auto* clip = manager->GetAsset<AClip>(handle);
         clip->m_Handle = Clip;
         clip->m_Duration = info.data.Duration;
+        clip->m_Skeleton = manager->GetHandle(info.skeleton);
     }
 
     void AssetRegister::SheetAssembler(AssetManager* manager, const ASheetCreateInfo& info)
@@ -145,5 +147,28 @@ namespace Aether {
         for (uint32_t i = 0; i < info.materialList.size(); i++) 
             temp.push_back(manager->GetHandle(info.materialList[i]));
         sheet->MoveDefaultList(std::move(temp));
+    }
+
+    void AssetRegister::AudioAssambler(AssetManager* manager, const AAudioCreateInfo& info)
+    {
+        auto* audiosys = ServiceManager::GetService<AudioSystem>();
+        auto source = audiosys->CreateSource(info.raw.data(), info.raw.size());
+        manager->CreateAsset<AAudio>(info.id, source);
+    }
+
+    BatchRegisterResult AssetRegister::RegisterBatch(Ref<CreateInfoList> createInfoList)
+    {
+        BatchRegisterResult result;
+        result.m_AllIDs.reserve(createInfoList->GetAssetCount());
+
+        ProcessAssetGroup<AMesh, AMeshCreateInfo>(AssetType::Mesh, createInfoList.get(), result);
+        ProcessAssetGroup<AImage, AImageCreateInfo>(AssetType::Image, createInfoList.get(), result);
+        ProcessAssetGroup<AMaterial, AMaterialCreateInfo>(AssetType::Material, createInfoList.get(), result);
+        ProcessAssetGroup<ASheet, ASheetCreateInfo>(AssetType::Sheet, createInfoList.get(), result);
+        ProcessAssetGroup<ASkeleton, ASkeletonCreateInfo>(AssetType::Skeleton, createInfoList.get(), result);
+        ProcessAssetGroup<AClip, AClipCreateInfo>(AssetType::Clip, createInfoList.get(), result);
+        ProcessAssetGroup<AAudio, AAudioCreateInfo>(AssetType::Audio, createInfoList.get(), result);
+
+        return result; 
     }
 }

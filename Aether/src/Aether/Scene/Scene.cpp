@@ -1,7 +1,6 @@
 #include "aepch.h"
 #include "Aether/Scene/Scene.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
 #include "Aether/Core/JobSystem.h"
@@ -9,7 +8,6 @@
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Scene/TransformMath.h"
-#include <glm/gtx/matrix_decompose.hpp>
 
 namespace Aether {
     namespace Utils

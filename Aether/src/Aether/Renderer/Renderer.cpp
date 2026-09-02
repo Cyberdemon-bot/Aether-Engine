@@ -1,14 +1,14 @@
 #include "aepch.h"
-#include "Aether/Renderer/Renderer.h"
-#include "Aether/Assets/AssetManager.h"
-#include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigModule.h"
 #include "Aether/Core/Application.h"
+#include "Aether/Assets/AssetCreateInfo.h"
+#include "Aether/Assets/Mesh.h"
+#include "Aether/Assets/Material.h"
 #include "Aether/Assets/AssetManager.h"
+#include "Aether/Renderer/Renderer.h"
 #include "Aether/Renderer/BuiltinShader.h"
 #include "Aether/Renderer/UniformBuffer.h"
 #include "Aether/Renderer/StorageBuffer.h"
-#include "Aether/Assets/AssetCreateInfo.h"
+#include "Aether/Animation/AnimationSystem.h"
 
 float quadVertices[] = {
 	-1.0f,  1.0f,  0.0f, 1.0f,

@@ -228,11 +228,11 @@ void LabLayer::DrainParseQueue()
 
         AE_CORE_INFO("Main thread: Uploading to GPU...");
         auto result = m_Importer->UploadScene(parsed);
-        for (auto& meshID : result.meshIDs) m_MeshIDs.push_back(meshID);
+        for (auto& meshID : result.assets.Get(Aether::AssetType::Mesh)) m_MeshIDs.push_back(meshID);
 
         m_Scene.LoadHierarchy(&result);
 
-        AE_CORE_INFO("Loaded: {0} mesh(es)", result.meshIDs.size());
+        AE_CORE_INFO("Loaded: {0} mesh(es)", result.assets.Get(Aether::AssetType::Mesh).size());
     }
 }
 

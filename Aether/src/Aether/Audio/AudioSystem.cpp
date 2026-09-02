@@ -24,6 +24,11 @@ namespace Aether {
         return s_AudioAPI->CreateSource(path); 
     }
 
+    Handle<AudioSource> AudioSystem::CreateSource(const uint8_t* data, size_t size)
+    {
+        return s_AudioAPI->CreateSource(data, size);
+    }
+
     void AudioSystem::DestroySource(Handle<AudioSource> handle) 
     { 
         s_AudioAPI->DestroySource(handle); 

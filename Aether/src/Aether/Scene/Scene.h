@@ -163,7 +163,12 @@ namespace Aether {
         void ExcDestroyEntity(Entity entity, bool repair_hie);
         void ExcDestroyHierarchy(Entity entity);
 
-        Entity CreateNodeEntity(const RegisteredScene* reg, int nodeIdx, Entity parentEntity);
+        Entity CreateNodeEntity(
+            const RegisteredScene* reg, 
+            int nodeIdx, 
+            Entity parentEntity,
+            const std::unordered_map<uint64_t, std::vector<Handle<Asset>>>& skelToClipsMap
+        );
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}

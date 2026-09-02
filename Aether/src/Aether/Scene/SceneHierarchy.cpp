@@ -3,7 +3,6 @@
 #include "Aether/Core/ServiceManager.h"
 #include "Aether/Assets/AssetManager.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigModule.h"
 #include "Aether/Scripting/ScriptEngine.h"
 #include "Aether/Importer/Importer.h"
 #include "Aether/Scene/TransformMath.h"
@@ -366,7 +365,38 @@ namespace Aether {
         m_SortDirtyCount = 0;
     }
 
-    Entity Scene::CreateNodeEntity(const RegisteredScene* reg, int nodeIdx, Entity parentEntity)
+    Entity Scene::LoadHierarchy(const RegisteredScene* registered, Entity parent)
+    {
+        Entity first_child = Null_Entity;
+        if (!registered->hierarchy) return first_child;
+
+        auto* asset_manager = ServiceManager::GetService<AssetManager>();
+
+        std::unordered_map<uint64_t, std::vector<Handle<Asset>>> skelToClipsMap;
+        for (UUID clipID : registered->assets.Get(AssetType::Clip))
+        {
+            auto clipHandle = asset_manager->GetHandle(clipID);
+            auto* clipAsset = asset_manager->GetAsset<AClip>(clipHandle);
+            if (clipAsset)
+            {
+                uint64_t skelKey = clipAsset->m_Skeleton.Blend();
+                skelToClipsMap[skelKey].push_back(clipHandle); 
+            }
+        }
+
+        for (int rootIdx : registered->hierarchy->roots)
+        {
+            auto temp = CreateNodeEntity(registered, rootIdx, parent, skelToClipsMap);
+            if (first_child == Null_Entity) first_child = temp;
+        }
+        return first_child;
+    }
+
+    Entity Scene::CreateNodeEntity(
+        const RegisteredScene* reg, 
+        int nodeIdx, 
+        Entity parentEntity,
+        const std::unordered_map<uint64_t, std::vector<Handle<Asset>>>& skelToClipsMap)
     {
         auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
         const Node& node = reg->hierarchy->nodes[nodeIdx];
@@ -377,19 +407,25 @@ namespace Aether {
         t.Scale = node.scale;
         t.Dirty = true;
 
-        if (node.meshIdx >= 0 && node.meshIdx < (int)reg->meshIDs.size())
+        if (node.meshIdx >= 0 && node.meshIdx < (int)reg->assets.Get(AssetType::Mesh).size())
         {
             auto& component = AddComponent<MeshComponent>(e);
-            component.Mesh = asset_manager->GetHandle(reg->meshIDs[node.meshIdx]);
-            component.SharedSheet = asset_manager->GetHandle(reg->sheetIDs[node.meshIdx]);
+            component.Mesh = asset_manager->GetHandle(reg->assets.Get(AssetType::Mesh)[node.meshIdx]);
+            component.SharedSheet = asset_manager->GetHandle(reg->assets.Get(AssetType::Sheet)[node.meshIdx]);
         }
 
-        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg->animators.size())
+        if (node.animatorIdx >= 0 && node.animatorIdx < (int)reg->assets.Get(AssetType::Skeleton).size())
         {
-            const auto& animator = reg->animators[node.animatorIdx];
+            UUID skeletonID = reg->assets.Get(AssetType::Skeleton)[node.animatorIdx];
+            
             auto& comp = AddComponent<AnimatorComponent>(e);
-            comp.Skeleton = asset_manager->GetHandle(animator.skeleton);
-            for (auto& id : animator.clips) comp.Clips.push_back(asset_manager->GetHandle(id));
+            comp.Skeleton = asset_manager->GetHandle(skeletonID);
+
+            auto it = skelToClipsMap.find(comp.Skeleton.Blend());
+            if (it != skelToClipsMap.end())
+            {
+                comp.Clips = it->second;
+            }
 
             if (!comp.Clips.empty())
             {
@@ -403,22 +439,11 @@ namespace Aether {
                 }
             }
         }
+
         for (int childIdx : node.children)
-            CreateNodeEntity(reg, childIdx, e);
+            CreateNodeEntity(reg, childIdx, e, skelToClipsMap);
 
         return e;
-    }
-
-    Entity Scene::LoadHierarchy(const RegisteredScene* registered, Entity parent)
-    {
-        Entity first_child = Null_Entity;
-        if(!registered->hierarchy) return first_child;
-        for (int rootIdx : registered->hierarchy->roots)
-        {
-            auto temp = CreateNodeEntity(registered, rootIdx, parent);
-            if (first_child == Null_Entity) first_child = temp;
-        }
-        return first_child;
     }
 
     void Scene::ResolveBoneAttachments()

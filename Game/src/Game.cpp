@@ -77,6 +77,7 @@ void Game::Attach()
     auto* renderer = Aether::ServiceManager::GetService<Aether::Renderer>();
     auto* asset_manager = Aether::ServiceManager::GetService<Aether::AssetManager>();
     auto* physys = Aether::ServiceManager::GetService<Aether::PhysicsSystem>();
+    auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
 
     renderer->SetLutMap("assets/textures/LUT.png");
     renderer->SetSkyBox("assets/textures/skybox.png");
@@ -130,8 +131,8 @@ void Game::Attach()
     // MAP
     // =========================================================================
     m_UploadMap = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/map.glb"));
-    m_BaseMapMesh = asset_manager->GetHandle(m_UploadMap.meshIDs[0]);
-    m_SheetHandle = asset_manager->GetHandle(m_UploadMap.sheetIDs[0]);
+    m_BaseMapMesh = asset_manager->GetHandle(m_UploadMap.assets.Get(Aether::AssetType::Mesh)[0]);
+    m_SheetHandle = asset_manager->GetHandle(m_UploadMap.assets.Get(Aether::AssetType::Sheet)[0]);
 
     // =========================================================================
     // PLAYER
@@ -178,15 +179,12 @@ void Game::Attach()
     auto uploadGun = m_Importer->UploadScene(m_Importer->ImportScene("assets/models/gun.glb"));
     m_Scene.LoadHierarchy(&uploadGun, m_Gun);
 
-    if (!uploadGun.animators.empty())
+    Aether::Entity gunAnimEnt = FindAnimatorEntity(m_Scene, m_Gun);
+    if (gunAnimEnt != Aether::Null_Entity)
     {
-        Aether::Entity gunAnimEnt = FindAnimatorEntity(m_Scene, m_Gun);
-        if (gunAnimEnt != Aether::Null_Entity)
-        {
-            auto& animComp = m_Scene.GetComponent<Aether::AnimatorComponent>(gunAnimEnt);
-            animComp.Loop      = false;
-            animComp.IsPlaying = false;
-        }
+        auto& animComp = m_Scene.GetComponent<Aether::AnimatorComponent>(gunAnimEnt);
+        animComp.Loop      = false;
+        animComp.IsPlaying = false;
     }
 
     // =========================================================================
@@ -199,14 +197,19 @@ void Game::Attach()
     // =========================================================================
     // AUDIO
     // =========================================================================
-    // auto* audsys = Aether::ServiceManager::GetService<Aether::AudioSystem>();
-    // m_BgmSource    = audsys->CreateSource("assets/audios/Hatsune Miku - Ievan Polkka.mp3", Aether::AudioType::Audio2D);
+    Aether::UUID temp;
+    temp = m_Importer->ImportAudio("assets/audios/Hatsune Miku - Ievan Polkka.mp3");
+    m_BgmSource = asset_manager->GetAsset<Aether::AAudio>(temp)->m_Handle;
     // m_GunSource    = audsys->CreateSource("assets/audios/pistol.mp3",        Aether::AudioType::Audio2D);   
     // m_ReloadSource = audsys->CreateSource("assets/audios/pistol_reload.mp3", Aether::AudioType::Audio2D);
     // m_BiteSource   = audsys->CreateSource("assets/audios/zombie_bite.mp3",   Aether::AudioType::Audio2D);
 
-    // audsys->SetLooping(m_BgmSource, true);
-    // audsys->Play(m_BgmSource);
+    auto player = audsys->CreatePlayer(m_BgmSource, Aether::AudioType::Audio2D);
+    audsys->Modify(player, [](Aether::PlayerEditProxy& proxy)
+    {
+        proxy.SetLoop(true);
+    });
+    audsys->Play(player);
 
     AE_INFO("Game started.");
 }

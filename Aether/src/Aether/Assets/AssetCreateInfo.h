@@ -46,6 +46,7 @@ namespace Aether {
     struct ASkeletonCreateInfo : public AssetCreateInfo
     {
         SkeletonCreateInfo data;
+        std::span<const UUID> clipList;
     };
 
     struct AClipCreateInfo : public AssetCreateInfo
@@ -57,5 +58,10 @@ namespace Aether {
     struct ASheetCreateInfo : public AssetCreateInfo
     {
         std::span<const UUID> materialList;
+    };
+
+    struct AAudioCreateInfo : public AssetCreateInfo
+    {
+        std::span<const uint8_t> raw;
     };
 }

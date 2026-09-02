@@ -4,6 +4,13 @@
 
 namespace Aether {
 
+	struct CameraData
+	{
+		glm::mat4 ViewProjection;
+		glm::mat4 View;
+		glm::vec3 Position; float _pad;
+	};
+
 	class Camera
 	{
 	public:

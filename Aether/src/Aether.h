@@ -29,7 +29,6 @@
 
 #include "Aether/Importer/Importer.h"
 #include "Aether/Animation/AnimationSystem.h"
-#include "Aether/Animation/RigModule.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
 #include "Aether/Scripting/ScriptEngine.h"

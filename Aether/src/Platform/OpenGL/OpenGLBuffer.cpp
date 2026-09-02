@@ -11,7 +11,7 @@ namespace Aether {
         GLCall(glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW));
     }
 
-    OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size)
+    OpenGLVertexBuffer::OpenGLVertexBuffer(const float* vertices, uint32_t size)
         : m_Size(size)
     {
         GLCall(glGenBuffers(1, &m_RendererID));

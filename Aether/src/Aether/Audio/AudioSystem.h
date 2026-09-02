@@ -12,6 +12,7 @@ namespace Aether {
         void OnUpdate();
         
         Handle<AudioSource> CreateSource(const std::string& path);
+        Handle<AudioSource> CreateSource(const uint8_t* data, size_t size);
         void DestroySource(Handle<AudioSource> handle);
        
         Handle<AudioPlayer> CreatePlayer(Handle<AudioSource> source, AudioType type);
