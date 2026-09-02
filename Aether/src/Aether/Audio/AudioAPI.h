@@ -159,6 +159,7 @@ namespace Aether {
         virtual void OnUpdate() = 0;
         
         virtual Handle<AudioSource> CreateSource(const std::string& path) = 0;
+        virtual Handle<AudioSource> CreateSource(const uint8_t* data, size_t size) = 0;
         virtual void DestroySource(Handle<AudioSource> handle) = 0;
        
         virtual Handle<AudioPlayer> CreatePlayer(Handle<AudioSource> source, AudioType type) = 0;

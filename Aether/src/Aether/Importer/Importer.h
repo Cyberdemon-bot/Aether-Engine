@@ -1,15 +1,10 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Assets/BatchRegisterResult.h"
 #include "Tools/GLTFConverter/GLTFConverter.h"
 
 namespace Aether {
-
-    struct Animator
-    {
-        UUID skeleton;
-        std::vector<UUID> clips;
-    };
 
     struct ParsedScene
     {
@@ -19,10 +14,7 @@ namespace Aether {
 
     struct RegisteredScene
     {
-        std::vector<UUID> meshIDs;
-        std::vector<UUID> matIDs;
-        std::vector<UUID> sheetIDs;
-        std::vector<Animator> animators;
+        BatchRegisterResult assets;
         Ref<SceneHierarchy> hierarchy;
     };
 
@@ -34,6 +26,7 @@ namespace Aether {
 
         ParsedScene ImportScene(const std::string& path);
         RegisteredScene UploadScene(const ParsedScene& sceneData);
+        UUID ImportAudio(const std::string& path);
 
         std::string ImportText(const std::string& path);
 

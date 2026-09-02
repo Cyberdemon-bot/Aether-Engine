@@ -17,7 +17,7 @@ namespace Aether {
 		return nullptr;
 	}
 
-	Scope<VertexBuffer> VertexBuffer::CreateImpl(float* vertices, uint32_t size)
+	Scope<VertexBuffer> VertexBuffer::CreateImpl(const float* vertices, uint32_t size)
 	{
 		switch (ServiceManager::GetService<Renderer>()->GetAPI())
 		{

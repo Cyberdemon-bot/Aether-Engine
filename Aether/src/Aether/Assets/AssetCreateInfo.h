@@ -38,14 +38,15 @@ namespace Aether {
     struct AMaterialCreateInfo : public AssetCreateInfo
     {
         glm::vec4 albedo = {1.0f, 1.0f, 1.0f, 1.0f};
+        UUID albedoMap, normalMap, metallicRoughnessMap;
         float metallic = 0.0f;
         float roughness = 1.0f;
-        UUID albedoMap, normalMap, metallicRoughnessMap;
     };
 
     struct ASkeletonCreateInfo : public AssetCreateInfo
     {
         SkeletonCreateInfo data;
+        std::span<const UUID> clipList;
     };
 
     struct AClipCreateInfo : public AssetCreateInfo
@@ -57,5 +58,10 @@ namespace Aether {
     struct ASheetCreateInfo : public AssetCreateInfo
     {
         std::span<const UUID> materialList;
+    };
+
+    struct AAudioCreateInfo : public AssetCreateInfo
+    {
+        std::span<const uint8_t> raw;
     };
 }

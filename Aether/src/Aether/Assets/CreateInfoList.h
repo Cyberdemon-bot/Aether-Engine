@@ -24,7 +24,8 @@ namespace Aether {
         ASheetCreateInfo,
         ASkeletonCreateInfo,
         AClipCreateInfo,
-        AMeshCreateInfo
+        AMeshCreateInfo,
+        AAudioCreateInfo
     >;
  
     class CreateInfoList
@@ -38,9 +39,7 @@ namespace Aether {
         {
             for (const AssetRange& r : m_Ranges)
             {
-                if (r.Kind != kind)
-                    continue;
- 
+                if (r.Kind != kind) continue;
                 for (uint32_t i = r.Offset; i < r.Offset + r.Count; ++i)
                 {
                     const T* item = std::get_if<T>(&m_Assets[i]);

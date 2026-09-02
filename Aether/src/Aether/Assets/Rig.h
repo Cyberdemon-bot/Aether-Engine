@@ -20,6 +20,7 @@ namespace Aether {
     {
         AClip() = default;
 
+        Handle<Asset> m_Skeleton;
         Handle<Clip> m_Handle;
         float m_Duration;
     };

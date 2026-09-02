@@ -50,7 +50,27 @@ namespace Aether {
         SoLoud::result res = source->wav.load(path.c_str());
         if (res != SoLoud::SO_NO_ERROR)
         {
-            AE_CORE_ERROR("Failed to load '{0}'", path);
+            AE_CORE_ERROR("Failed to load '{0}' with code {1}", path, res);
+            m_Sources.DestroyResource(handle);
+            return Handle<AudioSource>::Null();
+        }
+        return handle;
+    }
+
+    Handle<AudioSource> SoLoudAPI::CreateSource(const uint8_t* data, size_t size)
+    {
+        if (!m_Initialized) return Handle<AudioSource>::Null();
+        Handle<AudioSource> handle = m_Sources.CreateResource();
+        auto* source = m_Sources.GetResource(handle);
+        SoLoud::result res = source->wav.loadMem(
+            reinterpret_cast<const unsigned char*>(data),
+            static_cast<unsigned int>(size),
+            true,  
+            false 
+        );
+        if (res != SoLoud::SO_NO_ERROR)
+        {
+            AE_CORE_ERROR("[SoLoud] Failed with code: {0}", res);
             m_Sources.DestroyResource(handle);
             return Handle<AudioSource>::Null();
         }

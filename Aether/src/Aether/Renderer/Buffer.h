@@ -145,7 +145,7 @@ namespace Aether {
         }
     private:
         static Scope<VertexBuffer> CreateImpl(uint32_t size);
-        static Scope<VertexBuffer> CreateImpl(float* vertices, uint32_t size);
+        static Scope<VertexBuffer> CreateImpl(const float* vertices, uint32_t size);
 
 		friend class ResourceManager;
     };

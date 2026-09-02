@@ -260,7 +260,7 @@ namespace Aether {
             JPH::Factory::sInstance = nullptr;
         }
 
-        m_UDList.clear();
+        m_UDList.clear(); m_UDList.shrink_to_fit();
         m_BodyPool.Shutdown();
         m_CallbackPool.Shutdown();
     }
@@ -402,7 +402,7 @@ namespace Aether {
         m_BodyPool.GetResource(handle)->joltID = body->GetID();
         m_BodyPool.GetResource(handle)->bodyInfo = config;
         body->SetUserData(handle.Blend());
-        m_UDList.resize(m_BodyPool.GetLen());
+        m_UDList.resize(m_BodyPool.GetSparseSize());
         m_UDList[handle.index] = 0;
         return handle;
     }

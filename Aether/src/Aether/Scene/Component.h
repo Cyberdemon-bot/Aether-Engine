@@ -5,9 +5,10 @@
 #include "Aether/Core/Delegate.h"
 #include "Aether/Scene/Entity.h"
 #include "Aether/Scene/SceneCamera.h"
-#include "Aether/Renderer/Renderer.h"
-#include "Aether/Audio/AudioSystem.h"
 #include "Aether/Physics/PhysicsSystem.h"
+#include "Aether/Audio/AudioSystem.h"
+#include "Aether/Renderer/Light.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -15,7 +16,11 @@
 namespace Aether {
 
     struct Asset;
+    struct Pose;
+    struct Skeleton;
+    struct SkeletonCache;
     struct ScriptInstance;
+    class RigModule;
     
     struct IDComponent
     {

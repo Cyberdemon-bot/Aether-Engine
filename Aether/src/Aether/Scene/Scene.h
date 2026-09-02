@@ -7,9 +7,8 @@
 #include <queue>
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Timestep.h"
-#include "Aether/Renderer/EditorCamera.h"
-#include "Aether/Renderer/Renderer.h"
 #include "Aether/Scene/Component.h"
+#include "Aether/Renderer/EditorCamera.h"
 
 namespace Aether {
 
@@ -148,11 +147,12 @@ namespace Aether {
         Entity m_FirstRoot = Null_Entity;
         Entity m_LastRoot = Null_Entity;
         Handle<PhysicsInstance> m_PhysicsInstance;
+        
         entt::registry m_Registry;
         std::vector<LightParam> m_SceneLights;
+        std::vector<DestroyInfo> m_DestroyQueue;
         std::vector<std::vector<Entity>> m_HierarchyLevels;
         std::queue<std::pair<Entity, uint32_t>> m_BFSQueue;
-        std::vector<DestroyInfo> m_DestroyQueue;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         void DirtyScan();
         void BreadthFirstSearch(bool usingFilter = true);
@@ -163,7 +163,12 @@ namespace Aether {
         void ExcDestroyEntity(Entity entity, bool repair_hie);
         void ExcDestroyHierarchy(Entity entity);
 
-        Entity CreateNodeEntity(const RegisteredScene* reg, int nodeIdx, Entity parentEntity);
+        Entity CreateNodeEntity(
+            const RegisteredScene* reg, 
+            int nodeIdx, 
+            Entity parentEntity,
+            const std::unordered_map<uint64_t, std::vector<Handle<Asset>>>& skelToClipsMap
+        );
 
         entt::registry& Registry() {return m_Registry;}
         const entt::registry& Registry() const {return m_Registry;}
