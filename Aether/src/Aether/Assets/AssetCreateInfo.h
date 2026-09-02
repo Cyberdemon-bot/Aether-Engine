@@ -38,9 +38,9 @@ namespace Aether {
     struct AMaterialCreateInfo : public AssetCreateInfo
     {
         glm::vec4 albedo = {1.0f, 1.0f, 1.0f, 1.0f};
+        UUID albedoMap, normalMap, metallicRoughnessMap;
         float metallic = 0.0f;
         float roughness = 1.0f;
-        UUID albedoMap, normalMap, metallicRoughnessMap;
     };
 
     struct ASkeletonCreateInfo : public AssetCreateInfo

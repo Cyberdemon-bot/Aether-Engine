@@ -55,6 +55,14 @@ namespace Aether {
         }
 
         template<typename... Args>
+        HandleType SafeCreate(std::string_view key, Args&&... args)
+        {
+            uint64_t hash = fnv1a_64(key);
+            if (Search(key, hash) != nullptr) return HandleType::Null();
+            return Commit(key, hash, std::forward<Args>(args)...);
+        }
+
+        template<typename... Args>
         HandleType GetOrCreate(std::string_view key, Args&&... args)
         {
             uint64_t hash = fnv1a_64(key);

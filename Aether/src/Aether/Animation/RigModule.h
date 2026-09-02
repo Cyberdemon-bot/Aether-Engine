@@ -21,11 +21,9 @@ namespace Aether {
     {
         struct Joint
         {
-            std::string Name;
-            int16_t ParentIndex;
-            glm::vec3 Translation;
             glm::quat Rotation;
-            glm::vec3 Scale;
+            glm::vec3 Translation, Scale;
+            std::string Name; int16_t ParentIndex;
         };
         
         std::span<const Joint> Joints;

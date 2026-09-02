@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 #include <string_view>
+#include <type_traits>
 
 #ifdef _WIN32
 	#ifdef _WIN64
@@ -126,6 +127,45 @@ namespace Aether {
 
 	consteval uint64_t operator""_hash(const char* str, size_t size) {
 		return fnv1a_64(std::string_view(str, size));
+	}
+
+	namespace type_name_detail {
+		template <typename T>
+		consteval std::string_view raw_type_name() {
+		#if defined(__clang__) || defined(__GNUC__)
+			return __PRETTY_FUNCTION__;
+		#elif defined(_MSC_VER)
+			return __FUNCSIG__;
+		#else
+			#error "Compiler does not support static type's name reflection!"
+		#endif
+		}
+
+		template <typename T>
+		consteval std::string_view extract_type_name() {
+			constexpr std::string_view sample = raw_type_name<int>();
+			constexpr size_t prefix_len = sample.find("int");
+			constexpr size_t suffix_len = sample.length() - prefix_len - 3;
+
+			constexpr std::string_view name = raw_type_name<T>();
+			return name.substr(prefix_len, name.length() - prefix_len - suffix_len);
+		}
+
+		constexpr std::string_view clean_string_view(std::string_view name) 
+		{
+			if (name.starts_with("struct ")) name.remove_prefix(7);
+			else if (name.starts_with("class ")) name.remove_prefix(6);
+			if (auto idx = name.rfind("::"); idx != std::string_view::npos) name.remove_prefix(idx + 2);
+			return name;
+		}
+	} 
+
+	template <typename T>
+	consteval std::string_view type_name() 
+	{
+		using CleanT = std::remove_cvref_t<T>;
+		constexpr auto raw = type_name_detail::extract_type_name<CleanT>();
+		return type_name_detail::clean_string_view(raw);
 	}
 }
 
