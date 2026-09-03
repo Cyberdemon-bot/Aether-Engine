@@ -36,8 +36,8 @@ namespace Aether {
         auto handle = manager->CreateAsset<AMesh>(info.id);
         auto* mesh = manager->GetAsset<AMesh>(handle);
         mesh->m_Submeshes = std::vector(info.Submeshes.begin(), info.Submeshes.end());
-        AE_CORE_ASSERT(info.streams, "Mesh require at least 1 vbo in streams!");
-        AE_CORE_ASSERT(info.indicies, "Index data cannot be null!");
+        AE_CORE_ASSERT(!info.streams.empty(), "Mesh require at least 1 vbo in streams!");
+        AE_CORE_ASSERT(!info.indicies.empty(), "Index data cannot be null!");
 
         mesh->m_VertexArray = ResourceManager::CreateResource<VertexArray>();
         auto* vao = ResourceManager::GetResource<VertexArray>(mesh->m_VertexArray);

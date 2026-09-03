@@ -7,6 +7,7 @@
 #include "Aether/Core/Log.h"
 #include "Aether/Core/Base.h"
 #include "Aether/Scene/TComponentInfo.h"
+#include "Aether/Core/Assert.h"
 
 namespace Aether {
     namespace Utils
@@ -18,14 +19,15 @@ namespace Aether {
         }
     }
 
-    template<size_t MaxComponents = 32>
+    template<size_t MaxComponents>
     struct ArchetypeLayout
     {
         size_t capacity = 0; // num of element per chunk
         size_t total_bytes = 0; // bytes per chunk
         size_t field_count = 0;
         std::array<size_t, MaxComponents> offsets{};
-        std::array<TComponentInfo, MaxComponents> components{}; 
+        std::array<TComponentInfo, MaxComponents> components{};
+        bool is_valid = false;
     };
 
     template<size_t ChunkSizeBytes, size_t MaxComponents>
@@ -42,6 +44,15 @@ namespace Aether {
             {
                 AE_CORE_ERROR("[ArchetypeLayoutCalculator] Component count ({0}) exceeds MaxComponents ({1})!", components.size(), MaxComponents);
                 return layout;
+            }
+
+            for (const auto& cmp : components)
+            {
+                if (!cmp.IsRegistered())
+                {
+                    AE_CORE_ERROR("[ArchetypeLayoutCalculator] There is an unregistered component in the list!");
+                    return layout;
+                }
             }
 
             layout.field_count = components.size();
@@ -77,7 +88,7 @@ namespace Aether {
                 }
             }
 
-            ImplementLayout(capacity, layout);
+            ImplementLayout(capacity, layout); layout.is_valid = true;
             return layout;
         }
 
@@ -136,6 +147,46 @@ namespace Aether {
         Archetype(std::span<const TComponentInfo> components)
         {
             m_Layout = ArchetypeLayoutCalculator<ChunkSizeBytes, MaxComponents>::ComputeLayout(components);
+            AE_CORE_ASSERT(m_Layout.is_valid, "Invalid archetype layout!");
+        }
+
+        ~Archetype() { Clear(); }
+
+        int GetFieldIndex(Handle<TComponentInfo> id) const
+        {
+            for (size_t i = 0; i < m_Layout.field_count; ++i)
+                if (m_Layout.components[i].id.index == id.index)
+                    return static_cast<int>(i);
+            return -1;
+        }
+
+        void ShrinkToFit(size_t maxSpareChunks = 1)
+        {
+            size_t activeChunks = GetActiveChunkCount();
+            size_t targetCapacity = activeChunks + maxSpareChunks;
+            if (targetCapacity < m_Chunks.size()) m_Chunks.resize(targetCapacity);
+        }       
+    
+        void Clear()
+        {
+            if (m_Count == 0) return;
+            size_t capacity = m_Layout.capacity;
+            for (uint32_t globalIdx = 0; globalIdx < m_Count; ++globalIdx)
+            {
+                uint32_t chunkIdx = globalIdx / static_cast<uint32_t>(capacity);
+                uint32_t localIdx = globalIdx % static_cast<uint32_t>(capacity);
+                ChunkType* chunk = m_Chunks[chunkIdx].get();
+                for (size_t i = 0; i < m_Layout.field_count; ++i)
+                {
+                    const TComponentInfo& info = m_Layout.components[i];
+                    if (info.dtor)
+                    {
+                        std::byte* elem = (chunk->buffer + m_Layout.offsets[i]) + (localIdx * info.size);
+                        info.dtor(elem, 1);
+                    }
+                }
+            }
+            m_Count = 0;
         }
 
         bool CreateElement(uint32_t& newElement)
@@ -210,12 +261,22 @@ namespace Aether {
                 }
             }
             --m_Count;
-            if (m_Count % capacity == 0 && !m_Chunks.empty()) m_Chunks.pop_back();
             return true;
         }
     private:
         uint32_t m_Count = 0;
         LayoutType m_Layout;
         std::vector<Scope<ChunkType>> m_Chunks;
+
+        size_t GetActiveChunkCount() const
+        {
+            if (m_Count == 0 || m_Layout.capacity == 0) return 0;
+            return (m_Count + m_Layout.capacity - 1) / m_Layout.capacity;
+        }
+
+        size_t GetAllocatedChunkCount() const
+        {
+            return m_Chunks.size();
+        }
     };
 }
