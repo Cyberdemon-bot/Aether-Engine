@@ -1,6 +1,6 @@
 #include "aepch.h"
+#include "Aether/Scene/Archetype.h"
 #include "Aether/Scene/ComponentRegistry.h"
-#include "Aether/Scene/ArchetypeChunk.h"
 
 namespace Aether {
     Handle<TComponentInfo> ComponentRegistry::RegisterComponent(const TComponentInfo& info)

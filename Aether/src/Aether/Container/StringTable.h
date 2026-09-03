@@ -1,9 +1,11 @@
 #pragma once
 
+#include <span>
 #include <vector>
 #include <string_view>
 #include "Aether/Core/Base.h"
 #include "Aether/Core/Log.h"
+#include "Aether/Utils/Algorithm.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Container/ResourcePool.h"
 
@@ -34,7 +36,8 @@ namespace Aether {
         {
             m_Pool.Init();
             m_Map.reserve(32);
-            m_Queue.reserve(16);
+            m_Temp.reserve(16);
+            m_SortedSize = 0;
             m_Buffer.reserve(128);
         }
 
@@ -42,7 +45,8 @@ namespace Aether {
         {
             m_Pool.Shutdown();
             m_Map.clear(); m_Map.shrink_to_fit();
-            m_Queue.clear(); m_Queue.shrink_to_fit();
+            m_Temp.clear(); m_Temp.shrink_to_fit();
+            m_SortedSize = 0;
             m_Buffer.clear(); m_Buffer.shrink_to_fit();
         }
 
@@ -128,47 +132,40 @@ namespace Aether {
         {
             m_Pool.Clear();
             m_Map.clear();
-            m_Queue.clear();
+            m_Temp.clear();
+            m_SortedSize = 0;
             m_Buffer.clear(); 
         }
 
         void Resolve()
         {
-            if (m_Queue.empty()) return;
+            size_t unsorted_count = m_Map.size() - m_SortedSize;
+            if (unsorted_count == 0) return;
 
-            std::sort(m_Queue.begin(), m_Queue.end(), 
-            [](const HashData& a, const HashData& b) 
-            {
-                return a.hash_code < b.hash_code;
-            });
+            m_Temp.resize(unsorted_count);
+            RadixSort64(
+                std::span(m_Map).subspan(m_SortedSize),
+                std::span(m_Temp),
+                [](const HashData& item) -> uint64_t { return item.hash_code; }
+            );
 
-            if (m_Map.empty())
+            if (m_SortedSize > 0)
             {
-                m_Map = std::move(m_Queue);
-                m_Queue.clear();
-                m_Queue.reserve(16);
-                return;
+                std::inplace_merge(m_Map.begin(), m_Map.begin() + m_SortedSize, m_Map.end(), 
+                [](const HashData& a, const HashData& b) { return a.hash_code < b.hash_code; });
             }
 
-            size_t old_size = m_Map.size();
-            m_Map.insert(m_Map.end(), m_Queue.begin(), m_Queue.end());
-            m_Queue.clear();
-
-            std::inplace_merge(m_Map.begin(), m_Map.begin() + old_size, m_Map.end(), 
-            [](const HashData& a, const HashData& b) 
-            {
-                return a.hash_code < b.hash_code;
-            });
+            m_SortedSize = m_Map.size();
         }
 
         template<typename Func>
         void ForEach(Func&& func)
         {
-            m_Pool.Loop([&func](TableElement& element)
-            {
+            m_Pool.Loop([&func](TableElement& element) {
                 func(element.data);
             });
         }
+
     private:
         std::string_view CalcView(uint32_t offset) const
         {
@@ -196,47 +193,56 @@ namespace Aether {
             std::memcpy(m_Buffer.data() + offset + sizeof(uint16_t), key.data(), key.size());
 
             HandleType handle = m_Pool.CreateResource(offset, std::forward<Args>(args)...);
-            m_Queue.push_back({ offset, hash, handle });
+            m_Map.push_back({ offset, hash, handle });
             return handle;
         }
 
         HashData* Search(std::string_view key, uint64_t hash)
         {
-            auto it = std::lower_bound(m_Map.begin(), m_Map.end(), hash,
+            auto sorted_end = m_Map.begin() + m_SortedSize;
+            auto it = std::lower_bound(m_Map.begin(), sorted_end, hash,
                 [](const HashData& entry, uint64_t h) { return entry.hash_code < h; });
-            while (it != m_Map.end() && it->hash_code == hash)
+
+            while (it != sorted_end && it->hash_code == hash)
             {
                 if (CalcView(it->byte_offset) == key) return std::to_address(it);
                 ++it;
             }
-            for (HashData& entry : m_Queue)
+
+            for (size_t i = m_SortedSize; i < m_Map.size(); ++i)
             {
-                if (entry.hash_code != hash) continue;
-                if (CalcView(entry.byte_offset) == key) return &entry;
+                if (m_Map[i].hash_code == hash && CalcView(m_Map[i].byte_offset) == key)
+                    return &m_Map[i];
             }
+
             return nullptr;
         }
 
         const HashData* Search(std::string_view key, uint64_t hash) const
         {
-            auto it = std::lower_bound(m_Map.begin(), m_Map.end(), hash,
+            auto sorted_end = m_Map.begin() + m_SortedSize;
+            auto it = std::lower_bound(m_Map.begin(), sorted_end, hash,
                 [](const HashData& entry, uint64_t h) { return entry.hash_code < h; });
-            while (it != m_Map.end() && it->hash_code == hash)
+
+            while (it != sorted_end && it->hash_code == hash)
             {
                 if (CalcView(it->byte_offset) == key) return std::to_address(it);
                 ++it;
             }
-            for (const HashData& entry : m_Queue)
+
+            for (size_t i = m_SortedSize; i < m_Map.size(); ++i)
             {
-                if (entry.hash_code != hash) continue;
-                if (CalcView(entry.byte_offset) == key) return &entry;
+                if (m_Map[i].hash_code == hash && CalcView(m_Map[i].byte_offset) == key)
+                    return &m_Map[i];
             }
+
             return nullptr;
         }
 
+        size_t m_SortedSize = 0;
         ResourcePool<HandleType, TableElement> m_Pool;
         std::vector<HashData> m_Map;
-        std::vector<HashData> m_Queue;
+        std::vector<HashData> m_Temp;
         std::vector<char> m_Buffer;
     };
 }

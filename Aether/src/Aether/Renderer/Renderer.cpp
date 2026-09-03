@@ -1,4 +1,5 @@
 #include "aepch.h"
+#include "Aether/Utils/Algorithm.h"
 #include "Aether/Core/Application.h"
 #include "Aether/Assets/AssetCreateInfo.h"
 #include "Aether/Assets/Mesh.h"
@@ -289,12 +290,11 @@ namespace Aether {
 		auto& src = s_SceneData->sortKeys;
 		auto& dst = s_SceneData->sortKeyTemp;
 
-		uint32_t n = (uint32_t)commandlist.size();
+		uint32_t n = static_cast<uint32_t>(commandlist.size());
 		if (n == 0) return;
 
 		src.resize(n);
 		dst.resize(n);
-		templist.resize(n);
 
 		for (uint32_t i = 0; i < n; i++)
 		{
@@ -306,32 +306,14 @@ namespace Aether {
 			src[i] = { key, i };
 		}
 
-		uint32_t hist[8][256] = {};
-		for (uint32_t i = 0; i < n; i++)
-			for (int p = 0; p < 8; p++)
-				hist[p][(src[i].key >> (p * 8)) & 0xFF]++;
+		RadixSort64(
+			std::span(src),
+			std::span(dst),
+			[](const auto& item) -> uint64_t { return item.key; }
+		);
 
-		for (int p = 0; p < 8; p++)
-		{
-			uint32_t* h = hist[p];
-			bool skip = false;
-			for (int b = 0; b < 256; b++)
-				if(h[b] == n) { skip = true; break; }
-			if (skip) continue;
-
-			uint32_t offset[256];
-			offset[0] = 0;
-			for (int b = 1; b < 256; b++) offset[b] = offset[b - 1] + h[b - 1];
-
-			for (uint32_t i = 0; i < n; i++)
-			{
-				uint32_t bucket = (src[i].key >> (p * 8)) & 0xFF;
-				dst[offset[bucket]++] = src[i];
-			}
-			std::swap(src, dst);
-		}
-
-		for (uint32_t i = 0; i < commandlist.size(); ++i)
+		templist.resize(n);
+		for (uint32_t i = 0; i < n; ++i)
 			templist[i] = commandlist[src[i].index];
 
 		std::swap(commandlist, templist);

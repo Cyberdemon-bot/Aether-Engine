@@ -24,6 +24,7 @@
 #include "Aether/Assets/Mesh.h"
 #include "Aether/Assets/Material.h"
 
+#include "Aether/Scene/Archetype.h"
 #include "Aether/Scene/Component.h"
 #include "Aether/Scene/Scene.h"
 

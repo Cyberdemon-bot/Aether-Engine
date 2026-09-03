@@ -1,5 +1,6 @@
 #include "aepch.h"
 #include "Aether/Scene/Scene.h"
+#include "Aether/Renderer/Renderer.h"
 #include "Aether/Animation/AnimationSystem.h"
 #include "Aether/Physics/PhysicsSystem.h"
 #include "Aether/Audio/AudioSystem.h"
