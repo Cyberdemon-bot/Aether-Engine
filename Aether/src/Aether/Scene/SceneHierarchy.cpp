@@ -301,7 +301,7 @@ namespace Aether {
         }
     }
 
-    void Scene::BreadthFirstSearch(bool usingFilter)
+    void Scene::BreadthFirstSearch(bool usingFilter, bool removeHeader)
     {
         m_HierarchyBuffer.clear();
 
@@ -323,12 +323,12 @@ namespace Aether {
         if (Queue.empty()) return;
         uint32_t curr_depth = 0;
         uint32_t anchorIdx = 0;
-        m_HierarchyBuffer.push_back(FromNumber(static_cast<uint32_t>(0)));
+        if (!removeHeader) m_HierarchyBuffer.push_back(FromNumber(static_cast<uint32_t>(0)));
     
         while (!Queue.empty())
         {
             auto [entity, depth] = Queue.front(); Queue.pop();
-            if (depth > curr_depth)
+            if (depth > curr_depth && !removeHeader)
             {
                 curr_depth = depth;
                 m_HierarchyBuffer[anchorIdx] = FromNumber(static_cast<uint32_t>(m_HierarchyBuffer.size() - anchorIdx - 1));
@@ -360,28 +360,14 @@ namespace Aether {
             });
         }
 
-        if (!m_HierarchyBuffer.empty()) 
+        if (!m_HierarchyBuffer.empty() && !removeHeader) 
             m_HierarchyBuffer[anchorIdx] = FromNumber(static_cast<uint32_t>(m_HierarchyBuffer.size() - anchorIdx - 1));
     }
 
     void Scene::SortHierarchyCache()
     {
-        BreadthFirstSearch(false);
-        std::vector<Entity> topoOrder;
-        topoOrder.reserve(m_EntityLibrary.size());
-        size_t offset = 0; const size_t totalSize = m_HierarchyBuffer.size();
-        while (offset < totalSize)
-        {
-            uint32_t count = ToNumber32(m_HierarchyBuffer[offset]);
-            if (count > 0)
-            {
-                auto firstData = m_HierarchyBuffer.begin() + offset + 1;
-                topoOrder.insert(topoOrder.end(), firstData, firstData + count);
-            }
-            offset += 1 + count;
-        }
-
-        m_Registry.storage<TransformComponent>().sort_as(topoOrder.begin(), topoOrder.end());
+        BreadthFirstSearch(false, true);
+        m_Registry.storage<TransformComponent>().sort_as(m_HierarchyBuffer.begin(), m_HierarchyBuffer.end());
         m_Registry.sort<HierarchyComponent, TransformComponent>();
         m_Registry.sort<ColliderComponent, TransformComponent>();
         m_SortDirtyCount = 0;

@@ -165,7 +165,7 @@ namespace Aether {
         std::queue<std::pair<Entity, uint32_t>> m_BFSQueue;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         void DirtyScan();
-        void BreadthFirstSearch(bool usingFilter = true);
+        void BreadthFirstSearch(bool usingFilter = true, bool removeHeader = false);
         void UpdateTransform(Entity entity);
         void UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform);
         void ResolveBoneAttachments();
