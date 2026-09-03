@@ -57,12 +57,22 @@ namespace Aether {
         Entity FindEntity(UUID id) const;
         std::vector<Entity> FindEntity(std::string_view tag) const;
 
-        static uint64_t ToNumber(Entity entity)
+        static uint64_t ToNumber64(Entity entity)
         {
             return static_cast<uint64_t>(entt::to_integral(entity));
         }
 
+        static uint32_t ToNumber32(Entity entity)
+        {
+            return static_cast<uint32_t>(entt::to_integral(entity));
+        }
+
         static Entity FromNumber(uint64_t number)
+        {
+            return entt::entity(static_cast<std::underlying_type_t<Entity>>(number));
+        }
+
+        static Entity FromNumber(uint32_t number)
         {
             return entt::entity(static_cast<std::underlying_type_t<Entity>>(number));
         }
@@ -151,7 +161,7 @@ namespace Aether {
         entt::registry m_Registry;
         std::vector<LightParam> m_SceneLights;
         std::vector<DestroyInfo> m_DestroyQueue;
-        std::vector<std::vector<Entity>> m_HierarchyLevels;
+        std::vector<Entity> m_HierarchyBuffer;
         std::queue<std::pair<Entity, uint32_t>> m_BFSQueue;
         std::unordered_map<UUID, Entity> m_EntityLibrary;
         void DirtyScan();

@@ -164,9 +164,9 @@ namespace Aether {
         m_LastRoot = Null_Entity;
 
         m_EntityLibrary.clear();
-        m_SceneLights.clear();
-        m_HierarchyLevels.clear();
-        m_DestroyQueue.clear();
+        m_SceneLights.clear(); m_SceneLights.shrink_to_fit();
+        m_HierarchyBuffer.clear(); m_HierarchyBuffer.shrink_to_fit();
+        m_DestroyQueue.clear(); m_DestroyQueue.shrink_to_fit();
 
         ServiceManager::GetService<PhysicsSystem>()->DestroyInstance(m_PhysicsInstance);
     }
@@ -234,10 +234,21 @@ namespace Aether {
             DirtyScan();
             BreadthFirstSearch();
             physys->UpdateInstance(m_PhysicsInstance, ts);
-            for (auto& level : m_HierarchyLevels) 
-                jobsys->ParallelFor(level.size(), m_Threshold, level.data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
-                    this->UpdateTransform(entity); 
-                ));
+
+            size_t offset = 0;
+            const size_t totalSize = m_HierarchyBuffer.size();
+            while (offset < totalSize)
+            {
+                uint32_t count = ToNumber32(m_HierarchyBuffer[offset]);
+                if (count > 0)
+                {
+                    Entity* levelData = &m_HierarchyBuffer[offset + 1];
+                    jobsys->ParallelFor(count, m_Threshold, levelData, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
+                        this->UpdateTransform(entity); 
+                    ));
+                }
+                offset += 1 + count;
+            }
         }
 
         { // update physics
@@ -266,7 +277,7 @@ namespace Aether {
                     config.isSensor = rbComp.IsSensor;
 
                     handle = physys->CreateBody(m_PhysicsInstance, config);
-                    physys->SetUserData(m_PhysicsInstance, handle, ToNumber(entity));
+                    physys->SetUserData(m_PhysicsInstance, handle, ToNumber64(entity));
                 }
                 physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
             }

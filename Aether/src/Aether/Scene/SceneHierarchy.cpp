@@ -303,14 +303,14 @@ namespace Aether {
 
     void Scene::BreadthFirstSearch(bool usingFilter)
     {
-        for (auto& level : m_HierarchyLevels) level.clear();
+        m_HierarchyBuffer.clear();
 
         auto& Queue = m_BFSQueue;
         auto view = View<HierarchyComponent>();
-
         ChainLoop(m_FirstRoot, [&](Entity entity)
         {
-            if (usingFilter)
+            if (!usingFilter) Queue.push({entity, 0});
+            else
             {
                 auto& t = GetComponent<TransformComponent>(entity);
                 if (t.Dirty || t.SubtreeDirty ||
@@ -318,14 +318,25 @@ namespace Aether {
                     GetComponent<ColliderComponent>(entity).Type != MotionType::Static))
                     Queue.push({entity, 0});
             }
-            else Queue.push({entity, 0});
         });
+
+        if (Queue.empty()) return;
+        uint32_t curr_depth = 0;
+        uint32_t anchorIdx = 0;
+        m_HierarchyBuffer.push_back(FromNumber(static_cast<uint32_t>(0)));
     
         while (!Queue.empty())
         {
             auto [entity, depth] = Queue.front(); Queue.pop();
-            if (m_HierarchyLevels.size() <= depth) m_HierarchyLevels.push_back({});
-            m_HierarchyLevels[depth].push_back(entity);
+            if (depth > curr_depth)
+            {
+                curr_depth = depth;
+                m_HierarchyBuffer[anchorIdx] = FromNumber(static_cast<uint32_t>(m_HierarchyBuffer.size() - anchorIdx - 1));
+                anchorIdx = static_cast<uint32_t>(m_HierarchyBuffer.size());
+                m_HierarchyBuffer.push_back(FromNumber(static_cast<uint32_t>(0)));
+            }
+            m_HierarchyBuffer.push_back(entity);
+
     
             auto& parentT = GetComponent<TransformComponent>(entity);
             bool isParentDynamic = HasComponent<ColliderComponent>(entity) && 
@@ -348,6 +359,9 @@ namespace Aether {
                 }
             });
         }
+
+        if (!m_HierarchyBuffer.empty()) 
+            m_HierarchyBuffer[anchorIdx] = FromNumber(static_cast<uint32_t>(m_HierarchyBuffer.size() - anchorIdx - 1));
     }
 
     void Scene::SortHierarchyCache()
@@ -355,9 +369,17 @@ namespace Aether {
         BreadthFirstSearch(false);
         std::vector<Entity> topoOrder;
         topoOrder.reserve(m_EntityLibrary.size());
-        for (auto& level : m_HierarchyLevels)
-            for (auto e : level)
-                topoOrder.push_back(e);
+        size_t offset = 0; const size_t totalSize = m_HierarchyBuffer.size();
+        while (offset < totalSize)
+        {
+            uint32_t count = ToNumber32(m_HierarchyBuffer[offset]);
+            if (count > 0)
+            {
+                auto firstData = m_HierarchyBuffer.begin() + offset + 1;
+                topoOrder.insert(topoOrder.end(), firstData, firstData + count);
+            }
+            offset += 1 + count;
+        }
 
         m_Registry.storage<TransformComponent>().sort_as(topoOrder.begin(), topoOrder.end());
         m_Registry.sort<HierarchyComponent, TransformComponent>();
