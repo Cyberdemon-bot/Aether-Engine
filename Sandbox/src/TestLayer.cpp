@@ -34,6 +34,8 @@ void RunArchetypeTest()
         Aether::ComponentInfoFactory<TestHealth>::Create()     // Non-trivial Struct
     };
 
+    components[0].id.index = 0; components[1].id.index = 0; components[2].id.index = 0; components[3].id.index = 0; 
+
     // 2. Khởi tạo Archetype với ChunkSizeBytes nhỏ (1024 bytes) để dễ kích hoạt cấp phát nhiều Chunk
     constexpr size_t TestChunkSize = 1024;
     constexpr size_t MaxComponents = 16;

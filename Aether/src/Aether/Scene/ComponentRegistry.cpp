@@ -7,6 +7,7 @@ namespace Aether {
     {
         auto handle = m_Table.SafeCreate(info.name, info);
         if (handle.Blend() == Handle<TComponentInfo>::Null().Blend()) AE_CORE_WARN("[ComponentRegistry] Failed to register component '{0}': Name already exists", info.name);
+        auto* data = m_Table.GetData(handle); data->id = handle;
         return handle;
     }
     

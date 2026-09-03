@@ -1,17 +1,20 @@
 #pragma once
 
 #include "Aether/Core/Base.h"
+#include "Aether/Container/Handle.h"
 #include <string_view>
 
 namespace Aether {
     struct TComponentInfo // type delc
     {
         std::string_view name = "Invalid";
-        size_t size;
-        size_t alignment;
+        Handle<TComponentInfo> id = Handle<TComponentInfo>::Null();
+        size_t size, alignment;
         void (*ctor)(void* ptr, size_t count); 
         void (*dtor)(void* ptr, size_t count); 
         void (*move)(void* dst, void* src, size_t count); 
+
+        bool IsRegistered() const { return id.Blend() != Handle<TComponentInfo>::Null().Blend(); }
     };
 
     template<typename T>

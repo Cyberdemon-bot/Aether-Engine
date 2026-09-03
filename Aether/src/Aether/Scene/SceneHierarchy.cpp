@@ -301,16 +301,16 @@ namespace Aether {
         }
     }
 
-    void Scene::BreadthFirstSearch(bool usingFilter)
+    void Scene::BreadthFirstSearch(bool usingFilter, bool removeHeader)
     {
-        for (auto& level : m_HierarchyLevels) level.clear();
+        m_HierarchyBuffer.clear();
 
         auto& Queue = m_BFSQueue;
         auto view = View<HierarchyComponent>();
-
         ChainLoop(m_FirstRoot, [&](Entity entity)
         {
-            if (usingFilter)
+            if (!usingFilter) Queue.push({entity, 0});
+            else
             {
                 auto& t = GetComponent<TransformComponent>(entity);
                 if (t.Dirty || t.SubtreeDirty ||
@@ -318,14 +318,25 @@ namespace Aether {
                     GetComponent<ColliderComponent>(entity).Type != MotionType::Static))
                     Queue.push({entity, 0});
             }
-            else Queue.push({entity, 0});
         });
+
+        if (Queue.empty()) return;
+        uint32_t curr_depth = 0;
+        uint32_t anchorIdx = 0;
+        if (!removeHeader) m_HierarchyBuffer.push_back(FromNumber(static_cast<uint32_t>(0)));
     
         while (!Queue.empty())
         {
             auto [entity, depth] = Queue.front(); Queue.pop();
-            if (m_HierarchyLevels.size() <= depth) m_HierarchyLevels.push_back({});
-            m_HierarchyLevels[depth].push_back(entity);
+            if (depth > curr_depth && !removeHeader)
+            {
+                curr_depth = depth;
+                m_HierarchyBuffer[anchorIdx] = FromNumber(static_cast<uint32_t>(m_HierarchyBuffer.size() - anchorIdx - 1));
+                anchorIdx = static_cast<uint32_t>(m_HierarchyBuffer.size());
+                m_HierarchyBuffer.push_back(FromNumber(static_cast<uint32_t>(0)));
+            }
+            m_HierarchyBuffer.push_back(entity);
+
     
             auto& parentT = GetComponent<TransformComponent>(entity);
             bool isParentDynamic = HasComponent<ColliderComponent>(entity) && 
@@ -348,18 +359,15 @@ namespace Aether {
                 }
             });
         }
+
+        if (!m_HierarchyBuffer.empty() && !removeHeader) 
+            m_HierarchyBuffer[anchorIdx] = FromNumber(static_cast<uint32_t>(m_HierarchyBuffer.size() - anchorIdx - 1));
     }
 
     void Scene::SortHierarchyCache()
     {
-        BreadthFirstSearch(false);
-        std::vector<Entity> topoOrder;
-        topoOrder.reserve(m_EntityLibrary.size());
-        for (auto& level : m_HierarchyLevels)
-            for (auto e : level)
-                topoOrder.push_back(e);
-
-        m_Registry.storage<TransformComponent>().sort_as(topoOrder.begin(), topoOrder.end());
+        BreadthFirstSearch(false, true);
+        m_Registry.storage<TransformComponent>().sort_as(m_HierarchyBuffer.begin(), m_HierarchyBuffer.end());
         m_Registry.sort<HierarchyComponent, TransformComponent>();
         m_Registry.sort<ColliderComponent, TransformComponent>();
         m_SortDirtyCount = 0;
