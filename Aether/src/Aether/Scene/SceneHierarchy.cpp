@@ -63,8 +63,10 @@ namespace Aether {
         if (parent != Null_Entity && IsValid(parent)) MakeParent(e, parent);
         else
         {
+            Entity prevLast = m_LastRoot;
             if (m_LastRoot == Null_Entity) m_FirstRoot = e;
             else GetComponent<HierarchyComponent>(m_LastRoot).nextSibling = e;
+            hierarchy.prevSibling = prevLast;
             m_LastRoot = e;
         }
         m_SortDirtyCount++; 
@@ -81,37 +83,37 @@ namespace Aether {
         m_DestroyQueue.push_back({entity, false, repair_hie});
     }
 
+    void Scene::CleanupEntityResources(Entity entity)
+    {
+        if (auto* anim = TryGetComponent<AnimatorComponent>(entity))
+        {
+            if (auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>())
+            {
+                if (anim->Cache.IsValid()) rigModule->DestroyCache(anim->Cache);
+                if (anim->CurrentPose.IsValid()) rigModule->DestroyPose(anim->CurrentPose);
+            }
+        }
+
+        if (auto* collider = TryGetComponent<ColliderComponent>(entity))
+        {
+            if (collider->ColliderHandle.IsValid())
+                ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, collider->ColliderHandle);
+        }
+
+        if (auto* script = TryGetComponent<ScriptComponent>(entity))
+            ServiceManager::GetService<ScriptEngine>()->DestroyInstance(script->ScriptHandle);
+
+        if (auto* mesh = TryGetComponent<MeshComponent>(entity))
+            ServiceManager::GetService<AssetManager>()->Unload(mesh->UniqueSheet);
+    }
+
     void Scene::ExcDestroyEntity(Entity entity, bool repair_hie)
     {
         if (!m_Registry.valid(entity)) return;
         if (repair_hie) BreakParent(entity);
 
-        if (HasComponent<AnimatorComponent>(entity))
-        {
-            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-            if (rigModule)
-            {
-                auto& comp = GetComponent<AnimatorComponent>(entity);
-                if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
-                if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
-            }
-        }
+        CleanupEntityResources(entity);
 
-        if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
-
-        if (HasComponent<ScriptComponent>(entity))
-        {
-            auto& script = GetComponent<ScriptComponent>(entity);
-            ServiceManager::GetService<ScriptEngine>()->DestroyInstance(script.ScriptHandle);
-        }
-
-        if (HasComponent<MeshComponent>(entity))
-        {
-            auto& mesh = GetComponent<MeshComponent>(entity);
-            ServiceManager::GetService<AssetManager>()->Unload(mesh.UniqueSheet);
-        }
-        
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
         m_Registry.destroy(entity);
@@ -134,30 +136,7 @@ namespace Aether {
         GetComponent<HierarchyComponent>(entity).lastChild = Null_Entity;
         BreakParent(entity);
 
-        if (HasComponent<AnimatorComponent>(entity))
-        {
-            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-            if (rigModule)
-            {
-                auto& comp = GetComponent<AnimatorComponent>(entity);
-                if (comp.Cache.IsValid()) rigModule->DestroyCache(comp.Cache);
-                if (comp.CurrentPose.IsValid()) rigModule->DestroyPose(comp.CurrentPose);
-            }
-        }
-        if (HasComponent<ColliderComponent>(entity) && GetComponent<ColliderComponent>(entity).ColliderHandle.IsValid()) 
-            ServiceManager::GetService<PhysicsSystem>()->DestroyBody(m_PhysicsInstance, GetComponent<ColliderComponent>(entity).ColliderHandle);
-
-        if (HasComponent<ScriptComponent>(entity))
-        {
-            auto& script = GetComponent<ScriptComponent>(entity);
-            ServiceManager::GetService<ScriptEngine>()->DestroyInstance(script.ScriptHandle);
-        }
-
-        if (HasComponent<MeshComponent>(entity))
-        {
-            auto& mesh = GetComponent<MeshComponent>(entity);
-            ServiceManager::GetService<AssetManager>()->Unload(mesh.UniqueSheet);
-        }
+        CleanupEntityResources(entity);
 
         const UUID id = m_Registry.get<IDComponent>(entity).ID;
         m_EntityLibrary.erase(id);
@@ -190,14 +169,18 @@ namespace Aether {
         {
             hierarchy.parent = parent;
             auto& parentHie = GetComponent<HierarchyComponent>(parent);
+            Entity prevLast = parentHie.lastChild;
             if (parentHie.firstChild == Null_Entity) parentHie.firstChild = child;
-            else GetComponent<HierarchyComponent>(parentHie.lastChild).nextSibling = child;
+            else GetComponent<HierarchyComponent>(prevLast).nextSibling = child;
+            hierarchy.prevSibling = prevLast;
             parentHie.lastChild = child;
         }
         else
         {
+            Entity prevLast = m_LastRoot;
             if (m_LastRoot == Null_Entity) m_FirstRoot = child;
             else GetComponent<HierarchyComponent>(m_LastRoot).nextSibling = child;
+            hierarchy.prevSibling = prevLast;
             m_LastRoot = child;
         }
 
@@ -208,45 +191,25 @@ namespace Aether {
     {
         if (!IsValid(entity)) return;
         auto& hierarchy = GetComponent<HierarchyComponent>(entity);
+        Entity prev = hierarchy.prevSibling;
+        Entity next = hierarchy.nextSibling;
 
         if (hierarchy.parent != Null_Entity)
         {
             auto& parentHie = GetComponent<HierarchyComponent>(hierarchy.parent);
-            if (parentHie.firstChild == entity)
-            {
-                parentHie.firstChild = hierarchy.nextSibling;
-                if (parentHie.lastChild == entity) parentHie.lastChild = Null_Entity;
-            }
-            else
-            {
-                Entity prev = parentHie.firstChild;
-                while (prev != Null_Entity && GetComponent<HierarchyComponent>(prev).nextSibling != entity)
-                    prev = GetComponent<HierarchyComponent>(prev).nextSibling;
-                if (prev != Null_Entity)
-                {
-                    GetComponent<HierarchyComponent>(prev).nextSibling = hierarchy.nextSibling;
-                    if (parentHie.lastChild == entity) parentHie.lastChild = prev;
-                }
-            }
+            if (parentHie.firstChild == entity) parentHie.firstChild = next;
+            else if (prev != Null_Entity && IsValid(prev)) GetComponent<HierarchyComponent>(prev).nextSibling = next;
+
+            if (parentHie.lastChild == entity) parentHie.lastChild = prev;
+            else if (next != Null_Entity && IsValid(next)) GetComponent<HierarchyComponent>(next).prevSibling = prev;
         }
-       else
+        else
         {
-            if (m_FirstRoot == entity)
-            {
-                m_FirstRoot = hierarchy.nextSibling;
-                if (m_LastRoot == entity) m_LastRoot = Null_Entity;
-            }
-            else
-            {
-                Entity prev = m_FirstRoot;
-                while (prev != Null_Entity && GetComponent<HierarchyComponent>(prev).nextSibling != entity)
-                    prev = GetComponent<HierarchyComponent>(prev).nextSibling;
-                if (prev != Null_Entity)
-                {
-                    GetComponent<HierarchyComponent>(prev).nextSibling = hierarchy.nextSibling;
-                    if (m_LastRoot == entity) m_LastRoot = prev;
-                }
-            }
+            if (m_FirstRoot == entity) m_FirstRoot = next;
+            else if (prev != Null_Entity && IsValid(prev)) GetComponent<HierarchyComponent>(prev).nextSibling = next;
+
+            if (m_LastRoot == entity) m_LastRoot = prev;
+            else if (next != Null_Entity && IsValid(next)) GetComponent<HierarchyComponent>(next).prevSibling = prev;
         }
 
         Entity newParent = hierarchy.parent;
@@ -264,35 +227,39 @@ namespace Aether {
             if (newParent != Null_Entity)
             {
                 auto& parentHie = GetComponent<HierarchyComponent>(newParent);
+                Entity prevLast = parentHie.lastChild;
                 if (parentHie.firstChild == Null_Entity) parentHie.firstChild = firstChild;
-                else GetComponent<HierarchyComponent>(parentHie.lastChild).nextSibling = firstChild;
+                else if (prevLast != Null_Entity && IsValid(prevLast)) GetComponent<HierarchyComponent>(prevLast).nextSibling = firstChild;
+                
+                if (firstChild != Null_Entity && IsValid(firstChild)) GetComponent<HierarchyComponent>(firstChild).prevSibling = prevLast;
                 parentHie.lastChild = lastChild;
             }
             else
             {
+                Entity prevLast = m_LastRoot;
                 if (m_LastRoot == Null_Entity) m_FirstRoot = firstChild;
-                else GetComponent<HierarchyComponent>(m_LastRoot).nextSibling = firstChild;
+                else if (prevLast != Null_Entity && IsValid(prevLast)) GetComponent<HierarchyComponent>(prevLast).nextSibling = firstChild;
+                
+                if (firstChild != Null_Entity && IsValid(firstChild)) GetComponent<HierarchyComponent>(firstChild).prevSibling = prevLast;
                 m_LastRoot = lastChild;
             }
         }
 
         hierarchy.parent = Null_Entity;
         hierarchy.nextSibling = Null_Entity;
+        hierarchy.prevSibling = Null_Entity;
         hierarchy.firstChild = Null_Entity;
         hierarchy.lastChild = Null_Entity;
     }
 
     void Scene::DirtyScan()
     {
-        auto view = View<TransformComponent>();
-        for (auto entity : view)
+        for (auto&& [entity, trans] : Storage<TransformComponent>().each())
         {
-            auto& trans = GetComponent<TransformComponent>(entity);
             if (trans.Dirty) MarkDirty(entity);
-            else if (HasComponent<ColliderComponent>(entity))
+            else if (auto* coll = TryGetComponent<ColliderComponent>(entity))
             {
-                auto& coll = GetComponent<ColliderComponent>(entity);
-                if (coll.IsActive && coll.Type == MotionType::Dynamic) 
+                if (coll->IsActive && coll->Type == MotionType::Dynamic)
                 {
                     MarkDirty(entity);
                     trans.Dirty = false;
@@ -313,9 +280,8 @@ namespace Aether {
             else
             {
                 auto& t = GetComponent<TransformComponent>(entity);
-                if (t.Dirty || t.SubtreeDirty ||
-                (HasComponent<ColliderComponent>(entity) &&
-                    GetComponent<ColliderComponent>(entity).Type != MotionType::Static))
+                auto* coll = TryGetComponent<ColliderComponent>(entity);
+                if (t.Dirty || t.SubtreeDirty || (coll && coll->Type != MotionType::Static))
                     Queue.push({entity, 0});
             }
         });
@@ -339,8 +305,8 @@ namespace Aether {
 
     
             auto& parentT = GetComponent<TransformComponent>(entity);
-            bool isParentDynamic = HasComponent<ColliderComponent>(entity) && 
-                               GetComponent<ColliderComponent>(entity).Type != MotionType::Static;
+            auto* parentColl = TryGetComponent<ColliderComponent>(entity);
+            bool isParentDynamic = parentColl && parentColl->Type != MotionType::Static;
             bool parentDirty = parentT.Dirty || isParentDynamic;
     
             ChainLoop(GetComponent<HierarchyComponent>(entity).firstChild, [&](Entity child)
@@ -349,8 +315,8 @@ namespace Aether {
                 else
                 {
                     auto& childT = GetComponent<TransformComponent>(child);
-                    bool isChildDynamic = HasComponent<ColliderComponent>(child) && 
-                                      GetComponent<ColliderComponent>(child).Type != MotionType::Static;
+                    auto* childColl = TryGetComponent<ColliderComponent>(child);
+                    bool isChildDynamic = childColl && childColl->Type != MotionType::Static;
                     if (parentDirty || childT.Dirty || childT.SubtreeDirty || isChildDynamic)
                     {
                         if (parentDirty) childT.Dirty = true;
@@ -458,6 +424,9 @@ namespace Aether {
     {
         auto view = View<BoneAttachmentComponent, TransformComponent>();
         auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
+        auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
+        std::unordered_map<Entity, ResolvedAnimator> animatorCache;
+
         for (auto entity : view)
         {
             auto& attach = GetComponent<BoneAttachmentComponent>(entity);
@@ -465,41 +434,48 @@ namespace Aether {
             Entity animEnt = attach.AnimatorEntity;
 
             if (!IsValid(animEnt) || !HasComponent<AnimatorComponent>(animEnt)) continue;
-            auto rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
-            auto& animComp = GetComponent<AnimatorComponent>(animEnt);
-            const glm::mat4& animatorWorld = GetComponent<TransformComponent>(animEnt).WorldTransform;
-            
-            auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(animComp.Skeleton);
-            if (skeletonAsset && animComp.CurrentPose.IsValid())
+
+            auto [it, inserted] = animatorCache.try_emplace(animEnt);
+            ResolvedAnimator& resolved = it->second;
+            if (inserted)
             {
-                Handle<Skeleton> skel = skeletonAsset->m_Handle;
-                if (attach.JointIndex < 0) 
-                    attach.JointIndex = rigModule->GetJointIndex(skel, attach.JointName);
-                
-                auto pose = rigModule->GetPose(animComp.CurrentPose);
-                if (!pose.empty() && attach.JointIndex >= 0 && (size_t)attach.JointIndex < pose.size())
+                auto& animComp = GetComponent<AnimatorComponent>(animEnt);
+                auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(animComp.Skeleton);
+                if (skeletonAsset && animComp.CurrentPose.IsValid())
                 {
-                    glm::mat4 ibm; 
-                    rigModule->GetIBM(skel, attach.JointIndex, ibm);
-                    
-                    glm::mat4 modelSpaceMat = pose[attach.JointIndex] * glm::inverse(ibm);
-                    glm::mat4 boneWorld = animatorWorld * modelSpaceMat;
+                    resolved.valid = true;
+                    resolved.skeleton = skeletonAsset->m_Handle;
+                    resolved.pose = rigModule->GetPose(animComp.CurrentPose);
+                    resolved.world = GetComponent<TransformComponent>(animEnt).WorldTransform;
+                }
+            }
+            if (!resolved.valid) continue;
 
-                    glm::vec3 right = glm::normalize(glm::vec3(boneWorld[0])); glm::vec3 up = glm::normalize(glm::vec3(boneWorld[1]));
-                    glm::vec3 forward = glm::normalize(glm::vec3(boneWorld[2])); glm::vec3 trans = glm::vec3(boneWorld[3]);
-                    glm::mat4 pureBoneWorld(1.0f);
-                    pureBoneWorld[0] = glm::vec4(right, 0.0f); pureBoneWorld[1] = glm::vec4(up, 0.0f); 
-                    pureBoneWorld[2] = glm::vec4(forward, 0.0f); pureBoneWorld[3] = glm::vec4(trans, 1.0f);
+            if (attach.JointIndex < 0) 
+                attach.JointIndex = rigModule->GetJointIndex(resolved.skeleton, attach.JointName);
 
-                    glm::mat4 objScaleMat = glm::scale(glm::mat4(1.0f), transform.Scale);
-                    glm::mat4 localOffsetMat = glm::translate(glm::mat4(1.0f), transform.Translation) * glm::toMat4(transform.Rotation) * objScaleMat;
-                    transform.WorldTransform = pureBoneWorld * localOffsetMat;
+            if (!resolved.pose.empty() && attach.JointIndex >= 0 && (size_t)attach.JointIndex < resolved.pose.size())
+            {
+                glm::mat4 ibm; 
+                rigModule->GetIBM(resolved.skeleton, attach.JointIndex, ibm);
+                
+                glm::mat4 modelSpaceMat = resolved.pose[attach.JointIndex] * glm::inverse(ibm);
+                glm::mat4 boneWorld = resolved.world * modelSpaceMat;
 
-                    if (attach.affectChild)
-                    {
-                        Entity firstChild = GetComponent<HierarchyComponent>(entity).firstChild;
-                        if (firstChild != Null_Entity) UpdateSubtreeTransforms(firstChild, transform.WorldTransform);
-                    }
+                glm::vec3 right = glm::normalize(glm::vec3(boneWorld[0])); glm::vec3 up = glm::normalize(glm::vec3(boneWorld[1]));
+                glm::vec3 forward = glm::normalize(glm::vec3(boneWorld[2])); glm::vec3 trans = glm::vec3(boneWorld[3]);
+                glm::mat4 pureBoneWorld(1.0f);
+                pureBoneWorld[0] = glm::vec4(right, 0.0f); pureBoneWorld[1] = glm::vec4(up, 0.0f); 
+                pureBoneWorld[2] = glm::vec4(forward, 0.0f); pureBoneWorld[3] = glm::vec4(trans, 1.0f);
+
+                glm::mat4 objScaleMat = glm::scale(glm::mat4(1.0f), transform.Scale);
+                glm::mat4 localOffsetMat = glm::translate(glm::mat4(1.0f), transform.Translation) * glm::toMat4(transform.Rotation) * objScaleMat;
+                transform.WorldTransform = pureBoneWorld * localOffsetMat;
+
+                if (attach.affectChild)
+                {
+                    Entity firstChild = GetComponent<HierarchyComponent>(entity).firstChild;
+                    if (firstChild != Null_Entity) UpdateSubtreeTransforms(firstChild, transform.WorldTransform);
                 }
             }
         }
@@ -507,18 +483,16 @@ namespace Aether {
 
     void Scene::UpdateSubtreeTransforms(Entity entity, const glm::mat4& pTransform)
     {
-        for (; entity != Null_Entity && IsValid(entity); 
-            entity = HasComponent<HierarchyComponent>(entity) ? GetComponent<HierarchyComponent>(entity).nextSibling : Null_Entity)
+        while (entity != Null_Entity && IsValid(entity))
         {
             auto& transform = GetComponent<TransformComponent>(entity);
+            auto& hierarchy = GetComponent<HierarchyComponent>(entity);
             transform.WorldTransform = pTransform * transform.GetLocalTransform();
 
-            if (HasComponent<HierarchyComponent>(entity))
-            {
-                Entity child = GetComponent<HierarchyComponent>(entity).firstChild;
-                if (child != Null_Entity)
-                    UpdateSubtreeTransforms(child, transform.WorldTransform);
-            }
+            if (hierarchy.firstChild != Null_Entity)
+                UpdateSubtreeTransforms(hierarchy.firstChild, transform.WorldTransform);
+
+            entity = hierarchy.nextSibling;
         }
     }
     
@@ -539,19 +513,18 @@ namespace Aether {
 
         bool isWorldDirty = transform.Dirty || pDirty;
 
-        if (HasComponent<ColliderComponent>(entity))
+        if (auto* rbComp = TryGetComponent<ColliderComponent>(entity))
         {
             auto* physys = ServiceManager::GetService<PhysicsSystem>();
-            auto& rbComp = GetComponent<ColliderComponent>(entity);
-            Handle<RigidBody>& handle = rbComp.ColliderHandle;
-            MotionType motionType = rbComp.Type;
+            Handle<RigidBody>& handle = rbComp->ColliderHandle;
+            MotionType motionType = rbComp->Type;
 
             if (handle.IsValid()) 
             {
                 if (motionType == MotionType::Dynamic && !transform.Dirty)
                 {
                     PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
-                    glm::vec3 worldPos = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
+                    glm::vec3 worldPos = physTrans.translation - (physTrans.rotation * rbComp->ColliderOffset);
                     ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, worldPos, physTrans.rotation);
                     isWorldDirty = true; 
                 }
@@ -560,12 +533,12 @@ namespace Aether {
                     glm::mat4 tempWorld = pTransform * transform.GetLocalTransform();
                     glm::vec3 pos, scale; glm::quat rot; 
                     Utils::GetTRS(tempWorld, pos, rot, scale);
-                    PhysTransform target = {pos + (rot * rbComp.ColliderOffset), rot};
+                    PhysTransform target = {pos + (rot * rbComp->ColliderOffset), rot};
 
                     if (motionType == MotionType::Kinematic && !physys->CanMove(m_PhysicsInstance, handle, target))
                     {
                         PhysTransform physTrans = physys->GetPhysTransform(m_PhysicsInstance, handle);
-                        glm::vec3 validPos = physTrans.translation - (physTrans.rotation * rbComp.ColliderOffset);
+                        glm::vec3 validPos = physTrans.translation - (physTrans.rotation * rbComp->ColliderOffset);
                         ApplyWorldToLocalTransform(transform, hierarchy.parent, pTransform, validPos, physTrans.rotation);
                     }
                     else physys->SetPhysTransform(m_PhysicsInstance, handle, target);
@@ -577,8 +550,8 @@ namespace Aether {
         {
             if (transform.Dirty) transform.WorldTransform = pTransform * transform.GetLocalTransform();
 
-            if (HasComponent<LightComponent>(entity))
-                GetComponent<LightComponent>(entity).Config.position = glm::vec3(transform.WorldTransform[3]);
+            if (auto* light = TryGetComponent<LightComponent>(entity))
+                light->Config.position = glm::vec3(transform.WorldTransform[3]);
 
             transform.LastUpdate = m_CurrentFrame;
         }

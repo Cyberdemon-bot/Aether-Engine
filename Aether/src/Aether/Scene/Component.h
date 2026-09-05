@@ -85,6 +85,8 @@ namespace Aether {
         bool ShowBounds = false;
         mutable bool Culled = false;
         bool UsingUniqueSheet = true;
+        glm::vec3 WorldBoundsMin = glm::vec3(0.0f);
+        glm::vec3 WorldBoundsMax = glm::vec3(0.0f);
 
         MeshComponent() = default;
         MeshComponent(const MeshComponent&) = default;
@@ -157,6 +159,7 @@ namespace Aether {
         Entity firstChild = Null_Entity;
         Entity lastChild = Null_Entity;
         Entity nextSibling = Null_Entity;
+        Entity prevSibling = Null_Entity;
 
         HierarchyComponent() = default;
         HierarchyComponent(const HierarchyComponent&) = default;

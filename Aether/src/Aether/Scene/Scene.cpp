@@ -189,12 +189,10 @@ namespace Aether {
     std::vector<Entity> Scene::FindEntity(std::string_view tag) const
     {
         std::vector<Entity> entList;
-        const auto& view = View<TagComponent>();
-        for (auto& entity : view)
-        {
-            auto& t = GetComponent<TagComponent>(entity);
-            if (t.Tag == tag) entList.push_back(entity);
-        }
+        const auto& storage = Storage<TagComponent>();
+        for (const auto& [entity, cmp] : storage.each())
+            if (cmp.Tag == tag) 
+                entList.push_back(entity);
         return entList;
     }
 
@@ -244,28 +242,22 @@ namespace Aether {
                 if (count > 0)
                 {
                     Entity* levelData = &m_HierarchyBuffer[offset + 1];
-                    jobsys->ParallelFor(count, m_Threshold, levelData, AE_MAKE_LAMBDA((&, this), (Entity entity), void,
-                        this->UpdateTransform(entity); 
-                    ));
+                    jobsys->ParallelFor(count, m_Threshold, levelData, [&](Entity entity) { UpdateTransform(entity); });
                 }
                 offset += 1 + count;
             }
         }
 
         { // update physics
-            auto view = View<ColliderComponent>();
-            for (auto entity : view)
+            auto colliderGroup = Group<ColliderComponent>(get<TransformComponent>);
+            colliderGroup.each([&physys, this](Entity entity, ColliderComponent& rbComp, const TransformComponent& tComp) 
             {
-                auto& rbComp = GetComponent<ColliderComponent>(entity);
                 Handle<RigidBody>& handle = rbComp.ColliderHandle;
-                physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
-
                 if (!handle.IsValid())
                 {
-                    auto& t = GetComponent<TransformComponent>(entity);
                     glm::vec3 translation, scale; 
                     glm::quat rotation;
-                    Utils::GetTRS(t.WorldTransform, translation, rotation, scale);
+                    Utils::GetTRS(tComp.WorldTransform, translation, rotation, scale);
 
                     BodyConfig config;
                     config.motionType = rbComp.Type;
@@ -281,27 +273,24 @@ namespace Aether {
                     physys->SetUserData(m_PhysicsInstance, handle, ToNumber64(entity));
                 }
                 physys->SetActive(m_PhysicsInstance, handle, rbComp.IsActive);
-            }
+            });
         }
 
         { // update scripts
-            auto scriptView = View<ScriptComponent>();
+            auto& storage = Storage<ScriptComponent>();
             auto* script_engine = ServiceManager::GetService<ScriptEngine>();
             if (script_engine->IsExecOrderChanged())
                 Sort<ScriptComponent>([script_engine](const ScriptComponent& a, const ScriptComponent& b) 
                 {return script_engine->GetExecOrder(a.ScriptHandle) <  script_engine->GetExecOrder(b.ScriptHandle);});
 
-            for (auto entity : scriptView)
+            for (auto& cmp : storage) 
             {
-                auto& cmp = GetComponent<ScriptComponent>(entity);
-                auto& instance = cmp.ScriptHandle;
                 if (cmp.PendingStart)
                 {
                     cmp.PendingStart = false;
                     script_engine->StartInstance(cmp.ScriptHandle);
                 }
-                else if (cmp.IsActive)
-                    script_engine->UpdateInstance(instance, ts);
+                else if (cmp.IsActive) script_engine->UpdateInstance(cmp.ScriptHandle, ts);
             }
 
             script_engine->OnUpdate(ts);
@@ -315,20 +304,13 @@ namespace Aether {
         auto* physys = ServiceManager::GetService<PhysicsSystem>();
 
         { // render
-            auto camView = View<CameraComponent>();
+            auto& camStorage = Storage<CameraComponent>();
             auto* asset_manager = ServiceManager::GetService<AssetManager>(); 
             auto* rigModule = ServiceManager::GetService<AnimationSystem>()->GetModule<RigModule>();
             
             CameraComponent* mainCamera = nullptr;
-            for (auto entity : camView)
-            {
-                auto& camComp = GetComponent<CameraComponent>(entity);
-                if (camComp.Primary)
-                {
-                    mainCamera = &camComp;
-                    break;
-                }
-            }
+            for (auto& cmp : camStorage)
+                if (cmp.Primary) { mainCamera = &cmp; break; }
 
             if (mainCamera || camera != nullptr)
             {
@@ -338,113 +320,101 @@ namespace Aether {
 
                 // light culling
                 m_SceneLights.clear();
-                auto lightView = View<LightComponent>();
-
-                jobsys->ParallelFor(lightView.size(), m_Threshold, lightView->data(), AE_MAKE_LAMBDA((&, this),  (Entity entity), void,
-                    auto& lightComp = lightView.get<LightComponent>(entity);
-                    auto& light = lightComp.Config;
+                auto& lightStorage = Storage<LightComponent>();
+                jobsys->ParallelFor(lightStorage.size(), m_Threshold, lightStorage.raw(), [&](LightComponent* cmp)
+                {
+                    auto& light = cmp->Config;
                     if (light.type == LightType::None)
                     {
-                        lightComp.Culled = true;
+                        cmp->Culled = true;
                         return;
                     }
                     if (light.type == LightType::Spot)
                     {
                         float r = light.range / (2.0f * glm::cos(light.outerCone));
                         glm::vec3 c = light.position + light.direction * r;
-                        lightComp.Culled = !Utils::CheckSphereVisible(frustum, c, r);
+                        cmp->Culled = !Utils::CheckSphereVisible(frustum, c, r);
                     }
-                    else lightComp.Culled = false;
-                ));
-                for (auto entity : lightView)
-                {
-                    auto& lightComp = lightView.get<LightComponent>(entity);
-                    auto& light = lightComp.Config;
-                    if (!lightComp.Culled) m_SceneLights.push_back(light);
-                }
+                    else cmp->Culled = false;
+                });
+                for (const auto& cmp : lightStorage)
+                    if (!cmp.Culled) m_SceneLights.push_back(cmp.Config);
 
                 // mesh and animator culling
+                auto meshGroup = Group<MeshComponent>(get<TransformComponent>);
                 auto meshView = View<MeshComponent>();
+                jobsys->ParallelFor(meshView.size(), m_Threshold, meshView->data(), [&](Entity entity)
+                {
+                    auto [meshcmp, transform] = meshGroup.get<MeshComponent, TransformComponent>(entity);
+                    AnimatorComponent* animator = TryGetComponent<AnimatorComponent>(entity);
 
-                jobsys->ParallelFor(meshView.size(), m_Threshold, meshView->data(), AE_MAKE_LAMBDA((&, this), (Entity entity), void,
-                    auto& transform = this->GetComponent<TransformComponent>(entity);
-                    auto& meshcmp = this->GetComponent<MeshComponent>(entity);
                     AMesh* mesh = asset_manager->GetAsset<AMesh>(meshcmp.Mesh); 
                     if (!mesh)
                     {
                         meshcmp.Culled = true;
-                        if (this->HasComponent<AnimatorComponent>(entity)) 
-                            this->GetComponent<AnimatorComponent>(entity).Culled = true;
+                        if (animator) animator->Culled = true;
                         return; 
                     }
                     meshcmp.Culled = false;
-                    if (this->HasComponent<AnimatorComponent>(entity)) 
-                            this->GetComponent<AnimatorComponent>(entity).Culled = false;
+                    if (animator) animator->Culled = false;
+
                     glm::mat4 world = transform.WorldTransform;
                     glm::vec3 worldMin, worldMax;
-                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasJointData)
+                    if (animator && mesh->m_HasJointData)
                         Utils::TransformBound(mesh->m_AnimatedBoundsMin, mesh->m_AnimatedBoundsMax, world, worldMin, worldMax);
                     else Utils::TransformBound(mesh->m_BoundsMin, mesh->m_BoundsMax, world, worldMin, worldMax);
-                    meshcmp.Culled = !Utils::CheckBoundVisible(frustum, worldMin, worldMax);
-                    if (meshcmp.Culled && this->HasComponent<AnimatorComponent>(entity)) 
-                            this->GetComponent<AnimatorComponent>(entity).Culled = true;
-                ));
 
-                auto animView  = View<AnimatorComponent>();
+                    meshcmp.WorldBoundsMin = worldMin;
+                    meshcmp.WorldBoundsMax = worldMax;
+                    meshcmp.Culled = !Utils::CheckBoundVisible(frustum, worldMin, worldMax);
+                    if (meshcmp.Culled && animator) animator->Culled = true;
+                });
+
 
                 rigModule->ClearTasks();
-                for (auto entity : animView)
+                auto& animStorage = Storage<AnimatorComponent>();
+                for (auto& cmp : animStorage)
                 {
-                    auto& comp = GetComponent<AnimatorComponent>(entity);
-                    if (comp.Clips.empty() || comp.Culled || !comp.RunSampling) continue;
+                    if (cmp.Clips.empty() || cmp.Culled || !cmp.RunSampling) continue;
 
-                    auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(comp.Skeleton);
-                    auto* clipAsset = asset_manager->GetAsset<AClip>(comp.Clips[comp.ActiveClipIdx]);
+                    auto* skeletonAsset = asset_manager->GetAsset<ASkeleton>(cmp.Skeleton);
+                    auto* clipAsset = asset_manager->GetAsset<AClip>(cmp.Clips[cmp.ActiveClipIdx]);
                     if (!skeletonAsset || !clipAsset) continue;
-
-                    if (!comp.Cache.IsValid()) comp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
-                    if (!comp.CurrentPose.IsValid()) comp.CurrentPose = rigModule->CreatePose(skeletonAsset->m_Handle);
-
-                    if (comp.CacheDirty)
-                    {
-                        rigModule->RepairCache(comp.Cache, clipAsset->m_Handle);
-                        comp.CacheDirty = false;
-                    }
-
                     auto skelHandle = skeletonAsset->m_Handle;
                     auto clipHandle = clipAsset->m_Handle;
 
-                    if (comp.IsPlaying)
+                    if (!cmp.Cache.IsValid()) cmp.Cache = rigModule->CreateCache(clipAsset->m_Handle);
+                    if (!cmp.CurrentPose.IsValid()) cmp.CurrentPose = rigModule->CreatePose(skeletonAsset->m_Handle);
+                    if (cmp.CacheDirty)
+                    {
+                        rigModule->RepairCache(cmp.Cache, clipAsset->m_Handle);
+                        cmp.CacheDirty = false;
+                    }
+                    if (cmp.IsPlaying)
                     {
                         float duration = clipAsset->m_Duration;
-                        comp.CurrentTime += ts * comp.Speed;
-                        if (comp.Loop && duration > 0.0f)
-                            comp.CurrentTime = std::fmod(comp.CurrentTime, duration);
+                        cmp.CurrentTime += ts * cmp.Speed;
+                        if (cmp.Loop && duration > 0.0f) cmp.CurrentTime = std::fmod(cmp.CurrentTime, duration);
                         else
                         {
-                            if (comp.CurrentTime >= duration)
+                            if (cmp.CurrentTime >= duration)
                             {
-                                comp.CurrentTime = duration;
-                                comp.IsPlaying   = false;  
+                                cmp.CurrentTime = duration;
+                                cmp.IsPlaying   = false;  
                             }
                         }
                     }
-
-                    rigModule->ScheduleSample(skelHandle, clipHandle, comp.Cache, comp.CurrentPose, comp.CurrentTime);
-                    rigModule->ScheduleFinalize(skelHandle, comp.CurrentPose);
+                    rigModule->ScheduleSample(skelHandle, clipHandle, cmp.Cache, cmp.CurrentPose, cmp.CurrentTime);
+                    rigModule->ScheduleFinalize(skelHandle, cmp.CurrentPose);
                 }
                 rigModule->ProcessTasks();
-
                 rigModule->ClearTasks();
-                for (auto entity : animView)
+                for (const auto& [entity, cmp] : animStorage.each())
                 {
-                    auto& comp = GetComponent<AnimatorComponent>(entity);
-                    if (comp.Clips.empty() || comp.Culled || !comp.RunPostEval) continue;
-                    if (comp.onPostEvaluate)
-                        comp.onPostEvaluate(entity, rigModule, float(ts));
+                    if (cmp.Clips.empty() || cmp.Culled || !cmp.RunPostEval) continue;
+                    if (cmp.onPostEvaluate) cmp.onPostEvaluate(entity, rigModule, float(ts));
                 }
                 rigModule->ProcessTasks();
-
                 ResolveBoneAttachments();
 
                 // render
@@ -452,64 +422,50 @@ namespace Aether {
                 if (camera != nullptr) renderer->BeginScene(*camera, m_SceneLights.data(), m_SceneLights.size()); 
                 else renderer->BeginScene(mainCamera->Camera, m_SceneLights.data(), m_SceneLights.size()); 
 
-                for (auto entity : meshView)
+                for (auto entity : meshGroup)
                 {
-                    auto& transform = GetComponent<TransformComponent>(entity);
-                    auto& meshcmp = GetComponent<MeshComponent>(entity);
+                    auto [meshcmp, transform] = meshGroup.get<MeshComponent, TransformComponent>(entity);
+                    if (meshcmp.Culled) continue;
                     Handle<Pose> pose = Handle<Pose>::Null();
-                    if (HasComponent<AnimatorComponent>(entity)) pose = GetComponent<AnimatorComponent>(entity).CurrentPose;
-                    if (!meshcmp.Culled) 
-                        renderer->DrawMesh(meshcmp.Mesh, meshcmp.SharedSheet, pose, transform.WorldTransform);
+                    if (auto* animator = TryGetComponent<AnimatorComponent>(entity)) pose = animator->CurrentPose;
+                    renderer->DrawMesh(meshcmp.Mesh, meshcmp.SharedSheet, pose, transform.WorldTransform);
                 }
-
                 renderer->EndScene();
 
-                // draw debug box
-                for (auto entity : meshView)
+                // draw debug box (bounds already computed during culling)
+                for (auto entity : meshGroup)
                 {
-                    auto& meshcmp = GetComponent<MeshComponent>(entity);
-                    if (!meshcmp.ShowBounds) continue;
-
-                    auto& transform = GetComponent<TransformComponent>(entity);
-                    AMesh* mesh = asset_manager->GetAsset<AMesh>(meshcmp.Mesh); if (!mesh) continue;
-
-                    glm::mat4 world = transform.WorldTransform;
-                    glm::vec3 worldMin, worldMax;
-                    if (HasComponent<AnimatorComponent>(entity) && mesh->m_HasJointData)
-                        Utils::TransformBound(mesh->m_AnimatedBoundsMin, mesh->m_AnimatedBoundsMax, world, worldMin, worldMax);
-                    else Utils::TransformBound(mesh->m_BoundsMin, mesh->m_BoundsMax, world, worldMin, worldMax);
-                    if (!Utils::CheckBoundVisible(frustum, worldMin, worldMax)) continue;
-                    renderer->RenderBox(worldMin, worldMax, glm::mat4(1.0f), RED);
+                    auto& meshcmp = meshGroup.get<MeshComponent>(entity);
+                    if (!meshcmp.ShowBounds || meshcmp.Culled) continue;
+                    renderer->RenderBox(meshcmp.WorldBoundsMin, meshcmp.WorldBoundsMax, glm::mat4(1.0f), RED);
                 }
 
-                auto rbView = View<ColliderComponent>();
-                for (auto entity : rbView)
+                auto& rbStorage = Storage<ColliderComponent>();
+                for (const auto& cmp : rbStorage)
                 {
-                    auto& component = GetComponent<ColliderComponent>(entity);
-                    if (!component.Visible || !component.ColliderHandle.IsValid()) continue;
-                    Handle<RigidBody> handle = component.ColliderHandle;
+                    if (!cmp.Visible || !cmp.ColliderHandle.IsValid()) continue;
+                    Handle<RigidBody> handle = cmp.ColliderHandle;
                     PhysTransform pt = physys->GetPhysTransform(m_PhysicsInstance, handle);
-                    glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation)
-                                                * glm::toMat4(pt.rotation);
-                    switch (component.Shape)
+                    glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), pt.translation) * glm::toMat4(pt.rotation);
+                    switch (cmp.Shape)
                     {
                         case ColliderShape::Sphere:
                         {
-                            float radius = component.Size.x;
+                            float radius = cmp.Size.x;
                             renderer->RenderSphere(radius, colliderTransform, GREEN);
                             break;
                         }
                         case ColliderShape::Box:
                         {
-                            glm::vec3 bMin = -component.Size;
-                            glm::vec3 bMax =  component.Size;
+                            glm::vec3 bMin = -cmp.Size;
+                            glm::vec3 bMax =  cmp.Size;
                             renderer->RenderBox(bMin, bMax, colliderTransform, GREEN);
                             break;
                         }
                         case ColliderShape::Capsule:
                         {
-                            float radius  = component.Size.x;
-                            float halfCyl = std::max((component.Size.y * 0.5f) - radius, 0.0f);
+                            float radius  = cmp.Size.x;
+                            float halfCyl = std::max((cmp.Size.y * 0.5f) - radius, 0.0f);
                             renderer->RenderCapsule(radius, halfCyl, colliderTransform, GREEN);
                             break;
                         }

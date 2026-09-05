@@ -13,6 +13,8 @@
 namespace Aether {
 
     using Entity = entt::entity;
+    using entt::get;
+    using entt::exclude;
     static const glm::vec4 GREEN = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
     static const glm::vec4 RED = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
     
@@ -27,6 +29,14 @@ namespace Aether {
         Entity entity;
         bool clearHierarchy;
         bool repairHie;
+    };
+
+    struct ResolvedAnimator
+    {
+        bool valid = false;
+        Handle<Skeleton> skeleton;
+        std::span<const glm::mat4> pose;
+        glm::mat4 world{1.0f};
     };
 
     class AETHER_API Scene 
@@ -138,10 +148,34 @@ namespace Aether {
             return m_Registry.view<const Components...>(); 
         }
 
-        template<typename... Components>
-        auto Group()
+        template<typename T>
+        T* TryGetComponent(Entity entity)
         {
-            return m_Registry.group<Components...>();
+            return m_Registry.try_get<T>(entity);
+        }
+
+        template<typename T>
+        const T* TryGetComponent(Entity entity) const
+        {
+            return m_Registry.try_get<const T>(entity);
+        }
+
+        template<typename... Owned, typename... Args>
+        auto Group(Args&&... args)
+        {
+            return m_Registry.group<Owned...>(std::forward<Args>(args)...);
+        }
+
+        template<typename T>
+        auto& Storage()
+        {
+            return m_Registry.storage<T>();
+        }
+
+        template<typename T>
+        const auto& Storage() const
+        {
+            return *m_Registry.storage<std::remove_const_t<T>>();
         }
 
         template<typename Component, typename Fn>
@@ -172,6 +206,7 @@ namespace Aether {
 
         void ExcDestroyEntity(Entity entity, bool repair_hie);
         void ExcDestroyHierarchy(Entity entity);
+        void CleanupEntityResources(Entity entity);
 
         Entity CreateNodeEntity(
             const RegisteredScene* reg, 
