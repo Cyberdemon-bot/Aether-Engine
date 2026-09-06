@@ -68,7 +68,7 @@ void main()
         }
 
         localPos = skinMatrix * localPos;
-        mat3 skinRotation = mat3(skinMatrix);
+        mat3 skinRotation = transpose(inverse(mat3(skinMatrix)));
         localNormal = normalize(skinRotation * localNormal);
         localTangent = normalize(skinRotation * localTangent);
     }
@@ -77,7 +77,7 @@ void main()
     vec4 worldPos = modelMatrix * localPos;
     v_WorldPos = worldPos.xyz;
 
-    mat3 normalMatrix = mat3(modelMatrix);
+    mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));
     vec3 T = normalize(normalMatrix * localTangent);
     vec3 N = normalize(normalMatrix * localNormal);
     T = normalize(T - dot(T, N) * N);
@@ -179,7 +179,6 @@ const float PI = 3.14159265359;
 const vec3 F0_DIELECTRIC = vec3(0.04);
 
 // Sample the correct shadow map for the given slot index (0-3).
-// slot is the index into v_LightSpacePos[] / u_Shadowmap*, not the light index.
 float SampleShadowMap(int slot, vec4 lightSpacePos, vec3 normal, vec3 lightDir)
 {
     vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
@@ -229,7 +228,10 @@ vec3 FresnelSchlick(float HdotV, vec3 F0)
 
 void main()
 {
-    vec4 albedo = texture(u_AlbedoMap, v_TexCoord) * u_AlbedoColor;
+    // FIX 2: Đưa màu Albedo Texture về Linear Space chuẩn cho PBR
+    vec4 albedoSample = texture(u_AlbedoMap, v_TexCoord);
+    vec3 albedoLinear = pow(albedoSample.rgb, vec3(2.2)) * u_AlbedoColor.rgb;
+
     vec3 metallicRoughnessSample = texture(u_MetallicRoughnessMap, v_TexCoord).rgb;
     float roughness = clamp(metallicRoughnessSample.g * u_Roughness, 0.04, 1.0);
     float metallic  = clamp(metallicRoughnessSample.b * u_Metallic,  0.0,  1.0);
@@ -268,7 +270,10 @@ void main()
             vec3  lightToFrag = v_WorldPos - lightPos;
             float dist        = length(lightToFrag);
             L = normalize(-lightToFrag);
-            attenuation = 1.0 / (1.0 + dist * dist / (lightRange * lightRange));
+            
+            float distFactor = clamp(1.0 - pow(dist / lightRange, 4.0), 0.0, 1.0);
+            attenuation = (distFactor * distFactor) / (1.0 + (dist * dist) / (lightRange * lightRange));
+
             float theta        = dot(normalize(lightToFrag), lightDir);
             float innerCone    = light.coneAngles.x;
             float outerCone    = light.coneAngles.y;
@@ -291,25 +296,26 @@ void main()
         float NdotH = max(dot(N, H), 0.0);
         float HdotV = max(dot(H, V), 0.0);
 
-        vec3  F0       = mix(F0_DIELECTRIC, albedo.rgb, metallic);
+        vec3  F0       = mix(F0_DIELECTRIC, albedoLinear, metallic);
         float D        = DistributionGGX(NdotH, roughness);
         float G        = GeometrySmith(NdotV, NdotL, roughness);
         vec3  F        = FresnelSchlick(HdotV, F0);
         vec3  specular = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
         vec3  kD       = (1.0 - F) * (1.0 - metallic);
-        vec3  diffuse  = kD * albedo.rgb / PI;
+        vec3  diffuse  = kD * albedoLinear / PI;
 
         Lo += (diffuse + specular) * lightColor * lightIntensity * NdotL * attenuation * shadow;
     }
 
-    vec3 ambient = vec3(0.03) * albedo.rgb;
+    vec3 ambient = vec3(0.03) * albedoLinear;
     vec3 color   = ambient + Lo;
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0 / 2.2));
 
     float fragDist  = length(u_Position - v_WorldPos);
     float fogFactor = ComputeFogFactor(fragDist);
     color           = mix(u_FogColor, color, fogFactor);
+
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0 / 2.2));
 
     FragColor = vec4(color, 1.0);
 }
