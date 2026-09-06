@@ -1,4 +1,4 @@
-<img width="1352" height="780" alt="aether_demo" src="https://github.com/user-attachments/assets/7dc44f49-bea4-448f-83d5-c5edaf7358f5" />
+<img width="1352" height="780" alt="aether_demo" src="https://github.com/user-attachments/assets/ccfc6cf9-310a-4676-af26-06adde4111e0" />
 
 # Aether Engine
 
@@ -119,7 +119,12 @@ Note: MSVC compiler is highly recommended on Windows
 git clone https://github.com/Cyberdemon-bot/Aether-Engine
 cd Aether-Engine
 xmake
+
+#run the lab environment
 xmake run Sandbox
+
+#run the demo game
+xmake run Game
 ```
 
 ---
