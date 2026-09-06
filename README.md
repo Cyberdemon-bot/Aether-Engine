@@ -1,3 +1,4 @@
+<img width="1352" height="780" alt="aether_demo" src="https://github.com/user-attachments/assets/7dc44f49-bea4-448f-83d5-c5edaf7358f5" />
 
 # Aether Engine
 
