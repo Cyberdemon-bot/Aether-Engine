@@ -119,7 +119,12 @@ Note: MSVC compiler is highly recommended on Windows
 git clone https://github.com/Cyberdemon-bot/Aether-Engine
 cd Aether-Engine
 xmake
+
+#run the lab environment
 xmake run Sandbox
+
+#run the demo game
+xmake run Game
 ```
 
 ---
