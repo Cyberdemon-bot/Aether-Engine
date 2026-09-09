@@ -15,9 +15,9 @@ namespace Aether {
     void CoroutineManager::Shutdown()
     {
         m_Tasks.Shutdown();
-        m_StopQueue.clear();
-        m_ResumeQueue.clear();
-        m_NextResumeQueue.clear();
+        m_StopQueue.clear(); m_StopQueue.shrink_to_fit();
+        m_ResumeQueue.clear(); m_ResumeQueue.shrink_to_fit();
+        m_NextResumeQueue.clear(); m_NextResumeQueue.shrink_to_fit();
     }
 
     Handle<CoroutineTask> CoroutineManager::StartCoroutine(sol::function func, Handle<ScriptInstance> owner)

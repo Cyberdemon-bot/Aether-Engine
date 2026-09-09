@@ -94,7 +94,7 @@ namespace Aether {
         template<typename T, typename... Args>
         Handle<Asset> CreateAsset(UUID id, Args&&... args)
         {
-            AE_CORE_ASSERT((std::is_base_of_v<Asset, T>), "T must derive from Asset");
+            static_assert((std::is_base_of_v<Asset, T>), "T must derive from Asset");
             auto it = m_Handles.find(id); 
             if (it != m_Handles.end())
             {

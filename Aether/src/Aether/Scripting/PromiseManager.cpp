@@ -14,9 +14,9 @@ namespace Aether {
     void PromiseManager::Shutdown()
     {
         m_Promises.Shutdown();
-        m_Queue.clear();
-        m_NextQueue.clear();
-        m_DestroyQueue.clear();
+        m_Queue.clear(); m_Queue.shrink_to_fit();
+        m_NextQueue.clear(); m_NextQueue.shrink_to_fit();
+        m_DestroyQueue.clear(); m_DestroyQueue.shrink_to_fit();
     }
 
     Handle<Promise> PromiseManager::CreatePromise()
