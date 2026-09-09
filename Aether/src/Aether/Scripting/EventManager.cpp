@@ -43,6 +43,7 @@ namespace Aether {
 
         listenerIt->is_native = false;
         listenerIt->callback = std::move(callback);
+        listenerIt->script_owner = owner;        
         listIt->list.push_back(listener);
 
         if (owner.index >= m_OwnershipMap.size()) m_OwnershipMap.resize(owner.index + 1);
@@ -99,14 +100,25 @@ namespace Aether {
         auto* listIt = m_Keys.GetData(list);
         if (!listIt) return;
 
-        for (auto& handle : listIt->list) DestroyListener(handle);
+        // Snapshot first: DestroyListener() can trigger reentrant mutation of
+        // this same list indirectly, so we never iterate the live vector
+        // while destroying from it.
+        std::vector<Handle<EventListener>> handles = listIt->list;
+        for (auto handle : handles) DestroyListener(handle);
         listIt->list.clear();
     }
 
     void EventManager::RemoveScript(Handle<ScriptInstance> owner)
     {
         if (owner.index >= m_OwnershipMap.size()) return;
-        for (auto& handle : m_OwnershipMap[owner.index].list) DestroyListener(handle);
+
+        // DestroyListener() does a swap-and-pop directly on
+        // m_OwnershipMap[owner.index].list for non-native listeners - i.e.
+        // the exact vector a range-for here would be iterating. Mutating a
+        // vector while iterating it causes skipped elements (and can read
+        // past the shrunk end). Snapshot the handles first, then clear once.
+        std::vector<Handle<EventListener>> handles = m_OwnershipMap[owner.index].list;
+        for (auto handle : handles) DestroyListener(handle);
         m_OwnershipMap[owner.index].list.clear();
     }
 
@@ -133,7 +145,17 @@ namespace Aether {
                 auto* listIt = m_Keys.GetData(list);
                 if (!listIt) continue;
 
-                for (auto handle : listIt->list)
+                // Snapshot the handles before invoking any callbacks. A
+                // listener (script or native) can call CreateListener()
+                // during dispatch, which may grow m_Keys' internal resource
+                // pool and reallocate its backing storage - that would
+                // dangle `listIt` (and listIt->list) if we kept iterating it
+                // live. Iterating a local copy of the handles keeps this loop
+                // safe regardless of what callbacks do to m_Keys.
+                std::vector<Handle<EventListener>> handles = listIt->list;
+                listIt = nullptr; // guard against accidental reuse below
+
+                for (auto handle : handles)
                 {
                     auto* listener = m_Listeners.GetResource(handle);
                     if (!listener) continue;

@@ -2,6 +2,7 @@
 
 #include <span>
 #include <vector>
+#include <utility>
 #include <string_view>
 #include "Aether/Core/Base.h"
 #include "Aether/Core/Log.h"
@@ -72,23 +73,13 @@ namespace Aether {
             uint64_t hash = fnv1a_64(key);
             HashData* entry = Search(key, hash);
 
-            if (entry)
-            {
-                if (entry->handle.IsValid() && m_Pool.GetResource(entry->handle))
-                    return entry->handle;
+            if (!entry) return Commit(key, hash, std::forward<Args>(args)...);
+            if (entry->handle.IsValid() && m_Pool.GetResource(entry->handle))
+                return entry->handle;
 
-                HandleType handle = m_Pool.CreateResource(entry->byte_offset, std::forward<Args>(args)...);
-                entry->handle = handle;
-                return handle;
-            }
-
-            return Commit(key, hash, std::forward<Args>(args)...);
-        }
-
-        void Destroy(HandleType handle)
-        {
-            if (!m_Pool.GetResource(handle)) return;
-            m_Pool.DestroyResource(handle);
+            HandleType handle = m_Pool.CreateResource(entry->byte_offset, std::forward<Args>(args)...);
+            entry->handle = handle;
+            return handle;
         }
 
         void Destroy(std::string_view key)
@@ -96,7 +87,7 @@ namespace Aether {
             uint64_t hash = fnv1a_64(key);
             HashData* entry = Search(key, hash);
             if (!entry) return;
-            Destroy(entry->handle);
+            m_Pool.DestroyResource(entry->handle);
             entry->handle = HandleType::Null();
         }
 
@@ -199,23 +190,7 @@ namespace Aether {
 
         HashData* Search(std::string_view key, uint64_t hash)
         {
-            auto sorted_end = m_Map.begin() + m_SortedSize;
-            auto it = std::lower_bound(m_Map.begin(), sorted_end, hash,
-                [](const HashData& entry, uint64_t h) { return entry.hash_code < h; });
-
-            while (it != sorted_end && it->hash_code == hash)
-            {
-                if (CalcView(it->byte_offset) == key) return std::to_address(it);
-                ++it;
-            }
-
-            for (size_t i = m_SortedSize; i < m_Map.size(); ++i)
-            {
-                if (m_Map[i].hash_code == hash && CalcView(m_Map[i].byte_offset) == key)
-                    return &m_Map[i];
-            }
-
-            return nullptr;
+            return const_cast<HashData*>(std::as_const(*this).Search(key, hash));
         }
 
         const HashData* Search(std::string_view key, uint64_t hash) const
