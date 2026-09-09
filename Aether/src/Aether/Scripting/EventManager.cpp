@@ -17,11 +17,11 @@ namespace Aether {
 
     void EventManager::Shutdown()
     {
-        m_Queue.clear();
-        m_NextQueue.clear();
-        m_ArgsBuffer.clear();
-        m_DestroyQueue.clear();
-        m_OwnershipMap.clear();
+        m_Queue.clear(); m_Queue.shrink_to_fit();
+        m_NextQueue.clear(); m_NextQueue.shrink_to_fit();
+        m_ArgsBuffer.clear(); m_ArgsBuffer.shrink_to_fit();
+        m_DestroyQueue.clear(); m_DestroyQueue.shrink_to_fit();
+        m_OwnershipMap.clear(); m_OwnershipMap.shrink_to_fit();
         m_Keys.Shutdown();
         m_Listeners.Shutdown();
     }

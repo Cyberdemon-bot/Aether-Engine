@@ -47,8 +47,8 @@ namespace Aether {
             m_Pool.Shutdown();
             m_Map.clear(); m_Map.shrink_to_fit();
             m_Temp.clear(); m_Temp.shrink_to_fit();
-            m_SortedSize = 0;
             m_Buffer.clear(); m_Buffer.shrink_to_fit();
+            m_SortedSize = 0;
         }
 
         HandleType Search(std::string_view key) const

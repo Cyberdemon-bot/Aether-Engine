@@ -59,7 +59,7 @@ namespace Aether {
         m_Instances.Shutdown();
         m_Sources.Shutdown();
         m_EventManager.Shutdown();
-        m_DestroyQueue.clear();
+        m_DestroyQueue.clear(); m_DestroyQueue.shrink_to_fit();
     }
 
     void ScriptEngine::OnUpdate(Timestep ts)

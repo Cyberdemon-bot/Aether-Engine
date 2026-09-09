@@ -20,6 +20,7 @@ namespace Aether {
     {
         auto& instance = GetInstance();
         instance.m_Resources.clear();
+        instance.m_Resources.shrink_to_fit();
     }
 
     void ResourceManager::Unload(Handle<Resource> handle)

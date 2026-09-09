@@ -37,8 +37,8 @@ namespace Aether {
         for (std::thread& worker : m_Workers)
             if (worker.joinable()) worker.join();
         
-        m_Workers.clear();
-        m_Queues.clear();
+        m_Workers.clear(); m_Workers.shrink_to_fit();
+        m_Queues.clear(); m_Queues.shrink_to_fit();
         m_ActiveJobCount.store(0);
 
         {

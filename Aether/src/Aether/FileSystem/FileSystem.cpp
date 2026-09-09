@@ -14,7 +14,7 @@ namespace Aether {
     void FileSystem::Shutdown()
     {
         m_Registry.Shutdown();
-        m_Mounts.clear();
+        m_Mounts.clear(); m_Mounts.shrink_to_fit();
         m_Table.Loop([](Entry& entry)
         {
             if (entry.provider) entry.provider->Free(entry.data);
