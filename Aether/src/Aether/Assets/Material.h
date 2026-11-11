@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "Aether/Assets/Asset.h"
 #include "Aether/Container/Handle.h"
 #include "Aether/Renderer/Resource.h"

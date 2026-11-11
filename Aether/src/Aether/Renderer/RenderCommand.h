@@ -1,4 +1,6 @@
 #pragma once
+
+#include "Aether/Core/Base.h"
 #include "Aether/Renderer/RendererAPI.h"
 
 namespace Aether {

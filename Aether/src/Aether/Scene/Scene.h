@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include <entt/entt.hpp>
 #include <string_view>
 #include <cstdint>

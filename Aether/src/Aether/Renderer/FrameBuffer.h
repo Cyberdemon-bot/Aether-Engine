@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include <vector>
 #include "Aether/Renderer/Texture.h"
 #include "Aether/Renderer/ResourceManager.h"

@@ -1,5 +1,7 @@
 #pragma once 
 
+#include <cstdint>
+
 namespace Aether {
     template<typename Tag>
     struct Handle

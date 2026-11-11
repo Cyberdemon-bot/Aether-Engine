@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Container/Handle.h"
+
 #include <span>
 #include <array>
 #include <cstddef>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include <vector>
 #include "Aether/Scene/TComponentInfo.h"
 #include "Aether/Container/Handle.h"

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include <string>
 
 namespace Aether {

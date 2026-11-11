@@ -1,9 +1,15 @@
 #pragma once
 
+#include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <chrono>
 #include <thread>
+#include <string>
 #include <string_view>
+#include <vector>
+#include <tuple>
+#include <utility>
 #include <type_traits>
 
 #ifdef _WIN32

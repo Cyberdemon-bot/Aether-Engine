@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include "Aether/Renderer/VertexArray.h"
 #include "OpenGLBase.h"
 

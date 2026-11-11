@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include "Aether/Renderer/StorageBuffer.h"
 #include "Platform/OpenGL/OpenGLBase.h"
 

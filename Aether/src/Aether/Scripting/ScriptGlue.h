@@ -1,5 +1,9 @@
 #pragma once
 
+#include "Aether/Core/Log.h"
+
+#include "Aether/Container/Handle.h"
+
 #include "Aether/Core/Base.h"
 #include "Aether/Events/Event.h"
 #include "Aether/Scene/Component.h"

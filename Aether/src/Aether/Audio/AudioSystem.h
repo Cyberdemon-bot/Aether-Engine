@@ -1,5 +1,9 @@
 #pragma once
 
+#include "Aether/Container/Handle.h"
+
+#include "Aether/Core/Base.h"
+
 #include "Aether/Audio/AudioAPI.h"
 
 namespace Aether {

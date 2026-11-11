@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Container/Handle.h"
+
 #include <glm/glm.hpp>
 #include <string_view>
 #include "Aether/Core/Base.h"

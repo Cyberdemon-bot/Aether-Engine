@@ -1,5 +1,9 @@
 #pragma once
 
+#include <string>
+
+#include "Aether/Core/Base.h"
+
 #include "glm/glm.hpp"
 #include "Aether/Renderer/Resource.h"
 

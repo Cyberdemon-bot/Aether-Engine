@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "Aether/Events/Event.h"
 #include <sstream>
 

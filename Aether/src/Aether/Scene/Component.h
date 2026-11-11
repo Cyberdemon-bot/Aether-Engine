@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Container/Handle.h"
+
 #include "Aether/Core/Base.h"
 #include "Aether/Core/UUID.h"
 #include "Aether/Core/Delegate.h"

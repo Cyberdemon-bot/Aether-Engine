@@ -4,6 +4,9 @@
 #include "Aether/Renderer/Resource.h"
 #include "Aether/Core/Assert.h"
 
+#include <cstdint>
+#include <cstddef>
+#include <string>
 #include <vector>
 #include <initializer_list>
 

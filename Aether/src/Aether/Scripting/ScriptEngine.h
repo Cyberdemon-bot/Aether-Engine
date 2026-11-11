@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include <string>
 #include <type_traits>
 #include <string_view>

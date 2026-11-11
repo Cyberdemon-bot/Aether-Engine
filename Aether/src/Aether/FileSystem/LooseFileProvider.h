@@ -1,5 +1,11 @@
 #pragma once
 
+#include <string>
+#include <vector>
+#include <string_view>
+
+#include "Aether/Core/Base.h"
+
 #include "Aether/FileSystem/FileProvider.h"
 
 namespace Aether {

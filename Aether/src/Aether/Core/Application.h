@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Aether/Core/Base.h"
+
 #include "Aether/Core/Log.h"
 #include "Aether/Core/Window.h"
 #include "Aether/Core/LayerStack.h"
