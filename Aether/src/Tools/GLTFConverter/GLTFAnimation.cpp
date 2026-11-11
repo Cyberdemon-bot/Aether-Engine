@@ -13,6 +13,7 @@ namespace Aether {
     {
         result.SkeletonJoints.resize(gltf->skins_count);
         result.SkeletonIBMs.resize(gltf->skins_count);
+        result.SkinJointRemap.resize(gltf->skins_count);
         result.AppendKind<ASkeletonCreateInfo>(AssetType::Skeleton, gltf->skins_count, [&](size_t index)
         {
             const cgltf_skin* skin = &gltf->skins[index];
@@ -23,16 +24,19 @@ namespace Aether {
 
             auto& joints = result.SkeletonJoints[index]; joints.resize(skin->joints_count);
             auto& ibms = result.SkeletonIBMs[index];
+            auto& remap = result.SkinJointRemap[index]; remap.resize(skin->joints_count);
 
             std::unordered_map<cgltf_node*, int16_t> nodeMap;
             for (size_t i = 0; i < skin->joints_count; i++)
                 nodeMap[skin->joints[i]] = (int16_t)i;
 
+            std::vector<glm::mat4> rawIBMs;
             if (skin->inverse_bind_matrices)
-                GLTFUtils::ReadAccessorFloatToMat4(skin->inverse_bind_matrices, ibms);
+                GLTFUtils::ReadAccessorFloatToMat4(skin->inverse_bind_matrices, rawIBMs);
             else
-                ibms.resize(skin->joints_count, glm::mat4(1.0f));
+                rawIBMs.resize(skin->joints_count, glm::mat4(1.0f));
 
+            std::vector<SkeletonCreateInfo::Joint> rawJoints(skin->joints_count);
             for (size_t jointIdx = 0; jointIdx < skin->joints_count; jointIdx++)
             {
                 cgltf_node* jointNode = skin->joints[jointIdx];
@@ -60,8 +64,52 @@ namespace Aether {
                     ? glm::vec3(jointNode->scale[0], jointNode->scale[1], jointNode->scale[2])
                     : glm::vec3(1.0f);
 
-                joints[jointIdx] = joint;
+                rawJoints[jointIdx] = joint;
             }
+
+            std::vector<std::vector<int>> children(skin->joints_count);
+            std::vector<int> roots;
+            for (size_t i = 0; i < skin->joints_count; i++)
+            {
+                if (rawJoints[i].ParentIndex == -1)
+                    roots.push_back((int)i);
+                else if (rawJoints[i].ParentIndex >= 0 && (size_t)rawJoints[i].ParentIndex < skin->joints_count)
+                    children[rawJoints[i].ParentIndex].push_back((int)i);
+            }
+
+            std::vector<int> gltfToDfs(skin->joints_count, -1);
+            std::vector<int> dfsToGltf;
+            dfsToGltf.reserve(skin->joints_count);
+
+            std::function<void(int)> dfs = [&](int u)
+            {
+                gltfToDfs[u] = (int)dfsToGltf.size();
+                dfsToGltf.push_back(u);
+                for (int v : children[u])
+                    dfs(v);
+            };
+
+            for (int r : roots)
+                dfs(r);
+
+            for (size_t i = 0; i < skin->joints_count; i++)
+            {
+                if (gltfToDfs[i] == -1)
+                    dfs((int)i);
+            }
+
+            ibms.resize(skin->joints_count);
+            for (size_t newIdx = 0; newIdx < skin->joints_count; newIdx++)
+            {
+                int oldIdx = dfsToGltf[newIdx];
+                SkeletonCreateInfo::Joint j = rawJoints[oldIdx];
+                j.ParentIndex = (j.ParentIndex != -1) ? gltfToDfs[j.ParentIndex] : -1;
+                joints[newIdx] = j;
+                ibms[newIdx] = rawIBMs[oldIdx];
+            }
+
+            for (size_t oldIdx = 0; oldIdx < skin->joints_count; oldIdx++)
+                remap[oldIdx] = (uint32_t)gltfToDfs[oldIdx];
 
             skelInfo.data.Joints = std::span(joints);
             skelInfo.data.IBM = std::span(ibms);
@@ -112,6 +160,11 @@ namespace Aether {
 
                 int skeletonIdx = it->second.skeletonIdx;
                 int jointIndex = it->second.jointIdx;
+                if (skeletonIdx >= 0 && skeletonIdx < (int)result.SkinJointRemap.size())
+                {
+                    if (jointIndex >= 0 && jointIndex < (int)result.SkinJointRemap[skeletonIdx].size())
+                        jointIndex = (int)result.SkinJointRemap[skeletonIdx][jointIndex];
+                }
 
                 ClipCreateInfo::Track& track = skeletonTracks[skeletonIdx][channel->target_node];
                 track.JointIndex = jointIndex;

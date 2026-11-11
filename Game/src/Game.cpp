@@ -86,7 +86,7 @@ void Game::Attach()
     Aether::FramebufferSpec sceneFbSpec;
     sceneFbSpec.Width       = window.GetWidth();
     sceneFbSpec.Height      = window.GetHeight();
-    sceneFbSpec.Attachments = { Aether::ImageFormat::RGBA8, Aether::ImageFormat::DEPTH24STENCIL8 };
+    sceneFbSpec.Attachments = { Aether::ImageFormat::RGBA16F, Aether::ImageFormat::DEPTH24STENCIL8 };
 
     m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
     m_MainShader->Bind();

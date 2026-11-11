@@ -17,8 +17,8 @@ namespace Aether {
 		glm::vec3 color     = glm::vec3(1.0f);
 		float intensity     = 1.0f;
 		float range         = 10.0f;
-		float innerCone     = 30.0f;
-		float outerCone     = 45.0f;
+		float innerCone     = 0.5235987756f; // 30.0f deg in radians
+		float outerCone     = 0.7853981634f; // 45.0f deg in radians
 		bool  castShadows   = false;
 	};
 

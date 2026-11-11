@@ -219,6 +219,23 @@ namespace Aether {
         aimJob.joint_correction = &correction;
 
         if (!aimJob.Run()) return;
+
+        if (spec.AngleLimit > 0.0f)
+        {
+            float qArr[4];
+            ozz::math::StorePtrU(correction.xyzw, qArr);
+            glm::quat q(qArr[3], qArr[0], qArr[1], qArr[2]);
+            if (q.w < 0.0f) q = -q;
+            float halfAngle = std::acos( glm::clamp(q.w, -1.0f, 1.0f) );
+            float angle     = halfAngle * 2.0f;
+            if (angle > spec.AngleLimit && angle > 1e-5f)
+            {
+                float t = spec.AngleLimit / angle;
+                q = glm::normalize(glm::slerp(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), q, t));
+                correction.xyzw = ozz::math::simd_float4::Load(q.x, q.y, q.z, q.w);
+            }
+        }
+
         int soaIdx = spec.Bone / 4;
         int lane   = spec.Bone % 4;
 

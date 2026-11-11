@@ -29,7 +29,11 @@ namespace Aether {
 
         void main()
         {
-            vec4 sceneColor = texture(u_SceneTexture, v_TexCoord);
+            vec4 sceneSample = texture(u_SceneTexture, v_TexCoord);
+            vec3 mapped = max(sceneSample.rgb, vec3(0.0));
+            mapped = mapped / (mapped + vec3(1.0));
+            mapped = pow(mapped, vec3(1.0 / 2.2));
+            vec4 sceneColor = vec4(clamp(mapped, 0.0, 1.0), sceneSample.a);
 
             if (u_HasLut == 0)
             {
@@ -41,24 +45,21 @@ namespace Aether {
             const float COLORS = SIZE - 1.0; 
             
             vec3 lutCoords = sceneColor.rgb * COLORS;
-            
-            vec3 lutCoords_floor = floor(lutCoords);
-            vec3 lutCoords_fract = fract(lutCoords);
-            
-            float blueSlice1 = lutCoords_floor.b;
+            float blueSlice1 = floor(lutCoords.b);
             float blueSlice2 = min(blueSlice1 + 1.0, COLORS);
+            float blueFract  = fract(lutCoords.b);
             
             vec2 uv1, uv2;
-            uv1.x = (blueSlice1 * SIZE + lutCoords_floor.r + 0.5) / (SIZE * SIZE);
-            uv1.y = (lutCoords_floor.g + 0.5) / SIZE;
+            uv1.x = (blueSlice1 * SIZE + lutCoords.r + 0.5) / (SIZE * SIZE);
+            uv1.y = (lutCoords.g + 0.5) / SIZE;
             
-            uv2.x = (blueSlice2 * SIZE + lutCoords_floor.r + 0.5) / (SIZE * SIZE);
-            uv2.y = (lutCoords_floor.g + 0.5) / SIZE;
+            uv2.x = (blueSlice2 * SIZE + lutCoords.r + 0.5) / (SIZE * SIZE);
+            uv2.y = (lutCoords.g + 0.5) / SIZE;
             
             vec4 color1 = texture(u_LutTexture, uv1);
             vec4 color2 = texture(u_LutTexture, uv2);
             
-            vec4 lutColor = mix(color1, color2, lutCoords_fract.b);
+            vec4 lutColor = mix(color1, color2, blueFract);
             color = mix(sceneColor, lutColor, u_LutIntensity);
         }
     )";
@@ -95,7 +96,9 @@ namespace Aether {
 
         void main()
         {
-            color = texture(u_Skybox, v_TexCoords);
+            vec4 texColor = texture(u_Skybox, v_TexCoords);
+            vec3 linearColor = pow(texColor.rgb, vec3(2.2));
+            color = vec4(linearColor / max(vec3(1.001) - linearColor, vec3(0.001)), texColor.a);
         }
     )";
 

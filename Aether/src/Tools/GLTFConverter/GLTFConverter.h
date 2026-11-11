@@ -67,6 +67,7 @@ namespace Aether {
         std::vector<std::vector<SkeletonCreateInfo::Joint>> SkeletonJoints;
         std::vector<std::vector<glm::mat4>> SkeletonIBMs;
         std::vector<std::vector<ClipCreateInfo::Track>> ClipTracks;
+        std::vector<std::vector<uint32_t>> SkinJointRemap;
 
         Ref<SceneHierarchy> Hierarchy;
 

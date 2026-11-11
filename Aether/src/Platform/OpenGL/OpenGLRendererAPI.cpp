@@ -21,10 +21,18 @@ namespace Aether
 
 	void OpenGLRendererAPI::SetDepthFuncEqual(State state)
     {
-		if (state == State::None) glDisable(GL_DEPTH_TEST);
-        if (state == State::EQUAL || state == State::None) glDepthFunc(GL_EQUAL);
-		if (state == State::LEQUAL) glDepthFunc(GL_LEQUAL);
-		if (state == State::ALWAYS) glDepthFunc(GL_ALWAYS);
+		if (state == State::None)
+		{
+			glDisable(GL_DEPTH_TEST);
+			glDepthFunc(GL_EQUAL);
+		}
+		else
+		{
+			glEnable(GL_DEPTH_TEST);
+			if (state == State::EQUAL)  glDepthFunc(GL_EQUAL);
+			if (state == State::LEQUAL) glDepthFunc(GL_LEQUAL);
+			if (state == State::ALWAYS) glDepthFunc(GL_ALWAYS);
+		}
     }
 
 	void OpenGLRendererAPI::SetCullingMode(State state)

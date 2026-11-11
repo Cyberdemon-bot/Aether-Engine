@@ -356,12 +356,12 @@ namespace Aether::UI
 
         if (light.type == LightType::Spot)
         {
-            float innerDeg = glm::degrees(glm::acos(light.innerCone));
-            float outerDeg = glm::degrees(glm::acos(light.outerCone));
+            float innerDeg = glm::degrees(light.innerCone);
+            float outerDeg = glm::degrees(light.outerCone);
             if (SliderFloat("Inner Cone", innerDeg, 1.f, 89.f))
-                light.innerCone = glm::cos(glm::radians(innerDeg));
+                light.innerCone = glm::radians(innerDeg);
             if (SliderFloat("Outer Cone", outerDeg, innerDeg, 90.f))
-                light.outerCone = glm::cos(glm::radians(outerDeg));
+                light.outerCone = glm::radians(outerDeg);
         }
 
         Checkbox("Cast Shadows", light.castShadows);

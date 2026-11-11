@@ -115,10 +115,12 @@ namespace Aether {
 		ResourceManager::GetResource<Shader>(s_RenderData->s_SkyboxShader)->SetUBOSlot("Camera", 0);
 		ResourceManager::GetResource<Shader>(s_RenderData->s_ShadowmapShader)->SetUBOSlot("Lights", 2);
 
+		Aether::TextureCreateInfo shadowDepthSpec(Aether::ImageFormat::DEPTH24STENCIL8);
+		shadowDepthSpec.Mode = Aether::WrapMode::CLAMP_TO_EDGE;
 		Aether::FramebufferSpec shadowFbSpec;
 		shadowFbSpec.Width = 2048;
 		shadowFbSpec.Height = 2048;
-		shadowFbSpec.Attachments = { Aether::ImageFormat::DEPTH24STENCIL8 };
+		shadowFbSpec.Attachments = { shadowDepthSpec };
 
 		for (uint32_t i = 0; i < MAX_SHADOW_CASTER; i++)
 			s_RenderData->s_ShadowFBO[i] = ResourceManager::CreateResource<FrameBuffer>(shadowFbSpec);
@@ -249,7 +251,7 @@ namespace Aether {
 			s_SceneData->lights.lights[i].positionAndType   = glm::vec4(light.position,  (float)light.type);
 			s_SceneData->lights.lights[i].directionAndRange = glm::vec4(light.direction, light.range);
 			s_SceneData->lights.lights[i].colorAndIntensity = glm::vec4(light.color,     light.intensity);
-			s_SceneData->lights.lights[i].coneAngles        = glm::vec4(light.innerCone, light.outerCone, light.castShadows ? 1.0f : 0.0f, 0.0f);
+			s_SceneData->lights.lights[i].coneAngles        = glm::vec4(glm::cos(light.innerCone), glm::cos(light.outerCone), light.castShadows ? 1.0f : 0.0f, 0.0f);
 
 			if (light.castShadows && shadowSlot < MAX_SHADOW_CASTER)
 			{
@@ -258,7 +260,7 @@ namespace Aether {
 				glm::mat4 lightProjection, lightView;
 				if (light.type == LightType::Spot)
 				{
-					float fov = glm::acos(light.outerCone) * 2.0f;
+					float fov = light.outerCone * 2.0f;
 					lightProjection = glm::perspective(fov, 1.0f, 0.1f, light.range);
 					glm::vec3 up  = glm::vec3(0.0f, 1.0f, 0.0f);
 					glm::vec3 dir = glm::normalize(light.direction);
@@ -558,13 +560,14 @@ namespace Aether {
 			boneStorage->Bind(1); pass.Shader->SetInt("u_BoneStorage", 1);
 			offsetStorage->Bind(2); pass.Shader->SetInt("u_OffsetStorage", 2);
 			auto& CommandList = s_SceneData->CommandList;
+			int materialBaseSlot = startSlot;
 
 			for (size_t i = 0; i < CommandList.size(); i++)
 			{
 				auto& command = CommandList[i];
 				AMesh* mesh = command.meshPtr;
 				AMaterial* material = command.matPtr;
-				if (!material || !mesh) continue;
+				if (!mesh || (pass.UsingMaterial && !material)) continue;
 
 				const auto& Submesh = mesh->m_Submeshes[command.subIdx];
 				void* indexOffset = (void*)(Submesh.BaseIndex * sizeof(uint32_t));
@@ -577,12 +580,13 @@ namespace Aether {
 					for (const auto& [name, vec3] : material->m_Vec3Uniforms) shader->SetFloat3(name, vec3);
 					for (const auto& [name, vec4] : material->m_Vec4Uniforms) shader->SetFloat4(name, vec4);
 					for (const auto& [name, mat4] : material->m_Mat4Uniforms) shader->SetMat4(name, mat4);
+					int matSlot = materialBaseSlot;
 					for (const auto& [name, img] : material->m_Images)
 					{
 						auto* asset = asset_manager->GetAsset<AImage>(img); if (!asset) continue;
-						ResourceManager::GetResource<Texture2D>(asset->m_Handle)->Bind(startSlot);
-						shader->SetInt(name, startSlot);
-						startSlot++;
+						ResourceManager::GetResource<Texture2D>(asset->m_Handle)->Bind(matSlot);
+						shader->SetInt(name, matSlot);
+						matSlot++;
 					}
 					currentMaterial = material;
 				}

@@ -73,6 +73,8 @@ namespace Aether {
     {
         if (samples > 1)
         {
+            GLCall(glGenTextures(1, &rendererID));
+            GLCall(glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, rendererID));
             glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, internal_format, width, height, GL_FALSE);
             return;
         }

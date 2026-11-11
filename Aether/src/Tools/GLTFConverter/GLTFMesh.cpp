@@ -94,6 +94,19 @@ namespace Aether {
             meshInfo.id = UUID();
             meshInfo.debugName = mesh->name ? mesh->name : ("Mesh_" + std::to_string(index));
 
+            int rigIdx = -1;
+            if (result.Hierarchy)
+            {
+                for (const auto& node : result.Hierarchy->nodes)
+                {
+                    if (node.meshIdx == (int)index && node.animatorIdx >= 0)
+                    {
+                        rigIdx = node.animatorIdx;
+                        break;
+                    }
+                }
+            }
+
             meshInfo.hasJointData = false;
             for (size_t primIdx = 0; primIdx < mesh->primitives_count; primIdx++)
             {
@@ -208,6 +221,10 @@ namespace Aether {
                 size_t currOffset = vertexBytes.size();
                 if (meshInfo.hasJointData)
                 {
+                    const std::vector<uint32_t>* remap = nullptr;
+                    if (rigIdx >= 0 && rigIdx < (int)result.SkinJointRemap.size())
+                        remap = &result.SkinJointRemap[rigIdx];
+
                     vertexBytes.resize(currOffset + primVertexCount * sizeof(SkinnedVertex));
                     SkinnedVertex* dest = reinterpret_cast<SkinnedVertex*>(vertexBytes.data() + currOffset);
                     for (size_t i = 0; i < primVertexCount; i++)
@@ -216,7 +233,21 @@ namespace Aether {
                         dest[i].Normal = glm::vec3(normals[i*3],   normals[i*3+1],   normals[i*3+2]);
                         dest[i].Tangent = glm::vec4(tangents[i*4],  tangents[i*4+1],  tangents[i*4+2], tangents[i*4+3]);
                         dest[i].TexCoord = glm::vec2(texCoords[i*2], texCoords[i*2+1]);
-                        dest[i].Joints = glm::uvec4(joints[i*4],   joints[i*4+1],   joints[i*4+2],   joints[i*4+3]);
+
+                        uint32_t j0 = joints[i*4 + 0];
+                        uint32_t j1 = joints[i*4 + 1];
+                        uint32_t j2 = joints[i*4 + 2];
+                        uint32_t j3 = joints[i*4 + 3];
+
+                        if (remap)
+                        {
+                            j0 = (j0 < remap->size()) ? (*remap)[j0] : 0;
+                            j1 = (j1 < remap->size()) ? (*remap)[j1] : 0;
+                            j2 = (j2 < remap->size()) ? (*remap)[j2] : 0;
+                            j3 = (j3 < remap->size()) ? (*remap)[j3] : 0;
+                        }
+
+                        dest[i].Joints = glm::uvec4(j0, j1, j2, j3);
                         dest[i].Weights = glm::vec4(weights[i*4],   weights[i*4+1],   weights[i*4+2],  weights[i*4+3]);
                     }
                 }
@@ -263,29 +294,13 @@ namespace Aether {
             meshInfo.Submeshes = std::span<const Submesh>(result.MeshSubmeshData.back());
 
             CalculateStaticBounds(meshInfo);
-            if (meshInfo.hasJointData)
+            if (meshInfo.hasJointData && rigIdx >= 0)
             {
-                int rigIdx = -1;
-                if (result.Hierarchy)
+                if (const auto* skel = result.GetAt<ASkeletonCreateInfo>(AssetType::Skeleton, rigIdx))
                 {
-                    for (const auto& node : result.Hierarchy->nodes)
-                    {
-                        if (node.meshIdx == (int)index && node.animatorIdx >= 0)
-                        {
-                            rigIdx = node.animatorIdx;
-                            break;
-                        }
-                    }
-                }
-
-                if (rigIdx >= 0)
-                {
-                    if (const auto* skel = result.GetAt<ASkeletonCreateInfo>(AssetType::Skeleton, rigIdx))
-                    {
-                        std::vector<glm::mat4> poseMats(skel->data.Joints.size());
-                        CalcRestPoseMatrices(skel->data, poseMats.data(), poseMats.size());
-                        CalculateSkinnedBounds(meshInfo, poseMats);
-                    }
+                    std::vector<glm::mat4> poseMats(skel->data.Joints.size());
+                    CalcRestPoseMatrices(skel->data, poseMats.data(), poseMats.size());
+                    CalculateSkinnedBounds(meshInfo, poseMats);
                 }
             }
 

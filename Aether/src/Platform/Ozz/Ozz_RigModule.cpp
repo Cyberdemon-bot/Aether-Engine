@@ -398,20 +398,18 @@ namespace Aether {
         using namespace ozz::animation::offline;
 
         RawSkeleton raw;
-        int root = -1;
-        for (int i = 0; i < data.Joints.size(); i++)
+        std::vector<int> roots;
+        for (int i = 0; i < (int)data.Joints.size(); i++)
         {
             if (data.Joints[i].ParentIndex == -1)
-            {
-                root = i;
-                break;
-            }
+                roots.push_back(i);
         }
 
-        if (root == -1) return nullptr;
+        if (roots.empty()) return nullptr;
 
-        raw.roots.resize(1);
-        BuildHierarchy(data, root, raw.roots[0]);
+        raw.roots.resize(roots.size());
+        for (size_t r = 0; r < roots.size(); r++)
+            BuildHierarchy(data, roots[r], raw.roots[r]);
 
         if (!raw.Validate())
         {

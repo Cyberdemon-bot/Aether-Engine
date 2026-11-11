@@ -70,9 +70,10 @@ vec3 ReconstructWorldPos(vec2 uv, float depth)
 float SampleShadowVol(int slot, vec3 worldPos, mat4 lightSpaceMatrix)
 {
     vec4 lsp  = lightSpaceMatrix * vec4(worldPos, 1.0);
+    if (lsp.w <= 0.0)                          return 1.0;
     vec3 proj = lsp.xyz / lsp.w;
     proj      = proj * 0.5 + 0.5;
-    if (proj.z > 1.0)                          return 1.0;
+    if (proj.z < 0.0 || proj.z > 1.0)          return 1.0;
     if (any(lessThan(proj.xy, vec2(0.0))))     return 1.0;
     if (any(greaterThan(proj.xy, vec2(1.0))))  return 1.0;
 

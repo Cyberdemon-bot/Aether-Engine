@@ -34,7 +34,7 @@ namespace Aether {
 
     OpenGLVertexArray::~OpenGLVertexArray()
     {
-        GLCall(glDeleteBuffers(1, &m_RendererID));
+        GLCall(glDeleteVertexArrays(1, &m_RendererID));
     }
 
     void OpenGLVertexArray::Bind() const 

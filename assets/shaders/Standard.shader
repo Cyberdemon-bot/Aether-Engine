@@ -70,7 +70,7 @@ void main()
         localPos = skinMatrix * localPos;
         mat3 skinRotation = transpose(inverse(mat3(skinMatrix)));
         localNormal = normalize(skinRotation * localNormal);
-        localTangent = normalize(skinRotation * localTangent);
+        localTangent = normalize(mat3(skinMatrix) * localTangent);
     }
 
     mat4 modelMatrix = a_InstanceModel;
@@ -78,7 +78,7 @@ void main()
     v_WorldPos = worldPos.xyz;
 
     mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));
-    vec3 T = normalize(normalMatrix * localTangent);
+    vec3 T = normalize(mat3(modelMatrix) * localTangent);
     vec3 N = normalize(normalMatrix * localNormal);
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T) * a_Tangent.w;
@@ -181,9 +181,10 @@ const vec3 F0_DIELECTRIC = vec3(0.04);
 // Sample the correct shadow map for the given slot index (0-3).
 float SampleShadowMap(int slot, vec4 lightSpacePos, vec3 normal, vec3 lightDir)
 {
+    if (lightSpacePos.w <= 0.0) return 1.0;
     vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords = projCoords * 0.5 + 0.5;
-    if (projCoords.z > 1.0) return 1.0;
+    if (projCoords.z < 0.0 || projCoords.z > 1.0) return 1.0;
     if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 1.0;
 
@@ -313,9 +314,6 @@ void main()
     float fragDist  = length(u_Position - v_WorldPos);
     float fogFactor = ComputeFogFactor(fragDist);
     color           = mix(u_FogColor, color, fogFactor);
-
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0 / 2.2));
 
     FragColor = vec4(color, 1.0);
 }

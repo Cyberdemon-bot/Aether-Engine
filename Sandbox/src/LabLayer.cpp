@@ -86,7 +86,7 @@ void LabLayer::Attach()
     Aether::FramebufferSpec mainSpec;
     mainSpec.Width       = window.GetWidth();
     mainSpec.Height      = window.GetHeight();
-    mainSpec.Attachments = { Aether::ImageFormat::RGBA8, Aether::ImageFormat::DEPTH24STENCIL8 };
+    mainSpec.Attachments = { Aether::ImageFormat::RGBA16F, Aether::ImageFormat::DEPTH24STENCIL8 };
     m_MainFbo = Aether::FrameBuffer::Create(mainSpec);
 
     m_MainShader = Aether::Shader::Create("assets/shaders/Standard.shader");
@@ -109,7 +109,7 @@ void LabLayer::Attach()
     Aether::FramebufferSpec volSpec;
     volSpec.Width       = mainSpec.Width;
     volSpec.Height      = mainSpec.Height;
-    volSpec.Attachments = { Aether::ImageFormat::RGBA8, Aether::ImageFormat::DEPTH24STENCIL8 };
+    volSpec.Attachments = { Aether::ImageFormat::RGBA16F, Aether::ImageFormat::DEPTH24STENCIL8 };
     m_VolFbo = Aether::FrameBuffer::Create(volSpec);
 
     m_VolShader = Aether::Shader::Create("assets/shaders/Volumetric.shader");
@@ -146,8 +146,8 @@ void LabLayer::Attach()
     spotLight.color       = glm::vec3(1.0f);
     spotLight.intensity   = 3.0f;
     spotLight.range       = 100.0f;
-    spotLight.innerCone   = glm::cos(glm::radians(12.5f));
-    spotLight.outerCone   = glm::cos(glm::radians(25.0f));
+    spotLight.innerCone   = glm::radians(12.5f);
+    spotLight.outerCone   = glm::radians(25.0f);
     spotLight.castShadows = true;
 
     m_Scene.Init();
