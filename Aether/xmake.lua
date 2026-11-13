@@ -1,5 +1,7 @@
 includes("packages/*.lua")
 
+add_requireconfs("*", { system = false })
+
 add_requires("spdlog", "fmt", "glm", "entt", "yaml-cpp", "glfw")
 add_requires("imgui v1.89.9-docking", {configs = {glfw_opengl3 = true}})
 add_requires("imguizmo", {configs = {imgui = "imgui"}})
